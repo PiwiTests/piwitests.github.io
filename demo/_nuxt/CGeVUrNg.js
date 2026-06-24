@@ -1,0 +1,1 @@
+const a="piwi-demo-run-events";let e=null;const n=new Set;function l(s){return e||(e=new BroadcastChannel(a),e.onmessage=t=>{for(const o of n)o(t.data)}),n.add(s),()=>{n.delete(s),n.size===0&&e&&(e.close(),e=null)}}export{l as s};
