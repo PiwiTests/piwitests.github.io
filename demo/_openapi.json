@@ -1,0 +1,23 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Piwi Dashboard API",
+    "version": "1.0.0",
+    "description": "REST API for storing and querying Playwright test results, traces, failure diagnoses, and project statistics."
+  },
+  "paths": {
+    "/api/_nuxt_icon/{collection}": {
+      "get": {
+        "tags": [
+          "API Routes"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    }
+  }
+}
