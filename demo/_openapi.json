@@ -5,5 +5,29 @@
     "version": "1.0.0",
     "description": "REST API for storing and querying Playwright test results, traces, failure diagnoses, and project statistics."
   },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "pd_<64-hex>",
+        "description": "API key authentication (Bearer token with pd_ prefix). Obtain an API key via POST /api/users/:id/api-keys."
+      },
+      "sessionCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "nuxt_session",
+        "description": "Session cookie authentication. Set via POST /api/auth/login."
+      }
+    }
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    },
+    {
+      "sessionCookie": []
+    }
+  ],
   "paths": {}
 }
