@@ -1,0 +1,1 @@
+svg:has(.timeline-bar-group:hover) .timeline-bar-group:not(:hover) .timeline-bar-shape{opacity:.4}
