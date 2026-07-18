@@ -745,6 +745,27 @@ CREATE INDEX `idx_trc_aria_payload` ON `test_runs_cases` (`aria_snapshot_payload
 CREATE INDEX `idx_trc_source_payload` ON `test_runs_cases` (`test_source_payload_id`) WHERE test_source_payload_id IS NOT NULL;
 CREATE INDEX `idx_trc_frames_payload` ON `test_runs_cases` (`test_source_frames_payload_id`) WHERE test_source_frames_payload_id IS NOT NULL;
 
+CREATE TABLE `markers` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`project_id` integer NOT NULL,
+	`occurred_at` integer NOT NULL,
+	`label` text NOT NULL,
+	`description` text,
+	`category` text DEFAULT 'event' NOT NULL,
+	`environment` text,
+	`source` text DEFAULT 'manual' NOT NULL,
+	`run_id` integer,
+	`created_at` integer NOT NULL,
+	`updated_at` integer NOT NULL,
+	FOREIGN KEY (`project_id`) REFERENCES `projects`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`run_id`) REFERENCES `test_runs`(`id`) ON UPDATE no action ON DELETE set null
+);
+
+CREATE INDEX `idx_markers_project_id` ON `markers` (`project_id`);
+CREATE INDEX `idx_markers_project_occurred` ON `markers` (`project_id`,`occurred_at`);
+
+CREATE INDEX `idx_markers_run_id` ON `markers` (`run_id`);
+
 BEGIN TRANSACTION;
 
 -- Tags
@@ -782,6 +803,11 @@ INSERT INTO project_tags (project_id, tag_id) VALUES (3, 4);
 INSERT INTO project_tags (project_id, tag_id) VALUES (4, 2);
 INSERT INTO project_tags (project_id, tag_id) VALUES (5, 2);
 INSERT INTO project_tags (project_id, tag_id) VALUES (5, 3);
+
+-- Timeline markers
+INSERT INTO markers (id, project_id, occurred_at, label, description, category, environment, source, run_id, created_at, updated_at) VALUES (1, 1, 1745323200, 'Deployed checkout v2.4.0', 'Rolled out the new payment provider integration.', 'deploy', NULL, 'manual', NULL, 1745323200, 1745323200);
+INSERT INTO markers (id, project_id, occurred_at, label, description, category, environment, source, run_id, created_at, updated_at) VALUES (2, 1, 1745139600, 'Enabled strict CSP in production', 'Tightened the content-security-policy header on the prod storefront.', 'config', 'production', 'manual', NULL, 1745139600, 1745139600);
+INSERT INTO markers (id, project_id, occurred_at, label, description, category, environment, source, run_id, created_at, updated_at) VALUES (3, 1, 1745519400, 'Upstream payment API outage', 'Third-party sandbox was down for ~40 min; expect failed checkouts.', 'incident', NULL, 'manual', NULL, 1745519400, 1745519400);
 
 -- Test suites
 INSERT INTO test_suites (id, project_id, file_path, suite_path, mode, annotations, created_at, updated_at) VALUES (1, 1, 'tests/checkout/checkout.spec.ts', 'Checkout', 'parallel', '[]', 1740787200, 1740787200);
@@ -7246,6 +7272,7 @@ CREATE TEMP TABLE _rebase AS SELECT (CAST(strftime('%s', 'now') AS INTEGER) - 17
 -- Second-precision timestamp columns
 UPDATE tags SET created_at = created_at + (SELECT delta_sec FROM _rebase), updated_at = updated_at + (SELECT delta_sec FROM _rebase);
 UPDATE projects SET created_at = created_at + (SELECT delta_sec FROM _rebase), updated_at = updated_at + (SELECT delta_sec FROM _rebase);
+UPDATE markers SET occurred_at = occurred_at + (SELECT delta_sec FROM _rebase), created_at = created_at + (SELECT delta_sec FROM _rebase), updated_at = updated_at + (SELECT delta_sec FROM _rebase);
 UPDATE users SET created_at = created_at + (SELECT delta_sec FROM _rebase), updated_at = updated_at + (SELECT delta_sec FROM _rebase);
 UPDATE test_suites SET created_at = created_at + (SELECT delta_sec FROM _rebase), updated_at = updated_at + (SELECT delta_sec FROM _rebase);
 UPDATE test_cases SET created_at = created_at + (SELECT delta_sec FROM _rebase), updated_at = updated_at + (SELECT delta_sec FROM _rebase);
