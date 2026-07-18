@@ -4157,9 +4157,9 @@ INSERT INTO files (id, test_runs_case_id, test_run_id, type, subtype, label, pat
 INSERT INTO files (id, test_runs_case_id, test_run_id, type, subtype, label, path, size, metadata, created_at) VALUES (38, 37, 4, 'visual-diff', 'overlay', 'Visual diff vs last pass', 'demo/screenshots/visual-diff-checkout.png', 12198, '{"changedPixels":19533,"changedPixelRatio":0.0685,"width":460,"height":620,"dimensionMismatch":false,"baselineTestRunsCaseId":229,"baselineRunId":20,"failingPath":"demo/screenshots/checkout-error-banner.png","baselinePath":"demo/screenshots/checkout-order-confirmed.png"}', 1745474572);
 
 -- Entity links (may reference test_runs_cases, so must come after)
-INSERT INTO entity_links (id, test_run_id, test_runs_case_id, test_case_id, url, provider, key, title, status_text, status_color, metadata, unfurled_at, created_by, created_at, updated_at) VALUES (1, 1, NULL, NULL, 'https://example.atlassian.net/browse/PROJ-123', 'jira', 'PROJ-123', 'Checkout flow improvements', NULL, NULL, NULL, NULL, NULL, 1745569800, 1745569800);
-INSERT INTO entity_links (id, test_run_id, test_runs_case_id, test_case_id, url, provider, key, title, status_text, status_color, metadata, unfurled_at, created_by, created_at, updated_at) VALUES (2, NULL, NULL, 1, 'https://github.com/example/shop-web/issues/456', 'github-issue', '#456', 'Fix credit card checkout timeout', 'open', 'neutral', NULL, NULL, NULL, 1745488800, 1745488800);
-INSERT INTO entity_links (id, test_run_id, test_runs_case_id, test_case_id, url, provider, key, title, status_text, status_color, metadata, unfurled_at, created_by, created_at, updated_at) VALUES (3, NULL, 5, NULL, 'https://linear.app/team/issue/TEAM-789/paypal-issue', 'linear', 'TEAM-789', 'PayPal sandbox timeout investigation', NULL, NULL, NULL, NULL, NULL, 1745571600, 1745571600);
+INSERT INTO entity_links (id, test_run_id, test_runs_case_id, test_case_id, url, provider, key, title, status_text, status_color, metadata, unfurled_at, created_by, created_at, updated_at) VALUES (1, 1, NULL, NULL, 'https://example.atlassian.net/browse/PROJ-123', 'jira', 'PROJ-123', 'Checkout flow improvements', NULL, NULL, NULL, NULL, NULL, 1745569800000, 1745569800000);
+INSERT INTO entity_links (id, test_run_id, test_runs_case_id, test_case_id, url, provider, key, title, status_text, status_color, metadata, unfurled_at, created_by, created_at, updated_at) VALUES (2, NULL, NULL, 1, 'https://github.com/example/shop-web/issues/456', 'github-issue', '#456', 'Fix credit card checkout timeout', 'open', 'neutral', NULL, NULL, NULL, 1745488800000, 1745488800000);
+INSERT INTO entity_links (id, test_run_id, test_runs_case_id, test_case_id, url, provider, key, title, status_text, status_color, metadata, unfurled_at, created_by, created_at, updated_at) VALUES (3, NULL, 5, NULL, 'https://linear.app/team/issue/TEAM-789/paypal-issue', 'linear', 'TEAM-789', 'PayPal sandbox timeout investigation', NULL, NULL, NULL, NULL, NULL, 1745571600000, 1745571600000);
 
 -- Network requests (child table, references test_runs_cases)
 INSERT INTO network_requests (id, test_runs_case_id, test_run_id, method, url, normalized_url, status, duration, resource_type, content_type, server_logs) VALUES (1, 1, 1, 'GET', 'https://shop.example.com/api/cart', 'https://shop.example.com/api/cart', 200, 76, 'fetch', 'application/json', NULL);
@@ -7239,5 +7239,33 @@ INSERT INTO locator_snapshots (id, test_case_id, location, used_method, used_arg
 INSERT INTO locator_snapshots (id, test_case_id, location, used_method, used_args, used_args_fp, element_tag, element_attrs, element_text, alternatives, last_seen_run_id, last_seen_at) VALUES (12, 11, 'tests/checkout/address.spec.ts:7:10', 'getByLabel', '["Street address"]', 'ec0b298c7701ebf7808bb120d39b3e22247c3837c2fdd9528717bc2f904a65e3', 'input', '{"type":"text","id":"street-address","data-testid":"street-address","placeholder":"123 Main St","autocomplete":"street-address","center":{"x":640,"y":340}}', '', '[{"locator":"getByTestId(''street-address'')","method":"getByTestId","args":{"testId":"street-address"},"score":100},{"locator":"getByLabel(''Street address'')","method":"getByLabel","args":{"label":"Street address"},"score":85},{"locator":"getByPlaceholder(''123 Main St'')","method":"getByPlaceholder","args":{"placeholder":"123 Main St"},"score":80},{"locator":"locator(''#street-address'')","method":"locator","args":{"selector":"#street-address"},"score":65}]', 20, 1744973171788);
 INSERT INTO locator_snapshots (id, test_case_id, location, used_method, used_args, used_args_fp, element_tag, element_attrs, element_text, alternatives, last_seen_run_id, last_seen_at) VALUES (13, 11, 'tests/checkout/address.spec.ts:9:14', 'getByRole', '["button",{"name":"Save address"}]', 'b7323473d666d3ee2e09534c6af7df40bc01522989c75ce5fae013ec43afe572', 'button', '{"data-testid":"save-address-btn","class":"btn btn-primary","accessibleName":"Save address","center":{"x":640,"y":540}}', 'Save address', '[{"locator":"getByTestId(''save-address-btn'')","method":"getByTestId","args":{"testId":"save-address-btn"},"score":100},{"locator":"getByRole(''button'', { name: ''Save address'' })","method":"getByRole","args":{"role":"button","name":"Save address"},"score":90},{"locator":"getByText(''Save address'')","method":"getByText","args":{"text":"Save address"},"score":75}]', 20, 1744973171788);
 INSERT INTO locator_snapshots (id, test_case_id, location, used_method, used_args, used_args_fp, element_tag, element_attrs, element_text, alternatives, last_seen_run_id, last_seen_at) VALUES (14, 27, 'tests/ui/button.spec.ts:10:16', 'getByRole', '["button"]', '20caff8e861f1476988eee6b73311ebddc2da9f6ddc3992bbd70919c5ff341e0', 'button', '{"data-testid":"primary-btn","class":"btn btn-primary","accessibleName":"Primary","center":{"x":320,"y":280}}', 'Primary', '[{"locator":"getByTestId(''primary-btn'')","method":"getByTestId","args":{"testId":"primary-btn"},"score":100},{"locator":"getByRole(''button'', { name: ''Primary'' })","method":"getByRole","args":{"role":"button","name":"Primary"},"score":90},{"locator":"getByText(''Primary'')","method":"getByText","args":{"text":"Primary"},"score":75},{"locator":"locator(''.btn-primary'')","method":"locator","args":{"selector":".btn-primary"},"score":30}]', 53, 1745130540000);
+
+-- ── Rebase every timestamp to load time (see generator for rationale) ──────
+CREATE TEMP TABLE _rebase AS SELECT (CAST(strftime('%s', 'now') AS INTEGER) - 1745572680) AS delta_sec;
+
+-- Second-precision timestamp columns
+UPDATE tags SET created_at = created_at + (SELECT delta_sec FROM _rebase), updated_at = updated_at + (SELECT delta_sec FROM _rebase);
+UPDATE projects SET created_at = created_at + (SELECT delta_sec FROM _rebase), updated_at = updated_at + (SELECT delta_sec FROM _rebase);
+UPDATE users SET created_at = created_at + (SELECT delta_sec FROM _rebase), updated_at = updated_at + (SELECT delta_sec FROM _rebase);
+UPDATE test_suites SET created_at = created_at + (SELECT delta_sec FROM _rebase), updated_at = updated_at + (SELECT delta_sec FROM _rebase);
+UPDATE test_cases SET created_at = created_at + (SELECT delta_sec FROM _rebase), updated_at = updated_at + (SELECT delta_sec FROM _rebase);
+UPDATE test_runs SET start_time = start_time + (SELECT delta_sec FROM _rebase), created_at = created_at + (SELECT delta_sec FROM _rebase), updated_at = updated_at + (SELECT delta_sec FROM _rebase);
+UPDATE files SET created_at = created_at + (SELECT delta_sec FROM _rebase);
+UPDATE failure_clusters SET created_at = created_at + (SELECT delta_sec FROM _rebase), updated_at = updated_at + (SELECT delta_sec FROM _rebase);
+UPDATE failure_diagnoses SET created_at = created_at + (SELECT delta_sec FROM _rebase), updated_at = updated_at + (SELECT delta_sec FROM _rebase);
+UPDATE failure_diagnosis_versions SET created_at = created_at + (SELECT delta_sec FROM _rebase);
+
+-- Millisecond timestamp columns
+UPDATE test_runs_cases SET started_at = started_at + (SELECT delta_sec FROM _rebase) * 1000, created_at = created_at + (SELECT delta_sec FROM _rebase) * 1000;
+UPDATE project_assignments SET created_at = created_at + (SELECT delta_sec FROM _rebase) * 1000;
+UPDATE entity_links SET created_at = created_at + (SELECT delta_sec FROM _rebase) * 1000, updated_at = updated_at + (SELECT delta_sec FROM _rebase) * 1000;
+UPDATE locator_snapshots SET last_seen_at = last_seen_at + (SELECT delta_sec FROM _rebase) * 1000;
+
+-- Millisecond timestamps embedded in JSON columns
+UPDATE test_runs_cases SET step_events = (SELECT json_group_array(json_set(value, '$.startedAt', json_extract(value, '$.startedAt') + (SELECT delta_sec FROM _rebase) * 1000)) FROM json_each(test_runs_cases.step_events)) WHERE step_events IS NOT NULL AND json_valid(step_events);
+UPDATE test_runs_cases SET console_logs = (SELECT json_group_array(json_set(value, '$.timestamp', json_extract(value, '$.timestamp') + (SELECT delta_sec FROM _rebase) * 1000)) FROM json_each(test_runs_cases.console_logs)) WHERE console_logs IS NOT NULL AND json_valid(console_logs);
+UPDATE network_requests SET server_logs = (SELECT json_group_array(json_set(value, '$.timestamp', json_extract(value, '$.timestamp') + (SELECT delta_sec FROM _rebase) * 1000)) FROM json_each(network_requests.server_logs)) WHERE server_logs IS NOT NULL AND json_valid(server_logs);
+
+DROP TABLE _rebase;
 
 COMMIT;
