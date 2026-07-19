@@ -1,1 +1,0 @@
-import{m as e,a9 as r,bU as t}from"./q0nYVd3a.js";function a(o){return e(()=>r(o)?!!t(o)?.closest("form"):!0)}export{a as u};
