@@ -1,0 +1,1 @@
+import{r}from"./SybToJn3.js";function n(i){const o=`piwi-tree-view-${i}`,t=r(!1);try{const e=document.cookie.match(new RegExp(`(?:^|;\\s*)${o}=([^;]*)`));e&&(t.value=e[1]==="true")}catch{}function c(e){t.value=e,document.cookie=`${o}=${e}; path=/; max-age=31536000; sameSite=lax`}return{treeView:t,setTreeView:c}}export{n as u};
