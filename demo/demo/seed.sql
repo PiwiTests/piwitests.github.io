@@ -768,6 +768,8 @@ CREATE INDEX `idx_markers_run_id` ON `markers` (`run_id`);
 
 ALTER TABLE `network_requests` ADD `server_traces` text;
 
+ALTER TABLE `test_runs_cases` ADD `timeout` integer;
+
 BEGIN TRANSACTION;
 
 -- Tags
