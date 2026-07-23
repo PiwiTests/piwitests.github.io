@@ -3676,10 +3676,18 @@ Call log:
       - unexpected value "hidden"
 
     at tests/admin/reports.spec.ts:12:18', 9, 0, 0, 0, 9, 3, '{"projectName":"Chromium","browserName":"chromium","channel":null,"viewport":{"width":1440,"height":900},"deviceScaleFactor":1,"isMobile":false,"hasTouch":false,"locale":"en-US","timezoneId":"UTC","colorScheme":"dark"}', 'Chromium', '[{"type":"fixme","description":"Known issue — see cluster 9"}]', '[{"title":"Sign in","duration":1462,"category":"setup"},{"title":"Navigate to section","duration":975,"category":"navigation"},{"title":"Perform admin action","duration":1624,"category":"action"},{"title":"Assert table state","duration":1137,"category":"assertion"}]', '[{"title":"Before Hooks","category":"hook","startedAt":1745569805272,"duration":200,"status":"passed","location":null},{"title":"fixture: context","category":"fixture","startedAt":1745569805472,"duration":120,"status":"passed","location":null},{"title":"fixture: page","category":"fixture","startedAt":1745569805592,"duration":90,"status":"passed","location":null},{"title":"Wait for load state","category":"wait","startedAt":1745569805682,"duration":520,"status":"passed","location":null},{"title":"Wait for timeout","category":"wait","startedAt":1745569806202,"duration":936,"status":"wasted","location":"tests/admin/reports.spec.ts:9:3"},{"title":"Wait for selector","category":"wait","startedAt":1745569807138,"duration":312,"status":"passed","location":null},{"title":"After Hooks","category":"hook","startedAt":1745569807450,"duration":160,"status":"passed","location":null}]', 936, 'Perform admin action', 1624, '{"navigation":{"url":"https://admin.example.com/dashboard","ttfb":258,"domInteractive":1258,"domContentLoaded":1697,"loadComplete":2491},"paint":{"firstPaint":1029,"firstContentfulPaint":1641},"vitals":{"lcp":3628,"cls":0.1072,"inp":null}}', '{"url":"https://admin.example.com/dashboard","hash":null,"historyState":null,"localStorage":[{"key":"sidebar-collapsed","length":4},{"key":"table-density","length":7}],"sessionStorage":[{"key":"csrf","length":32}],"cookies":[{"name":"admin_session","domain":"admin.example.com","path":"/","httpOnly":true,"secure":true,"sameSite":"Strict"}]}', NULL, '- document:
+  - navigation "Admin":
+    - link "Dashboard"
+    - link "Reports"
+    - link "Users"
   - main:
-    - heading "Monthly report"
+    - heading "Monthly report" [level=1]
+    - button "Toggle theme"
+    - button "Refresh data"
     - img "Revenue chart"
-    - table "Totals"', '     1 | import { test, expect } from ''@playwright/test'';
+    - table "Totals":
+      - row "Month Revenue"
+      - row "June $ 48,120"', '     1 | import { test, expect } from ''@playwright/test'';
      2 | 
      3 | test.describe(''Reports'', () => {
      4 |   test(''renders the revenue chart'', async ({ page }) => {
@@ -3758,10 +3766,18 @@ Call log:
       - unexpected value "hidden"
 
     at tests/admin/reports.spec.ts:12:18', 9, 0, 1, 0, 9, 3, '{"projectName":"Chromium","browserName":"chromium","channel":null,"viewport":{"width":1440,"height":900},"deviceScaleFactor":1,"isMobile":false,"hasTouch":false,"locale":"en-US","timezoneId":"UTC","colorScheme":"dark"}', 'Chromium', '[{"type":"fixme","description":"Known issue — see cluster 9"}]', '[{"title":"Sign in","duration":1772,"category":"setup"},{"title":"Navigate to section","duration":1181,"category":"navigation"},{"title":"Perform admin action","duration":1969,"category":"action"},{"title":"Assert table state","duration":1378,"category":"assertion"}]', '[{"title":"Before Hooks","category":"hook","startedAt":1745539153488,"duration":200,"status":"passed","location":null},{"title":"fixture: context","category":"fixture","startedAt":1745539153688,"duration":120,"status":"passed","location":null},{"title":"fixture: page","category":"fixture","startedAt":1745539153808,"duration":90,"status":"passed","location":null},{"title":"Wait for load state","category":"wait","startedAt":1745539153898,"duration":600,"status":"passed","location":null},{"title":"Wait for timeout","category":"wait","startedAt":1745539154498,"duration":1134,"status":"wasted","location":"tests/admin/reports.spec.ts:9:3"},{"title":"Wait for selector","category":"wait","startedAt":1745539155632,"duration":378,"status":"passed","location":null},{"title":"After Hooks","category":"hook","startedAt":1745539156010,"duration":160,"status":"passed","location":null}]', 1134, 'Perform admin action', 1969, '{"navigation":{"url":"https://admin.example.com/dashboard","ttfb":144,"domInteractive":1951,"domContentLoaded":2130,"loadComplete":3094},"paint":{"firstPaint":988,"firstContentfulPaint":1687},"vitals":{"lcp":3199,"cls":0.0561,"inp":292}}', '{"url":"https://admin.example.com/dashboard","hash":null,"historyState":null,"localStorage":[{"key":"sidebar-collapsed","length":4},{"key":"table-density","length":7}],"sessionStorage":[{"key":"csrf","length":32}],"cookies":[{"name":"admin_session","domain":"admin.example.com","path":"/","httpOnly":true,"secure":true,"sameSite":"Strict"}]}', NULL, '- document:
+  - navigation "Admin":
+    - link "Dashboard"
+    - link "Reports"
+    - link "Users"
   - main:
-    - heading "Monthly report"
+    - heading "Monthly report" [level=1]
+    - button "Toggle theme"
+    - button "Refresh data"
     - img "Revenue chart"
-    - table "Totals"', '     1 | import { test, expect } from ''@playwright/test'';
+    - table "Totals":
+      - row "Month Revenue"
+      - row "June $ 48,120"', '     1 | import { test, expect } from ''@playwright/test'';
      2 | 
      3 | test.describe(''Reports'', () => {
      4 |   test(''renders the revenue chart'', async ({ page }) => {
@@ -7269,6 +7285,7 @@ INSERT INTO locator_snapshots (id, test_case_id, location, used_method, used_arg
 INSERT INTO locator_snapshots (id, test_case_id, location, used_method, used_args, used_args_fp, element_tag, element_attrs, element_text, alternatives, last_seen_run_id, last_seen_at) VALUES (12, 11, 'tests/checkout/address.spec.ts:7:10', 'getByLabel', '["Street address"]', 'ec0b298c7701ebf7808bb120d39b3e22247c3837c2fdd9528717bc2f904a65e3', 'input', '{"type":"text","id":"street-address","data-testid":"street-address","placeholder":"123 Main St","autocomplete":"street-address","center":{"x":640,"y":340}}', '', '[{"locator":"getByTestId(''street-address'')","method":"getByTestId","args":{"testId":"street-address"},"score":100},{"locator":"getByLabel(''Street address'')","method":"getByLabel","args":{"label":"Street address"},"score":85},{"locator":"getByPlaceholder(''123 Main St'')","method":"getByPlaceholder","args":{"placeholder":"123 Main St"},"score":80},{"locator":"locator(''#street-address'')","method":"locator","args":{"selector":"#street-address"},"score":65}]', 20, 1744973171788);
 INSERT INTO locator_snapshots (id, test_case_id, location, used_method, used_args, used_args_fp, element_tag, element_attrs, element_text, alternatives, last_seen_run_id, last_seen_at) VALUES (13, 11, 'tests/checkout/address.spec.ts:9:14', 'getByRole', '["button",{"name":"Save address"}]', 'b7323473d666d3ee2e09534c6af7df40bc01522989c75ce5fae013ec43afe572', 'button', '{"data-testid":"save-address-btn","class":"btn btn-primary","accessibleName":"Save address","center":{"x":640,"y":540}}', 'Save address', '[{"locator":"getByTestId(''save-address-btn'')","method":"getByTestId","args":{"testId":"save-address-btn"},"score":100},{"locator":"getByRole(''button'', { name: ''Save address'' })","method":"getByRole","args":{"role":"button","name":"Save address"},"score":90},{"locator":"getByText(''Save address'')","method":"getByText","args":{"text":"Save address"},"score":75}]', 20, 1744973171788);
 INSERT INTO locator_snapshots (id, test_case_id, location, used_method, used_args, used_args_fp, element_tag, element_attrs, element_text, alternatives, last_seen_run_id, last_seen_at) VALUES (14, 27, 'tests/ui/button.spec.ts:10:16', 'getByRole', '["button"]', '20caff8e861f1476988eee6b73311ebddc2da9f6ddc3992bbd70919c5ff341e0', 'button', '{"data-testid":"primary-btn","class":"btn btn-primary","accessibleName":"Primary","center":{"x":320,"y":280}}', 'Primary', '[{"locator":"getByTestId(''primary-btn'')","method":"getByTestId","args":{"testId":"primary-btn"},"score":100},{"locator":"getByRole(''button'', { name: ''Primary'' })","method":"getByRole","args":{"role":"button","name":"Primary"},"score":90},{"locator":"getByText(''Primary'')","method":"getByText","args":{"text":"Primary"},"score":75},{"locator":"locator(''.btn-primary'')","method":"locator","args":{"selector":".btn-primary"},"score":30}]', 53, 1745130540000);
+INSERT INTO locator_snapshots (id, test_case_id, location, used_method, used_args, used_args_fp, element_tag, element_attrs, element_text, alternatives, last_seen_run_id, last_seen_at) VALUES (15, 50, 'tests/admin/reports.spec.ts:12:18', 'getByRole', '["button",{"name":"Export CSV"}]', '5bf23ce6331cb33c5e132cb54cbbd744354a2a6b06b666c33560e074e58f8b3a', 'button', '{"class":"export-btn","accessibleName":"Export CSV","center":{"x":1180,"y":96},"rolePosition":{"role":"button","count":3,"index":2}}', 'Export CSV', '[{"locator":"getByRole(''button'', { name: ''Export CSV'' })","method":"getByRole","args":{"role":"button","name":"Export CSV"},"score":90},{"locator":"getByText(''Export CSV'')","method":"getByText","args":{"text":"Export CSV"},"score":75},{"locator":"locator(''.export-btn'')","method":"locator","args":{"selector":".export-btn"},"score":40}]', 73, 1745234664567);
 
 -- ── Rebase every timestamp to load time (see generator for rationale) ──────
 CREATE TEMP TABLE _rebase AS SELECT (CAST(strftime('%s', 'now') AS INTEGER) - 1745572680) AS delta_sec;
