@@ -773,6 +773,15 @@ ALTER TABLE `test_runs_cases` ADD `timeout` integer;
 ALTER TABLE `test_runs` ADD `import_hash` text;
 CREATE UNIQUE INDEX `idx_test_runs_import_hash` ON `test_runs` (`project_id`,`import_hash`);
 
+ALTER TABLE `test_cases` ADD `tags` text;
+ALTER TABLE `test_cases` ADD `owner` text;
+ALTER TABLE `test_cases` ADD `priority` text;
+ALTER TABLE `test_cases` ADD `feature` text;
+ALTER TABLE `test_cases` ADD `link` text;
+CREATE INDEX `idx_test_cases_owner` ON `test_cases` (`project_id`,`owner`);
+ALTER TABLE `test_runs_cases` ADD `tags` text;
+ALTER TABLE `test_runs_cases` ADD `test_meta` text;
+
 BEGIN TRANSACTION;
 
 -- Tags
