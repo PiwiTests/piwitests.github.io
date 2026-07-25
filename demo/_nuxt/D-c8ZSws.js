@@ -1,0 +1,1 @@
+function r(t){if(!t||t===0)return"0 B";const o=1024,n=["B","KB","MB","GB","TB"],a=Math.min(n.length-1,Math.floor(Math.log(t)/Math.log(o)));return`${(t/Math.pow(o,a)).toFixed(2)} ${n[a]}`}export{r as f};

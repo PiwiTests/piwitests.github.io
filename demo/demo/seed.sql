@@ -770,6 +770,9 @@ ALTER TABLE `network_requests` ADD `server_traces` text;
 
 ALTER TABLE `test_runs_cases` ADD `timeout` integer;
 
+ALTER TABLE `test_runs` ADD `import_hash` text;
+CREATE UNIQUE INDEX `idx_test_runs_import_hash` ON `test_runs` (`project_id`,`import_hash`);
+
 BEGIN TRANSACTION;
 
 -- Tags
