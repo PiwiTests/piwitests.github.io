@@ -1,0 +1,1 @@
+import{at as o}from"./CbL4SGIg.js";function t(){const e=o()?.vnode?.scopeId;return e?{[e]:""}:{}}export{t as u};
