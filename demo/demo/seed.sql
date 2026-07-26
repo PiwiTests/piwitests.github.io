@@ -1021,7 +1021,7 @@ INSERT INTO files (id, test_run_id, type, subtype, label, path, size, created_at
 INSERT INTO files (id, test_run_id, type, subtype, label, path, size, created_at) VALUES (15, 64, 'report', 'html', 'HTML Report', 'reports/5/64/index.html', 486168, 1745511473);
 
 -- Failure clusters
-INSERT INTO failure_clusters (id, project_id, fingerprint, signature, error_type, selector, sample_error, status, triage_note, first_seen_run_id, last_seen_run_id, occurrences, created_at, updated_at) VALUES (1, 1, 'c79850995ab1dbd05d119332a220943b20c6675cefbed540fd259383d1a53d1d', 'Test timeout of <N>ms exceeded.', 'unknown', 'getByRole(''button'', { name: ''Pay'' })', 'Test timeout of 30000ms exceeded.
+INSERT INTO failure_clusters (id, project_id, fingerprint, signature, error_type, selector, sample_error, status, triage_note, first_seen_run_id, last_seen_run_id, occurrences, fix_landed_run_id, fix_landed_at, fix_commit, time_to_resolution_ms, fix_verification, created_at, updated_at) VALUES (1, 1, 'c79850995ab1dbd05d119332a220943b20c6675cefbed540fd259383d1a53d1d', 'Test timeout of <N>ms exceeded.', 'unknown', 'getByRole(''button'', { name: ''Pay'' })', 'Test timeout of 30000ms exceeded.
 ---
 locator.click: Test timeout of 30000ms exceeded.
 Call log:
@@ -1038,12 +1038,12 @@ Call log:
   - waiting 100ms
 
     at fillPaymentDetails (tests/helpers/payment.ts:16:51)
-    at tests/checkout/checkout.spec.ts:11:9', 'resolved', 'Root cause identified: the new payment-provider SDK delays form interactivity on loaded CI runners. Mitigated by waiting for network idle in the payment helper; monitoring for recurrence.', 4, 1, 6, 1745474572, 1745569800);
-INSERT INTO failure_clusters (id, project_id, fingerprint, signature, error_type, selector, sample_error, status, triage_note, first_seen_run_id, last_seen_run_id, occurrences, fix_landed_run_id, fix_landed_at, fix_commit, time_to_resolution_ms, fix_verification, created_at, updated_at) VALUES (2, 1, '163bb5023b2870537eb75cbaa23acfc42e0a9dacdd74c3853bc52bdd04dcbe22', 'TimeoutError: locator.fill: Timeout <N>ms exceeded.', 'timeout', 'getByLabel(''Email address'')', 'TimeoutError: locator.fill: Timeout 10000ms exceeded.
+    at tests/checkout/checkout.spec.ts:11:9', 'resolved', 'Root cause identified: the new payment-provider SDK delays form interactivity on loaded CI runners. Mitigated by waiting for network idle in the payment helper; monitoring for recurrence.', 4, 1, 6, 3, 1745506029, 'demo001', 50400000, 'regressed', 1745474572, 1745569800);
+INSERT INTO failure_clusters (id, project_id, fingerprint, signature, error_type, selector, sample_error, status, triage_note, first_seen_run_id, last_seen_run_id, occurrences, created_at, updated_at) VALUES (2, 1, '163bb5023b2870537eb75cbaa23acfc42e0a9dacdd74c3853bc52bdd04dcbe22', 'TimeoutError: locator.fill: Timeout <N>ms exceeded.', 'timeout', 'getByLabel(''Email address'')', 'TimeoutError: locator.fill: Timeout 10000ms exceeded.
 Call log:
   - waiting for getByLabel(''Email address'')
 
-    at tests/checkout/checkout.spec.ts:23:10', 'open', NULL, 8, 1, 8, 1, 1745569800, 'demo002', 93600000, 'diagnosis-verified', 1745344688, 1745569800);
+    at tests/checkout/checkout.spec.ts:23:10', 'open', NULL, 8, 1, 8, 1745344688, 1745569800);
 INSERT INTO failure_clusters (id, project_id, fingerprint, signature, error_type, selector, sample_error, status, triage_note, first_seen_run_id, last_seen_run_id, occurrences, created_at, updated_at) VALUES (3, 2, 'fce665ec733e7f8f74b3f531782713c571320b7467caac0014c61b21566738e8', 'Error: expect(received).toBe(expected) // Object.is equality', 'assertion', NULL, 'Error: expect(received).toBe(expected) // Object.is equality
 
 Expected: 200
@@ -1054,12 +1054,12 @@ INSERT INTO failure_clusters (id, project_id, fingerprint, signature, error_type
 Expected substring: "confirmed"
 Received string:    "payment_pending"
     at tests/api/orders.spec.ts:17:25', 'open', NULL, 30, 21, 10, 1745298148, 1745569800);
-INSERT INTO failure_clusters (id, project_id, fingerprint, signature, error_type, selector, sample_error, status, triage_note, first_seen_run_id, last_seen_run_id, occurrences, fix_landed_run_id, fix_landed_at, fix_commit, time_to_resolution_ms, fix_verification, created_at, updated_at) VALUES (5, 3, 'ab1cabb4d7f83b2afee0223b5d8701fc78581d4bdc6b2df495e25a7a0ed3b010', 'TimeoutError: page.waitForSelector: Timeout <N>ms exceeded.', 'timeout', 'locator(''.modal.is-open'')', 'TimeoutError: page.waitForSelector: Timeout 5000ms exceeded.
+INSERT INTO failure_clusters (id, project_id, fingerprint, signature, error_type, selector, sample_error, status, triage_note, first_seen_run_id, last_seen_run_id, occurrences, created_at, updated_at) VALUES (5, 3, 'ab1cabb4d7f83b2afee0223b5d8701fc78581d4bdc6b2df495e25a7a0ed3b010', 'TimeoutError: page.waitForSelector: Timeout <N>ms exceeded.', 'timeout', 'locator(''.modal.is-open'')', 'TimeoutError: page.waitForSelector: Timeout 5000ms exceeded.
 Call log:
   - waiting for locator(''.modal.is-open'') to be visible
 
-    at tests/ui/modal.spec.ts:7:16', 'open', NULL, 48, 39, 14, 39, 1745569800, 'demo005', 32400000, 'stopped-failing', 1745309589, 1745569800);
-INSERT INTO failure_clusters (id, project_id, fingerprint, signature, error_type, selector, sample_error, status, triage_note, first_seen_run_id, last_seen_run_id, occurrences, created_at, updated_at) VALUES (6, 3, '4441f2e6f59124d67170455f1a3f78cce6c7df39662ef309332a5c7fad2b9e30', 'Error: locator.click: Error: strict mode violation: getByRole(''button'') resolved to <N> elements:', 'strict-mode', 'getByRole(''button'')', 'Error: locator.click: Error: strict mode violation: getByRole(''button'') resolved to 3 elements:
+    at tests/ui/modal.spec.ts:7:16', 'open', NULL, 48, 39, 14, 1745309589, 1745569800);
+INSERT INTO failure_clusters (id, project_id, fingerprint, signature, error_type, selector, sample_error, status, triage_note, first_seen_run_id, last_seen_run_id, occurrences, fix_landed_run_id, fix_landed_at, fix_commit, time_to_resolution_ms, fix_verification, created_at, updated_at) VALUES (6, 3, '4441f2e6f59124d67170455f1a3f78cce6c7df39662ef309332a5c7fad2b9e30', 'Error: locator.click: Error: strict mode violation: getByRole(''button'') resolved to <N> elements:', 'strict-mode', 'getByRole(''button'')', 'Error: locator.click: Error: strict mode violation: getByRole(''button'') resolved to 3 elements:
     1) <button class="btn btn-primary">Primary</button> aka getByRole(''button'', { name: ''Primary'' })
     2) <button disabled class="btn btn-secondary">Disabled</button> aka getByRole(''button'', { name: ''Disabled'' })
     3) <button class="btn btn-secondary" aria-busy="true">Loading…</button> aka getByRole(''button'', { name: ''Loading…'' })
@@ -1067,7 +1067,7 @@ INSERT INTO failure_clusters (id, project_id, fingerprint, signature, error_type
 Call log:
   - waiting for getByRole(''button'')
 
-    at tests/ui/button.spec.ts:10:37', 'ignored', 'Known issue — three buttons match the unscoped role query on the gallery page. The page intentionally demos multiple variants; the spec needs a name-scoped locator. Not an app bug.', 43, 41, 2, 1745440548, 1745511245);
+    at tests/ui/button.spec.ts:10:37', 'ignored', 'Known issue — three buttons match the unscoped role query on the gallery page. The page intentionally demos multiple variants; the spec needs a name-scoped locator. Not an app bug.', 43, 41, 2, 40, 1745511245, 'demo006', 32400000, 'stopped-failing', 1745440548, 1745511245);
 INSERT INTO failure_clusters (id, project_id, fingerprint, signature, error_type, selector, sample_error, status, triage_note, first_seen_run_id, last_seen_run_id, occurrences, created_at, updated_at) VALUES (7, 4, '0c21a73fa631ed32f967c3aa7e28c347a54edbd1c5f03022df5e3fe63c564495', 'TimeoutError: page.goto: Timeout <N>ms exceeded.', 'timeout', NULL, 'TimeoutError: page.goto: Timeout 30000ms exceeded.
 Call log:
   - navigating to "https://m.shop.example.com/", waiting until "load"
@@ -1095,7 +1095,7 @@ Call log:
       - unexpected value "hidden"
 
     at tests/admin/reports.spec.ts:12:18', 'open', NULL, 63, 62, 2, 1745539147, 1745569800);
-INSERT INTO failure_clusters (id, project_id, fingerprint, signature, error_type, selector, sample_error, status, triage_note, first_seen_run_id, last_seen_run_id, occurrences, created_at, updated_at) VALUES (10, 5, '4824db9ef8259e7bdb16cc6088d67c7fe5d1fc24ac963cb81c78d1627d95f0e1', 'Error: expect(locator).toHaveCount(expected) failed', 'assertion', 'getByRole(''row'')', 'Error: expect(locator).toHaveCount(expected) failed
+INSERT INTO failure_clusters (id, project_id, fingerprint, signature, error_type, selector, sample_error, status, triage_note, first_seen_run_id, last_seen_run_id, occurrences, fix_landed_run_id, fix_landed_at, fix_commit, time_to_resolution_ms, fix_verification, created_at, updated_at) VALUES (10, 5, '4824db9ef8259e7bdb16cc6088d67c7fe5d1fc24ac963cb81c78d1627d95f0e1', 'Error: expect(locator).toHaveCount(expected) failed', 'assertion', 'getByRole(''row'')', 'Error: expect(locator).toHaveCount(expected) failed
 
 Locator:  getByRole(''row'')
 Expected: 26
@@ -1108,7 +1108,7 @@ Call log:
     9 × locator resolved to 51 elements
       - unexpected value "51"
 
-    at tests/admin/users.spec.ts:7:44', 'open', NULL, 70, 63, 8, 1745315980, 1745539147);
+    at tests/admin/users.spec.ts:7:44', 'open', NULL, 70, 63, 8, 62, 1745539147, 'demo010', 93600000, 'diagnosis-verified', 1745315980, 1745539147);
 
 -- Demo AI diagnoses
 INSERT INTO failure_diagnoses (id, cluster_id, scope, status, provider, model, category, confidence, summary, root_cause, details, error, input_tokens, output_tokens, duration_ms, created_at, updated_at) VALUES (1, 1, 'cluster', 'completed', 'demo', 'demo-simulated', 'infrastructure', 'high', 'Checkout Pay button click times out — the payment form renders slowly on CI and the click races the render.', 'The click is interrupted by the 30 000 ms test timeout because the Pay button is present but not yet interactive. A recent commit added a third-party payment SDK fetched before the form is enabled; on a loaded CI runner that pushes interactivity past the timeout. Combined with CI variability this fails intermittently.', '{"confidenceScore":82,"severity":"high","affectedArea":"checkout / payment","hypotheses":[{"category":"infrastructure","likelihood":82,"rootCause":"Slow CI runner renders the payment form too late; the click exceeds the 30s test timeout before the button becomes interactive.","evidence":["Failure rate correlates with high-load CI runs [recurrenceFlakiness]","The call log shows the button resolved but disabled at click time [executionError]"]},{"category":"test-bug","likelihood":38,"rootCause":"The payment helper clicks without an explicit wait for the quote to resolve.","evidence":["No waitForLoadState/waitFor precedes the click in fillPaymentDetails [testSource]"]}],"evidence":["The test timeout interrupts locator.click in both affected tests [executionError]","The SCM diff adds a third-party payment SDK fetched before the form is enabled [scmInvestigation]","The checkout quote request takes 28s on failing runs [networkRequests]","The full call stack from the trace pins the timeout inside the checkout flow helper [traceCallStack]","Recurs on high-load CI runs [recurrenceFlakiness]"],"investigationSteps":["Re-run the cluster on a low-load runner to confirm CI variability is the driver","Check whether the payment form fires a network-idle event before becoming interactive"],"preventionTips":["Await page.waitForLoadState(\"networkidle\") before interacting with dynamically loaded payment forms","Add a CI-aware timeout multiplier for payment-related actions"],"suggestedFix":{"description":"Wait for the network to settle before clicking, so the click no longer races the third-party form render.","file":"tests/helpers/payment.ts","code":null,"patch":"--- a/tests/helpers/payment.ts\n+++ b/tests/helpers/payment.ts\n@@ -15,2 +15,3 @@\n   // Pay stays disabled until the async price quote resolves\n+  await page.waitForLoadState(''networkidle'');\n   await page.getByRole(''button'', { name: ''Pay'' }).click();"},"patchValidation":{"status":"applies","filesChecked":1,"filesInPatch":1,"errors":[]},"pipeline":[{"role":"research","model":"demo-research","inputTokens":744,"outputTokens":180,"cacheCreationInputTokens":0,"cacheReadInputTokens":0},{"role":"diagnosis","model":"demo-simulated","inputTokens":1240,"outputTokens":380,"cacheCreationInputTokens":496,"cacheReadInputTokens":620}],"autoSelectedCommits":["a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4"],"selectedCommitShas":null,"additionalContext":null}', NULL, 1984, 560, 2850, 1745572320, 1745572320);
