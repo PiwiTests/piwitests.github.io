@@ -808,6 +808,29 @@ CREATE INDEX `idx_quarantined_tests_project` ON `quarantined_tests` (`project_id
 CREATE INDEX `idx_quarantined_tests_created_by` ON `quarantined_tests` (`created_by`);
 CREATE UNIQUE INDEX `idx_quarantined_tests_active` ON `quarantined_tests` (`test_case_id`) WHERE released_at IS NULL;
 
+CREATE TABLE `test_functions` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`project_id` integer NOT NULL,
+	`name` text NOT NULL,
+	`kind` text NOT NULL,
+	`module` text NOT NULL,
+	`receiver` text,
+	`import_name` text,
+	`params` text NOT NULL,
+	`returns_page` integer DEFAULT false NOT NULL,
+	`url_pattern` text,
+	`steps` text NOT NULL,
+	`param_sources` text NOT NULL,
+	`source` text DEFAULT 'manual' NOT NULL,
+	`confidence` real DEFAULT 1 NOT NULL,
+	`created_at` integer NOT NULL,
+	`updated_at` integer NOT NULL,
+	FOREIGN KEY (`project_id`) REFERENCES `projects`(`id`) ON UPDATE no action ON DELETE cascade
+);
+
+CREATE INDEX `idx_test_functions_project_id` ON `test_functions` (`project_id`);
+CREATE UNIQUE INDEX `idx_test_functions_project_module_name` ON `test_functions` (`project_id`,`module`,`name`);
+
 BEGIN TRANSACTION;
 
 -- Tags
