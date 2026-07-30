@@ -831,6 +831,8 @@ CREATE TABLE `test_functions` (
 CREATE INDEX `idx_test_functions_project_id` ON `test_functions` (`project_id`);
 CREATE UNIQUE INDEX `idx_test_functions_project_module_name` ON `test_functions` (`project_id`,`module`,`name`);
 
+ALTER TABLE `users` ADD `session_epoch` integer DEFAULT 0 NOT NULL;
+
 BEGIN TRANSACTION;
 
 -- Tags
