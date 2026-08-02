@@ -7369,7 +7369,8 @@ UPDATE test_suites SET created_at = created_at + (SELECT delta_sec FROM _rebase)
 UPDATE test_cases SET created_at = created_at + (SELECT delta_sec FROM _rebase), updated_at = updated_at + (SELECT delta_sec FROM _rebase);
 UPDATE test_runs SET start_time = start_time + (SELECT delta_sec FROM _rebase), created_at = created_at + (SELECT delta_sec FROM _rebase), updated_at = updated_at + (SELECT delta_sec FROM _rebase);
 UPDATE files SET created_at = created_at + (SELECT delta_sec FROM _rebase);
-UPDATE failure_clusters SET created_at = created_at + (SELECT delta_sec FROM _rebase), updated_at = updated_at + (SELECT delta_sec FROM _rebase);
+UPDATE failure_clusters SET created_at = created_at + (SELECT delta_sec FROM _rebase), updated_at = updated_at + (SELECT delta_sec FROM _rebase), fix_landed_at = fix_landed_at + (SELECT delta_sec FROM _rebase);
+UPDATE quarantined_tests SET created_at = created_at + (SELECT delta_sec FROM _rebase), released_at = released_at + (SELECT delta_sec FROM _rebase);
 UPDATE failure_diagnoses SET created_at = created_at + (SELECT delta_sec FROM _rebase), updated_at = updated_at + (SELECT delta_sec FROM _rebase);
 UPDATE failure_diagnosis_versions SET created_at = created_at + (SELECT delta_sec FROM _rebase);
 
