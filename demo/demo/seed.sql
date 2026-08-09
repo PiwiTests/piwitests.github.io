@@ -840,6 +840,53 @@ ALTER TABLE `test_runs_cases` ADD `attempts` text;
 ALTER TABLE `test_runs_cases` ADD `did_not_run_reason` text;
 ALTER TABLE `test_runs_cases` ADD `blocked_by` text;
 
+CREATE TABLE `share_links` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`project_id` integer NOT NULL,
+	`entity_kind` text NOT NULL,
+	`entity_id` integer NOT NULL,
+	`token_hash` text NOT NULL,
+	`token_prefix` text NOT NULL,
+	`created_by` integer,
+	`created_at` integer NOT NULL,
+	`expires_at` integer,
+	`revoked_at` integer,
+	`last_viewed_at` integer,
+	`view_count` integer DEFAULT 0 NOT NULL,
+	FOREIGN KEY (`project_id`) REFERENCES `projects`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`created_by`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE set null
+);
+
+CREATE UNIQUE INDEX `share_links_token_hash_unique` ON `share_links` (`token_hash`);
+CREATE INDEX `idx_share_links_project_id` ON `share_links` (`project_id`);
+CREATE INDEX `idx_share_links_entity` ON `share_links` (`entity_kind`,`entity_id`);
+CREATE INDEX `idx_share_links_created_by` ON `share_links` (`created_by`);
+
+CREATE TABLE `heal_actions` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`project_id` integer NOT NULL,
+	`run_id` integer,
+	`dedupe_key` text NOT NULL,
+	`kind` text DEFAULT 'open-pr' NOT NULL,
+	`status` text DEFAULT 'pending' NOT NULL,
+	`attempts` integer DEFAULT 0 NOT NULL,
+	`payload` text NOT NULL,
+	`result` text,
+	`error` text,
+	`scheduled_for` integer,
+	`created_at` integer NOT NULL,
+	`updated_at` integer NOT NULL,
+	FOREIGN KEY (`project_id`) REFERENCES `projects`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`run_id`) REFERENCES `test_runs`(`id`) ON UPDATE no action ON DELETE set null
+);
+
+CREATE UNIQUE INDEX `idx_heal_actions_dedupe` ON `heal_actions` (`dedupe_key`);
+CREATE INDEX `idx_heal_actions_project_status` ON `heal_actions` (`project_id`,`status`);
+CREATE INDEX `idx_heal_actions_status` ON `heal_actions` (`status`,`scheduled_for`);
+CREATE INDEX `idx_heal_actions_run` ON `heal_actions` (`run_id`);
+
+ALTER TABLE `test_runs` ADD `shard_index` integer;
+
 BEGIN TRANSACTION;
 
 -- Tags
