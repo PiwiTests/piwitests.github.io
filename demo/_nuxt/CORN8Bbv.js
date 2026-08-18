@@ -1,1 +1,0 @@
-import{b as o}from"./DYE3ROdI.js";import{O as a,x as i,ab as n}from"./DMoatOdx.js";import{u}from"./VpwEtzqX.js";function p(s){const{canSeeAdmin:t}=a(),e=u();return i(()=>o({canSeeAdmin:t.value,isDesktop:e,envManaged:s?n(s):void 0}))}export{p as u};
