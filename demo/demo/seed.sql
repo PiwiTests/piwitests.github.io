@@ -926,6 +926,9 @@ ALTER TABLE `network_requests` ADD `start_time` integer;
 ALTER TABLE `failure_clusters` ADD `last_rerun_dispatch` text;
 ALTER TABLE `projects` ADD `ci_rerun` text;
 
+ALTER TABLE `failure_diagnosis_versions` ADD `feedback` text;
+ALTER TABLE `failure_diagnosis_versions` ADD `feedback_note` text;
+
 BEGIN TRANSACTION;
 
 -- Tags
