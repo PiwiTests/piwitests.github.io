@@ -1,1 +1,0 @@
-import{d as a,o as n,c as i,a1 as o,U as r}from"./Bl1PVNwa.js";const s=a({__name:"StatTileGrid",props:{minTileWidth:{default:"8.5rem"}},setup(e){return(t,l)=>(n(),i("div",{class:"grid gap-3",style:o({gridTemplateColumns:`repeat(auto-fit, minmax(min(${e.minTileWidth}, 100%), 1fr))`})},[r(t.$slots,"default")],4))}}),c=Object.assign(s,{__name:"StatTileGrid"});export{c as _};

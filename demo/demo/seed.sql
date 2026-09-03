@@ -923,6 +923,9 @@ CREATE UNIQUE INDEX `idx_test_selections_project_key` ON `test_selections` (`pro
 
 ALTER TABLE `network_requests` ADD `start_time` integer;
 
+ALTER TABLE `failure_clusters` ADD `last_rerun_dispatch` text;
+ALTER TABLE `projects` ADD `ci_rerun` text;
+
 BEGIN TRANSACTION;
 
 -- Tags
