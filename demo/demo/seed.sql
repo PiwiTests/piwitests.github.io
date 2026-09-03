@@ -929,6 +929,8 @@ ALTER TABLE `projects` ADD `ci_rerun` text;
 ALTER TABLE `failure_diagnosis_versions` ADD `feedback` text;
 ALTER TABLE `failure_diagnosis_versions` ADD `feedback_note` text;
 
+ALTER TABLE `test_runs_cases` ADD `evidence_sources` text;
+
 BEGIN TRANSACTION;
 
 -- Tags
