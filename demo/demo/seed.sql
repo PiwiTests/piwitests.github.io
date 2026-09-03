@@ -931,6 +931,9 @@ ALTER TABLE `failure_diagnosis_versions` ADD `feedback_note` text;
 
 ALTER TABLE `test_runs_cases` ADD `evidence_sources` text;
 
+ALTER TABLE `entity_links` ADD `failure_cluster_id` integer REFERENCES failure_clusters(id);
+CREATE INDEX `idx_entity_links_cluster` ON `entity_links` (`failure_cluster_id`);
+
 BEGIN TRANSACTION;
 
 -- Tags
