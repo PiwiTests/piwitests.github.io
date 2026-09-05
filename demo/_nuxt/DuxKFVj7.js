@@ -1,1 +1,0 @@
-import{d as o,u as s,w as r,o as n,c,n as p}from"./_PO0N_s1.js";const l=o({__name:"compare",async setup(_){let e,t;const a=s();return[e,t]=r(()=>p(`/projects/${a.params.id}?tab=runs`,{replace:!0})),await e,t(),(u,m)=>(n(),c("div"))}});export{l as default};
