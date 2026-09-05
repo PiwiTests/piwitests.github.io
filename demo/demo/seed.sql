@@ -938,6 +938,10 @@ ALTER TABLE `failure_clusters` ADD `fingerprint_sample` text;
 
 ALTER TABLE `failure_clusters` ADD `bisect_result` text;
 
+ALTER TABLE `failure_clusters` ADD `snoozed_until` integer;
+ALTER TABLE `failure_clusters` ADD `snooze_mode` text;
+ALTER TABLE `failure_clusters` ADD `assignee` text;
+
 BEGIN TRANSACTION;
 
 -- Tags
@@ -1171,7 +1175,7 @@ Call log:
   - waiting 100ms
 
     at fillPaymentDetails (tests/helpers/payment.ts:16:51)
-    at tests/checkout/checkout.spec.ts:11:9', 'resolved', 'Root cause identified: the new payment-provider SDK delays form interactivity on loaded CI runners. Mitigated by waiting for network idle in the payment helper; monitoring for recurrence.', 4, 1, 6, 3, 1745506029, 'demo001', 50400000, 'regressed', 1745474572, 1745569800);
+    at tests/checkout/checkout.spec.ts:11:9', 'open', 'Root cause identified: the new payment-provider SDK delays form interactivity on loaded CI runners. A fix landed and the cluster was closed, then regressed — reopened automatically. The fix did not hold; investigating the loaded-runner path again.', 4, 1, 6, 3, 1745506029, 'demo001', 50400000, 'regressed', 1745474572, 1745569800);
 INSERT INTO failure_clusters (id, project_id, fingerprint, signature, error_type, selector, sample_error, status, triage_note, first_seen_run_id, last_seen_run_id, occurrences, created_at, updated_at) VALUES (2, 1, '163bb5023b2870537eb75cbaa23acfc42e0a9dacdd74c3853bc52bdd04dcbe22', 'TimeoutError: locator.fill: Timeout <N>ms exceeded.', 'timeout', 'getByLabel(''Email address'')', 'TimeoutError: locator.fill: Timeout 10000ms exceeded.
 Call log:
   - waiting for getByLabel(''Email address'')
@@ -1201,11 +1205,11 @@ Call log:
   - waiting for getByRole(''button'')
 
     at tests/ui/button.spec.ts:10:37', 'ignored', 'Known issue — three buttons match the unscoped role query on the gallery page. The page intentionally demos multiple variants; the spec needs a name-scoped locator. Not an app bug.', 43, 41, 2, 40, 1745511245, 'demo006', 32400000, 'stopped-failing', 1745440548, 1745511245);
-INSERT INTO failure_clusters (id, project_id, fingerprint, signature, error_type, selector, sample_error, status, triage_note, first_seen_run_id, last_seen_run_id, occurrences, created_at, updated_at) VALUES (7, 4, '0c21a73fa631ed32f967c3aa7e28c347a54edbd1c5f03022df5e3fe63c564495', 'TimeoutError: page.goto: Timeout <N>ms exceeded.', 'timeout', NULL, 'TimeoutError: page.goto: Timeout 30000ms exceeded.
+INSERT INTO failure_clusters (id, project_id, fingerprint, signature, error_type, selector, sample_error, status, triage_note, first_seen_run_id, last_seen_run_id, occurrences, created_at, updated_at, assignee) VALUES (7, 4, '0c21a73fa631ed32f967c3aa7e28c347a54edbd1c5f03022df5e3fe63c564495', 'TimeoutError: page.goto: Timeout <N>ms exceeded.', 'timeout', NULL, 'TimeoutError: page.goto: Timeout 30000ms exceeded.
 Call log:
   - navigating to "https://m.shop.example.com/", waiting until "load"
 
-    at tests/mobile/navigation.spec.ts:5:14', 'open', NULL, 56, 54, 6, 1745506548, 1745569800);
+    at tests/mobile/navigation.spec.ts:5:14', 'open', NULL, 56, 54, 6, 1745506548, 1745569800, 'Avery (Admin)');
 INSERT INTO failure_clusters (id, project_id, fingerprint, signature, error_type, selector, sample_error, status, triage_note, first_seen_run_id, last_seen_run_id, occurrences, created_at, updated_at) VALUES (8, 4, '020a07a3f57dceb4385aa24c751fb7a9c1c357d024caeff3a0d734dbd734d10c', 'Error: locator.fill: Target page, context or browser has been closed', 'crash', 'getByLabel(''Delivery notes'')', 'Error: locator.fill: Target page, context or browser has been closed
 Call log:
   - waiting for getByLabel(''Delivery notes'')
@@ -1214,7 +1218,7 @@ Call log:
   - attempting fill action
 
     at tests/mobile/forms.spec.ts:6:47', 'open', NULL, 59, 54, 4, 1745418375, 1745569800);
-INSERT INTO failure_clusters (id, project_id, fingerprint, signature, error_type, selector, sample_error, status, triage_note, first_seen_run_id, last_seen_run_id, occurrences, created_at, updated_at) VALUES (9, 5, '0c734bb9d51a7dee7103fe62711e3bbc5bf7c0889bfd642784318945f9253361', 'Error: expect(locator).toBeVisible() failed', 'assertion', 'getByRole(''button'', { name: ''Export CSV'' })', 'Error: expect(locator).toBeVisible() failed
+INSERT INTO failure_clusters (id, project_id, fingerprint, signature, error_type, selector, sample_error, status, triage_note, first_seen_run_id, last_seen_run_id, occurrences, created_at, updated_at, snoozed_until, snooze_mode) VALUES (9, 5, '0c734bb9d51a7dee7103fe62711e3bbc5bf7c0889bfd642784318945f9253361', 'Error: expect(locator).toBeVisible() failed', 'assertion', 'getByRole(''button'', { name: ''Export CSV'' })', 'Error: expect(locator).toBeVisible() failed
 
 Locator:  getByRole(''button'', { name: ''Export CSV'' })
 Expected: [32mvisible[39m
@@ -1227,7 +1231,7 @@ Call log:
     9 × locator resolved to <button hidden class="export-btn">Export CSV</button>
       - unexpected value "hidden"
 
-    at tests/admin/reports.spec.ts:12:18', 'open', NULL, 63, 62, 2, 1745539147, 1745569800);
+    at tests/admin/reports.spec.ts:12:18', 'open', NULL, 63, 62, 2, 1745539147, 1745569800, 253370764800, 'until-recurs');
 INSERT INTO failure_clusters (id, project_id, fingerprint, signature, error_type, selector, sample_error, status, triage_note, first_seen_run_id, last_seen_run_id, occurrences, fix_landed_run_id, fix_landed_at, fix_commit, time_to_resolution_ms, fix_verification, created_at, updated_at) VALUES (10, 5, '4824db9ef8259e7bdb16cc6088d67c7fe5d1fc24ac963cb81c78d1627d95f0e1', 'Error: expect(locator).toHaveCount(expected) failed', 'assertion', 'getByRole(''row'')', 'Error: expect(locator).toHaveCount(expected) failed
 
 Locator:  getByRole(''row'')
@@ -7675,6 +7679,7 @@ INSERT INTO network_requests (id, test_runs_case_id, test_run_id, method, url, n
 INSERT INTO quarantined_tests (id, project_id, test_case_id, reason, source, quarantined_at_run_id, created_by, created_at, released_at, released_reason) VALUES (1, 1, 9, 'Times out on CI only — see cluster 1', 'proposed', 1, NULL, 1746176400, NULL, NULL);
 INSERT INTO quarantined_tests (id, project_id, test_case_id, reason, source, quarantined_at_run_id, created_by, created_at, released_at, released_reason) VALUES (2, 2, 24, 'Search index warm-up races the assertion', 'manual', 34, NULL, 1746176400, NULL, NULL);
 INSERT INTO quarantined_tests (id, project_id, test_case_id, reason, source, quarantined_at_run_id, created_by, created_at, released_at, released_reason) VALUES (3, 3, 35, 'Pagination flakes under parallel load', 'manual', 53, NULL, 1746176400, NULL, NULL);
+INSERT INTO quarantined_tests (id, project_id, test_case_id, reason, source, quarantined_at_run_id, created_by, created_at, released_at, released_reason) VALUES (4, 5, 46, 'Held while the pagination fix was verified; the fix landed and held.', 'manual', 62, NULL, 1746176400, NULL, NULL);
 
 -- Locator healing snapshots (references test_cases)
 INSERT INTO locator_snapshots (id, test_case_id, location, used_method, used_args, used_args_fp, element_tag, element_attrs, element_text, alternatives, last_seen_run_id, last_seen_at) VALUES (1, 1, 'tests/helpers/payment.ts:16:51', 'getByRole', '["button",{"name":"Pay"}]', 'cf5af33423508d4f73a5b5217bcc9f6adfa6832ae4ae1b890a2eb3ce8d020488', 'button', '{"id":"checkout-pay","data-testid":"checkout-pay","accessibleName":"Pay now","center":{"x":640,"y":820}}', 'Pay now', '[{"locator":"getByTestId(''checkout-pay'')","method":"getByTestId","args":{"testId":"checkout-pay"},"score":100},{"locator":"getByRole(''button'', { name: ''Pay now'' })","method":"getByRole","args":{"role":"button","name":"Pay now"},"score":90},{"locator":"getByText(''Pay now'')","method":"getByText","args":{"text":"Pay now"},"score":75},{"locator":"locator(''#checkout-pay'')","method":"locator","args":{"selector":"#checkout-pay"},"score":65}]', 20, 1744973163000);
