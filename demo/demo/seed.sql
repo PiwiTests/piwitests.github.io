@@ -936,6 +936,8 @@ CREATE INDEX `idx_entity_links_cluster` ON `entity_links` (`failure_cluster_id`)
 
 ALTER TABLE `failure_clusters` ADD `fingerprint_sample` text;
 
+ALTER TABLE `failure_clusters` ADD `bisect_result` text;
+
 BEGIN TRANSACTION;
 
 -- Tags
