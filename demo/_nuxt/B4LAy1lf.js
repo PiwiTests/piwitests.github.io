@@ -1,1 +1,0 @@
-import{ar as n,t as u}from"./CthuNrhm.js";import{f as a}from"./BCqK_BTX.js";function l(){const s=n("desktop-prev-runs-proposal",()=>null),t=n("desktop-prev-runs-open",()=>!1);async function p(o,r){if(!u()||!o||!r)return;const e=await a(r);e.length!==0&&(s.value={projectName:o,folder:r,archives:e},t.value=!0)}return{proposal:s,open:t,propose:p}}export{l as u};
