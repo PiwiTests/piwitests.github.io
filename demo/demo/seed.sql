@@ -1025,6 +1025,18 @@ ALTER TABLE `project_integrations` ADD `locale` text;
 
 ALTER TABLE `projects` ADD `ai_language` text;
 
+CREATE TABLE `trace_blob_resources` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`blob_id` integer NOT NULL,
+	`resource_id` integer NOT NULL,
+	FOREIGN KEY (`blob_id`) REFERENCES `trace_blobs`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`resource_id`) REFERENCES `trace_resources`(`id`) ON UPDATE no action ON DELETE cascade
+);
+
+CREATE UNIQUE INDEX `idx_trace_blob_resources_blob_resource` ON `trace_blob_resources` (`blob_id`,`resource_id`);
+CREATE INDEX `idx_trace_blob_resources_resource` ON `trace_blob_resources` (`resource_id`);
+ALTER TABLE `trace_blobs` ADD `resources_indexed` integer DEFAULT false NOT NULL;
+
 BEGIN TRANSACTION;
 
 -- Tags
