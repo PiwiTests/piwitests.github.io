@@ -1084,6 +1084,8 @@ FROM counts
 WHERE test_runs.id = counts.test_run_id
 	AND test_runs.status NOT IN ('running', 'initializing', 'finalizing');
 
+ALTER TABLE `projects` ADD `capabilities` text;
+
 BEGIN TRANSACTION;
 
 -- Tags
@@ -1096,7 +1098,7 @@ INSERT INTO tags (id, text, color, created_at, updated_at) VALUES (4, 'performan
 INSERT INTO projects (id, name, label, description, created_at, updated_at, default_branch) VALUES (1, 'e2e-checkout', 'E2E Checkout', 'End-to-end tests for the checkout flow', 1740787200, 1745569800, 'main');
 INSERT INTO projects (id, name, label, description, created_at, updated_at, default_branch) VALUES (2, 'api-integration', 'API Integration', 'Integration tests for REST API endpoints', 1739577600, 1745565300, 'main');
 INSERT INTO projects (id, name, label, description, created_at, updated_at, default_branch) VALUES (3, 'ui-components', 'UI Components', 'Visual regression tests for UI components', 1736467200, 1745513100, 'main');
-INSERT INTO projects (id, name, label, description, created_at, updated_at, default_branch) VALUES (4, 'mobile-safari', 'Mobile Safari', 'Mobile Safari browser compatibility tests', 1743465600, 1745150400, 'main');
+INSERT INTO projects (id, name, label, description, created_at, updated_at, capabilities, default_branch) VALUES (4, 'mobile-safari', 'Mobile Safari', 'Mobile Safari browser compatibility tests', 1743465600, 1745150400, '{"markers":"declined"}', 'main');
 INSERT INTO projects (id, name, label, description, created_at, updated_at, default_branch) VALUES (5, 'web-dashboard', 'Web Dashboard', 'Cross-browser tests for the SaaS admin dashboard', 1740009600, 1745572200, 'main');
 
 -- Users (demo identities for the "act as" switcher)
