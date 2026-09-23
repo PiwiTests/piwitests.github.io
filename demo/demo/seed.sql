@@ -1086,6 +1086,128 @@ WHERE test_runs.id = counts.test_run_id
 
 ALTER TABLE `projects` ADD `capabilities` text;
 
+CREATE TABLE `graph_edges` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`project_id` integer NOT NULL,
+	`from_kind` text NOT NULL,
+	`from_key` text NOT NULL,
+	`to_kind` text NOT NULL,
+	`to_key` text NOT NULL,
+	`kind` text NOT NULL,
+	`branch` text,
+	`confidence` real,
+	`origin` text DEFAULT 'observed' NOT NULL,
+	`evidence` text,
+	`first_seen_run_id` integer,
+	`last_seen_run_id` integer,
+	`last_seen_at` integer NOT NULL,
+	`created_at` integer NOT NULL,
+	FOREIGN KEY (`project_id`) REFERENCES `projects`(`id`) ON UPDATE no action ON DELETE cascade
+);
+
+CREATE UNIQUE INDEX `idx_graph_edges_canonical` ON `graph_edges` (`project_id`,`from_kind`,`from_key`,`kind`,`to_kind`,`to_key`) WHERE "graph_edges"."branch" is null;
+CREATE UNIQUE INDEX `idx_graph_edges_branch` ON `graph_edges` (`project_id`,`from_kind`,`from_key`,`kind`,`to_kind`,`to_key`,`branch`) WHERE "graph_edges"."branch" is not null;
+CREATE INDEX `idx_graph_edges_from` ON `graph_edges` (`project_id`,`from_kind`,`from_key`);
+CREATE INDEX `idx_graph_edges_to` ON `graph_edges` (`project_id`,`to_kind`,`to_key`);
+CREATE INDEX `idx_graph_edges_kind` ON `graph_edges` (`project_id`,`kind`);
+CREATE TABLE `graph_nodes` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`project_id` integer NOT NULL,
+	`kind` text NOT NULL,
+	`key` text NOT NULL,
+	`branch` text,
+	`attrs` text,
+	`origin` text DEFAULT 'observed' NOT NULL,
+	`usage_30d` integer,
+	`first_seen_run_id` integer,
+	`last_seen_run_id` integer,
+	`pruned_at` integer,
+	`last_seen_at` integer NOT NULL,
+	`created_at` integer NOT NULL,
+	FOREIGN KEY (`project_id`) REFERENCES `projects`(`id`) ON UPDATE no action ON DELETE cascade
+);
+
+CREATE UNIQUE INDEX `idx_graph_nodes_canonical` ON `graph_nodes` (`project_id`,`kind`,`key`) WHERE "graph_nodes"."branch" is null;
+CREATE UNIQUE INDEX `idx_graph_nodes_branch` ON `graph_nodes` (`project_id`,`kind`,`key`,`branch`) WHERE "graph_nodes"."branch" is not null;
+CREATE INDEX `idx_graph_nodes_project_kind` ON `graph_nodes` (`project_id`,`kind`);
+CREATE INDEX `idx_graph_nodes_project_kind_branch` ON `graph_nodes` (`project_id`,`kind`,`branch`);
+CREATE INDEX `idx_graph_nodes_last_seen_at` ON `graph_nodes` (`last_seen_at`);
+CREATE TABLE `scenario_gaps` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`project_id` integer NOT NULL,
+	`kind` text DEFAULT 'gap' NOT NULL,
+	`detector` text NOT NULL,
+	`class` text NOT NULL,
+	`key` text NOT NULL,
+	`title` text NOT NULL,
+	`evidence` text,
+	`factors` text,
+	`score` real,
+	`feature_node_id` integer,
+	`ticket` text,
+	`test_case_id` integer,
+	`failure_cluster_id` integer,
+	`test_run_id` integer,
+	`pr_number` integer,
+	`status` text DEFAULT 'open' NOT NULL,
+	`dismiss_reason` text,
+	`assigned_to` text,
+	`created_at` integer NOT NULL,
+	`updated_at` integer NOT NULL,
+	`closed_at` integer,
+	`closed_by_run_id` integer,
+	FOREIGN KEY (`project_id`) REFERENCES `projects`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`feature_node_id`) REFERENCES `graph_nodes`(`id`) ON UPDATE no action ON DELETE set null,
+	FOREIGN KEY (`test_case_id`) REFERENCES `test_cases`(`id`) ON UPDATE no action ON DELETE set null,
+	FOREIGN KEY (`failure_cluster_id`) REFERENCES `failure_clusters`(`id`) ON UPDATE no action ON DELETE set null
+);
+
+CREATE UNIQUE INDEX `idx_scenario_gaps_detector_key` ON `scenario_gaps` (`project_id`,`detector`,`key`);
+CREATE INDEX `idx_scenario_gaps_project_status` ON `scenario_gaps` (`project_id`,`status`);
+CREATE INDEX `idx_scenario_gaps_project_score` ON `scenario_gaps` (`project_id`,`score`);
+CREATE INDEX `idx_scenario_gaps_pr` ON `scenario_gaps` (`project_id`,`pr_number`);
+CREATE INDEX `idx_scenario_gaps_feature_node` ON `scenario_gaps` (`feature_node_id`);
+CREATE INDEX `idx_scenario_gaps_test_case` ON `scenario_gaps` (`test_case_id`);
+CREATE INDEX `idx_scenario_gaps_cluster` ON `scenario_gaps` (`failure_cluster_id`);
+ALTER TABLE `projects` ADD `route_origins` text;
+
+CREATE TABLE `probes` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`project_id` integer NOT NULL,
+	`test_case_id` integer,
+	`node_id` integer,
+	`route_key` text,
+	`level` text DEFAULT 'client' NOT NULL,
+	`fault` text NOT NULL,
+	`applied` integer DEFAULT true NOT NULL,
+	`outcome` text NOT NULL,
+	`handled` text DEFAULT 'n/a' NOT NULL,
+	`run_id` integer,
+	`evidence` text,
+	`probed_at` integer NOT NULL,
+	FOREIGN KEY (`project_id`) REFERENCES `projects`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`test_case_id`) REFERENCES `test_cases`(`id`) ON UPDATE no action ON DELETE set null,
+	FOREIGN KEY (`node_id`) REFERENCES `graph_nodes`(`id`) ON UPDATE no action ON DELETE set null
+);
+
+CREATE UNIQUE INDEX `idx_probes_pair` ON `probes` (`project_id`,`test_case_id`,`route_key`,`fault`);
+CREATE INDEX `idx_probes_project` ON `probes` (`project_id`);
+CREATE INDEX `idx_probes_node` ON `probes` (`node_id`);
+CREATE INDEX `idx_probes_test` ON `probes` (`test_case_id`);
+ALTER TABLE `test_runs_cases` ADD `page_inventory_payload_id` integer REFERENCES case_payloads(id);
+CREATE INDEX `idx_trc_page_inventory_payload` ON `test_runs_cases` (`page_inventory_payload_id`) WHERE page_inventory_payload_id IS NOT NULL;
+
+ALTER TABLE `projects` ADD `openapi_url` text;
+ALTER TABLE `projects` ADD `server_probes` text;
+ALTER TABLE `scenario_gaps` ADD `snoozed_until` integer;
+ALTER TABLE `scenario_gaps` ADD `snoozed_at_run_id` integer;
+ALTER TABLE `scenario_gaps` ADD `accepted_at` integer;
+
+ALTER TABLE `scenario_gaps` ADD `triaged_by` integer REFERENCES users(id);
+ALTER TABLE `scenario_gaps` ADD `snoozed_at_signature` text;
+ALTER TABLE `scenario_gaps` ADD `covered_at` integer;
+CREATE INDEX `idx_scenario_gaps_triaged_by` ON `scenario_gaps` (`triaged_by`);
+
 BEGIN TRANSACTION;
 
 -- Tags
@@ -1098,7 +1220,7 @@ INSERT INTO tags (id, text, color, created_at, updated_at) VALUES (4, 'performan
 INSERT INTO projects (id, name, label, description, created_at, updated_at, default_branch) VALUES (1, 'e2e-checkout', 'E2E Checkout', 'End-to-end tests for the checkout flow', 1740787200, 1745569800, 'main');
 INSERT INTO projects (id, name, label, description, created_at, updated_at, default_branch) VALUES (2, 'api-integration', 'API Integration', 'Integration tests for REST API endpoints', 1739577600, 1745565300, 'main');
 INSERT INTO projects (id, name, label, description, created_at, updated_at, default_branch) VALUES (3, 'ui-components', 'UI Components', 'Visual regression tests for UI components', 1736467200, 1745513100, 'main');
-INSERT INTO projects (id, name, label, description, created_at, updated_at, capabilities, default_branch) VALUES (4, 'mobile-safari', 'Mobile Safari', 'Mobile Safari browser compatibility tests', 1743465600, 1745150400, '{"markers":"declined"}', 'main');
+INSERT INTO projects (id, name, label, description, created_at, updated_at, capabilities, default_branch) VALUES (4, 'mobile-safari', 'Mobile Safari', 'Mobile Safari browser compatibility tests', 1743465600, 1745150400, '{"markers":"declined","test-map":"declined"}', 'main');
 INSERT INTO projects (id, name, label, description, created_at, updated_at, default_branch) VALUES (5, 'web-dashboard', 'Web Dashboard', 'Cross-browser tests for the SaaS admin dashboard', 1740009600, 1745572200, 'main');
 
 -- Users (demo identities for the "act as" switcher)
@@ -1229,7 +1351,7 @@ INSERT INTO test_runs (id, project_id, status, start_time, duration, total_tests
 INSERT INTO test_runs (id, project_id, status, start_time, duration, total_tests, passed_tests, failed_tests, skipped_tests, did_not_run_tests, flaky_tests, avg_test_duration, p90_test_duration, environment, branch, label, metadata, stream_token, instance_id, playwright_version, reporter_version, is_full_run, filter_details, created_at, updated_at) VALUES (17, 1, 'passed', 1745106380, 147743, 12, 12, 0, 0, 0, 1, 4151, 9150, 'production', 'main', NULL, '{"ci":{"provider":"GitHub Actions","buildNumber":"1184","jobName":"test","workflow":"CI","buildUrl":"https://github.com/example/shop-web/actions/runs/5184"},"scm":{"commit":"d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f607","branch":"main","author":"Alice Chen","commitMessage":"test: add Apple Pay checkout coverage"}}', NULL, NULL, '1.51.0', '0.7.0', 1, NULL, 1745106380, 1745106527);
 INSERT INTO test_runs (id, project_id, status, start_time, duration, total_tests, passed_tests, failed_tests, skipped_tests, did_not_run_tests, flaky_tests, avg_test_duration, p90_test_duration, environment, branch, label, metadata, stream_token, instance_id, playwright_version, reporter_version, is_full_run, filter_details, created_at, updated_at) VALUES (18, 1, 'passed', 1745073180, 130823, 12, 12, 0, 0, 0, 1, 4018, 8932, 'staging', 'main', NULL, '{"ci":{"provider":"GitHub Actions","buildNumber":"1183","jobName":"test","workflow":"CI","buildUrl":"https://github.com/example/shop-web/actions/runs/5183"},"scm":{"commit":"d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f607","branch":"main","author":"Alice Chen","commitMessage":"test: add Apple Pay checkout coverage"}}', NULL, NULL, '1.51.0', '0.7.0', 1, NULL, 1745073180, 1745073310);
 INSERT INTO test_runs (id, project_id, status, start_time, duration, total_tests, passed_tests, failed_tests, skipped_tests, did_not_run_tests, flaky_tests, avg_test_duration, p90_test_duration, environment, branch, label, metadata, stream_token, instance_id, playwright_version, reporter_version, is_full_run, filter_details, created_at, updated_at) VALUES (19, 1, 'passed', 1744997003, 144688, 12, 12, 0, 0, 0, 0, 4264, 8445, 'integration', 'main', NULL, '{"ci":{"provider":"GitHub Actions","buildNumber":"1182","jobName":"test","workflow":"CI","buildUrl":"https://github.com/example/shop-web/actions/runs/5182"},"scm":{"commit":"d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f607","branch":"main","author":"Alice Chen","commitMessage":"test: add Apple Pay checkout coverage"}}', NULL, NULL, '1.51.0', '0.7.0', 1, NULL, 1744997003, 1744997147);
-INSERT INTO test_runs (id, project_id, status, start_time, duration, total_tests, passed_tests, failed_tests, skipped_tests, did_not_run_tests, flaky_tests, avg_test_duration, p90_test_duration, environment, branch, label, metadata, stream_token, instance_id, playwright_version, reporter_version, is_full_run, filter_details, created_at, updated_at) VALUES (20, 1, 'passed', 1744973163, 147021, 12, 12, 0, 0, 0, 1, 4135, 9311, 'development', 'main', NULL, '{"ci":{"provider":"GitHub Actions","buildNumber":"1181","jobName":"test","workflow":"CI","buildUrl":"https://github.com/example/shop-web/actions/runs/5181"},"scm":{"commit":"d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f607","branch":"main","author":"Alice Chen","commitMessage":"test: add Apple Pay checkout coverage"}}', NULL, NULL, '1.51.0', '0.7.0', 0, '{"grep":"checkout|cart"}', 1744973163, 1744973310);
+INSERT INTO test_runs (id, project_id, status, start_time, duration, total_tests, passed_tests, failed_tests, skipped_tests, did_not_run_tests, flaky_tests, avg_test_duration, p90_test_duration, environment, branch, label, metadata, stream_token, instance_id, playwright_version, reporter_version, is_full_run, filter_details, created_at, updated_at) VALUES (20, 1, 'passed', 1744973163, 147021, 12, 12, 0, 0, 0, 1, 4135, 9311, 'development', 'main', NULL, '{"ci":{"provider":"GitHub Actions","buildNumber":"1181","jobName":"test","workflow":"CI","buildUrl":"https://github.com/example/shop-web/actions/runs/5181"},"scm":{"commit":"d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f607","branch":"main","author":"Alice Chen","commitMessage":"test: add Apple Pay checkout coverage","remoteUrl":"https://github.com/example/shop-web","prNumber":418,"baseBranch":"main"}}', NULL, NULL, '1.51.0', '0.7.0', 0, '{"grep":"checkout|cart"}', 1744973163, 1744973310);
 INSERT INTO test_runs (id, project_id, status, start_time, duration, total_tests, passed_tests, failed_tests, skipped_tests, did_not_run_tests, flaky_tests, avg_test_duration, p90_test_duration, environment, branch, label, metadata, stream_token, instance_id, playwright_version, reporter_version, is_full_run, filter_details, created_at, updated_at) VALUES (21, 2, 'failed', 1745569800, 80837, 14, 11, 3, 0, 0, 0, 1963, 4868, 'production', 'main', NULL, '{"ci":{"provider":"GitHub Actions","buildNumber":"1200","jobName":"test","workflow":"CI","buildUrl":"https://github.com/example/shop-api/actions/runs/5300"},"scm":{"commit":"f1e2d3c4b5a6079887766554433221100ffeeddc","branch":"main","author":"David Lee","commitMessage":"refactor: simplify auth flow"}}', NULL, NULL, '1.52.0', '0.7.0', 1, NULL, 1745569800, 1745569880);
 INSERT INTO test_runs (id, project_id, status, start_time, duration, total_tests, passed_tests, failed_tests, skipped_tests, did_not_run_tests, flaky_tests, avg_test_duration, p90_test_duration, environment, branch, label, metadata, stream_token, instance_id, playwright_version, reporter_version, is_full_run, filter_details, created_at, updated_at) VALUES (22, 2, 'interrupted', 1745540102, 89539, 14, 8, 3, 0, 3, 0, 2080, 4862, 'staging', 'main', NULL, '{"ci":{"provider":"GitHub Actions","buildNumber":"1199","jobName":"test","workflow":"CI","buildUrl":"https://github.com/example/shop-api/actions/runs/5299"},"scm":{"commit":"f1e2d3c4b5a6079887766554433221100ffeeddc","branch":"main","author":"David Lee","commitMessage":"refactor: simplify auth flow"}}', NULL, NULL, '1.52.0', '0.7.0', 1, NULL, 1745540102, 1745540191);
 INSERT INTO test_runs (id, project_id, status, start_time, duration, total_tests, passed_tests, failed_tests, skipped_tests, did_not_run_tests, flaky_tests, avg_test_duration, p90_test_duration, environment, branch, label, metadata, stream_token, instance_id, playwright_version, reporter_version, is_full_run, filter_details, created_at, updated_at) VALUES (23, 2, 'failed', 1745511773, 88178, 14, 13, 1, 0, 0, 0, 2137, 4894, 'integration', 'main', NULL, '{"ci":{"provider":"GitHub Actions","buildNumber":"1198","jobName":"test","workflow":"CI","buildUrl":"https://github.com/example/shop-api/actions/runs/5298"},"scm":{"commit":"f1e2d3c4b5a6079887766554433221100ffeeddc","branch":"main","author":"David Lee","commitMessage":"refactor: simplify auth flow"}}', NULL, NULL, '1.51.0', '0.7.0', 1, NULL, 1745511773, 1745511861);
@@ -7841,6 +7963,55 @@ INSERT INTO locator_snapshots (id, test_case_id, location, used_method, used_arg
 INSERT INTO locator_snapshots (id, test_case_id, location, used_method, used_args, used_args_fp, element_tag, element_attrs, element_text, alternatives, last_seen_run_id, last_seen_at) VALUES (13, 11, 'tests/checkout/address.spec.ts:9:14', 'getByRole', '["button",{"name":"Save address"}]', 'b7323473d666d3ee2e09534c6af7df40bc01522989c75ce5fae013ec43afe572', 'button', '{"data-testid":"save-address-btn","class":"btn btn-primary","accessibleName":"Save address","center":{"x":640,"y":540}}', 'Save address', '[{"locator":"getByTestId(''save-address-btn'')","method":"getByTestId","args":{"testId":"save-address-btn"},"score":100},{"locator":"getByRole(''button'', { name: ''Save address'' })","method":"getByRole","args":{"role":"button","name":"Save address"},"score":90},{"locator":"getByText(''Save address'')","method":"getByText","args":{"text":"Save address"},"score":75}]', 20, 1744973171788);
 INSERT INTO locator_snapshots (id, test_case_id, location, used_method, used_args, used_args_fp, element_tag, element_attrs, element_text, alternatives, last_seen_run_id, last_seen_at) VALUES (14, 27, 'tests/ui/button.spec.ts:10:16', 'getByRole', '["button"]', '20caff8e861f1476988eee6b73311ebddc2da9f6ddc3992bbd70919c5ff341e0', 'button', '{"data-testid":"primary-btn","class":"btn btn-primary","accessibleName":"Primary","center":{"x":320,"y":280}}', 'Primary', '[{"locator":"getByTestId(''primary-btn'')","method":"getByTestId","args":{"testId":"primary-btn"},"score":100},{"locator":"getByRole(''button'', { name: ''Primary'' })","method":"getByRole","args":{"role":"button","name":"Primary"},"score":90},{"locator":"getByText(''Primary'')","method":"getByText","args":{"text":"Primary"},"score":75},{"locator":"locator(''.btn-primary'')","method":"locator","args":{"selector":".btn-primary"},"score":30}]', 53, 1745130540000);
 INSERT INTO locator_snapshots (id, test_case_id, location, used_method, used_args, used_args_fp, element_tag, element_attrs, element_text, alternatives, last_seen_run_id, last_seen_at) VALUES (15, 50, 'tests/admin/reports.spec.ts:12:18', 'getByRole', '["button",{"name":"Export CSV"}]', '5bf23ce6331cb33c5e132cb54cbbd744354a2a6b06b666c33560e074e58f8b3a', 'button', '{"class":"export-btn","accessibleName":"Export CSV","center":{"x":1180,"y":96},"rolePosition":{"role":"button","count":3,"index":2}}', 'Export CSV', '[{"locator":"getByRole(''button'', { name: ''Export CSV'' })","method":"getByRole","args":{"role":"button","name":"Export CSV"},"score":90},{"locator":"getByText(''Export CSV'')","method":"getByText","args":{"text":"Export CSV"},"score":75},{"locator":"locator(''.export-btn'')","method":"locator","args":{"selector":".export-btn"},"score":40}]', 73, 1745234664567);
+
+-- Probe ledger (Test Map, checked axis)
+INSERT INTO probes (project_id, test_case_id, node_id, route_key, level, fault, applied, outcome, handled, run_id, evidence, probed_at) VALUES (1, 1, NULL, 'POST /api/orders', 'client', 'status-500', 1, 'not-noticed', 'n/a', 20, '{"mutation":"status-500"}', 1745569800000);
+
+-- Feature graph nodes (Test Map)
+INSERT INTO graph_nodes (project_id, kind, key, attrs, origin, first_seen_run_id, last_seen_run_id, last_seen_at, created_at) VALUES (1, 'route', 'POST /api/orders', NULL, 'observed', 20, 20, 1745569800000, 1745569800000);
+INSERT INTO graph_nodes (project_id, kind, key, attrs, origin, first_seen_run_id, last_seen_run_id, last_seen_at, created_at) VALUES (1, 'route', 'GET /api/cart', NULL, 'observed', 20, 20, 1745569800000, 1745569800000);
+INSERT INTO graph_nodes (project_id, kind, key, attrs, origin, first_seen_run_id, last_seen_run_id, last_seen_at, created_at) VALUES (1, 'page', '/checkout', '{"url":"https://shop.demo/checkout"}', 'observed', 20, 20, 1745569800000, 1745569800000);
+INSERT INTO graph_nodes (project_id, kind, key, attrs, origin, first_seen_run_id, last_seen_run_id, last_seen_at, created_at) VALUES (1, 'control', 'button:Export invoices', '{"role":"button"}', 'observed', 20, 20, 1745569800000, 1745569800000);
+INSERT INTO graph_nodes (project_id, kind, key, attrs, origin, first_seen_run_id, last_seen_run_id, last_seen_at, created_at) VALUES (1, 'page', '/billing/plans', '{"url":"https://shop.demo/billing/plans"}', 'observed', 20, 20, 1745569800000, 1745569800000);
+INSERT INTO graph_nodes (project_id, kind, key, attrs, origin, first_seen_run_id, last_seen_run_id, last_seen_at, created_at) VALUES (1, 'route', 'DELETE /api/orders/:id', '{"declared":true,"responses":[200,401,404,409]}', 'openapi', 20, 20, 1745569800000, 1745569800000);
+INSERT INTO graph_nodes (project_id, kind, key, attrs, origin, first_seen_run_id, last_seen_run_id, last_seen_at, created_at) VALUES (1, 'handler', 'src/api/orders.post.ts', NULL, 'observed', 20, 20, 1745569800000, 1745569800000);
+INSERT INTO graph_nodes (project_id, kind, key, attrs, origin, first_seen_run_id, last_seen_run_id, last_seen_at, created_at) VALUES (1, 'dependency', 'payments-svc', NULL, 'observed', 20, 20, 1745569800000, 1745569800000);
+INSERT INTO graph_nodes (project_id, kind, key, attrs, origin, first_seen_run_id, last_seen_run_id, last_seen_at, created_at) VALUES (1, 'feature', 'Checkout', '{"source":"tag"}', 'observed', 20, 20, 1745569800000, 1745569800000);
+INSERT INTO graph_nodes (project_id, kind, key, attrs, origin, first_seen_run_id, last_seen_run_id, last_seen_at, created_at) VALUES (1, 'feature', 'Billing', '{"source":"tag"}', 'observed', 20, 20, 1745569800000, 1745569800000);
+INSERT INTO graph_nodes (project_id, kind, key, attrs, origin, first_seen_run_id, last_seen_run_id, last_seen_at, created_at) VALUES (1, 'feature', 'Orders', '{"source":"tag"}', 'observed', 20, 20, 1745569800000, 1745569800000);
+
+-- Feature graph edges (references nothing by FK; endpoints are typed keys)
+INSERT INTO graph_edges (project_id, from_kind, from_key, to_kind, to_key, kind, confidence, origin, evidence, first_seen_run_id, last_seen_run_id, last_seen_at, created_at) VALUES (1, 'test', '1', 'route', 'POST /api/orders', 'reaches', 1, 'observed', '{"method":"POST","status":201}', 20, 20, 1745569800000, 1745569800000);
+INSERT INTO graph_edges (project_id, from_kind, from_key, to_kind, to_key, kind, confidence, origin, evidence, first_seen_run_id, last_seen_run_id, last_seen_at, created_at) VALUES (1, 'test', '1', 'route', 'GET /api/cart', 'reaches', 1, 'observed', '{"method":"GET","status":200}', 20, 20, 1745569800000, 1745569800000);
+INSERT INTO graph_edges (project_id, from_kind, from_key, to_kind, to_key, kind, confidence, origin, evidence, first_seen_run_id, last_seen_run_id, last_seen_at, created_at) VALUES (1, 'test', '2', 'route', 'GET /api/cart', 'reaches', 1, 'observed', '{"method":"GET","status":200}', 20, 20, 1745569800000, 1745569800000);
+INSERT INTO graph_edges (project_id, from_kind, from_key, to_kind, to_key, kind, confidence, origin, evidence, first_seen_run_id, last_seen_run_id, last_seen_at, created_at) VALUES (1, 'test', '1', 'page', '/checkout', 'reaches', 1, 'observed', NULL, 20, 20, 1745569800000, 1745569800000);
+INSERT INTO graph_edges (project_id, from_kind, from_key, to_kind, to_key, kind, confidence, origin, evidence, first_seen_run_id, last_seen_run_id, last_seen_at, created_at) VALUES (1, 'commit', 'd4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f607', 'file', 'src/api/orders.post.ts', 'changes', NULL, 'observed', NULL, 20, 20, 1745569800000, 1745569800000);
+INSERT INTO graph_edges (project_id, from_kind, from_key, to_kind, to_key, kind, confidence, origin, evidence, first_seen_run_id, last_seen_run_id, last_seen_at, created_at) VALUES (1, 'ticket', 'PROJ-418', 'file', 'src/api/orders.post.ts', 'changes', NULL, 'observed', NULL, 20, 20, 1745569800000, 1745569800000);
+INSERT INTO graph_edges (project_id, from_kind, from_key, to_kind, to_key, kind, confidence, origin, evidence, first_seen_run_id, last_seen_run_id, last_seen_at, created_at) VALUES (1, 'page', '/checkout', 'control', 'button:Export invoices', 'contains', NULL, 'observed', NULL, 20, 20, 1745569800000, 1745569800000);
+INSERT INTO graph_edges (project_id, from_kind, from_key, to_kind, to_key, kind, confidence, origin, evidence, first_seen_run_id, last_seen_run_id, last_seen_at, created_at) VALUES (1, 'page', '/checkout', 'page', '/billing/plans', 'links', NULL, 'observed', NULL, 20, 20, 1745569800000, 1745569800000);
+INSERT INTO graph_edges (project_id, from_kind, from_key, to_kind, to_key, kind, confidence, origin, evidence, first_seen_run_id, last_seen_run_id, last_seen_at, created_at) VALUES (1, 'test', '1', 'route', 'POST /api/orders', 'checks', 0, 'observed', '{"fault":"status-500","outcome":"not-noticed","level":"client"}', 20, 20, 1745569800000, 1745569800000);
+INSERT INTO graph_edges (project_id, from_kind, from_key, to_kind, to_key, kind, confidence, origin, evidence, first_seen_run_id, last_seen_run_id, last_seen_at, created_at) VALUES (1, 'route', 'POST /api/orders', 'handler', 'src/api/orders.post.ts', 'handled-by', NULL, 'observed', NULL, 20, 20, 1745569800000, 1745569800000);
+INSERT INTO graph_edges (project_id, from_kind, from_key, to_kind, to_key, kind, confidence, origin, evidence, first_seen_run_id, last_seen_run_id, last_seen_at, created_at) VALUES (1, 'handler', 'src/api/orders.post.ts', 'dependency', 'payments-svc', 'calls', NULL, 'observed', NULL, 20, 20, 1745569800000, 1745569800000);
+INSERT INTO graph_edges (project_id, from_kind, from_key, to_kind, to_key, kind, confidence, origin, evidence, first_seen_run_id, last_seen_run_id, last_seen_at, created_at) VALUES (1, 'feature', 'Checkout', 'route', 'POST /api/orders', 'groups', NULL, 'observed', NULL, 20, 20, 1745569800000, 1745569800000);
+INSERT INTO graph_edges (project_id, from_kind, from_key, to_kind, to_key, kind, confidence, origin, evidence, first_seen_run_id, last_seen_run_id, last_seen_at, created_at) VALUES (1, 'feature', 'Checkout', 'route', 'GET /api/cart', 'groups', NULL, 'observed', NULL, 20, 20, 1745569800000, 1745569800000);
+INSERT INTO graph_edges (project_id, from_kind, from_key, to_kind, to_key, kind, confidence, origin, evidence, first_seen_run_id, last_seen_run_id, last_seen_at, created_at) VALUES (1, 'feature', 'Checkout', 'page', '/checkout', 'groups', NULL, 'observed', NULL, 20, 20, 1745569800000, 1745569800000);
+INSERT INTO graph_edges (project_id, from_kind, from_key, to_kind, to_key, kind, confidence, origin, evidence, first_seen_run_id, last_seen_run_id, last_seen_at, created_at) VALUES (1, 'feature', 'Billing', 'page', '/billing/plans', 'groups', NULL, 'observed', NULL, 20, 20, 1745569800000, 1745569800000);
+INSERT INTO graph_edges (project_id, from_kind, from_key, to_kind, to_key, kind, confidence, origin, evidence, first_seen_run_id, last_seen_run_id, last_seen_at, created_at) VALUES (1, 'feature', 'Billing', 'control', 'button:Export invoices', 'groups', NULL, 'observed', NULL, 20, 20, 1745569800000, 1745569800000);
+INSERT INTO graph_edges (project_id, from_kind, from_key, to_kind, to_key, kind, confidence, origin, evidence, first_seen_run_id, last_seen_run_id, last_seen_at, created_at) VALUES (1, 'feature', 'Billing', 'route', 'GET /api/cart', 'groups', NULL, 'observed', NULL, 20, 20, 1745569800000, 1745569800000);
+INSERT INTO graph_edges (project_id, from_kind, from_key, to_kind, to_key, kind, confidence, origin, evidence, first_seen_run_id, last_seen_run_id, last_seen_at, created_at) VALUES (1, 'feature', 'Orders', 'route', 'DELETE /api/orders/:id', 'groups', NULL, 'observed', NULL, 20, 20, 1745569800000, 1745569800000);
+INSERT INTO graph_edges (project_id, from_kind, from_key, to_kind, to_key, kind, confidence, origin, evidence, first_seen_run_id, last_seen_run_id, last_seen_at, created_at) VALUES (1, 'feature', 'Orders', 'route', 'POST /api/orders', 'groups', NULL, 'observed', NULL, 20, 20, 1745569800000, 1745569800000);
+
+-- Scenario gaps (references test_cases; test_run_id is not an FK)
+INSERT INTO scenario_gaps (project_id, kind, detector, class, key, title, evidence, factors, score, status, created_at, updated_at) VALUES (1, 'gap', 'declared-never-hit', 'blind-spot', 'route:DELETE /api/orders/:id', 'Declared route DELETE /api/orders/:id — never reached', '["Declared in OpenAPI · 0 tests in 30 runs · documents 200, 401, 404, 409 — observed reach."]', '{"churn":0.4,"age":0.5,"escapeHistory":0.1,"priority":0.4}', 0.0056, 'open', 1745569800000, 1745569800000);
+INSERT INTO scenario_gaps (project_id, kind, detector, class, key, title, evidence, factors, score, test_case_id, status, created_at, updated_at) VALUES (1, 'finding', 'not-handled', 'unhandled', 'dependency:payments-svc @ POST /api/orders', 'payments-svc (via POST /api/orders): unhandled failure', '["A server probe made payments-svc (via POST /api/orders) fail; the application did not handle it (should complete checkout with credit card) — an error-state scenario is missing."]', '{"churn":0.1,"age":0.1,"escapeHistory":0.1,"priority":0.3}', 0.3, 1, 'open', 1745569800000, 1745569800000);
+INSERT INTO scenario_gaps (project_id, kind, detector, class, key, title, evidence, factors, score, status, created_at, updated_at) VALUES (1, 'gap', 'unprobed-dependency', 'false-comfort', 'dependency:payments-svc', 'payments-svc is never probed', '["Called by 1 route · no probe has checked what happens when it fails — schedule a dependency probe."]', '{"churn":0.1,"age":0.1,"escapeHistory":0.1,"priority":0.1}', 0.0004, 'open', 1745569800000, 1745569800000);
+INSERT INTO scenario_gaps (project_id, kind, detector, class, key, title, evidence, factors, score, ticket, test_run_id, pr_number, status, created_at, updated_at) VALUES (1, 'gap', 'changed-unreached', 'blind-spot', 'src/api/orders.post.ts', 'src/api/orders.post.ts changed but not reached', '["+41 −3 · no test in run #20 · 0 in 30 runs — observed reach."]', '{"churn":0.9,"age":0.8,"escapeHistory":1,"priority":0.7}', 0.4536, 'PROJ-418', 20, 418, 'open', 1745569800000, 1745569800000);
+INSERT INTO scenario_gaps (project_id, kind, detector, class, key, title, evidence, factors, score, test_case_id, status, created_at, updated_at) VALUES (1, 'gap', 'single-covering-test', 'fragile', 'route:POST /api/orders', 'Only one test reaches route POST /api/orders', '["Only should complete checkout with credit card reaches this — observed reach. A second scenario would make it resilient."]', '{"churn":0.1,"age":0.1,"escapeHistory":0.1,"priority":0.4}', 0.0002, 1, 'open', 1745569800000, 1745569800000);
+INSERT INTO scenario_gaps (project_id, kind, detector, class, key, title, evidence, factors, score, status, created_at, updated_at) VALUES (1, 'gap', 'success-only', 'blind-spot', 'GET /api/cart', 'GET /api/cart: no error path under test', '["Observed 412 times over the last 30 runs, always 200 — observed reach, no error path exercised."]', '{"churn":0.1,"age":0.1,"escapeHistory":0.1,"priority":0.1}', 0.0001, 'open', 1745569800000, 1745569800000);
+INSERT INTO scenario_gaps (project_id, kind, detector, class, key, title, evidence, factors, score, status, created_at, updated_at) VALUES (1, 'gap', 'not-noticed', 'false-comfort', 'route:POST /api/orders', 'Tests pass when POST /api/orders breaks', '["A probe (status-500) on POST /api/orders did not make any test fail — assert the effect the request should have."]', '{"churn":0.9,"age":0.8,"escapeHistory":1,"priority":0.7}', 0.4032, 'open', 1745569800000, 1745569800000);
+INSERT INTO scenario_gaps (project_id, kind, detector, class, key, title, evidence, factors, score, status, created_at, updated_at) VALUES (1, 'gap', 'control-nobody-exercises', 'blind-spot', 'control:button:Export invoices', 'No test exercises control button:Export invoices', '["On 1 page · no locator targets it — observed reach."]', '{"churn":0.1,"age":0.1,"escapeHistory":0.1,"priority":0.1}', 0.0004, 'open', 1745569800000, 1745569800000);
+INSERT INTO scenario_gaps (project_id, kind, detector, class, key, title, evidence, factors, score, status, created_at, updated_at) VALUES (1, 'gap', 'reachable-unvisited', 'blind-spot', 'page:/billing/plans', '/billing/plans is linked but never visited', '["Linked from 1 page · never navigated to — observed reach."]', '{"churn":0.1,"age":0.1,"escapeHistory":0.1,"priority":0.1}', 0.0005, 'open', 1745569800000, 1745569800000);
+INSERT INTO scenario_gaps (project_id, kind, detector, class, key, title, evidence, factors, score, status, accepted_at, created_at, updated_at) VALUES (1, 'gap', 'single-covering-test', 'fragile', 'route:GET /api/orders/:id/receipt', 'Only one test reaches route GET /api/orders/:id/receipt', '["Only views an order receipt reaches this — observed reach. A second scenario would make it resilient."]', '{"churn":0.3,"age":0.4,"escapeHistory":0.1,"priority":0.4}', 0.03, 'accepted', 1745569800000, 1745569800000, 1745569800000);
 
 -- ── Rebase every timestamp to load time (see generator for rationale) ──────
 CREATE TEMP TABLE _rebase AS SELECT (CAST(strftime('%s', 'now') AS INTEGER) - 1745572680) AS delta_sec;
