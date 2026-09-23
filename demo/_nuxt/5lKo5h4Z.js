@@ -1,1 +1,0 @@
-import{b0 as s}from"./B8vT55cu.js";let a=null;function i(){const t=s("ai-status",()=>null);async function u(){t.value===null&&(a||(a=$fetch("/api/ai/status").catch(()=>({configured:!1}))),t.value=await a)}return u(),{aiStatus:t}}export{i as u};
