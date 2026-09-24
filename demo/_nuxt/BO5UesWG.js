@@ -1,0 +1,1 @@
+import{dQ as i,dR as l,dS as f}from"./B9BJpiU0.js";function o(n,a){const e=l(),s=a?.weekStartsOn??a?.locale?.options?.weekStartsOn??e.weekStartsOn??e.locale?.options?.weekStartsOn??0,t=i(n,a?.in),r=t.getDay(),c=(r<s?7:0)+r-s;return t.setDate(t.getDate()-c),t.setHours(0,0,0,0),t}function O(n,a,e){const[s,t]=f(e?.in,n,a);return+o(s,e)==+o(t,e)}export{O as i};
