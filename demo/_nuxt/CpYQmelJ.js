@@ -1,1 +1,0 @@
-import{b0 as n,t as u}from"./HxlX_Yct.js";import{f as a}from"./Cz98-K9e.js";function l(){const t=n("desktop-prev-runs-proposal",()=>null),o=n("desktop-prev-runs-open",()=>!1);async function p(r,s){if(!u()||!r||!s)return;const e=await a(s);e.length!==0&&(t.value={projectName:r,folder:s,archives:e},o.value=!0)}return{proposal:t,open:o,propose:p}}export{l as u};
