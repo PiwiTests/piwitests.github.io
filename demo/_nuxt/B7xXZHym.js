@@ -1,0 +1,1 @@
+import{bd as n,D as u}from"./BAznNNi3.js";import{f as a}from"./DVgmkcbo.js";function l(){const o=n("desktop-prev-runs-proposal",()=>null),r=n("desktop-prev-runs-open",()=>!1);async function p(t,s){if(!u()||!t||!s)return;const e=await a(s);e.length!==0&&(o.value={projectName:t,folder:s,archives:e},r.value=!0)}return{proposal:o,open:r,propose:p}}export{l as u};
