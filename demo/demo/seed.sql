@@ -1240,6 +1240,137 @@ CREATE INDEX `idx_locator_usages_last_seen_run` ON `locator_usages` (`last_seen_
 CREATE INDEX `idx_locator_usages_first_seen_run` ON `locator_usages` (`first_seen_run_id`);
 ALTER TABLE `projects` ADD `locator_index_built_at` integer;
 
+CREATE TABLE `analytics_daily_rollups` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`project_id` integer NOT NULL,
+	`day` text NOT NULL,
+	`environment` text DEFAULT '' NOT NULL,
+	`branch` text DEFAULT '' NOT NULL,
+	`full_run` integer NOT NULL,
+	`part` text NOT NULL,
+	`runs` integer DEFAULT 0 NOT NULL,
+	`passed_runs` integer DEFAULT 0 NOT NULL,
+	`failed_runs` integer DEFAULT 0 NOT NULL,
+	`total_tests` integer DEFAULT 0 NOT NULL,
+	`passed_tests` integer DEFAULT 0 NOT NULL,
+	`failed_tests` integer DEFAULT 0 NOT NULL,
+	`skipped_tests` integer DEFAULT 0 NOT NULL,
+	`did_not_run_tests` integer DEFAULT 0 NOT NULL,
+	`flaky_tests` integer DEFAULT 0 NOT NULL,
+	`max_total_tests` integer DEFAULT 0 NOT NULL,
+	`duration_ms` integer DEFAULT 0 NOT NULL,
+	`avg_test_duration_sum_ms` integer DEFAULT 0 NOT NULL,
+	`p90_test_duration_sum_ms` integer DEFAULT 0 NOT NULL,
+	`wait_ms` integer DEFAULT 0 NOT NULL,
+	`failed_exec_ms` integer DEFAULT 0 NOT NULL,
+	`new_regressions` integer DEFAULT 0 NOT NULL,
+	`new_flaky` integer DEFAULT 0 NOT NULL,
+	`computed_at` integer NOT NULL,
+	FOREIGN KEY (`project_id`) REFERENCES `projects`(`id`) ON UPDATE no action ON DELETE cascade
+);
+
+CREATE UNIQUE INDEX `idx_analytics_daily_rollups_cell` ON `analytics_daily_rollups` (`project_id`,`day`,`environment`,`branch`,`full_run`,`part`);
+CREATE INDEX `idx_analytics_daily_rollups_project_day` ON `analytics_daily_rollups` (`project_id`,`day`);
+
+CREATE TABLE `report_schedules` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`name` text NOT NULL,
+	`user_id` integer,
+	`scope` text,
+	`builtin_dashboard` text,
+	`cadence` text NOT NULL,
+	`anchor` integer,
+	`at` text NOT NULL,
+	`comparison` text DEFAULT 'previous' NOT NULL,
+	`include_share_link` integer DEFAULT false NOT NULL,
+	`language` text,
+	`channel_ids` text,
+	`active` integer DEFAULT true NOT NULL,
+	`muted_until` integer,
+	`last_run_at` integer,
+	`next_run_at` integer,
+	`created_at` integer NOT NULL,
+	`updated_at` integer NOT NULL,
+	FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade
+);
+
+CREATE INDEX `idx_report_schedules_user` ON `report_schedules` (`user_id`);
+CREATE INDEX `idx_report_schedules_due` ON `report_schedules` (`active`,`next_run_at`);
+CREATE TABLE `report_snapshots` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`schedule_id` integer,
+	`created_by` integer,
+	`dashboard_ref` text NOT NULL,
+	`dashboard_name` text NOT NULL,
+	`scope` text,
+	`project_ids` text,
+	`period_from` integer NOT NULL,
+	`period_to` integer NOT NULL,
+	`comparison_from` integer,
+	`comparison_to` integer,
+	`bundle` text NOT NULL,
+	`size_bytes` integer DEFAULT 0 NOT NULL,
+	`generated_at` integer NOT NULL,
+	FOREIGN KEY (`schedule_id`) REFERENCES `report_schedules`(`id`) ON UPDATE no action ON DELETE set null,
+	FOREIGN KEY (`created_by`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE set null
+);
+
+CREATE INDEX `idx_report_snapshots_schedule` ON `report_snapshots` (`schedule_id`);
+CREATE INDEX `idx_report_snapshots_generated` ON `report_snapshots` (`generated_at`);
+CREATE INDEX `idx_report_snapshots_created_by` ON `report_snapshots` (`created_by`);
+
+CREATE TABLE `analytics_dashboards` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`name` text NOT NULL,
+	`description` text,
+	`owner_id` integer,
+	`visibility` text DEFAULT 'private' NOT NULL,
+	`definition` text NOT NULL,
+	`created_at` integer NOT NULL,
+	`updated_at` integer NOT NULL,
+	`updated_by` integer,
+	`last_viewed_at` integer,
+	FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE set null,
+	FOREIGN KEY (`updated_by`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE set null
+);
+
+CREATE INDEX `idx_analytics_dashboards_owner` ON `analytics_dashboards` (`owner_id`);
+CREATE INDEX `idx_analytics_dashboards_visibility` ON `analytics_dashboards` (`visibility`);
+CREATE INDEX `idx_analytics_dashboards_updated_by` ON `analytics_dashboards` (`updated_by`);
+ALTER TABLE `report_schedules` ADD `dashboard_id` integer REFERENCES analytics_dashboards(id);
+CREATE INDEX `idx_report_schedules_dashboard` ON `report_schedules` (`dashboard_id`);
+
+ALTER TABLE `projects` ADD `targets` text;
+
+PRAGMA foreign_keys=OFF;
+CREATE TABLE `__new_share_links` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`project_id` integer,
+	`entity_kind` text NOT NULL,
+	`entity_id` integer NOT NULL,
+	`token_hash` text NOT NULL,
+	`token_prefix` text NOT NULL,
+	`created_by` integer,
+	`created_at` integer NOT NULL,
+	`expires_at` integer,
+	`revoked_at` integer,
+	`last_viewed_at` integer,
+	`view_count` integer DEFAULT 0 NOT NULL,
+	FOREIGN KEY (`project_id`) REFERENCES `projects`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`created_by`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE set null
+);
+
+INSERT INTO `__new_share_links`("id", "project_id", "entity_kind", "entity_id", "token_hash", "token_prefix", "created_by", "created_at", "expires_at", "revoked_at", "last_viewed_at", "view_count") SELECT "id", "project_id", "entity_kind", "entity_id", "token_hash", "token_prefix", "created_by", "created_at", "expires_at", "revoked_at", "last_viewed_at", "view_count" FROM `share_links`;
+DROP TABLE `share_links`;
+ALTER TABLE `__new_share_links` RENAME TO `share_links`;
+PRAGMA foreign_keys=ON;
+CREATE UNIQUE INDEX `share_links_token_hash_unique` ON `share_links` (`token_hash`);
+CREATE INDEX `idx_share_links_project_id` ON `share_links` (`project_id`);
+CREATE INDEX `idx_share_links_entity` ON `share_links` (`entity_kind`,`entity_id`);
+CREATE INDEX `idx_share_links_created_by` ON `share_links` (`created_by`);
+
+ALTER TABLE `report_schedules` ADD `include_narrative` integer DEFAULT false NOT NULL;
+
 BEGIN TRANSACTION;
 
 -- Tags
@@ -1249,9 +1380,9 @@ INSERT INTO tags (id, text, color, created_at, updated_at) VALUES (3, 'critical'
 INSERT INTO tags (id, text, color, created_at, updated_at) VALUES (4, 'performance', '#f59e0b', 1743465600, 1743465600);
 
 -- Projects
-INSERT INTO projects (id, name, label, description, created_at, updated_at, default_branch) VALUES (1, 'e2e-checkout', 'E2E Checkout', 'End-to-end tests for the checkout flow', 1740787200, 1745569800, 'main');
+INSERT INTO projects (id, name, label, description, created_at, updated_at, targets, default_branch) VALUES (1, 'e2e-checkout', 'E2E Checkout', 'End-to-end tests for the checkout flow', 1740787200, 1745569800, '{"testPassRate":99,"maxFlakyTests":2,"maxMedianTimeToFixDays":3}', 'main');
 INSERT INTO projects (id, name, label, description, created_at, updated_at, default_branch) VALUES (2, 'api-integration', 'API Integration', 'Integration tests for REST API endpoints', 1739577600, 1745565300, 'main');
-INSERT INTO projects (id, name, label, description, created_at, updated_at, default_branch) VALUES (3, 'ui-components', 'UI Components', 'Visual regression tests for UI components', 1736467200, 1745513100, 'main');
+INSERT INTO projects (id, name, label, description, created_at, updated_at, targets, default_branch) VALUES (3, 'ui-components', 'UI Components', 'Visual regression tests for UI components', 1736467200, 1745513100, '{"testPassRate":60,"maxOpenClusterAgeDays":400}', 'main');
 INSERT INTO projects (id, name, label, description, created_at, updated_at, capabilities, default_branch) VALUES (4, 'mobile-safari', 'Mobile Safari', 'Mobile Safari browser compatibility tests', 1743465600, 1745150400, '{"markers":"declined","test-map":"declined"}', 'main');
 INSERT INTO projects (id, name, label, description, created_at, updated_at, default_branch) VALUES (5, 'web-dashboard', 'Web Dashboard', 'Cross-browser tests for the SaaS admin dashboard', 1740009600, 1745572200, 'main');
 
@@ -1440,6 +1571,19 @@ INSERT INTO test_runs (id, project_id, status, start_time, duration, total_tests
 
 -- Release markers linked to a run (they keep that run forever)
 INSERT INTO markers (id, project_id, occurred_at, label, description, category, environment, source, run_id, created_at, updated_at) VALUES (4, 1, 1745569800, 'v2.4.0', 'Tagged and shipped from this run.', 'release', NULL, 'manual', 1, 1745569800, 1745569800);
+INSERT INTO markers (id, project_id, occurred_at, label, description, category, environment, source, run_id, created_at, updated_at) VALUES (5, 1, 1745097167, 'v2.2.0', 'Tagged and shipped.', 'release', NULL, 'manual', NULL, 1745097167, 1745097167);
+INSERT INTO markers (id, project_id, occurred_at, label, description, category, environment, source, run_id, created_at, updated_at) VALUES (6, 1, 1745344688, 'v2.3.0', 'Tagged and shipped.', 'release', NULL, 'manual', NULL, 1745344688, 1745344688);
+
+-- Test selections
+INSERT INTO test_selections (id, project_id, key, name, description, definition, version, created_by, created_at, updated_at) VALUES (1, 1, 'smoke', 'Smoke tests', 'The first test of every spec file, tagged @smoke.', '{"include":[{"tags":["smoke"]}]}', 1, 1, 1743498000, 1743498000);
+INSERT INTO test_selections (id, project_id, key, name, description, definition, version, created_by, created_at, updated_at) VALUES (2, 2, 'smoke', 'Smoke tests', 'The first test of every spec file, tagged @smoke.', '{"include":[{"tags":["smoke"]}]}', 1, 1, 1743498000, 1743498000);
+INSERT INTO test_selections (id, project_id, key, name, description, definition, version, created_by, created_at, updated_at) VALUES (3, 3, 'smoke', 'Smoke tests', 'The first test of every spec file, tagged @smoke.', '{"include":[{"tags":["smoke"]}]}', 1, 1, 1743498000, 1743498000);
+INSERT INTO test_selections (id, project_id, key, name, description, definition, version, created_by, created_at, updated_at) VALUES (4, 4, 'smoke', 'Smoke tests', 'The first test of every spec file, tagged @smoke.', '{"include":[{"tags":["smoke"]}]}', 1, 1, 1743498000, 1743498000);
+INSERT INTO test_selections (id, project_id, key, name, description, definition, version, created_by, created_at, updated_at) VALUES (5, 5, 'smoke', 'Smoke tests', 'The first test of every spec file, tagged @smoke.', '{"include":[{"tags":["smoke"]}]}', 1, 1, 1743498000, 1743498000);
+
+-- Saved dashboards
+INSERT INTO analytics_dashboards (id, name, description, owner_id, visibility, definition, created_at, updated_at, updated_by, last_viewed_at) VALUES (1, 'Checkout team', 'The checkout smoke tests, sprint by sprint.', 1, 'shared', '{"v":1,"scope":{"comparison":{"kind":"previous-unit"},"granularity":"auto","defaultBranchOnly":true,"fullRunsOnly":true,"period":{"kind":"sprint","offset":0,"start":"2025-01-06","lengthDays":14},"projectIds":[1],"selection":"smoke"},"bands":[{"title":"This sprint","description":"The smoke tests of the checkout suite against the previous sprint.","widgets":[{"key":"headline","type":"stats","size":"full","options":{"metrics":["test-pass-rate","flaky-tests","wasted-ci-minutes","open-failure-causes"]}},{"key":"pass-rate","type":"metric","size":"full","title":"Smoke pass rate","options":{"metric":"test-pass-rate","display":"line"}},{"key":"flaky","type":"list","size":"half","options":{"source":"flaky-tests","limit":5}},{"key":"releases","type":"markers","size":"half","options":{"categories":["release","deploy"]}}]},{"title":"Notes","widgets":[{"key":"note","type":"text","size":"full","options":{"markdown":"**Sprint goal**: keep the smoke tests green on `main`.\n\n- Payment provider rollout: watch the PayPal flow\n- Ask in #checkout-quality before quarantining a test"}}]}]}', 1744705800000, 1745397000000, 1, 1745566200000);
+INSERT INTO analytics_dashboards (id, name, description, owner_id, visibility, definition, created_at, updated_at, updated_by, last_viewed_at) VALUES (2, 'Wasted CI by browser', NULL, 1, 'private', '{"v":1,"scope":{"comparison":{"kind":"previous"},"granularity":"auto","defaultBranchOnly":true,"fullRunsOnly":true,"period":{"kind":"rolling","days":30}},"bands":[{"title":"Where the minutes go","widgets":[{"key":"wasted-by-browser","type":"metric","size":"full","title":"Wasted CI minutes by browser","options":{"metric":"wasted-ci-minutes","display":"bar","breakdown":"browser","top":5}},{"key":"wasted-by-project","type":"metric","size":"half","options":{"metric":"wasted-ci-minutes","display":"table","breakdown":"project"}},{"key":"wasted","type":"wasted-time","size":"half"}]}]}', 1745137800000, 1745137800000, 1, NULL);
 
 -- Files (reports)
 INSERT INTO files (id, test_run_id, type, subtype, label, path, size, created_at) VALUES (1, 1, 'report', 'html', 'HTML Report', 'reports/1/1/index.html', 519621, 1745569800);
@@ -7993,6 +8137,7 @@ UPDATE projects SET created_at = created_at + (SELECT delta_sec FROM _rebase), u
 UPDATE markers SET occurred_at = occurred_at + (SELECT delta_sec FROM _rebase), created_at = created_at + (SELECT delta_sec FROM _rebase), updated_at = updated_at + (SELECT delta_sec FROM _rebase);
 UPDATE users SET created_at = created_at + (SELECT delta_sec FROM _rebase), updated_at = updated_at + (SELECT delta_sec FROM _rebase);
 UPDATE app_settings SET updated_at = updated_at + (SELECT delta_sec FROM _rebase);
+UPDATE test_selections SET created_at = created_at + (SELECT delta_sec FROM _rebase), updated_at = updated_at + (SELECT delta_sec FROM _rebase);
 UPDATE test_suites SET created_at = created_at + (SELECT delta_sec FROM _rebase), updated_at = updated_at + (SELECT delta_sec FROM _rebase);
 UPDATE test_cases SET created_at = created_at + (SELECT delta_sec FROM _rebase), updated_at = updated_at + (SELECT delta_sec FROM _rebase);
 UPDATE test_runs SET start_time = start_time + (SELECT delta_sec FROM _rebase), created_at = created_at + (SELECT delta_sec FROM _rebase), updated_at = updated_at + (SELECT delta_sec FROM _rebase), kept_at = kept_at + (SELECT delta_sec FROM _rebase);
@@ -8007,6 +8152,7 @@ UPDATE cluster_merge_suggestions SET created_at = created_at + (SELECT delta_sec
 UPDATE test_runs_cases SET started_at = started_at + (SELECT delta_sec FROM _rebase) * 1000, created_at = created_at + (SELECT delta_sec FROM _rebase) * 1000;
 UPDATE network_requests SET start_time = start_time + (SELECT delta_sec FROM _rebase) * 1000;
 UPDATE project_assignments SET created_at = created_at + (SELECT delta_sec FROM _rebase) * 1000;
+UPDATE analytics_dashboards SET created_at = created_at + (SELECT delta_sec FROM _rebase) * 1000, updated_at = updated_at + (SELECT delta_sec FROM _rebase) * 1000, last_viewed_at = last_viewed_at + (SELECT delta_sec FROM _rebase) * 1000;
 UPDATE entity_links SET created_at = created_at + (SELECT delta_sec FROM _rebase) * 1000, updated_at = updated_at + (SELECT delta_sec FROM _rebase) * 1000;
 UPDATE locator_snapshots SET last_seen_at = last_seen_at + (SELECT delta_sec FROM _rebase) * 1000;
 UPDATE probes SET probed_at = probed_at + (SELECT delta_sec FROM _rebase) * 1000;
