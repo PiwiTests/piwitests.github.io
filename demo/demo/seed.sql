@@ -1374,6 +1374,11 @@ ALTER TABLE `report_schedules` ADD `include_narrative` integer DEFAULT false NOT
 ALTER TABLE `analytics_daily_rollups` ADD `duration_runs` integer DEFAULT 0 NOT NULL;
 ALTER TABLE `analytics_daily_rollups` ADD `test_duration_runs` integer DEFAULT 0 NOT NULL;
 
+DROP INDEX `idx_locator_usages_use`;
+ALTER TABLE `locator_usages` ADD `branch` text DEFAULT '' NOT NULL;
+CREATE INDEX `idx_locator_usages_project_branch` ON `locator_usages` (`project_id`,`branch`);
+CREATE UNIQUE INDEX `idx_locator_usages_use` ON `locator_usages` (`test_case_id`,`browser_name`,`branch`,`call_site`,`action`,`locator`);
+
 BEGIN TRANSACTION;
 
 -- Tags
