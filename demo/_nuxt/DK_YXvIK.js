@@ -1,1 +1,0 @@
-import{fg as i,fh as c,fi as l}from"./LbpgQ-_L.js";function o(n,a){const e=c(),s=a?.weekStartsOn??a?.locale?.options?.weekStartsOn??e.weekStartsOn??e.locale?.options?.weekStartsOn??0,t=i(n,a?.in),r=t.getDay(),f=(r<s?7:0)+r-s;return t.setDate(t.getDate()-f),t.setHours(0,0,0,0),t}function O(n,a,e){const[s,t]=l(e?.in,n,a);return+o(s,e)==+o(t,e)}export{O as i};
