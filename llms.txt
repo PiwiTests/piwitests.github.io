@@ -1,0 +1,98 @@
+# Piwi Dashboard
+
+> CI throws away every report it makes. Piwi keeps them — then groups the failures by root cause, scores the flaky tests, and finds the locator you should have used. Self-hosted, MIT, zero telemetry.
+
+## Guide
+
+- [Getting started](https://piwitests.dev/guide/getting-started): Piwi Dashboard is a self-hosted server plus a Playwright reporter that keeps every test run. Run the dashboard, connect your suite with one command, and open your first run in three steps.
+- [Your first failure, explained](https://piwitests.dev/guide/first-failure): Read one failing test in the dashboard from top to bottom: the headline, the likely cause, the situation, the next step and the evidence.
+- [Core concepts](https://piwitests.dev/guide/concepts): The vocabulary the docs and the dashboard share: project, run, test case, execution, failure cluster, baseline, analytics dashboard, the Test Map and its gaps.
+- [Reporter](https://piwitests.dev/guide/reporter): Install and configure @piwitests/reporter: wrapConfig, options, live streaming, global setup, multiple reports, authentication and troubleshooting.
+- [Capture fixtures](https://piwitests.dev/guide/capture-fixtures): The optional fixtures file that records network timing, Web Vitals, console output, ARIA snapshots and locator snapshots from inside your tests.
+- [CI & sharding](https://piwitests.dev/guide/ci): Run the reporter in CI: GitHub Actions, GitLab and others, shards merged into one run, the run URL for later steps and the merge gate.
+- [Source control](https://piwitests.dev/guide/source-control): Connect the dashboard to your GitHub, GitLab or Bitbucket repository with an SCM token, and see which features read or write through it.
+- [AI provider](https://piwitests.dev/guide/ai-provider): Connect an LLM to the dashboard: Anthropic, OpenAI, a local OpenAI-compatible model or the Claude Code CLI, with model roles, response language and token limits.
+- [Backend instrumentation](https://piwitests.dev/guide/backend-logs): Add the ASP.NET Core or Nitro package to your backend so each test's requests carry the server's logs, spans and routes, with server probes as an experimental fourth use.
+- [Import past runs](https://piwitests.dev/guide/importing-runs): Backfill the dashboard with past runs from Playwright JSON and blob reports or trace files, and make imported history line up with new runs.
+- [What Piwi does](https://piwitests.dev/guide/what-piwi-does): What Piwi is for: the jobs it serves, the failure loop, the two rules behind every feature, its pieces, and what it is not.
+- [Why Piwi?](https://piwitests.dev/guide/comparison): How Piwi compares with the Playwright HTML report, Allure, ReportPortal, Currents and Fault0, and when another tool fits better.
+- [Privacy & data flow](https://piwitests.dev/guide/privacy): Exactly what leaves your server and when, what never does, what Piwi does not capture, and how secrets are stored.
+
+## Features
+
+- [UI overview](https://piwitests.dev/features/ui-overview): A map of the dashboard: every page and tab, what it is for, and the page of these docs that explains it.
+- [Branches](https://piwitests.dev/features/branches): Branch as a first-class dimension: how Piwi records it, filtering by branch, and baselines computed per branch.
+- [What changed in a run](https://piwitests.dev/features/run-changes): What changed in a run against its baseline: new failures, fixed tests, new flakes, the largest duration changes and the commits in between.
+- [Offline export](https://piwitests.dev/features/offline-export): Export a failing execution or a whole failure cluster as HTML, ZIP, PDF, Markdown or JSON that opens with no network and no Piwi server, plus a Perfetto trace of a run.
+- [Share links](https://piwitests.dev/features/share-links): Read-only links to a failure, a quality report or a live dashboard for someone without an account, a status badge, and their security properties.
+- [Regression or flake?](https://piwitests.dev/recipes/regression-or-flaky): Decide in a minute whether a red test is your regression or a known flake, from the run's changes and the test's own history.
+- [Triage a run gone red](https://piwitests.dev/recipes/mass-failure): When most of a Playwright run goes red, it is usually two or three causes, not forty bugs. Collapse the failures into clusters, rule out the environment, triage each cause once, then confirm the fix.
+- [Cut costly flakiness](https://piwitests.dev/recipes/flaky-cleanup): One afternoon to make an unreliable suite trustworthy: fix the flaky tests that cost the most, one root cause at a time, and quarantine the rest.
+- [Cut the time it costs](https://piwitests.dev/recipes/faster-suite): Find where your suite's CI time goes, from waits and timeouts to flaky retries and slow endpoints, and what to cut first.
+- [Failure evidence](https://piwitests.dev/features/evidence): Everything captured about one failing execution on one screen: the evidence tabs, clues, attempts, the page diff and the trace-powered views.
+- [Failure clusters & the inbox](https://piwitests.dev/features/failure-clusters): Failures that share an error fingerprint grouped into one cluster, triaged once from the failure inbox with an owner, a known issue and snoozing.
+- [Flaky tests & quarantine](https://piwitests.dev/features/flaky-tests): How Piwi scores and classifies flaky tests from their history, ranks them by the CI time they waste, and quarantines them with a way out.
+- [Slow tests & wasted time](https://piwitests.dev/features/slow-tests): Where the suite's time goes: duration trends, timeout headroom, stale test.slow() marks, slow endpoints and Web Vitals.
+- [AI diagnosis](https://piwitests.dev/features/ai-diagnosis): An LLM you configure explains a failure cluster against your git diff, with a suggested patch checked against your source before you see it. Off by default.
+- [Fix a broken locator](https://piwitests.dev/recipes/broken-locator): A UI change broke a Playwright locator. Piwi proposes ranked replacements captured from the last run where the test passed, and points at the line to change.
+- [Locator healing](https://piwitests.dev/features/locator-healing): When a locator breaks, ranked replacements captured from the last passing run, a recommended fix in your suite's style, and pickers for local runs.
+- [Who uses a locator](https://piwitests.dev/features/locator-usage): Before changing an element, see which tests reach it and from which lines, from the locator chains Playwright records on every step.
+- [Fix plans, reproduce & bisect](https://piwitests.dev/features/fix-plans): The next step for a failure, the other ways to fix it, and the recipes to reproduce it locally and bisect to the commit that broke it.
+- [Auto-heal PRs](https://piwitests.dev/features/auto-heal): Piwi opens a pull request with a validated locator replacement or patch for a failure; you review and merge it, Piwi never does.
+- [Issue tracking (Jira)](https://piwitests.dev/features/issue-tracking): File a Jira issue from a failure with the fix plan as its body, keep it linked as the cluster's known issue, and keep its status in sync.
+- [Pull-request feedback & re-run](https://piwitests.dev/features/pr-feedback): Piwi posts a run's result on the pull request, new failures apart from pre-existing ones, and re-runs a cluster's tests in CI from the dashboard.
+- [Test selections](https://piwitests.dev/features/test-selection): Run only the tests that matter: saved and built-in selections, balanced shards, impact from a diff, and the CI guard that keeps a selection honest.
+- [AI steps](https://piwitests.dev/features/ai-steps): Write test steps in plain English: an agent resolves each one once into a committed artifact, and CI replays it as ordinary Playwright with no model calls.
+- [Scenario gaps & the Test Map](https://piwitests.dev/features/scenario-gaps): The Test Map: one graph per project of what the application exposes and which tests reach it, and the scenario gaps it finds: routes, pages and controls no test reaches.
+- [Uncovered changes in pull requests](https://piwitests.dev/features/uncovered-changes): The files a pull request changed that no test observably reaches, posted on the pull request as a comment section and a commit status, with a warn-only gate flag.
+- [Probes](https://piwitests.dev/features/probes): Replay a passing test with one injected fault and record whether it noticed: client probes with piwi probe, the not-noticed gap, and experimental server probes.
+- [Analytics](https://piwitests.dev/features/analytics): Cross-project trends over a period you choose: filters, comparison periods, targets, drill-down to the rows behind a number, and chart export.
+- [Dashboards](https://piwitests.dev/features/dashboards): Saved analytics dashboards: your own arrangement of widgets with its own scope, private or shared, refreshed live, shown in TV mode or scheduled as a report.
+- [Quality reports](https://piwitests.dev/features/quality-reports): The Analytics page as a document for readers who never open the dashboard: exports, report schedules, snapshots and the cost of a CI minute.
+- [Timeline markers](https://piwitests.dev/features/timeline-markers): Deploys and infrastructure changes drawn on the trend charts, so a step change in pass rate or duration has a visible cause.
+- [Notifications & alerts](https://piwitests.dev/features/notifications): Browser, email, Slack, Microsoft Teams and webhook channels, the events they fire on, and per-project subscriptions with digests and mute.
+- [MCP server](https://piwitests.dev/features/mcp): The MCP server built into the dashboard: what it gives an agent, how to authenticate, and the setup for each coding agent.
+- [Agent skills](https://piwitests.dev/features/agent-skills): Six SKILL.md files, installed by the reporter's CLI, that teach a coding agent what to do with Piwi's evidence: investigate a failure, heal a locator, fix a flaky test, write the missing one.
+- [Desktop app](https://piwitests.dev/features/desktop): The whole dashboard as a local desktop app: no Docker or Node, local test runs from the window, and one-click MCP setup for AI assistants.
+- [Browser extension](https://piwitests.dev/features/extension): Piwi Picker, the browser extension: pick and lint locators, record actions and copy context for an agent on the live page, with or without a Piwi instance.
+- [Tested elements](https://piwitests.dev/features/tested-elements): Open a page of your application and see which of its elements your tests reach, through which tests, and which ones no test reaches.
+- [Test functions catalog](https://piwitests.dev/features/test-functions): The catalog of the helpers and page-object methods your suite calls, how functions are registered, and how agents and the extension use it.
+- [Open in IDE](https://piwitests.dev/features/ide-integration): Open any source path shown in the dashboard at its file and line in VS Code or JetBrains, and how to set up each method.
+
+## Self-hosting
+
+- [Deployment](https://piwitests.dev/operate/deployment): Run Piwi Dashboard with Docker, Docker Compose, Kubernetes, npx or a one-click host (Railway, Render, Fly.io, Koyeb, Coolify), then add health checks and HTTPS through a reverse proxy.
+- [One-click deploy](https://piwitests.dev/operate/one-click-deploy): Stand up a Piwi instance on Railway, Render, Fly.io, Koyeb, Coolify or Dokploy from a template, and what to check before you rely on it.
+- [Production checklist](https://piwitests.dev/operate/production-checklist): What to set before anyone else can reach a Piwi instance: authentication, secrets, TLS, proxy trust, persistent data and a pinned version.
+- [Authentication](https://piwitests.dev/operate/authentication): Turn on sign-in and roles, create the first administrator, configure Google and GitHub OAuth, and manage user accounts.
+- [Project access](https://piwitests.dev/operate/project-access): Scope Reporter and User accounts to the projects assigned to them, globally or per project, and edit every assignment on the permission grid.
+- [API keys](https://piwitests.dev/operate/api-keys): Create, use and revoke the long-lived API keys that authenticate the reporter, CI pipelines, scripts and metric scrapers.
+- [Localization](https://piwitests.dev/operate/localization): Set the date and time format and the time zone: each viewer's own choice, and the instance default an administrator sets.
+- [Choose what you use](https://piwitests.dev/operate/capabilities): Pick the capabilities your instance and each project use from the Setup page, and decline the rest so the dashboard stops showing them.
+- [Integrations](https://piwitests.dev/operate/integrations): Connect Jira Cloud to the dashboard: the token and permissions it needs, trusted hosts, status sync and the inbound webhook.
+- [Configuration reference](https://piwitests.dev/reference/configuration): Every PIWI_* environment variable the dashboard reads, with its default and what it does, generated from the typed registry.
+- [Configuration generator](https://piwitests.dev/reference/configuration/generator): Build a ready-to-paste .env, Docker, Kubernetes or systemd configuration in your browser, from the same registry as the configuration reference.
+- [Database](https://piwitests.dev/operate/database): SQLite by default or PostgreSQL for a shared instance, how to switch between them, and where retention and backups are covered.
+- [Storage & retention](https://piwitests.dev/operate/storage): Local or S3-compatible storage for reports and traces, data retention, runs kept forever, cleanup, and what trace snapshots cost.
+- [Backup & restore](https://piwitests.dev/operate/backup-restore): What to back up for a Piwi instance, how to take a consistent copy of the database and storage, and how to restore it.
+- [Metrics and rollup export](https://piwitests.dev/operate/metrics): Serve the metric catalog as OpenMetrics for Prometheus and Grafana, and export the daily rollups as JSON or CSV for BI tools.
+- [Upgrading](https://piwitests.dev/operate/upgrading): What happens when a new Piwi version starts, how to upgrade safely, why there is no downgrade, and what to do when an upgrade goes wrong.
+
+## Reference
+
+- [All features](https://piwitests.dev/reference/features): Every Piwi feature in one table per group, with what it needs beyond the reporter, where it lives in the dashboard, and the page that explains it.
+- [What's new](https://piwitests.dev/reference/whats-new): The features each Piwi release added, grouped by minor version and newest first, generated from the changelog.
+- [Reporter options](https://piwitests.dev/reference/reporter-options): Every option of the Piwi Playwright reporter, with its type, default and environment variable, generated from the reporter's options type.
+- [Test metadata](https://piwitests.dev/reference/test-metadata): What the reporter records with every run and test without configuration: source control, CI, browser, suites, annotations, tags, locks, ownership, timeouts and skips.
+- [Clue rules](https://piwitests.dev/reference/clues): Every rule that can produce a clue on a failing execution, its strength and when it fires, and the stories that chain several clues into one sentence.
+- [Piwi CLI](https://piwitests.dev/reference/cli): Every command and flag of the piwi CLI that ships with @piwitests/reporter: init, skills, gate, report, select, run, probe and ai.
+- [MCP tools](https://piwitests.dev/reference/mcp-tools): Every tool the dashboard's MCP server serves, by module, with the capability that removes it when declined, generated from the tool catalog.
+- [Analytics widgets](https://piwitests.dev/reference/analytics-widgets): Every widget of the Analytics page and of analytics dashboards, band by band, with what it shows and whether it follows a test filter, generated from the widget registry.
+- [Metrics](https://piwitests.dev/reference/metrics): Every number the analytics widgets, quality reports, MCP tools and exports show, with its unit, which direction is better and its definition, generated from the metric catalog.
+- [Gap detectors & exposure](https://piwitests.dev/reference/gap-detectors): Every Test Map detector with the class it reports, what it needs and its evidence, the exposure factors that rank gaps, and what the graph includes.
+- [Notification events & webhooks](https://piwitests.dev/reference/notification-events): Every notification event Piwi fires, when it fires, and the JSON body a webhook channel receives, with its signature and payload fields.
+- [Keyboard shortcuts](https://piwitests.dev/reference/keyboard-shortcuts): Every keyboard shortcut the dashboard registers: the command palette, the go-to chords, failure inbox triage, and the keys of the image and element viewers.
+
+## Optional
+
+- [Full documentation](https://piwitests.dev/llms-full.txt): every hand-written page in one file
