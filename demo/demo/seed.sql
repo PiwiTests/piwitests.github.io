@@ -1371,6 +1371,9 @@ CREATE INDEX `idx_share_links_created_by` ON `share_links` (`created_by`);
 
 ALTER TABLE `report_schedules` ADD `include_narrative` integer DEFAULT false NOT NULL;
 
+ALTER TABLE `analytics_daily_rollups` ADD `duration_runs` integer DEFAULT 0 NOT NULL;
+ALTER TABLE `analytics_daily_rollups` ADD `test_duration_runs` integer DEFAULT 0 NOT NULL;
+
 BEGIN TRANSACTION;
 
 -- Tags
@@ -8057,10 +8060,10 @@ INSERT INTO network_requests (id, test_runs_case_id, test_run_id, method, url, n
 INSERT INTO network_requests (id, test_runs_case_id, test_run_id, method, url, normalized_url, status, duration, start_time, resource_type, content_type, server_logs, server_traces) VALUES (3061, 818, 73, 'GET', 'https://admin.example.com/api/orgs/current', 'https://admin.example.com/api/orgs/current', 200, 61, 1745234668965, 'fetch', 'application/json', NULL, '[{"id":"root","name":"GET /api/orgs/current","kind":"server","startMs":0,"durMs":61,"status":"ok","attrs":{"http.method":"GET","http.route":"/api/orgs/current","http.status_code":200}},{"id":"db","parentId":"root","name":"SELECT current","kind":"db","startMs":7,"durMs":24}]');
 
 -- Quarantined tests (references test_cases)
-INSERT INTO quarantined_tests (id, project_id, test_case_id, reason, source, quarantined_at_run_id, created_by, created_at, released_at, released_reason) VALUES (1, 1, 9, 'Times out on CI only — see cluster 1', 'proposed', 1, NULL, 1746176400, NULL, NULL);
-INSERT INTO quarantined_tests (id, project_id, test_case_id, reason, source, quarantined_at_run_id, created_by, created_at, released_at, released_reason) VALUES (2, 2, 24, 'Search index warm-up races the assertion', 'manual', 34, NULL, 1746176400, NULL, NULL);
-INSERT INTO quarantined_tests (id, project_id, test_case_id, reason, source, quarantined_at_run_id, created_by, created_at, released_at, released_reason) VALUES (3, 3, 35, 'Pagination flakes under parallel load', 'manual', 53, NULL, 1746176400, NULL, NULL);
-INSERT INTO quarantined_tests (id, project_id, test_case_id, reason, source, quarantined_at_run_id, created_by, created_at, released_at, released_reason) VALUES (4, 5, 46, 'Held while the pagination fix was verified; the fix landed and held.', 'manual', 62, NULL, 1746176400, NULL, NULL);
+INSERT INTO quarantined_tests (id, project_id, test_case_id, reason, source, quarantined_at_run_id, created_by, created_at, released_at, released_reason) VALUES (1, 1, 9, 'Times out on CI only — see cluster 1', 'proposed', 1, NULL, 1745139600, NULL, NULL);
+INSERT INTO quarantined_tests (id, project_id, test_case_id, reason, source, quarantined_at_run_id, created_by, created_at, released_at, released_reason) VALUES (2, 2, 24, 'Search index warm-up races the assertion', 'manual', 34, NULL, 1745139600, NULL, NULL);
+INSERT INTO quarantined_tests (id, project_id, test_case_id, reason, source, quarantined_at_run_id, created_by, created_at, released_at, released_reason) VALUES (3, 3, 35, 'Pagination flakes under parallel load', 'manual', 53, NULL, 1745139600, NULL, NULL);
+INSERT INTO quarantined_tests (id, project_id, test_case_id, reason, source, quarantined_at_run_id, created_by, created_at, released_at, released_reason) VALUES (4, 5, 46, 'Held while the pagination fix was verified; the fix landed and held.', 'manual', 62, NULL, 1745139600, NULL, NULL);
 
 -- Locator healing snapshots (references test_cases)
 INSERT INTO locator_snapshots (id, test_case_id, location, used_method, used_args, used_args_fp, element_tag, element_attrs, element_text, alternatives, last_seen_run_id, last_seen_at) VALUES (1, 1, 'tests/helpers/payment.ts:16:51', 'getByRole', '["button",{"name":"Pay"}]', 'cf5af33423508d4f73a5b5217bcc9f6adfa6832ae4ae1b890a2eb3ce8d020488', 'button', '{"id":"checkout-pay","data-testid":"checkout-pay","accessibleName":"Pay now","center":{"x":640,"y":820}}', 'Pay now', '[{"locator":"getByTestId(''checkout-pay'')","method":"getByTestId","args":{"testId":"checkout-pay"},"score":100},{"locator":"getByRole(''button'', { name: ''Pay now'' })","method":"getByRole","args":{"role":"button","name":"Pay now"},"score":90},{"locator":"getByText(''Pay now'')","method":"getByText","args":{"text":"Pay now"},"score":75},{"locator":"locator(''#checkout-pay'')","method":"locator","args":{"selector":"#checkout-pay"},"score":65}]', 20, 1744973163000);
