@@ -1386,6 +1386,8 @@ CREATE UNIQUE INDEX `idx_locator_usages_use` ON `locator_usages` (`test_case_id`
 ALTER TABLE `test_runs_cases` ADD `locator_pages_payload_id` integer REFERENCES case_payloads(id);
 CREATE INDEX `idx_trc_locator_pages_payload` ON `test_runs_cases` (`locator_pages_payload_id`) WHERE locator_pages_payload_id IS NOT NULL;
 
+ALTER TABLE `project_integrations` ADD `field_defaults` text;
+
 BEGIN TRANSACTION;
 
 -- Tags
