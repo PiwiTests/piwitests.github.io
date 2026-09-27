@@ -1,0 +1,1 @@
+import{d as s,u as o,w as n,o as r,m as c,B as _}from"./i4qY5Fbx.js";const d=s({__name:"edit",async setup(p){let e,t;const a=o();return[e,t]=n(()=>_(`/projects/${a.params.id}?tab=settings`,{replace:!0})),await e,t(),(i,m)=>(r(),c("div"))}});export{d as default};
