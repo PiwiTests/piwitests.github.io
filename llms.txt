@@ -1,6 +1,6 @@
 # Piwi Dashboard
 
-> CI throws away every report it makes. Piwi keeps them — then groups the failures by root cause, scores the flaky tests, and finds the locator you should have used. Self-hosted, MIT, zero telemetry.
+> CI throws away every report it makes. Piwi keeps them — then groups the failures by root cause, scores the flaky tests, and finds the locator you should have used. Self-hosted, zero telemetry.
 
 ## Guide
 
@@ -17,6 +17,7 @@
 - [What Piwi does](https://piwitests.dev/guide/what-piwi-does): What Piwi is for: the jobs it serves, the failure loop, the two rules behind every feature, its pieces, and what it is not.
 - [Why Piwi?](https://piwitests.dev/guide/comparison): How Piwi compares with the Playwright HTML report, Allure, ReportPortal, Currents and Fault0, and when another tool fits better.
 - [Privacy & data flow](https://piwitests.dev/guide/privacy): Exactly what leaves your server and when, what never does, what Piwi does not capture, and how secrets are stored.
+- [License](https://piwitests.dev/guide/license): What the FSL-1.1-MIT license lets you do with Piwi, what it rules out, which parts are MIT, and when each release becomes MIT.
 
 ## Features
 

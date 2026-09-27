@@ -1,6 +1,6 @@
 # Piwi Dashboard
 
-> CI throws away every report it makes. Piwi keeps them — then groups the failures by root cause, scores the flaky tests, and finds the locator you should have used. Self-hosted, MIT, zero telemetry.
+> CI throws away every report it makes. Piwi keeps them — then groups the failures by root cause, scores the flaky tests, and finds the locator you should have used. Self-hosted, zero telemetry.
 
 <!-- https://piwitests.dev/guide/getting-started -->
 
@@ -1674,7 +1674,7 @@ instead of failing mid-upload.
 
 # What Piwi does
 
-Playwright's HTML report is excellent, and it lasts exactly until the next build. Piwi keeps every run instead — every trace and report — and then does something with them: it groups the failures by root cause, scores the flaky tests by what they cost, and finds the locator you should have used. Self-hosted, MIT, zero telemetry.
+Playwright's HTML report is excellent, and it lasts exactly until the next build. Piwi keeps every run instead — every trace and report — and then does something with them: it groups the failures by root cause, scores the flaky tests by what they cost, and finds the locator you should have used. Self-hosted, zero telemetry.
 
 Everything in the product is in service of **four jobs, in this order**. It's also the test for whether a feature belongs here at all: one that strengthens none of them is an argument against building it.
 
@@ -1758,7 +1758,7 @@ Every tool below is good at what it targets. The honest differences:
 | Web vitals & network capture | ✅ | ➖ in traces | ❌ | ❌ | ✅ | ➖ |
 | MCP server for AI agents | ✅ | ❌ | ❌ | ❌ | ✅ | ➖ |
 | Framework support | Playwright only (by design) | Playwright | Many | Many | Playwright, Cypress, Jest… | Playwright only |
-| Price | Free, MIT | Free | Free | Free (self-host) / paid SaaS | Paid | Free, OSS |
+| Price | Free, [fair source](/guide/license) | Free | Free | Free (self-host) / paid SaaS | Paid | Free, OSS |
 
 In the **Fault0** column, ➖ marks a capability we did not find in its public docs at the time of writing (not necessarily a confirmed absence) — the two products share the core results-dashboard experience and differ mainly in Piwi's analysis depth. Corrections welcome.
 
@@ -1909,7 +1909,7 @@ by anything else. See [Storage → Data retention](/operate/storage#data-retenti
 
 ## Verifying any of this
 
-You don't have to take the page's word for it. The source is MIT-licensed and the outbound surface is
+You don't have to take the page's word for it. The source is public and the outbound surface is
 small enough to audit: watch the container's egress, or read
 [`server/utils/`](https://github.com/PiwiTests/platform/tree/main/apps/application/server/utils) — the AI
 provider, SCM, SMTP, storage and notification clients are the only things there that open a socket.
@@ -1918,6 +1918,61 @@ provider, SCM, SMTP, storage and notification clients are the only things there 
 - [Authentication](/operate/authentication), [API keys](/operate/api-keys) and [Project access](/operate/project-access): roles, keys and project-level access
 - [Production checklist](/operate/production-checklist#before-you-expose-it) — hardening a public instance
 - [Why Piwi?](./comparison#is-my-data-safe-does-piwi-phone-home) — the same question, short form
+
+<!-- https://piwitests.dev/guide/license -->
+
+# License
+
+Piwi is fair source. The dashboard, the server, the desktop app and the browser extension are published under the
+[Functional Source License, Version 1.1, MIT Future License](https://github.com/PiwiTests/platform/blob/main/LICENSE)
+(FSL-1.1-MIT). The parts that run inside your own projects are MIT.
+
+## What you can do
+
+Use Piwi for free, for any purpose other than competing with it. That covers:
+
+- running it for your team or your whole company, on your own servers, in the desktop app or from the Docker image;
+- changing the code, and running your changed copy;
+- using it for teaching and non-commercial research;
+- setting it up or running it for a client who uses it for their own work, as a consultant or contractor.
+
+## What it rules out
+
+Making Piwi available to others in a commercial product or service that substitutes for it, or that offers the same or
+substantially similar functionality. Selling hosted Piwi is a competing use, and so is reselling it, or a product built
+from its code, under another name.
+
+If you redistribute Piwi or a modified copy, include the license, or a link to it, and keep the copyright notices. The
+license gives no right to use the Piwi name or logo beyond saying where the software comes from.
+
+## Each release becomes MIT after two years
+
+Every release carries an irrevocable grant: two years after the date it is published, that release is also available
+under the MIT License, with no restriction on competing use. Newer releases stay under FSL-1.1-MIT until their own two
+years are up.
+
+## Which parts are MIT
+
+| Part | License |
+|---|---|
+| Dashboard, server (`@piwitests/server` and the Docker image), desktop app, browser extension | FSL-1.1-MIT |
+| Playwright reporter (`@piwitests/reporter`) | MIT |
+| Backend-log integrations (Nitro, ASP.NET Core, Serilog) | MIT |
+| Examples | MIT |
+
+The reporter and the integrations run inside your test suite and your application, so they keep the most permissive
+license: nothing you ship depends on FSL-1.1-MIT code.
+
+Releases up to v0.39.x were published under the MIT License, and stay under it.
+
+## Questions
+
+Not sure whether what you have in mind is a competing use? Ask in
+[GitHub Discussions](https://github.com/PiwiTests/platform/discussions) before you build it.
+
+## Related
+- [Privacy & data flow](./privacy) — what leaves your server, and what never does
+- [Why Piwi?](./comparison) — how Piwi compares with the tools you may already use
 
 <!-- https://piwitests.dev/features/ui-overview -->
 
