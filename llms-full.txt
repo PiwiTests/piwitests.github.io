@@ -419,6 +419,20 @@ The locator chains each test used in its steps, recorded per branch and per Play
 use a locator, and it feeds [Who uses a locator](/features/locator-usage) and
 [Tested elements](/features/tested-elements).
 
+### Page key
+
+A page's URL reduced to its path pattern: numeric ids, UUIDs, ULIDs, JWTs and long tokens become `:id`, `:uuid`,
+`:ulid`, `:jwt` and `:token`, and the host, query and hash are dropped. `/orders/123?tab=items` and `/orders/456` are
+both `/orders/:id`, on staging and in production alike. The Test Map's page nodes, the page each locator was used on
+and the extension's **This page** all use it. A page of another site keeps its origin in front of the path.
+
+### Brittle locator
+
+A locator a test uses that breaks on a change unrelated to what the test checks: a position, a styling class, the
+document structure, a generated id. Piwi judges each locator of the index with named rules as *brittle*, *watch* or
+*stable*; see [Locator stability rules](/reference/locator-stability). Not to be confused with the *fragile*
+[gap class](#gap-class), which is about the tests reaching a node, not a locator.
+
 ### Scenario gap
 
 A test the suite does not have yet, proposed from the Test Map with its evidence and a next step: a route no test
@@ -784,6 +798,7 @@ That's the entire setup — there is nothing to start, wrap, or await inside you
 | **ARIA snapshot** of the final page state: the YAML dump, plus the JSON aria tree on Playwright 1.63 or later | on failure | Failure evidence on the [execution](/features/evidence#one-execution-diagnosis-first) and cluster pages; [AI diagnosis](/features/ai-diagnosis) context; the JSON tree feeds [locator healing](/features/locator-healing)'s rename matching and the page diff |
 | **Browser dialogs**: an `alert`/`confirm`/`prompt`/`beforeunload` dialog's type, message and close time, through Playwright 1.63's `dialogclosed` event, which never suppresses the automatic dismissal | as each dialog closes | A *dialogs* lane on the [failure timeline](/features/evidence#one-execution-diagnosis-first) and a *a dialog was open when the action failed* [clue](/features/evidence#clues) |
 | **Locator snapshots**: element attributes, stable-ancestor anchors, same-role position and ranked alternative locators for each element a test proves resolvable, stamped with the call site | after each successful action and each passing web-first assertion (`toBeVisible()`, `toHaveText()`, …) | [Locator healing](/features/locator-healing); when a failing name-based locator (`getByRole`, `getByText`, `getByLabel`, …) matches nothing, a fresh suggestion is attached to the test as a Playwright annotation |
+| **Locator pages**: the [page key](/guide/concepts#page-key) each locator call ran on, never a query or raw id | at each locator action and assertion | [Locator pages](/features/locator-usage#pages); **This page** in [Tested elements](/features/tested-elements) |
 
 ::: tip Test source is captured without any fixture
 On a failure the reporter also reads the **call stack's in-project source**: the line that threw plus the helpers and page objects above it, as line-numbered snippets. It comes from the stack trace and the local files, so it needs no fixture, and renders as the **Test source** call stack on the [execution](/features/evidence#one-execution-diagnosis-first) and cluster pages.
@@ -805,6 +820,7 @@ The reporter degrades gracefully — nothing breaks without the fixtures. This i
 | Failure-time ARIA snapshot + locator suggestion | — | ✅ |
 | Dialogs lane on the failure timeline (Playwright 1.63+) | — | ✅ |
 | Locator healing (ranked alternatives panel) | — | ✅ |
+| The page each locator was used on | — | ✅ |
 | Backend log correlation | — | ✅ with a [backend integration](./backend-logs) |
 
 ## Where capture works
@@ -820,7 +836,7 @@ Semantics worth knowing:
 - **`beforeAll` / `afterAll` activity is intentionally not captured** — only what happens inside a test is attributed to that test.
 - **Multi-page tests** attribute Web Vitals and the failure ARIA snapshot to the most recently active page.
 - **Repeated call sites** (actions in a loop, a page-object method called several times) probe the element once per call site per test. If a probe fails, the next run of that line tries again.
-- **Assertion capture is positive-presence only** — negated assertions (`.not.…`), absence checks (`toBeHidden`, `toBeDetached`), multi-element checks (`toHaveCount`, array forms) and page-level ones (`toHaveTitle`, `toHaveURL`) never probe.
+- **Assertion capture is positive-presence only** — negated (`.not.…`), absence (`toBeHidden`), multi-element (`toHaveCount`) and page-level (`toHaveURL`) assertions never probe.
 
 ## Composing with your own fixtures
 
@@ -855,7 +871,7 @@ Capture is designed to never fail or noticeably slow down a test:
 - A capture that can't complete (mid-navigation, detached element) is dropped silently; it never throws into your test.
 
 `collectPerformanceMetrics: false` turns all fixture capture off; `captureLocators: false` turns off only the locator
-snapshots, and `capturePageState: false` only the test-end app state (URL, storage key names, cookie flags, never
+snapshots and pages, and `capturePageState: false` only the test-end app state (URL, storage key names, cookie flags, never
 values). Two opt-in aids for headed local runs, `inspectOnFailure` and `pickLocatorOnFailure`, open
 [the failing page for inspection](/features/locator-healing#inspect-the-failing-page-live-local-runs) or
 [let you pick a replacement locator](/features/locator-healing#pick-a-replacement-locator-on-the-failing-page-local-runs).
@@ -874,13 +890,13 @@ If that request fails, the set stays empty and **nothing is sampled**. Turn it o
 ## Troubleshooting
 
 - **Data missing for some specs only** — those specs import `test` from `@playwright/test` instead of your fixtures file. Capture is per-`test`-object; the import is the switch.
-- **No fixture data at all**: check that `collectPerformanceMetrics` is not `false`, and that tests navigate to a real page (`about:blank`-only tests produce no Web Vitals).
+- **No fixture data at all**: check that `collectPerformanceMetrics` is not `false`, and that tests leave `about:blank`.
 - **ARIA snapshot or locator healing missing**: the same causes, or `captureLocators` is off.
 - **An evidence card says "not captured"**: that project has never had the fixtures active; the in-app `/setup` checklist, which each empty card links, says what to switch on. A card that reads *nothing happened* means the fixtures ran and this execution produced nothing. With an uploaded trace, the console, network and ARIA cards are recovered from it and marked *derived from the trace*.
 
 ## Try it
 
-A runnable example project exercising every capture path, including a failing test that shows the ARIA snapshot, the locator suggestion and the healing panel, lives in [`examples/playwright-fixtures`](https://github.com/PiwiTests/platform/tree/main/examples/playwright-fixtures).
+A runnable example project exercising every capture path, a failing test included, lives in [`examples/playwright-fixtures`](https://github.com/PiwiTests/platform/tree/main/examples/playwright-fixtures).
 
 ## Related
 
@@ -3514,7 +3530,11 @@ The page keeps what you paste in its URL (`?q=`), so a check can be shared as a 
 extension's **Find these locators in Piwi ↗** opens it that way.
 
 **Locators your tests use** lists every chain of the index, the ones shared by the most tests
-first, with a filter. Each count opens **Who uses this?**.
+first, with a filter. Each count opens **Who uses this?**. A chain the
+[locator stability rules](/reference/locator-stability) flag says why: *brittle* when it breaks on changes unrelated
+to what its test checks, such as a position or a styling class, *watch* when it is only worth a look. The
+**Stability** select lists only those; the extension's [Tested elements](./tested-elements#brittle-locators) offers
+a replacement for them on a live page.
 
 The index behind this page is also what the extension's [Tested elements](./tested-elements)
 overlay evaluates on a live page.
@@ -3540,6 +3560,14 @@ The **Locators** page, **Who uses this?** and the extension's
 
 An execution's **Locators** tab counts in the branch of its own run. The index lists at most
 the 50 branches seen most recently; the uses of a branch stay until the index is rebuilt.
+
+## Pages
+
+With the [capture fixtures](/guide/capture-fixtures), each use also records the
+[page](/guide/concepts#page-key) its call ran on, `/checkout` or `/orders/:id`, and whether it ran as the page loaded,
+before any locator interaction there. The Locators page says where each chain is used and filters by page, **Who
+uses this?** gives the pages of each call site, and the extension's [Tested elements](./tested-elements#this-page)
+shows only what tests do on the page you are on. Without the fixtures a use has no page, and counts on every page.
 
 ## Requirements and limits
 
@@ -5671,6 +5699,39 @@ the actions they run. **Show tested elements inside it** opens the overlay limit
 element. **Copy all** copies every ranked locator, one per line, for the
 [Locators page](./locator-usage#the-locators-page) of the dashboard.
 
+## This page
+
+When the tests run with the [capture fixtures](/guide/capture-fixtures), Piwi records the
+[page](/guide/concepts#page-key) each locator call ran on, and the panel opens on **This page**: what tests do on the
+page you are on, `/checkout` or `/orders/:id`, plus the uses whose page no run recorded. A **Save** button a test
+clicks on `/settings` no longer lights up a lookalike on `/profile`; its row under **Not tested** says which locator
+matches it and where tests use it. **All pages** counts every locator that matches here, as without the fixtures.
+
+**At risk** then adds two lists above the brittle locators:
+
+- **Missing here**: locators tests use on this page, to act on an element or to assert it is there, that find nothing
+  now. Those used as the page loads come first: a test will fail on them. The others ran after the test acted on the
+  page, so the menu or dialog they belong to may just be closed. The collapsed pill counts the first kind.
+- **Several match here**: locators tests click or fill on this page that find several elements. Playwright's strict
+  mode refuses that action.
+
+Open a preview deployment of a branch with the default branch selected: **Missing here** lists what the default
+branch's tests will not find, before the branch's suite runs. The lists follow the page as it changes.
+
+## Brittle locators
+
+A **brittle locator** breaks on a change unrelated to what its test checks: `locator('.btn-primary').nth(1)` breaks
+when the button is restyled or another button appears before it. Piwi judges every locator with the
+[locator stability rules](/reference/locator-stability), and marks an element a brittle locator finds with an orange
+corner; **Brittle**, in the panel, hides the marks.
+
+The **At risk** tab lists the brittle locators finding something on the page, those used by a failing or flaky test
+first, with their tests and call sites. For one that finds a single element, it offers a replacement: a locator for
+that element that the same rules call stable and that finds only it on this page, in the test's own style when that
+style is stable. **Copy edit** copies each call site with the old and the new locator. When no stable locator finds
+only the element, the row says to give it a test id. The element's card says the same next to the locator, and picking
+the element with the extension names the brittle locators finding it.
+
 ## Setting it up
 
 1. Connect the extension to your instance and map the application's URLs to its project: see
@@ -5679,7 +5740,8 @@ element. **Copy all** copies every ranked locator, one per line, for the
    overlay then shows what that branch's tests reach, as the [Locators page](./locator-usage#branches)
    reads a branch. The branch select in the panel changes it for the rest of the browser session.
 2. Let a few runs arrive. The index fills in from the steps the reporter already sends, with
-   Playwright 1.61 or later: see the [requirements](./locator-usage#requirements-and-limits).
+   Playwright 1.61 or later: see the [requirements](./locator-usage#requirements-and-limits). With the
+   [capture fixtures](/guide/capture-fixtures), it also records the page of each use.
 3. For projects that set `testIdAttribute` in their Playwright config, the reporter records it
    with each run, and `getByTestId` reads that attribute on the page.
 
@@ -5688,10 +5750,9 @@ the panel's **Refresh** downloads it now.
 
 ## What it does not tell you
 
-- **Where the test used the locator.** The index keeps the chain, not the page URL of the step, so
-  a chain is matched on whatever page you're on. `getByRole('button', { name: 'Save' })` used on
-  the settings page also outlines a **Save** button on the profile page. The card lists the call
-  sites, so you can check.
+- **Where the test used the locator, without the capture fixtures.** A chain is then matched on
+  whatever page you're on: `getByRole('button', { name: 'Save' })` used on the settings page also
+  outlines a **Save** button on the profile page. The card lists the call sites, so you can check.
 - **States the page is not in.** Only what is in the DOM now is matched: a closed menu, another
   step of a wizard, or content behind a login shows once the page shows it.
 - **Locators the index skips**: chains cut short, `locator.describe()`, and locators used only
@@ -7735,6 +7796,60 @@ lone clue, and the clues then read as *supported by N clues*.
 - [Failure evidence](/features/evidence#clues): where the clues appear, with the evidence they cite
 - [Your first failure, explained](/guide/first-failure): the situation block the **Most likely** line belongs to
 - [Core concepts](/guide/concepts#story): the story
+
+<!-- https://piwitests.dev/reference/locator-stability -->
+
+# Locator stability rules
+
+A **brittle locator** breaks on a change unrelated to what its test checks: a restyle, a wrapper added around an
+element, an item added to a list, a copy edit, other data. Piwi judges every locator of the
+[locator index](/features/locator-usage) with the rules below, from the locator's text alone, and gives it one of three
+levels:
+
+- **Brittle**: at least one rule gives it that level. The [Tested elements](/features/tested-elements#brittle-locators)
+  overlay lists it under **At risk**, and offers a replacement.
+- **Watch**: a rule has something to say, but the locator does not break on its own. Shown on the element's card and
+  on the Locators page, never listed.
+- **Stable**: no rule has anything to say.
+
+A locator takes the level of its worst part: a stable container cannot save a brittle target, and a brittle container
+breaks every locator searching inside it. Locators nested in `filter({ has })`, `and()` and `or()` count as parts.
+
+## Rules
+
+| Rule | Level | Catches | Example |
+|---|---|---|---|
+| Position<br>`position` | brittle for `nth(1)` and beyond; watch for `first()`, `last()` and `nth(0)` | An element picked by its order. An element added above it, or a list sorted another way, moves it. | `getByRole('listitem').nth(2)` |
+| CSS class<br>`css-class` | brittle for a utility, hashed or CSS-in-JS class; watch for a named class | An element found by a class. Classes change with the styling. | `locator('.bg-blue-500')`, `locator('.css-1q2w3e')` |
+| CSS structure<br>`css-structure` | brittle | A child or sibling combinator, `:nth-child()` and its kind, three or more selectors deep, or a descendant chain of tags only. A wrapper added or moved breaks it. | `locator('form > div:nth-child(2) input')` |
+| XPath<br>`xpath` | brittle when absolute or indexed; watch otherwise | XPath follows the document structure. | `locator('//main/div[2]//button')` |
+| Generated id<br>`generated-id` | brittle | An id a framework or a build generates, which changes from one render or build to the next. | `locator('#radix-:r4:')`, `locator('#input-1748291')` |
+| Style attribute<br>`style-attribute` | brittle | The `style` or `class` attribute matched as a string, which any styling edit changes. | `locator('[style*="display: block"]')` |
+| Long text<br>`long-text` | watch | An exact string over 40 characters in `getByText`, a `name` or `hasText`: copy changes long before behavior does. | Marketing copy |
+| Number in text<br>`data-text` | watch | A count, price, date, time or percentage inside an exact string, which changes with the data. | `getByRole('button', { name: 'Cart (3)' })` |
+| Long chain<br>`deep-chain` | watch | More than three locating calls: each container is one more thing a change can break. | Four chained `getBy…` calls |
+
+Not flagged: `getByTestId`, `getByRole` with a name, `getByLabel`, `getByPlaceholder`, `getByAltText`, `getByTitle`, an
+id that is not generated, `[name=…]` and `[data-testid=…]`, a single tag inside a container, a regular expression, and
+a short text. A locator matching several elements is not a stability problem: the overlay shows it as ambiguous.
+
+## Replacements
+
+On a live page, the overlay offers a replacement for a brittle locator that finds exactly one element. It ranks the
+locators for that element the way the [Piwi Picker extension](/features/extension) does, keeps those these rules call
+stable and that find only that element on the page, and picks one the way
+[locator healing](/features/locator-healing) does: the locator's own method, then its family (role, text, label, test
+id, CSS), when that is stable enough; otherwise the most stable one. When no stable locator finds only that element,
+the overlay says to give it a test id.
+
+A replacement is checked against the page as it is now. A test that uses the locator in another state of the page
+may need a different one.
+
+## Related
+
+- [Tested elements](/features/tested-elements)
+- [Who uses a locator](/features/locator-usage)
+- [Locator healing](/features/locator-healing)
 
 <!-- https://piwitests.dev/reference/cli -->
 

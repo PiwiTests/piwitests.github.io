@@ -85,6 +85,7 @@
 - [Reporter options](https://piwitests.dev/reference/reporter-options): Every option of the Piwi Playwright reporter, with its type, default and environment variable, generated from the reporter's options type.
 - [Test metadata](https://piwitests.dev/reference/test-metadata): What the reporter records with every run and test without configuration: source control, CI, browser, suites, annotations, tags, locks, ownership, timeouts and skips.
 - [Clue rules](https://piwitests.dev/reference/clues): Every rule that can produce a clue on a failing execution, its strength and when it fires, and the stories that chain several clues into one sentence.
+- [Locator stability rules](https://piwitests.dev/reference/locator-stability): Every rule Piwi uses to call a locator your tests use brittle or worth watching, what it catches and why that breaks.
 - [Piwi CLI](https://piwitests.dev/reference/cli): Every command and flag of the piwi CLI that ships with @piwitests/reporter: init, skills, gate, report, select, run, probe and ai.
 - [MCP tools](https://piwitests.dev/reference/mcp-tools): Every tool the dashboard's MCP server serves, by module, with the capability that removes it when declined, generated from the tool catalog.
 - [Analytics widgets](https://piwitests.dev/reference/analytics-widgets): Every widget of the Analytics page and of analytics dashboards, band by band, with what it shows and whether it follows a test filter, generated from the widget registry.
