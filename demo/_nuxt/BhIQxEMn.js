@@ -1,1 +1,0 @@
-import{d as s,u as o,w as r,o as n,m as c,B as p}from"./C5kWh-k5.js";const l=s({__name:"test-cases",async setup(_){let e,t;const a=o();return[e,t]=r(()=>p({path:`/projects/${a.params.id}`,query:{...a.query,tab:"tests"}},{replace:!0})),await e,t(),(u,m)=>(n(),c("div"))}});export{l as default};

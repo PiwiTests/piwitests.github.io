@@ -1,0 +1,1 @@
+import{d as o,u as s,w as r,o as n,m as c,B as p}from"./BG9gTH3A.js";const l=o({__name:"compare",async setup(_){let e,t;const a=s();return[e,t]=r(()=>p(`/projects/${a.params.id}?tab=runs`,{replace:!0})),await e,t(),(m,u)=>(n(),c("div"))}});export{l as default};
