@@ -38,6 +38,7 @@
 - [Fix a broken locator](https://piwitests.dev/recipes/broken-locator): A UI change broke a Playwright locator. Piwi proposes ranked replacements captured from the last run where the test passed, and points at the line to change.
 - [Locator healing](https://piwitests.dev/features/locator-healing): When a locator breaks, ranked replacements captured from the last passing run, a recommended fix in your suite's style, and pickers for local runs.
 - [Who uses a locator](https://piwitests.dev/features/locator-usage): Before changing an element, see which tests reach it and from which lines, from the locator chains Playwright records on every step.
+- [Locator preflight](https://piwitests.dev/features/preflight): Before a push, the test locators your change breaks: a renamed label, a removed test id, a changed translation, with the rewrite applied in place.
 - [Fix plans, reproduce & bisect](https://piwitests.dev/features/fix-plans): The next step for a failure, the other ways to fix it, and the recipes to reproduce it locally and bisect to the commit that broke it.
 - [Auto-heal PRs](https://piwitests.dev/features/auto-heal): Piwi opens a pull request with a validated locator replacement or patch for a failure; you review and merge it, Piwi never does.
 - [Issue tracking (Jira)](https://piwitests.dev/features/issue-tracking): File a Jira issue from a failure with the fix plan as its body, keep it linked as the cluster's known issue, and keep its status in sync.
@@ -46,6 +47,7 @@
 - [AI steps](https://piwitests.dev/features/ai-steps): Write test steps in plain English: an agent resolves each one once into a committed artifact, and CI replays it as ordinary Playwright with no model calls.
 - [Scenario gaps & the Test Map](https://piwitests.dev/features/scenario-gaps): The Test Map: one graph per project of what the application exposes and which tests reach it, and the scenario gaps it finds: routes, pages and controls no test reaches.
 - [Uncovered changes in pull requests](https://piwitests.dev/features/uncovered-changes): The files a pull request changed that no test observably reaches, posted on the pull request as a comment section and a commit status, with a warn-only gate flag.
+- [Code reach](https://piwitests.dev/features/code-reach): Which tests execute each application source file, recorded from Chromium's JavaScript coverage on a scheduled run and used by test selection, change coverage and preflight.
 - [Probes](https://piwitests.dev/features/probes): Replay a passing test with one injected fault and record whether it noticed: client probes with piwi probe, the not-noticed gap, and experimental server probes.
 - [Analytics](https://piwitests.dev/features/analytics): Cross-project trends over a period you choose: filters, comparison periods, targets, drill-down to the rows behind a number, and chart export.
 - [Dashboards](https://piwitests.dev/features/dashboards): Saved analytics dashboards: your own arrangement of widgets with its own scope, private or shared, refreshed live, shown in TV mode or scheduled as a report.
@@ -56,9 +58,14 @@
 - [Agent skills](https://piwitests.dev/features/agent-skills): Six SKILL.md files, installed by the reporter's CLI, that teach a coding agent what to do with Piwi's evidence: investigate a failure, heal a locator, fix a flaky test, write the missing one.
 - [Desktop app](https://piwitests.dev/features/desktop): The whole dashboard as a local desktop app: no Docker or Node, local test runs from the window, and one-click MCP setup for AI assistants.
 - [Browser extension](https://piwitests.dev/features/extension): Piwi Picker, the browser extension: pick and lint locators, record actions and copy context for an agent on the live page, with or without a Piwi instance.
+- [Extension connection](https://piwitests.dev/features/extension-connection): Connect Piwi Picker to your Piwi instance in one step, and keep the URL patterns that tell it which project a page belongs to on the instance, shared by your team.
 - [Tested elements](https://piwitests.dev/features/tested-elements): Open a page of your application and see which of its elements your tests reach, through which tests, and which ones no test reaches.
+- [Report a bug](https://piwitests.dev/features/report-a-bug): Record the steps to a bug in Piwi Picker, mark what is wrong, and get a failing Playwright test, a Markdown report and a zip with the evidence, with no Piwi instance.
+- [Bug reports](https://piwitests.dev/features/bug-reports): Bug reports sent from Piwi Picker, kept in Piwi with their steps and evidence, each rendered as a failing Playwright test and followed through its runs until the fix holds.
+- [Developer tools](https://piwitests.dev/features/devtools): Piwi Picker's tools for writing a test from the page: the ranked locators of the element selected in DevTools, and more.
 - [Test functions catalog](https://piwitests.dev/features/test-functions): The catalog of the helpers and page-object methods your suite calls, how functions are registered, and how agents and the extension use it.
 - [Open in IDE](https://piwitests.dev/features/ide-integration): Open any source path shown in the dashboard at its file and line in VS Code or JetBrains, and how to set up each method.
+- [Editor extensions](https://piwitests.dev/features/editors): Piwi in VS Code and the JetBrains IDEs: the latest CI failures at their failing lines with the heal as a quick fix, the tests behind each locator and file, brittle locators, and the locators an unsaved change breaks.
 
 ## Self-hosting
 
@@ -87,7 +94,8 @@
 - [Test metadata](https://piwitests.dev/reference/test-metadata): What the reporter records with every run and test without configuration: source control, CI, browser, suites, annotations, tags, locks, ownership, timeouts and skips.
 - [Clue rules](https://piwitests.dev/reference/clues): Every rule that can produce a clue on a failing execution, its strength and when it fires, and the stories that chain several clues into one sentence.
 - [Locator stability rules](https://piwitests.dev/reference/locator-stability): Every rule Piwi uses to call a locator your tests use brittle or worth watching, what it catches and why that breaks.
-- [Piwi CLI](https://piwitests.dev/reference/cli): Every command and flag of the piwi CLI that ships with @piwitests/reporter: init, skills, gate, report, select, run, probe and ai.
+- [Piwi CLI](https://piwitests.dev/reference/cli): Every command and flag of the piwi CLI that ships with @piwitests/reporter: init, skills, gate, report, select, run, probe, ai, codegen, preflight and bug.
+- [Steps file format](https://piwitests.dev/reference/steps-format): The steps file: a recording as data, which Piwi Picker saves and piwi codegen turns into a Playwright spec. Every field, the limits and how a file is checked.
 - [MCP tools](https://piwitests.dev/reference/mcp-tools): Every tool the dashboard's MCP server serves, by module, with the capability that removes it when declined, generated from the tool catalog.
 - [Analytics widgets](https://piwitests.dev/reference/analytics-widgets): Every widget of the Analytics page and of analytics dashboards, band by band, with what it shows and whether it follows a test filter, generated from the widget registry.
 - [Metrics](https://piwitests.dev/reference/metrics): Every number the analytics widgets, quality reports, MCP tools and exports show, with its unit, which direction is better and its definition, generated from the metric catalog.

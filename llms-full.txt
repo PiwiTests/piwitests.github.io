@@ -413,18 +413,33 @@ the page. A control is reached only when triage records a covering test for it. 
 from instrumented code coverage, which is why the docs and the dashboard say *observed reach* rather than *coverage*.
 A flaky, quarantined or skipped test's reach does not count as trusted.
 
+### Code reach
+
+The application source files a test executed: those whose functions ran in the page, from Chromium's JavaScript
+coverage when [code reach](/features/code-reach) is on, and the handler files of the routes it called
+when the backend is instrumented. Observed reach at file level, never line coverage. It feeds
+[impact-from-diff](/features/test-selection#impact-from-diff) and [Uncovered changes](/features/uncovered-changes).
+
 ### Locator index
 
 The locator chains each test used in its steps, recorded per branch and per Playwright project. It answers which tests
 use a locator, and it feeds [Who uses a locator](/features/locator-usage) and
 [Tested elements](/features/tested-elements).
 
+### Locator break
+
+A locator of the index that a change stops matching: the diff removes or renames a string one of its calls finds the
+element by, under Playwright's text rules. *Likely* when the string was an attribute value, tag text or a
+translation; *possible* when it was a bare quoted string. [Locator preflight](/features/preflight) lists them.
+
 ### Page key
 
 A page's URL reduced to its path pattern: numeric ids, UUIDs, ULIDs, JWTs and long tokens become `:id`, `:uuid`,
 `:ulid`, `:jwt` and `:token`, and the host, query and hash are dropped. `/orders/123?tab=items` and `/orders/456` are
 both `/orders/:id`, on staging and in production alike. The Test Map's page nodes, the page each locator was used on
-and the extension's **This page** all use it. A page of another site keeps its origin in front of the path.
+and the extension's **This page** all use it. A page of another site keeps its origin in front of the path. Piwi
+Picker keys the page it is on through the [path prefixes](/features/extension-connection#url-patterns) of the site's
+URL pattern: without the site's, with the tests' in front.
 
 ### Brittle locator
 
@@ -481,6 +496,13 @@ is a *declared, never hit* gap.
 The controls (role and accessible name) and links the reporter records on each visited page of a passing run, so the
 Test Map knows what a page offers beyond what the tests clicked. Field values are never recorded. Off by default:
 turn it on with `capturePageInventory`.
+
+### URL pattern
+
+A glob over a page's whole address (`*` within one part of the path, `**` across parts) that ties the pages of a site
+to a project, with an optional environment and branch. Each project keeps its own list, and the browser extension
+reads them to know which project the page it is on belongs to. See
+[Extension connection](/features/extension-connection#url-patterns).
 
 ## Where each concept lives in the UI
 
@@ -792,16 +814,17 @@ That's the entire setup: nothing to start, wrap, or await inside your tests.
 
 | Data | Captured | Powers |
 |------|----------|--------|
-| **Network requests**: method, URL, status, duration, start time, content type, for fetch, XHR and document traffic only (static assets are skipped) | per request | [Slow endpoints](/features/slow-tests); [backend log correlation](./backend-logs) via the `X-Piwi-Logs` response header; the [failure timeline](/features/evidence#one-execution-diagnosis-first) |
+| **Network requests**: method, URL, status, duration, start time, content type, for fetch, XHR and document traffic only (static assets are skipped); one that failed without a response keeps the browser's error (`net::ERR_CONNECTION_RESET`) | per request | [Slow endpoints](/features/slow-tests); [backend log correlation](./backend-logs) via the `X-Piwi-Logs` response header; the [failure timeline](/features/evidence#one-execution-diagnosis-first) |
 | **Console entries**: `warning`, `error` and `assert` messages with source location and a timestamp (not `console.log`) | as they happen | The console card and the failure timeline on the [execution page](/features/evidence#one-execution-diagnosis-first); [AI diagnosis](/features/ai-diagnosis) evidence |
 | **Web Vitals**: TTFB, DOM Interactive, DOMContentLoaded, Load Complete, First Paint, First Contentful Paint, plus LCP, CLS and INP (Chromium-only) | at test teardown | Web vitals card with color-coded thresholds; [performance trends](/features/slow-tests) |
 | **ARIA snapshot** of the final page state: the YAML dump, plus the JSON aria tree on Playwright 1.63 or later | on failure | Failure evidence on the [execution](/features/evidence#one-execution-diagnosis-first) and cluster pages; [AI diagnosis](/features/ai-diagnosis) context; the JSON tree feeds [locator healing](/features/locator-healing)'s rename matching and the page diff |
-| **Browser dialogs**: an `alert`/`confirm`/`prompt`/`beforeunload` dialog's type, message and close time, through Playwright 1.63's `dialogclosed` event, which never suppresses the automatic dismissal | as each dialog closes | A *dialogs* lane on the [failure timeline](/features/evidence#one-execution-diagnosis-first) and a *a dialog was open when the action failed* [clue](/features/evidence#clues) |
+| **Browser dialogs**: an `alert`/`confirm`/`prompt`/`beforeunload` dialog's type, message and close time, through Playwright 1.63's `dialogclosed` event | as each dialog closes | A *dialogs* lane on the [failure timeline](/features/evidence#one-execution-diagnosis-first) and a *a dialog was open when the action failed* [clue](/features/evidence#clues) |
 | **Locator snapshots**: element attributes, stable-ancestor anchors, same-role position and ranked alternative locators for each element a test proves resolvable, stamped with the call site | after each successful action and each passing web-first assertion (`toBeVisible()`, `toHaveText()`, …) | [Locator healing](/features/locator-healing); when a failing name-based locator (`getByRole`, `getByText`, `getByLabel`, …) matches nothing, a fresh suggestion is attached to the test as a Playwright annotation |
 | **Locator pages**: the [page key](/guide/concepts#page-key) each locator call ran on, never a query or raw id | at each locator action and assertion | [Locator pages](/features/locator-usage#pages); **This page** in [Tested elements](/features/tested-elements) |
+| **Code reach** (opt-in): executed files | teardown | [Code reach](/features/code-reach) |
 
 ::: tip Test source is captured without any fixture
-On a failure the reporter also reads the **call stack's in-project source**: the line that threw plus the helpers and page objects above it, as line-numbered snippets. It comes from the stack trace and the local files, so it needs no fixture, and renders as the **Test source** call stack on the [execution](/features/evidence#one-execution-diagnosis-first) and cluster pages.
+On a failure the reporter also reads the **call stack's in-project source**: the line that threw plus the helpers and page objects above it, as line-numbered snippets. Read from the stack trace and local files, it needs no fixture, and renders as the **Test source** call stack on the [execution](/features/evidence#one-execution-diagnosis-first) and cluster pages.
 :::
 
 ## With and without the fixtures
@@ -1833,6 +1856,9 @@ Every outbound connection Piwi can make is something you switched on:
 | Your S3 endpoint | Only if you switch [storage](/operate/storage) to S3 | Trace files, HTML reports, attachments |
 | Google / GitHub | Only if you enable [OAuth sign-in](/operate/authentication#oauth-google-github) | The standard OAuth exchange |
 
+The reporter sends your own instance what its options switch on. [Code reach](/features/code-reach), off by
+default, sends repository-relative file paths only: never source code, coverage counts or line numbers.
+
 Nothing on that list has a default. With none of them configured, a Piwi instance talks to nobody.
 
 The **AI provider** is the one worth pausing on, because it's the only case where your code and error
@@ -1856,6 +1882,23 @@ context before it's sent, and you can cap its size. See
 - **Your IDE mapping.** The [Open in IDE](/features/ide-integration) workspace root lives in your browser's
   local storage, because the source is on your machine, not the server's. It is never sent to the
   dashboard.
+
+## What reaches your server from Piwi Picker
+
+The [browser extension](/features/extension) works with no instance. Connected, it reads a project's URL patterns,
+function catalog and locator index, and sends one thing: a [bug report](/features/bug-reports), only when someone
+clicks **Send** in its preview, which shows exactly what goes. That report carries the recorded steps with the values
+typed (never a password, and none at all with **Leave out the values I typed**), and whichever evidence the reporter
+kept ticked: screenshots of the tab, console errors and warnings, failed requests (method, path without query values,
+status; never a header or a body) and an outline of the page. It goes only to the instance the extension is connected
+to, and it is stored there like a run's evidence.
+
+**Share result**, after a replay of a report from the instance, sends the verdict, the site it ran on and the
+browser's name to that report, on **Send** in its preview.
+
+Paired with the [desktop app](/features/bug-reports#running-it-with-playwright-in-the-desktop-app), it also sends a
+report's title and steps, with their typed values and nothing else, to that app on this machine when someone clicks
+**Send** in the **Run with Playwright** preview.
 
 ## What Piwi deliberately does not capture
 
@@ -2741,8 +2784,8 @@ just not aggregated across the suite.
 
 # Failure evidence
 
-When a test fails, everything Piwi captured about that attempt lands on one screen. This page describes the evidence on
-that screen: what each tab holds, where the data came from, and how much more you get once a trace is attached.
+When a test fails, everything Piwi captured about that attempt lands on one screen: what each tab holds, where the data
+came from, and what a trace adds.
 
 Two pages are involved, and [Core concepts](/guide/concepts#execution) draws the line between them:
 
@@ -2751,7 +2794,7 @@ Two pages are involved, and [Core concepts](/guide/concepts#execution) draws the
 | **Execution** | `/test-run-cases/:id` | "why did this attempt fail?": [the diagnosis view](#one-execution-diagnosis-first) |
 | **Test case** | `/test-cases/:id` | "how has this test behaved over time?": [its history](#the-test-case-page) |
 
-Most links from a run land on an execution; the test's title links to the test case above it.
+Links from a run land on an execution; the test's title links to its test case.
 
 ## One execution, diagnosis-first
 
@@ -2778,7 +2821,8 @@ video exists, else on **Source**; never on **State**.
   and attachments, and under **Page structure ▸** the failure-time ARIA tree and the reconstructed DOM.
 - **Source**: the test source as a call stack (the line that threw plus its callers), deepened
   [with a trace](#trace-powered-deep-views).
-- **Network**: the requests with inline [backend logs](/guide/backend-logs). **Console**: the console output.
+- **Network**: the requests with inline [backend logs](/guide/backend-logs); one with no response shows the browser's
+  error (`net::ERR_CONNECTION_RESET`). **Console**: the console output.
   **State**: the app state at test end and the environment diff against the last green run. **Performance**:
   performance hints, Web Vitals, the slowest step and wasted time.
 
@@ -2801,7 +2845,8 @@ When a test failed and then passed on retry, the **Attempts** tab lists every at
 opened marked), then **what differed** between the failing attempt and the passing one, most diagnostic first:
 
 - the **error** present on the failing attempt and gone on the pass;
-- a **request** that failed (5xx or no response) on one attempt only;
+- a **request** that failed (5xx or no response) on one attempt only, or took at least 1 s and twice as long on the
+  failing one;
 - a **console** error or warning logged on one attempt only;
 - a **step** that errored, ran much slower, or ran with different **params** on one attempt;
 - a **page-state or URL** difference, including storage keys and cookies;
@@ -2866,8 +2911,8 @@ block uses the same words.
 ## Trace viewer
 
 **Open trace**, at the top of the evidence card on every tab, opens the full Playwright trace viewer, the same UI as
-`npx playwright show-trace`; the Screen tab lists each trace with **Open trace** and **Download**. The viewer is served by the dashboard itself at `/trace-viewer/`, so traces never go to a
-third party, and it works whether or not [authentication](/operate/authentication) is on. The hosted
+`npx playwright show-trace`; the Screen tab lists each trace with **Open trace** and **Download**. The dashboard serves the viewer at `/trace-viewer/`, so traces never go to a
+third party, with or without [authentication](/operate/authentication). The hosted
 `trace.playwright.dev` cannot send your session cookie, so it only works against a dashboard with authentication off.
 
 ## The test case page
@@ -3054,14 +3099,14 @@ The project's **Failures** tab has a **Flaky** view with a **configurable lookba
 
 ### Root-cause classification
 
-Every flaky test is automatically tagged with one of five categories, using keyword and distribution heuristics over its errors, steps, and browser spread, sharpened by the failed requests actually captured and by the attempt diff:
+Every flaky test is automatically tagged with one of five categories, using keyword and distribution heuristics over its errors, steps, and browser spread, sharpened by the failed requests actually captured and by the attempt diff. It reads the test's last 100 failed attempts and its last 100 passes from any run, green or red, so the failed attempt of a test that passed on retry counts, and a rare flake keeps its failures however many passes came since:
 
 | Category | Typical signals |
 |----------|-----------------|
 | `timing` | Timeouts, "to be visible", `waitFor`, element-not-found-within |
 | `network` | `net::` / `ERR_` errors, 5xx responses, `ECONNREFUSED`, `waitForResponse` — plus the count of failed and 5xx requests captured on the failing attempts, and any request that failed on the failing attempt but not the passing one |
 | `assertion` | `expect(...)`, "Expected:", snapshot/screenshot comparison — with no timing/network noise |
-| `environment` | Fails repeatedly on exactly one browser while others pass |
+| `environment` | Fails at least 3 times on exactly one browser while another browser passed at least 3 times without failing |
 | `other` | No clear signal |
 
 The classifier weighs more than keywords: it counts the requests that failed or returned 5xx across the test's recent failing attempts, and — the sharpest signal — weighs each recent flake whose failing attempt made a request that failed while the passing attempt did not (see the [attempt diff](./evidence#attempts)). Such a request recovering on retry is strong evidence the flakiness is a network problem, so it counts for several keyword matches.
@@ -3439,13 +3484,18 @@ elements is dropped. Input values are never captured.
 
 When a locator later fails, the server looks for replacements, most trustworthy first:
 
-1. **Prior run**: the same call site (`file:line:col`) had a passing snapshot.
-2. **Element match**: the element is gone from the failing page's ARIA snapshot under its old name, so fresh locators
+1. **Diff rename**: the run's own diff renamed the string the locator finds its element by, at this call site, as
+   [Locator preflight](./preflight) predicts it with a _likely_ break. The replacement is the same locator with the new string, and the
+   panel says where: "“Pay now” became “Pay” in CheckoutButton.vue:14". It needs a run with a diff (a pull request,
+   or a commit after a passing run) and a source-control token. Its edit replaces the string inside your quotes, and
+   an [auto-heal PR](./auto-heal) can use it.
+2. **Prior run**: the same call site (`file:line:col`) had a passing snapshot.
+3. **Element match**: the element is gone from the failing page's ARIA snapshot under its old name, so fresh locators
    are generated for the element it most likely became, matched by role, heading level and, on a total rename, its
    position among elements of the same role.
-3. **Fingerprint**: the call site moved lines, but the locator matches a prior snapshot.
-4. **Cross-test**: another test in the project captured the same locator.
-5. **ARIA fallback**: no snapshot exists, so limited suggestions come from the failure-time ARIA snapshot.
+4. **Fingerprint**: the call site moved lines, but the locator matches a prior snapshot.
+5. **Cross-test**: another test in the project captured the same locator.
+6. **ARIA fallback**: no snapshot exists, so limited suggestions come from the failure-time ARIA snapshot.
 
 <figure>
   <img src="/diagrams/locator-healing-resolution.svg" alt="Diagram of the healing resolution flow: the failing error is parsed into a locator signature and call site, matched through the stored history, checked against the failing page's ARIA snapshot, and shown in the Locator fix panel">
@@ -3547,7 +3597,7 @@ same picker ships as the [Piwi Picker browser extension](/features/extension), f
 
 # Who uses a locator
 
-Before you change an element — rename a label, remove a `data-testid`, replace a `<select>` with an autocomplete — you can see which tests reach it and from which lines.
+Before you change an element — rename a label, remove a `data-testid`, replace a `<select>` with an autocomplete — you can see which tests reach it and from which lines. After the change, [Locator preflight](./preflight) reads your diff and lists the locators it breaks.
 
 Playwright reports the full locator chain on every locator step: `getByRole('form', { name: 'Shipping' }).getByLabel('Country')`, not only the last call. Piwi already stores those steps for every execution, passing ones included, so it indexes each chain with the action that used it (`Select option`, `Expect toHaveValue`, …) and the call site (`file:line:col`, often a page-object method). Nothing extra is captured while tests run: the index works with the reporter alone, and with [locator healing](./locator-healing) turned off.
 
@@ -3641,6 +3691,124 @@ shows only what tests do on the page you are on. Without the fixtures a use has 
 - **Matching is by chain text.** Two different chains that happen to resolve to the same element count separately. The counts tell you where to look, not that a test will break. To match on the element itself, open the page and use the extension's [Tested elements](./tested-elements), which evaluates every chain there.
 - **The index fills itself.** New runs are indexed as they arrive. When the server starts, it indexes each project's stored history once: for every test, Playwright project and branch, the latest passed execution, or the latest one when none passed. The rebuild endpoint empties a project's index and indexes its stored history again, which also splits by branch the uses indexed before branches were recorded (until then they count as the default branch's): see the [API docs](https://piwitests.dev/demo/docs), or `/docs` on your own instance.
 
+<!-- https://piwitests.dev/features/preflight -->
+
+# Locator preflight
+
+Renaming a button breaks every test that finds it by its name, and CI tells you twenty minutes later. `piwi preflight`
+tells you before you push: it reads your diff, lists the strings it removes or renames, and matches them against every
+locator your tests used.
+
+```
+$ npx @piwitests/reporter preflight
+piwi preflight · Acme Mugs · main · 212 locators from 48 tests · diff against HEAD
+
+2 locators this change breaks
+  src/components/CheckoutButton.vue:14   "Pay now" → "Pay"
+    getByRole('button', { name: 'Pay now' })         click · 3 tests · likely
+      tests/pages/checkout.page.ts:31    → getByRole('button', { name: 'Pay' })
+  src/locales/en.json:88                 "Apply coupon" removed (key checkout.coupon.apply)
+    getByText('Apply coupon')                        click · 1 test · likely
+      tests/coupon.spec.ts:12            no replacement: the string is gone
+
+9 tests reach the changed files · run them: npx @piwitests/reporter preflight --run
+Apply the 1 rewrite: npx @piwitests/reporter preflight --fix
+```
+
+It needs the reporter and a dashboard that has recorded a run: the locators come from the project's
+[locator index](/guide/concepts#locator-index), the chains Playwright reports on every step. Your source never leaves
+the machine; preflight downloads the index and compares locally.
+
+## What it reads in a diff
+
+Preflight diffs the working tree against `HEAD` (your uncommitted changes), or against `--base <ref>`. On each changed
+line of an application file it reads:
+
+- **attribute values** of the attributes locators use: your test id attribute, `id`, `name`, `aria-label`,
+  `placeholder`, `alt`, `title`, `role`, `value`, `label`, in every binding syntax (`title="…"`, `:title="'…'"`,
+  `[title]="'…'"`, `title={'…'}`, `title: '…'`);
+- **text between tags**, or a markup line that is only text;
+- **quoted strings** in code;
+- **translation values**: a changed line of a JSON, YAML, `.properties`, `.po` or `.resx` file under a `locales`,
+  `locale`, `i18n`, `lang` or `translations` folder, or any `.resx`; and a template whose key changed
+  (`t('checkout.pay')` → `t('checkout.payNow')`), resolved through those files, the `--locale` ones first.
+
+A string that disappears is **removed**. When exactly one string of the same kind replaces it in the same hunk (the
+same attribute, text for text, the same translation key), the change is a **rename**. Test files are skipped: a change
+there edits the locator itself, and the next run records it.
+
+## When a locator breaks
+
+Each call of each chain is compared with the strings of the kind it reads, under Playwright's own rules: substring
+and case-insensitive unless `exact: true`, whitespace collapsed, a regular expression tested as written.
+`getByRole(…, { name })` reads text, translations, strings and the naming attributes; `getByText` and `hasText` read
+text; `getByLabel` also reads `aria-label`; `getByPlaceholder`, `getByAltText` and `getByTitle` read their attribute;
+`getByTestId` and `locator('#id')` compare exactly.
+
+A chain breaks when a call matched the old string and does not match the new one. `getByRole('button', { name: 'Pay now' })`
+survives `Pay now` → `Pay now!`, and `getByText('Pay')` survives `Pay now` → `Pay`, as they would in Playwright.
+
+Breaks come in two confidence levels. **Likely**: the string was an attribute value, tag text or a translation.
+**Possible**: a bare quoted string in code, which common words ("Save", "Next") match in many files. Preflight lists
+likely breaks first and folds the possible ones into one line each.
+
+## Fixing the tests
+
+For a rename, each break carries the same chain with the new string; nothing else in the chain changes, and a regular
+expression gets no rewrite. `--fix` writes a likely break's rewrite into every call site whose line holds the string,
+keeping your quotes, and prints the files it edited. A possible break is never rewritten: its line shows the rewrite to
+apply by hand if the text on the page did change. When the string comes from a constant or a helper argument, the call site's line does
+not hold it: preflight lists the files that do, to edit by hand.
+
+The index keeps the old chain until your next run records the new one, so after `--fix` the call site shows as
+**already rewritten**.
+
+## Running the tests it names
+
+The dashboard's [test selection](/features/test-selection) knows which tests reach the changed files; preflight prints
+how many. `--run` runs them, plus the specs of the broken locators, through the same path as `piwi run`: pass
+Playwright arguments after `--`.
+
+## In a pre-push hook
+
+Add one line to `.husky/pre-push`. It checks what you are about to push, never fails the push on its own, and works in
+Git for Windows' shell too:
+
+```bash
+npx @piwitests/reporter preflight --base @{upstream}
+```
+
+Add `--strict` to block the push while a likely break is left unfixed.
+
+## Connection and offline use
+
+Preflight reads the dashboard URL, the API key and the project from its flags, the environment
+(`PIWI_DASHBOARD_URL`, `PIWI_API_KEY`, `PIWI_PROJECT_NAME`), the `.env` file [`piwi init`](/reference/cli#init)
+writes, then the [desktop app](./desktop) when it is running. The API key comes from where the URL came from: a key in
+your environment is never sent to a URL a workspace `.env` names. It compares with the default branch's index; `--branch`
+picks another. Each index it downloads is kept in `.piwi/locator-index.json`, so with the dashboard unreachable it
+runs on the last good copy and says how old it is.
+
+Call sites are relative to the directory the reporter ran in. Preflight resolves them against the nearest
+`playwright.config` above the working directory, or `--test-root`: point it at a local checkout of the tests when they
+live in another repository. A call site outside the checkout is listed with its rewrite and not edited.
+
+## Limits
+
+- A name built by concatenation or interpolation, or assembled from several elements
+  (`<button>Pay <b>now</b></button>`), is not seen. A string defined in one file and rendered from another through a
+  variable is found only as a quoted string where it is defined, at *possible*.
+- A locator no stored run used is not in the index.
+- "No break found" means none in the strings the diff changes, not that none exists.
+
+The flags and exit codes are on the [Piwi CLI](/reference/cli#preflight) page.
+
+## Related
+
+- [Who uses a locator](./locator-usage): the index preflight reads
+- [Test selection](./test-selection): which tests reach a changed file
+- [Locator healing](./locator-healing): when a locator broke anyway
+
 <!-- https://piwitests.dev/features/fix-plans -->
 
 # Fix plans, reproduce & bisect
@@ -3728,10 +3896,11 @@ strongest thing the dashboard does, so the posture is conservative by design.
 
 - Triggers only on a **full run on the default branch** — never a feature branch, and never a run reported from a
   heal branch (that would feed on itself).
-- Edits are **deterministic one-line locator rewrites** taken from a passing run's captured snapshot. No
-  AI-generated code is ever in the write path.
-- Each edit must come from a stored snapshot (`prior-run`, `fingerprint`, or `cross-test`) and score at or above the
-  configured minimum — or be a locator **you confirmed** in the picker.
+- Edits are **deterministic one-line locator rewrites** taken from a passing run's captured snapshot, or from the
+  run's own diff renaming the string the locator finds its element by. No AI-generated code is ever in the write path.
+- Each edit must come from a stored snapshot (`prior-run`, `fingerprint`, or `cross-test`) or a
+  [diff rename](./locator-healing#what-it-does) (`diff-rename`, scored 95) and score at or above the configured
+  minimum — or be a locator **you confirmed** in the picker.
 - Before committing, Piwi re-reads each file at the branch head and only writes lines it can still match exactly. A
   line that has drifted is dropped, not guessed.
 - One PR per run, batching every qualifying edit. A duplicate run never opens a second PR.
@@ -3789,8 +3958,8 @@ none of the entry points appear.
 
 ## What it does, exactly
 
-- **Create issue** appears on a failure cluster, on a failing execution, and on each inbox row (plus the `c` key and a
-  *Create issues* button in the inbox bulk bar). It is the primary action while the cluster has no ticket; once one
+- **Create issue** appears on a failure cluster, on a failing execution, on each inbox row (plus the `c` key and a
+  *Create issues* button in the inbox bulk bar), and on a [bug report](./bug-reports#filing-it-in-jira). It is the primary action while the cluster has no ticket; once one
   exists, the chip shows the key and status and the action becomes *Open in Jira*.
 - The issue **body is the fix plan**, rendered to Atlassian Document Format: *What happened*, *Most likely*, *Evidence*,
   *What to do* (patch, locator replacement, verify command, reproduce steps) and *Links* back to Piwi. Every section
@@ -3935,15 +4104,22 @@ What the comment says, in this order:
 1. **New failures**: failing now, passing in the last green run. This change caused them.
 2. **Pre-existing failures**: already broken before this change. Separated so nobody debugs someone else's bug.
 3. **Flaky**: passed only on a retry.
-4. **New failure clusters**: root causes never seen before in this project.
-5. **Fixed by this change**: clusters this pull request closed, with how long they were open. See
+4. **Looks fixed**: `test.fail()` tests that passed, each with "remove `test.fail()`" and its file, since the bug they
+   reproduce no longer shows.
+5. **New failure clusters**: root causes never seen before in this project.
+6. **Fixed by this change**: clusters this pull request closed, with how long they were open. See
    [Did the fix work?](./failure-clusters#did-the-fix-work)
 
 Each failure carries its error, its owner and tags when the test declares them (see
 [ownership metadata](/reference/test-metadata#ownership-metadata-piwi-annotations)), and, when a locator broke, the
 [replacement locator](./locator-healing) captured from the last passing run. The footer reports the CI minutes the run
 spent on waits and failed attempts. When the [Test Map](./scenario-gaps) has a diff to work with, the comment adds the
-changed files no test reached.
+changed files no test reached, then **Locators this change breaks**: the locators whose label, test id, placeholder or
+translation the diff removes or renames, matched against the base branch's locator index as
+[Locator preflight](./preflight) does. It lists only breaks none of whose tests ran in this run (a failing one is
+already listed with its failure, a passing one was updated), so it names what the run did not exercise: tests outside
+the selection, on another shard set, or in a nightly suite. Each comes with its call site and, for a rename, the
+rewritten locator.
 
 ## Turn it on
 
@@ -4159,15 +4335,16 @@ get the same data from `analyze_selections`.
 ## Impact-from-diff
 
 `piwi run impact --base <ref>` runs only the tests your change affects. The reporter computes the working-tree diff
-against `<ref>` locally (`git diff --name-only`), and the dashboard maps those files to tests through two observed
-edges:
+against `<ref>` locally (`git diff --name-only`), and the dashboard maps those files to tests through observed edges:
 
 - **Direct**: a changed file that _is_ a test file maps to the tests defined in it.
 - **Reach**: a changed support file (a page object, helper, or app module) maps to the tests whose most recent
   execution ran through it, per their captured source frames.
+- **Code reach**: a changed application file maps to the tests that executed it
+  ([code reach](/features/code-reach)).
 
-It fails safe: a changed _source_ file that maps to no test widens the run to the full suite with a warning. A
-docs-only or config-only change runs nothing. This is evidence-based impact, not static analysis.
+It fails safe: an unmapped _source_ file widens the run to the full suite with a warning. A docs-only change runs
+nothing.
 
 ## Suggestions
 
@@ -4381,7 +4558,8 @@ and its factors show on every gap. Counts are per class, never a coverage percen
 surface looks complete exactly when that surface is sparse.
 
 A changed file no test reaches is a gap too, raised at pull-request time: see
-[Uncovered changes in pull requests](/features/uncovered-changes).
+[Uncovered changes in pull requests](/features/uncovered-changes). So is a page with open
+[bug reports](/features/bug-reports): a defect that escaped the suite there.
 
 ## The Gaps tab
 
@@ -4487,6 +4665,7 @@ A changed file counts as reached when a test that ran recently touches it:
   `pages/**`), that a test requested or visited;
 - a test step whose locator is written in the file (a page object, a helper), or the file is the spec that defines
   the test.
+- with [code reach](/features/code-reach) on, a test executed one of the file's functions.
 
 "No test in this run" is always paired with the count from the last 30 runs, so a run narrowed by a
 [selection](/features/test-selection) is never mistaken for a gap. A skipped test reaches nothing. A file that no route,
@@ -4541,6 +4720,110 @@ because observed reach is evidence, not proof. Without the flag, the gate ignore
 - [Pull-request feedback & re-run](/features/pr-feedback): the comment this section joins
 - [Source control](/guide/source-control): the token that provides the diff
 - [Piwi CLI: gate](/reference/cli#gate): every gate flag
+
+<!-- https://piwitests.dev/features/code-reach -->
+
+# Code reach
+
+"Which tests reach this file?" has an answer for test code from the locators a test calls. Code reach answers it for
+application code: an opt-in capture records the source files whose functions ran during each test, so a change to a
+component or a module maps to the tests that execute it.
+
+## Turn it on
+
+Set `captureCodeReach: true` in the reporter options, or `PIWI_CAPTURE_CODE_REACH=true`, with the
+[capture fixtures](/guide/capture-fixtures) in place. Coverage slows the page's JavaScript and reach changes slowly, so
+turn it on in one scheduled job, a nightly run, rather than on every run. A run without it keeps the reach the last one
+recorded.
+
+```ts
+// playwright.config.ts, in the nightly job
+reporter: [['@piwitests/reporter', { captureCodeReach: !!process.env.NIGHTLY }]],
+```
+
+## What it records
+
+The fixtures start Chromium's JavaScript coverage on the test's first page and, at teardown, turn each script into
+source files:
+
+- a module a dev server serves by path (Vite's `/src/components/Pay.vue`, `/@fs/…`) is the file itself;
+- a bundle is read through its source map, inline or fetched once per worker (20 MB and 5 seconds at most).
+
+A file counts when one of its functions ran. A module's top-level code runs as soon as it is imported, so it does not
+count: otherwise every eagerly loaded file would be reached by every test. Paths are relative to the repository root;
+files under `node_modules` or outside the repository are dropped, and at most 2,000 files are kept per test. Only the
+paths leave the machine, never code, counts or line numbers.
+
+Paths resolve against the Playwright config's directory, then the repository root. Set `codeReachRoots` to the dev
+server's root when it is elsewhere; for Nuxt that is `app/`:
+
+```ts
+reporter: [['@piwitests/reporter', { captureCodeReach: true, codeReachRoots: ['app'] }]],
+```
+
+Code a bundler or dev server adds (module wrappers, preload helpers, hot-reload hooks) maps to no source of its own and
+counts for no file.
+
+When the backend is instrumented (the [Nitro or ASP.NET Core packages](/guide/backend-logs)), the handler file of each
+route a test called also counts as reached, with no capture of its own.
+
+## Supported builds
+
+| Build | Source maps |
+| --- | --- |
+| Vite dev server, Nuxt dev included | none needed: modules are served by path |
+| Vite build | `build: { sourcemap: true }` |
+| Next.js dev, Turbopack or webpack | on by default |
+| Next.js build, Turbopack or webpack | `productionBrowserSourceMaps: true` |
+| webpack build | `devtool: 'source-map'` |
+
+The map must be linked from the bundle: `sourcemap: 'hidden'` and webpack's `hidden-source-map` write the map but
+not the comment that names it, so they record nothing.
+
+Each was checked on a React app with four components, a lazy-loaded one, a shared utility and a module imported on
+start but never called, with Vite 8, webpack 5.111 and Next.js 16.3: every test recorded exactly the files it ran,
+none missed and none extra. Nuxt dev was checked on Piwi's own suite. The same builds without source maps record
+nothing.
+
+## Cost
+
+Chromium's block coverage slows the page's JavaScript, so the option stays off by default. Measured on a 4-core
+sandbox with headless Chromium:
+
+- **A light page** (the reporter's capture benchmark, `npm run reporter:bench`, 12 tests of 20 actions and
+  assertions): 122 ms more per test on top of the default capture, 887 ms to 1,009 ms (median over three rounds).
+- **A script-heavy app** (40 tests of Piwi's own suite against its Nuxt dev server, about 940 scripts per page, run
+  alternately with the option off and on): 1.8 seconds more per test on average, a median test going from 10.1 to 12.3
+  seconds, about 20% more for the run.
+
+The extra time is spent in the browser, and it grows with the amount of JavaScript the page runs.
+
+## Where it is used
+
+- **[Impact-from-diff](./test-selection#impact-from-diff)** maps a changed file to the tests that executed it. Code
+  reach only adds tests: a changed source file that no test reached still widens the run to the whole suite, since
+  code reach does not see module top-level code, server code or type-only modules.
+- **[Uncovered changes](./uncovered-changes)** counts a changed file as reached when a test executed it.
+- **[Locator preflight](./preflight)** calls a break *likely* only when one of its tests reaches the changed file.
+
+The dashboard's API serves the tests reaching one file and the whole map of a branch; see the
+[API docs](https://piwitests.dev/demo/docs) (`/docs` on your instance).
+
+## Limits
+
+- **Chromium only.** Other browsers have no JavaScript coverage and record nothing.
+- **Observed reach, not coverage.** A reached file may hide an untested branch: the unit is the file, never the line.
+- A build with neither per-module URLs nor source maps yields nothing, and so does code rendered on the server only,
+  React server components included.
+- A module whose top-level code calls its own functions, a table built on import, counts for every test that loads it.
+- A function a minifier inlines into another as plain statements counts for the file it was inlined into.
+- Reach is per branch: a branch's own runs replace its tests' reach, and the default branch's stands in for the rest.
+
+## Related
+
+- [Capture fixtures](/guide/capture-fixtures): what else the fixtures record
+- [Test selection](./test-selection): impact-from-diff
+- [Privacy & data flow](/guide/privacy): what the reporter sends
 
 <!-- https://piwitests.dev/features/probes -->
 
@@ -5285,6 +5568,9 @@ Add to `~/.cursor/mcp.json` (global) or `.cursor/mcp.json` in your project root:
 
 ### VS Code (GitHub Copilot, agent mode)
 
+With the [Piwi extension](/features/editors) installed and connected, VS Code 1.101 and later list Piwi's server
+without any configuration. Otherwise:
+
 Add to `.vscode/mcp.json` in your workspace (VS Code 1.99+):
 
 ```json
@@ -5386,8 +5672,9 @@ them into your test project.
 | `investigate-failure` | Investigate a failed run and propose a fix grounded in Piwi's evidence: error, steps, console, network, and the diff since the last green run. |
 | `apply-locator-healing` | Replace a brittle locator with Piwi's ranked [healed locator](/features/locator-healing) at its call site, then re-run to confirm. |
 | `stabilize-flaky-tests` | Fix the root cause of the highest-impact [flaky tests](/features/flaky-tests) (never by adding retries), then verify with repeated runs. |
-| `run-the-right-tests` | Pick and run the right [selection](/features/test-selection) for the task (smoke, recently broken, a time budget) instead of the whole suite. |
+| `run-the-right-tests` | After a UI change, fix the locators it breaks with [preflight](/features/preflight); then pick and run the right [selection](/features/test-selection) for the task (smoke, recently broken, a time budget) instead of the whole suite. |
 | `write-the-missing-test` | Take the top [scenario gap](/features/scenario-gaps) in scope, draft it from the graph, finish the assertion and add it in the same change. |
+| `fix-a-reported-bug` | Take a [bug report](/features/bug-reports), write its failing test with `piwi bug <id> --write`, reproduce, fix, then remove `test.fail()` and run the spec and the tests that visit the page. |
 
 Each skill prefers a connected Piwi [MCP tool](/reference/mcp-tools) and falls back to the dashboard UI when MCP is
 not connected, so a skill works before the MCP server is set up, only more slowly.
@@ -5514,8 +5801,9 @@ Playwright and the app's bundled Node. The first time, it asks you to link the p
   project's one-click default, and **Run with options…** shows the exact command.
 - **Runs keep going while you browse.** Output streams into the **Local runs** tray, a sidebar pill keeps it one
   click away, and stopping is always explicit. Leaving the app with runs active asks first.
-- **More places to run from:** **Reproduce locally** on a test case (the test 20 times with a trace, for a flaky
-  test) and **Run affected locally** on a failure cluster.
+- **More places to run from:** **Reproduce locally** on a test case (20 times with a trace), **Run affected
+  locally** on a failure cluster, and a [bug report](/features/bug-reports#running-it-with-playwright-in-the-desktop-app)
+  sent from Piwi Picker.
 - **Wrong folder?** When none of the tests exist in the linked folder, the button opens the dialog to fix the link.
 
 The run uses your project's own Playwright config, so its reporter sends the results here like a run from your
@@ -5594,19 +5882,18 @@ your project's history.
 ## What it does
 
 Every tool below runs on the live page, from the toolbar popup. The last three need a
-[connection to a Piwi instance](#connecting-to-a-piwi-instance); the others never reach a network.
+[connection to a Piwi instance](#connecting-to-a-piwi-instance); the others never reach it.
 
 | Tool | For |
 |---|---|
 | [Pick an element](#pick-an-element) | a ranked locator for one element, re-checked against the page |
-| [Hover-inspect](#hover-inspect) | the best locator of whatever the pointer is on |
-| [Locator console](#locator-console) | what a locator expression matches right now |
 | [Multi-pick](#multi-pick) | the shared pattern of a list's rows or cards |
 | [Lint overlay](#lint-overlay) | the elements that would make bad locator targets |
 | [Assertion suggester](#assertion-suggester) | `expect(...)` lines for an element |
-| [Session](#session) | named elements across pages, exported as a page object |
 | [Copy context for agent](#copy-context-for-agent) | one block about an element for a coding agent |
 | [Record actions](#record-actions) | a runnable spec from clicks and fills across pages |
+| [Report a bug](./report-a-bug) | a failing test and a report of a bug you reproduce |
+| [Developer tools](./devtools) | in DevTools: the selected element's locators, the locator console, the session, mocks, viewports |
 | [Matching functions](#matching-functions) | a recording that calls your own functions |
 | [Test functions](#test-functions-against-this-page) | which of your functions work on this page |
 | [Tested elements](#tested-elements) | which elements of this page your tests reach |
@@ -5614,14 +5901,14 @@ Every tool below runs on the live page, from the toolbar popup. The last three n
 ## Where it is
 
 Install **[Piwi Picker from the Chrome Web Store ↗](https://chromewebstore.google.com/detail/piwi-picker/pakhnokpjboejcghgcmkjlpnogfjihhe)**.
-The same listing covers Edge and the other Chromium browsers; in Edge, click **Allow** on the *Allow extensions from
-other stores* banner once, then **Get**.
+The listing covers Edge too: click **Allow** on its *Allow extensions from other stores* banner once, then **Get**.
 
-Every tool in the popup has a key shown on its tile (`1` records, `2` picks, `T` opens Tested elements). One tool
-runs at a time and **Esc** cancels it; recording is the exception and runs until its own **Stop**.
+Every tool in the popup has a key shown on its tile (`1` records, `2` picks, `T` opens Tested elements, `B`
+reports a bug). One tool runs at a time and **Esc** cancels it; recording runs until its own **Stop**. The developer
+tools that need no pick on the page are in the browser's DevTools: see [Developer tools](./devtools).
 
-Picking also has a shortcut without the popup, suggested as `Ctrl+Shift+E` (`Cmd+Shift+E` on macOS). A browser
-leaves it unbound when another extension holds it; the popup footer shows the key actually bound.
+Picking also has a shortcut, suggested as `Ctrl+Shift+E` (`Cmd+Shift+E` on macOS); the popup footer shows the key
+actually bound.
 
 ## Pick an element
 
@@ -5629,119 +5916,194 @@ Hover highlights, a click picks. The pick snaps to the nearest actionable ancest
 the button), and ↑/↓ walk the DOM tree first, showing the locator each step would produce. For an element with a role,
 an **anchors** step lets you pick stable parents to scope the locator to, with a live match count.
 
-Every candidate is scored the way the dashboard scores captured locators, then counted again against the page as it
-is now. A candidate that matches several elements shows its count and a suggestion (`.first()`,
-`.filter({ hasText: … })`), and ranks below every candidate that matches exactly one, so
-`getByTestId('product-43').getByRole('button')` beats a `getByRole('button', { name: 'Add to cart' })` that hits every
-card. Parents are anchored on the hook they carry (`data-testid`, `id`, a landmark role, an app-specific `data-*`),
-and a repeated container with no hook is singled out by its heading:
-`getByRole('listitem').filter({ hasText: 'Keyboard' }).getByRole('button')`.
+Every candidate uses the names Playwright computes (a tab with a count badge is `{ name: 'Regressions 5' }`), is scored
+the way the dashboard scores captured locators, and is run against the page as Playwright runs it. Those that find only
+the picked element come first. One that also finds others is offered narrowed: exact (`{ name: 'Failed' }` also finds
+"3 failed"), filtered by its text, or scoped to its landmark, dialog or row, and below it with its count;
+failing that, `.first()` or `.nth()`, with a warning.
 
-Copy the result as the bare locator, an action line (`await page.getByRole(…).click();`) or a visibility assertion;
-the popup remembers the last form. **Copy all** copies every ranked locator, one per line, for a project's
+Copy the result as the bare locator, an action line (`await page.getByRole(…).click();`) or a visibility assertion. **Copy all** copies every ranked locator, one per line, for a project's
 [Locators page](./locator-usage#the-locators-page).
-
-## Hover-inspect
-
-Toggled from the popup: hover any element to see its best-ranked locator in a tooltip, with no click.
-
-## Locator console
-
-Type or paste a locator expression and every match is outlined on the page as you type, with a strict-mode verdict:
-green for a single match, amber and numbered for several. It parses a safe subset (`getBy*` chains,
-`locator(css)`, `filter({ hasText })`, `.first()`, `.last()`, `.nth()`) and never runs it as code.
 
 ## Multi-pick
 
-Pick two or three similar items, such as table rows or cards, to derive the pattern they share (for example
-`getByRole('row').filter({ hasText: … })`). It warns when only `.nth()` could tell them apart.
+Pick two or three similar items (table rows, cards) to derive the pattern they share, such as
+`getByRole('row').filter({ hasText: … })`. It warns when only `.nth()` could tell them apart.
 
 ## Lint overlay
 
-One click outlines every interactive element that would score badly as a locator target (no test id, no accessible
-name, no stable parent), with a suggested `data-testid` for each and a Markdown checklist to export.
+One click outlines every interactive element no stable locator finds alone, with a suggested `data-testid` for each
+and a Markdown checklist.
 
 ## Assertion suggester
 
 Pick an element to get the `expect(...)` candidates that apply to it (`toHaveValue`, `toHaveText`,
 `toHaveAccessibleName`, `toBeVisible`), built on its top-ranked locator, each with a copy button.
 
-## Session
-
-Pick and name elements as you browse, across pages, then export the list as a page-object fixture class, a Markdown
-table for a pull request or an issue, or JSON. The session lasts until the browser closes.
-
 ## Copy context for agent
 
-Pick an element to copy one block for a coding agent: the page URL, a summary of the element (tag, role, accessible
-name, key attributes, text) and every ranked locator.
+Pick an element to copy one block for a coding agent: the page URL, a summary of the element and every ranked locator.
 
 ## Record actions
 
-**Record actions** asks for access to the one site you are on, then captures clicks, fills, checks, select changes
-and Enter-to-submit across that site's pages. A red border marks the recorded tab, and a small overlay counts the
-steps and shows the locator of the last one. **Stop** opens the review: **Copy as TypeScript** for a runnable spec
-(`page.goto`, then one line per step), or **Discard**. Password values are never captured; the spec reads a
-`process.env.*` placeholder instead.
+**Record actions** asks for access to the site you are on, then captures clicks, double clicks, fills, checks,
+choices, drags, the names of chosen files (never their content) and the keys that submit, close or move through a
+list, across pages. A click on what a hover shows (row actions, a
+hover menu) is recorded after that hover. **Stop** opens the
+review: **Copy as TypeScript** for a runnable spec that waits for each page it opens, **Download steps** for a
+[steps file](/reference/steps-format) to share or render with [`piwi codegen`](/reference/cli#codegen),
+[**Send to editor**](./editors#send-from-piwi-picker), or **Discard**. Passwords are never captured: the spec reads them from `process.env`.
 
 ## Matching functions
 
-With a connection, the recorder loads the [function catalog](./test-functions) of the project mapped to the page: the
-page-object methods and helpers you registered. While recording, the overlay ranks which function the steps so far
-look like, with a progress count (`2/3`) until one matches in full. On export, a complete match becomes a call to
-your function; unmatched steps stay plain locator lines. The matcher only chooses among the functions you
-registered, never invents one, and scores DOM patterns without AI.
+With a connection, the recorder loads the [function catalog](./test-functions) of the project mapped to the page and
+ranks, while you record, the functions the steps look like. On export, a complete match becomes a call to your
+function; other steps stay locator lines. No AI: it scores your registered functions' DOM patterns.
 
 ## Test functions against this page
 
 **Test functions** in the popup scores every function of the active project's catalog against the page as it is now:
-**ready to use here** (every step resolves to one element), **partial match**, or **not found on this page**. No
-recording is needed. **Manage catalog in Piwi ↗** opens the project's Test functions page.
+**Ready to use here** (every step finds one element), **Partly found here**, or **Not on this page**. Its link opens
+the catalog in Piwi.
 
 ## Tested elements
 
 With a connection, [Tested elements](./tested-elements) outlines every element of the page a test of the active
 project reaches, lists those tests, and marks the buttons, links and fields no test reaches.
 
+## Languages
+
+Piwi Picker speaks English, French, German, Spanish and Brazilian Portuguese, following the browser unless
+**Language**, in the settings, picks another. German, Spanish and Portuguese are unreviewed drafts:
+[suggest a correction](https://github.com/PiwiTests/platform/issues/new?template=translation.yml). A bug report is
+written in the extension's language; page texts, locators, test ids, `steps.json` and generated specs never are.
+
 ## Permissions, explained
 
 | Permission | Why |
 |---|---|
 | `activeTab` | acts on the tab you are looking at, only when you click the toolbar icon or press the shortcut |
+| `debugger` (Chrome and Edge) | trusted input for a [replay](./report-a-bug#replaying-a-report), a bug report's console, requests and screenshots, and DevTools' [throttling](./devtools#slow-down-or-fail-a-request). Attached only while one of them runs, under Chrome's bar saying Piwi Picker started debugging the browser; **Cancel** there falls back to the page's own events. Nothing leaves your machine |
 | `scripting` | injects the picker or the recorder into that tab on demand; no content script runs on pages you did not ask it to |
-| `storage` | keeps your copy format and, only if you connect, the instance URL, API key, project mappings, cached catalogs and the last three [locator indexes](./tested-elements), on your machine. The session and the running recording use `chrome.storage.session`, cleared when the browser closes |
+| `storage` | keeps your copy format and, only if you connect, the instance URL, API key, URL patterns, cached catalogs and the last three [locator indexes](./tested-elements), on your machine. The session and the running recording use `chrome.storage.session`, cleared when the browser closes |
+| `cookies` (optional, not granted in advance) | [Save login for tests](./devtools#save-login-for-tests) asks for it, for the one site whose login you save |
 | `optional_host_permissions` (none granted in advance) | recording asks for the one site you are on, to follow you across its pages; a connection asks for your instance's origin. Never `<all_urls>` |
 
 ## Connecting to a Piwi instance
 
-Optional and off by default. The popup's gear button opens the settings: your instance's URL, an API key (`pd_…`,
-from your account's API key settings), and a **Project mappings** table of URL patterns and projects (`*` matches
-within one path segment, `**` across segments, as in `https://shop.example.com/**`). Saving fetches each mapped
-project's function catalog and caches it; the request carries nothing about your browsing beyond the project ids.
+Optional and off by default. In the settings (the popup's gear button), type your instance's address and click
+**Connect**, then **Allow** in the tab that opens: Piwi Picker receives its own API key. Which project applies on a
+page comes from URL patterns kept on the instance, per project, and from any you keep in this browser; the popup's
+**Active project** select overrides both for the session. See [Extension connection](./extension-connection).
 
-The cache refreshes in the background, once per recorded page and when a recording stops; **Refresh** in Test
-functions fetches it now. The first mapping that matches the page applies, and the popup's **Active project** select
-overrides it for the current tab.
-
-**A recording is never sent to your instance.** Connecting changes only what **Copy as TypeScript** produces and what
-the overlay shows while recording.
+Function catalogs refresh in the background; **Refresh** in Test functions fetches them now. **A recording is never sent to your instance**, and a [bug report](./bug-reports) only from its preview.
 
 ## Limits
 
 - **One frame at a time.** The picker and the recorder see the top-level document, not iframes or shadow DOM.
 - **Recording covers one origin.** On another site, recording stops capturing steps; stop and review, or start again
   there.
-- **No aria-snapshot copier.** `toMatchAriaSnapshot()` YAML needs the computed accessibility tree, which an
-  extension reaches only with the `debugger` permission.
-- **Live re-check covers the common shapes.** `getByTestId`, CSS and a bare `getByRole` are counted again against the
-  page; text, label and placeholder matches and anchored chains keep the count from the pick.
+- **No aria-snapshot copier** yet for `toMatchAriaSnapshot()`.
 
 ## Related
 
 - [Fix a broken locator](/recipes/broken-locator): from a failing locator to the one to use instead
+- [Extension connection](./extension-connection): connecting in one step, and the URL patterns kept on the instance
 - [Tested elements](./tested-elements): the elements your tests reach, drawn on the page
 - [Test functions catalog](./test-functions): the functions a recording can call
 - [Locator healing](./locator-healing): the replacement Piwi proposes after a failure
+
+<!-- https://piwitests.dev/features/extension-connection -->
+
+# Extension connection
+
+[Piwi Picker](./extension) works on its own. Connected to your Piwi instance, it also matches a recording against
+your project's [test functions](./test-functions) and shows [Tested elements](./tested-elements). Connecting takes
+one click, and the URL patterns that say which project a page belongs to live on the instance, so a team sets them
+once.
+
+## Connect in one step
+
+1. Open Piwi Picker's settings (the gear button in its popup) and type your instance's address.
+2. Click **Connect**. The browser asks to let Piwi Picker reach that one address; allow it.
+3. A tab opens on your instance. Sign in if asked, with a password or your usual sign-in provider: you come back to
+   the same page. It names the connecting browser ("Piwi Picker in Chrome on Windows") and shows a code.
+4. Check that the settings page shows the same code, tick **My Piwi Picker shows this same code**, then click
+   **Allow**. The link carries the code, so anyone could send you one: if you did not just click **Connect**, deny.
+
+The tab closes, the settings say **Connected as** your name, and the instance's URL patterns appear under **From
+your Piwi instance**.
+
+Allowing creates an API key for your account, named after the browser, with your role and project access. It is
+listed with your other keys in your account's API key settings, where you revoke it; the browser is then
+disconnected at its next request. **Deny**, or ten minutes without an answer, creates nothing.
+
+With [authentication](/operate/authentication) off, **Allow** only confirms the connection: there is no account to
+own a key, and none is needed.
+
+### Use an API key instead
+
+Under **Use an API key instead**, paste a key created in your account's [API key settings](/operate/api-keys) and
+click **Save and test**. An instance older than the one-step connection needs this. So does the
+desktop app, whose server answers only requests carrying its access token.
+
+## URL patterns
+
+A URL pattern is a glob over a page's whole address: `*` matches within one part of the path, `**` across parts. So
+`https://staging.shop.example/**` covers every page of that site, and `https://shop.example/admin/*` the pages one
+level under `/admin`. A pattern starts with `http://`, `https://` or a wildcard.
+
+Each project keeps its own list in its **Settings** tab, under **Browser extension URLs**. A pattern can name:
+
+- an **environment**, a label shown beside the project in Piwi Picker (`staging`, `production`);
+- a **branch**, the one deployed at those addresses, whose tests [Tested elements](./tested-elements) shows;
+- a **path prefix**, the part of the path your site serves its pages under and the tests did not: `/app` when the site
+  serves `/app/checkout` and the tests ran at `/checkout`. Piwi Picker removes it before comparing the page with the
+  [pages the tests ran on](./tested-elements#this-page), whole parts only (`/application` keeps its path), and a bug
+  report sent from the site keys its page without it. It is a plain path of at most four parts, with no query, hash or
+  wildcard;
+- a **tests' path prefix**, the reverse: the part of the path the tests ran the pages under and the site does not,
+  `/app` when the tests ran `/app/checkout` and the site serves `/checkout`. Piwi Picker puts it in front of the page's
+  path; the site's root becomes `/app`. With both set, the one replaces the other (`/app` on the site, `/v2` in the
+  tests), and a page outside the path prefix is left as it is.
+
+The editor suggests one pattern per site your suite already visited: the `baseURL` of recent runs, the pages of the
+[Test Map](./scenario-gaps) and the absolute pages its locators ran on. **Add** puts a suggestion in the list; **Save
+patterns** stores it. Editing the list takes the administrator role, like the rest of the project's settings.
+
+### Which project applies
+
+Piwi Picker reads the patterns of every project you can see when it connects and each time its settings open, and
+keeps a copy, so a page's project is known with the instance out of reach. For a page it decides in this order:
+
+1. the project chosen in the popup's **Active project**, for the rest of the browser session;
+2. the patterns under **This browser only**, the first that matches;
+3. the instance's patterns, by project, in each project's order, the first that matches.
+
+A pattern kept in the browser is therefore an override for that browser alone. The settings page marks each pattern
+with where it comes from.
+
+### Add a site
+
+When the current tab matches no pattern, the popup says so and offers **Add this site**. It opens the settings with
+`https://<site>/**` filled in: choose a project and click **Add to Piwi**, or **Keep in this browser only**. Adding to
+the instance takes a role that edits the project; without one, the settings say so and keep the second choice.
+
+## What is sent
+
+Connecting sends the browser's and the operating system's names, nothing else about the machine. Afterwards the
+extension downloads the URL patterns, each mapped project's function catalog and its locator index; adding a site
+sends that one pattern. A recording is never sent to the instance: **Send to editor** sends it only to an editor paired
+on the same computer. A bug report is sent only from **Send to Piwi…**, after a preview of exactly what goes (see
+[Bug reports](./bug-reports)). Only the settings page and the extension's background worker talk to the instance or
+the editor, never a script running in a page.
+
+## Related
+
+- [Browser extension](./extension): everything Piwi Picker does, with or without a connection
+- [API keys](/operate/api-keys): create, list and revoke keys, those Piwi Picker created included
+- [Tested elements](./tested-elements): what a connection shows on the page
+- [Project access](/operate/project-access): which projects, and so which patterns, a user sees
 
 <!-- https://piwitests.dev/features/tested-elements -->
 
@@ -5805,6 +6167,9 @@ When the tests run with the [capture fixtures](/guide/capture-fixtures), Piwi re
 page you are on, `/checkout` or `/orders/:id`, plus the uses whose page no run recorded. A **Save** button a test
 clicks on `/settings` no longer lights up a lookalike on `/profile`; its row under **Not tested** says which locator
 matches it and where tests use it. **All pages** counts every locator that matches here, as without the fixtures.
+A site served under a path the tests never saw (`/app/checkout` for `/checkout`) needs the
+[path prefix](./extension-connection#url-patterns) on its URL pattern, and a suite that ran under a path the site does
+not use needs the tests' path prefix; the panel's subtitle then names the prefix removed or added.
 
 **At risk** then adds two lists above the brittle locators:
 
@@ -5865,6 +6230,427 @@ the panel's **Refresh** downloads it now.
 A green box says a test reached the element, not that the test checks what matters about it. Use
 it to find what nothing reaches, and to see which tests to read before changing an element.
 
+<!-- https://piwitests.dev/features/report-a-bug -->
+
+# Report a bug
+
+Reproduce a bug in your browser, say what the page should show, and get the test that proves it. **Report a bug** is
+a tool of the [Piwi Picker extension](./extension): it records your steps with the recorder, lets you mark what is
+wrong ("this should read Total: 45"), collects evidence from the page, and hands you a failing Playwright test, a
+Markdown report and a zip for the developer. Everything is built in your browser; nothing is sent anywhere unless you
+send it to your [Piwi instance](./bug-reports).
+
+## Recording the steps
+
+Open the popup on the page where the flow starts and choose **Report a bug**, or press `B`. The first time on a site,
+Piwi Picker asks for access to it, as [Record actions](./extension#record-actions) does. From then on, clicks, fills,
+checks, select changes and Enter are recorded across the site's pages, and a red border marks the tab.
+
+A panel in the corner lists the last steps and offers three ways to say what is wrong:
+
+- **Mark what's wrong**: pick the element, then choose what is wrong with it: its text, its value, its name as screen
+  readers announce it, or its state (it should be hidden, visible, enabled or disabled). The panel shows what the page shows now and
+  an **It should be** field holding the same value: type what it should be instead, and add a note if it helps.
+- **Something is missing**: say what should be there (a button, a link, a title, a text field, a dropdown, …) and its
+  name, such as a button
+  named "Download invoice". Piwi Picker looks for it on the page first and refuses one that is there already; use
+  Mark what's wrong for that one.
+- **Wrong page**: type the path the flow should have reached, such as `/checkout/thanks`.
+
+Each becomes a step of the recording, in place. **Finish** ends the recording and opens the report.
+
+## Evidence
+
+While a bug report records, Piwi Picker keeps:
+
+- **Console errors and warnings**, uncaught errors and unhandled promise rejections, with the page they happened on.
+- **Failed requests**: the method, the path, and the status of any request that failed or answered 400 or more: in
+  Chrome and Edge, documents, scripts and images included; elsewhere, the page's `fetch` and `XMLHttpRequest` calls. Query values are removed (`/api/cart/coupon?code=<redacted>`), ids and tokens in the path are collapsed
+  as Piwi does for routes, and no header or body is ever read.
+- **An outline of the page** around the element you marked: roles, names, states and field values, in the YAML form
+  Playwright's ARIA snapshots use, at most 400 lines. Piwi Picker builds it from its own reading of the page, so it
+  is an outline, not Playwright's snapshot. Password fields never show their value.
+- **Screenshots**, at each mark, at Finish and when you ask for one, three at most.
+- **The context**: the page, the browser and its version, the window size, the time and the extension's version.
+
+The first 100 console entries and 100 failed requests are kept; the report counts the rest.
+
+### How the evidence is collected
+
+In Chrome and Edge, Piwi Picker reads the console, the requests and the screenshots of the tab the report started in
+through the browser's debugging protocol (the `debugger` permission), from the page's first script, on every page of
+the recording. Chrome shows a bar saying Piwi Picker started debugging the browser until you finish; the panel says it
+is expected, and adds a **Screenshot** button. Nothing leaves your machine.
+
+Elsewhere (Firefox, the site's other tabs, or once the bar is cancelled), a small script added to the page itself
+wraps `console.error`, `console.warn`, `fetch` and `XMLHttpRequest` without changing what they do, under the same site
+access as recording, and is removed when you finish or discard the report. A screenshot then needs the `activeTab`
+grant: it works from the Report a bug click until the tab moves to another page; after that, open Piwi Picker on the
+tab and choose **Take a screenshot**.
+
+## The report
+
+**Finish** opens the report: a title to write, the steps with what you marked, and a line summing up the evidence.
+
+- **Copy failing test** copies a Playwright spec for your suite: `test.fail()` so it keeps your CI green while the bug
+  exists, the `@bug` tag, paths instead of the recorded site's URLs so your `baseURL` applies, the most stable locator
+  recorded for each element, and a URL check after each step that leads to another page. The marked assertion carries
+  the value the page showed as a comment:
+
+  ```ts
+  test.fail(); // passes while the bug exists; remove this line with the fix
+  await page.goto('/cart');
+  await page.getByRole('textbox', { name: 'Coupon' }).fill('SPRING10');
+  await page.getByRole('button', { name: 'Apply' }).click();
+  await expect(page.getByTestId('cart-total')).toHaveText('Total: 45'); // recorded: 'Total: 50'
+  ```
+
+  When the bug is fixed, the test passes and Playwright reports the expected failure as a failure: remove
+  `test.fail()` and it guards the fix.
+- **Copy report** copies the report as Markdown, for an issue or a message: the steps in plain words, what was
+  expected and what the page showed, the notes, the console entries, the failed requests and the outline.
+- **Download .zip** saves `steps.json` (a [steps file](/reference/steps-format)), the spec, `bug-report.md`,
+  `evidence.json` and the screenshots. A developer can render the steps for their own project with
+  [`piwi codegen`](/reference/cli#codegen).
+
+Typed values stay as you typed them, except passwords, which are never recorded: the spec reads them from an
+environment variable. Look over the report before you share it.
+
+With the extension connected to an instance, **Send to Piwi…** shows exactly what would be sent, with a box per kind of
+evidence, and sends it only when you click **Send**. The instance keeps the report, writes its failing test for the
+project and follows its runs: see [Bug reports](./bug-reports).
+
+## Replaying a report
+
+**Replay** plays a report's steps again in a tab, with a cursor that moves to each element and a caption saying what
+it does, then says whether the bug shows there. It suits the developer who receives the report: open the app on your
+own dev server, and the steps run there, with your session and your browser's developer tools at hand.
+
+- From the finished report, **Replay** plays it at once on the same site.
+- From the popup, **Replay a bug report** (`R`) asks for the site's access if needed, then for the report: the `.zip`
+  or its `steps.json`, the report just recorded in this browser, or, connected, one of the project's reports on Piwi.
+  The steps run on the tab's site, whichever site they were recorded on.
+
+Each element is found with the locator the failing test uses, and waited for as Playwright waits: exactly one match,
+visible, enabled and still. The replay ends with one of three answers:
+
+- **Reproduced**: an expected result does not hold, such as a total that still reads "Total: 50", and the panel says
+  whether that is the value reported.
+- **Not reproduced**: every expected result holds here.
+- **Could not reach the bug**: a step found no element, several, or a disabled one, or the flow ended on another page.
+  The data, the login or a flag differ here.
+
+Under the answer, the panel lists the failed requests and console errors the page showed during the replay, such as
+"POST /api/cart/coupon answered 500". For a report from Piwi, **Share result…** records the answer on the report, with
+the site it ran on, after showing what it sends.
+
+**Step by step** waits for **Next** before each step, with the element outlined, so you can set a breakpoint first.
+
+In Chrome and Edge, Replay sends trusted input as Playwright does: a real hover, clicks, keys and drags that the page
+cannot tell from a person's. Chrome shows its debugging bar until the replay ends. In Firefox, when the browser refuses
+the session, or once the bar is cancelled, Replay goes on with the page's own events; the panel says which, step by
+step. A report names the files a step chose but never carries them: Replay asks you to choose them, or to skip the step.
+
+**Run with Playwright…**, beside **Start** and on a finished replay, sends the steps to the paired
+[desktop app](./bug-reports#running-it-with-playwright-in-the-desktop-app), which runs them in your project once you
+confirm it there.
+
+## Limits
+
+- It follows one site, like [Record actions](./extension#record-actions), in the top-level document only.
+- Without the debugging protocol, only the page's own `fetch` and `XMLHttpRequest` calls are seen: not images,
+  stylesheets, a form that loads a new page, or a request made by a worker.
+- A recording sends nothing anywhere: only **Send to Piwi…**, **Share result…** and **Run with Playwright…** do, each
+  after showing what it sends.
+
+## Related
+
+- [Browser extension](./extension): every tool of Piwi Picker
+- [Steps file](/reference/steps-format): the format of `steps.json`
+- [CLI: codegen](/reference/cli#codegen): a steps file rendered as a spec for your project
+
+<!-- https://piwitests.dev/features/bug-reports -->
+
+# Bug reports
+
+A tester who [reports a bug](./report-a-bug) in Piwi Picker can send it to your Piwi instance. Piwi keeps it with its
+steps, the value the page showed, and the evidence the tester chose to send; writes it as a failing Playwright test for
+your project; and follows that test's runs: from the test being committed, to the bug looking fixed, to the report
+closing when the fix holds.
+
+## Sending a report
+
+With the extension [connected to the instance](./extension-connection), the finished report offers
+**Send to Piwi…**. It opens a preview of exactly what leaves the browser, for the project the tab's address maps to:
+
+- the title and the steps, with the values typed during the recording (never a password, which is not recorded);
+- one box per kind of evidence: the screenshots, the console errors and warnings, the failed requests (method, path and
+  status, never a body) and the outline of the page;
+- **Leave out the values I typed**, which removes them from the steps and from the evidence that repeats them; the
+  failing test then reads them from environment variables.
+
+Nothing is sent before **Send**, and only to the instance the extension is connected to. The first time, the preview
+explains this. Any role can send a report to a project it has access to, so a tester's own key is enough.
+
+The report keeps the language it was written in; the test Piwi writes from it is the same in every language.
+
+## The report's page
+
+**Bug reports**, in a project's **More** menu, lists them newest first, by status. A report's page says what the
+tester expected and what the page showed instead, where the report stands, and what to do next, with four tabs:
+
+- **Steps**: the steps in words, each marked step with its expected result, the value the page showed and the note.
+- **Evidence**: the screenshots, the failed requests, the console entries and the page's outline.
+- **Reproductions**: each time someone replayed it or ran it with Playwright and shared what they found (**Share
+  result…** in Piwi Picker).
+- **Spec**: the failing test.
+
+**Dismiss** sets a report aside: runs no longer move it. **Reopen** brings it back.
+
+### Why the suite missed it
+
+The page also says, in one line, why no test caught the bug, from the [locators your tests use](./locator-usage) on
+the report's page: "4 tests visit /cart; 2 reach the element marked, and none asserts its text". **Show the tests**
+lists them, and the owner is the one of the spec file whose tests visit the page most (its `piwi:owner`, else
+CODEOWNERS). It needs the [capture fixtures](/guide/capture-fixtures), which record the page each locator ran on.
+
+Until a test names it, an open report is also an **escaped defect** on the [Test Map](./scenario-gaps): one blind spot
+per page with open reports, ranked like any gap.
+
+## The failing test
+
+The **Spec** tab renders the steps as a Playwright spec with the same converter as Piwi Picker and
+[`piwi codegen`](/reference/cli#codegen), with what Piwi knows about your project: calls to your
+[test functions](./test-functions) where the steps match one, and for each element the locator your tests already use
+when it is not brittle. Two versions:
+
+- **To commit**: marked `test.fail()`, so it keeps your CI green while the bug exists, with the `@bug` tag and a
+  `piwi:bug` annotation naming the report.
+- **To run**: the same test without `test.fail()`, which fails on the expected result while the bug is there.
+
+```ts
+test('bug: coupon not applied to the total', {
+  tag: ['@bug'],
+  annotation: [{ type: 'piwi:bug', description: '37' }],
+}, async ({ page }) => {
+  test.fail(); // passes while the bug exists; remove this line with the fix
+  await page.goto('/cart');
+  await page.getByLabel('Coupon').fill('SPRING10');
+  await page.getByRole('button', { name: 'Apply' }).click();
+  await expect(page.getByTestId('cart-total')).toHaveText('Total: 42'); // recorded: 'Total: 40'
+});
+```
+
+Two project settings shape it, under **Generated specs** in the project's settings: the folder bug specs go to
+(`tests/bugs` by default) and the module `test` and `expect` are imported from, such as `../fixtures` when your tests
+use fixtures of their own.
+
+From a terminal, [`piwi bug 37 --write`](/reference/cli#bug) writes the spec into that folder and runs it once, so you
+see the bug before you fix it.
+
+## From report to fix
+
+Once a test naming the report (`piwi:bug 37`) runs, the report follows it:
+
+| Status | When |
+|---|---|
+| **Open** | Sent; no run has carried a test naming it yet. |
+| **Test committed** | A test naming it ran and the bug still shows: with `test.fail()`, the test failed as expected. |
+| **Looks fixed** | That test, still marked `test.fail()`, passed in every browser project that ran it. The run's [pull-request comment](./pr-feedback) says to remove `test.fail()` from its file, and the `bug.looks_fixed` [notification](/reference/notification-events) fires. |
+| **Closed** | The test passed as an ordinary test, `test.fail()` removed: the fix holds. |
+
+A closed report whose test fails again goes back to **Test committed**. A test marked `test.fail()` that passes is
+never counted into a [failure cluster](./failure-clusters): it is good news about one test, shown as **Looks fixed** on
+the run.
+
+## Filing it in Jira
+
+When the project is bound to Jira in its [issue tracking](./issue-tracking) settings, a report becomes a ticket in
+three ways, all through the same outbox, links and attachments:
+
+- **From the Send preview**: **Also create a Jira issue in SHOP** is offered to a sender whose role may create issues
+  (administrator or reporter).
+- **From the report's page**: **Create issue**, with the same modal as a failure cluster.
+- **For every report**: **File every bug report**, in the project's two-way sync settings, files each report as it
+  arrives, whoever sends it; the preview then says so.
+
+The ticket carries the steps, what was expected and what the page showed, the evidence (the screenshots attached to
+it), the failing test to commit, the reproductions and a link back, with the labels `piwi` and `piwi-bug-<id>`. It is
+written in the binding's ticket language, whatever language the report was written in: the steps are written again in
+that language, the reporter's own words (the title, the note, the values typed) stay as they were, and a line says which
+language the report came in.
+
+The ticket then follows the report: with **Comment on fix** and **Transition on fix** on, a report that looks fixed
+comments on its ticket and moves it; with **Resolve on close** and **Reopen on ticket reopen**, the report closes and
+reopens as its ticket moves into and out of Done.
+
+## Running it with Playwright in the desktop app
+
+For the exact verdict and a trace, the [desktop app](./desktop) runs a report's steps with Playwright in your project.
+Pair it once: in the extension's settings, under **Desktop app**, click **Pair**, then **Allow** in the app's window,
+which shows the same code. The address is the one on the app's **Setup** page, under **Connect Piwi Picker**
+(`http://127.0.0.1:3000` unless another program holds that port); **Pair by hand** takes the token shown there instead.
+
+**Run with Playwright…**, in Replay's chooser or on a finished replay, shows what it sends (the title and the steps,
+with the values typed in them) and sends it on **Send**. The request holds steps, never code. The app's window shows
+it with the steps in words, the linked project to run it in, and the flags (headed and a trace by default, a
+Playwright project, a repeat count). Nothing runs before **Run with Playwright**; **Decline** drops it, and a request
+left unanswered expires after ten minutes.
+
+The app writes the spec to run, with the project's settings, to `piwi-repro/bug-<id>.spec.ts` under the test directory
+your Playwright config names, runs it in the **Local runs** tray with the project's own config, and deletes it when the
+run ends. The verdict, read from where the test failed, goes back to Piwi Picker: **reproduced** when an expected
+result does not hold, **not reproduced** when the test passes, or **diverged** at the step that failed first.
+
+## Replaying a report from Piwi
+
+A developer with the extension connected finds the project's open reports in **Replay a bug report**, beside the file
+chooser: the report's steps play in their own tab, on their own dev server. See
+[Replaying a report](./report-a-bug#replaying-a-report).
+
+## For agents
+
+The [MCP server](./mcp) has `list_bug_reports`, `get_bug_report` (the steps in words, what was expected, the evidence
+and the reproductions) and `render_steps`, which writes a report's failing test, or any steps file's.
+
+## Related
+
+- [Report a bug](./report-a-bug): recording a report in Piwi Picker
+- [Steps files](/reference/steps-format): the format of the steps
+- [Test metadata](/reference/test-metadata#ownership-metadata-piwi-annotations): the `piwi:bug` annotation
+
+<!-- https://piwitests.dev/features/devtools -->
+
+# Developer tools
+
+The [Piwi Picker extension](./extension) answers one question beside the browser's own DevTools: what will a test see
+on this page, and how does the test get there? Its developer tools live here rather than in the toolbar popup, which
+keeps the tools that act on the page. In Chrome and Edge, the conditions below and a viewport set in the tab itself go
+through the browser's debugging protocol, and Chrome shows its debugging bar while one is on.
+
+## The Elements sidebar
+
+Open DevTools, go to **Elements**, and choose the **Piwi** tab beside Styles and Computed. Select a node and the pane
+lists its locators, ranked and checked against the page as it is, the same list [Pick an element](./extension#pick-an-element)
+shows:
+
+```
+getByRole('button', { name: 'Apply coupon' })     ✓ unique · stable
+getByTestId('apply-coupon')                        ✓ unique · stable
+locator('.btn').nth(2)                             ✓ unique by position · brittle: position, CSS class
+```
+
+A locator that finds the node among others says how many it finds. Under each one, **Locator**, **Action** and
+**Assertion** copy it as `page.…`, as a `click()` or as an `expect(…).toBeVisible()`, and **Add to session** puts it
+in the session under a name (the panel's Session tab, below). The pane ranks again when the selection changes and after
+the page navigates; **Refresh** ranks the same node on the page as it is now. DevTools' own element picker
+(`Ctrl+Shift+C`, `Cmd+Shift+C` on macOS) selects what the pointer is on.
+
+The first time on a site, the pane asks for access to it with **Allow on this site**, as recording does. It is not
+needed on a tab where you have just used the toolbar popup.
+
+Elements inside an iframe are not ranked: their locator would need the frame's prefix. Use Pick an element there.
+
+## The Piwi panel
+
+DevTools also gets a **Piwi** panel of its own, with five tabs. It shows what runs on the page and stays up while the
+page navigates; the recording and replay panels on the page stay too, for when DevTools is closed.
+
+- **Record** lists a recording's steps as they are captured, each with the locator it was recorded with. **Stop
+  recording** stops it as the popup does; then **Copy as TypeScript**, **Download steps** and **Discard** do what the
+  review panel does. A bug report is finished from its panel on the page, which collects the evidence.
+- **Replay** lists a replay's steps with their results and the verdict once it ends. **Pause**, **Continue**, **Next
+  step** and **Stop** act on the replay running in the page.
+- **Network** lists the page's `fetch` and XHR requests, from DevTools' own log while it is open; **Other sites too**
+  adds the requests to other origins. Select one to mock it, slow it down or make it fail (below).
+- **Locators** is the locator console: type a locator and the elements it finds are listed, as Playwright finds
+  them, with the strict-mode verdict. It reads the expression, never runs it: every `getBy*`, `locator()`, chains,
+  `filter()`, `and()`/`or()`, `.nth()` and same-origin frames. Hovering one outlines it on the page, and **Reveal**
+  selects it in the Elements panel.
+- **Session** lists the elements named with **Add to session**, and copies them as a page object, a Markdown table or
+  JSON.
+
+The toolbar's **Viewport**, **Playwright view** and **Save login for tests** set the page up for a test (below).
+
+## Mock this response
+
+Select a request in the Network tab and the panel writes it as a route for a test:
+
+```ts
+await page.route('**/api/cart?_=*', (route) =>
+  route.fulfill({
+    json: { items: [{ sku: 'SPRING-TEE', qty: 1 }], total: 40 },
+  }),
+);
+```
+
+The URL pattern drops the origin and turns the query values that change on every request (a timestamp, a cache
+buster) into `*`; edit it before copying. A status other than 200 is kept, and a method other than GET is checked.
+**Answer with** switches to a server error (500) or a network failure (`route.abort()`), for testing the page's
+error state. A body over 100 kB goes to a file the route reads, such as `mocks/cart.json`, downloaded beside the code.
+
+Fields named like a password, a token, a key or a session are written as `<hidden>` until you tick **Show hidden
+values**; headers, cookies included, are never written. Nothing is sent anywhere: the code reaches your clipboard
+when you copy it.
+
+## Slow down or fail a request
+
+Under a selected request, the Network tab also offers **Slow down** by the seconds you type, **Fail with 500** and
+**Fail (network error)**: the flaky conditions a test has to survive, tried by hand in your own tab. The first time,
+Piwi Picker asks for access to the site. From then on the tab's requests to that URL wait, answer 500 or fail, on every
+page of the site in that tab, until you remove the condition, click **Turn all off and reload**, or close the tab. A
+banner on the page says which conditions are on, with **Turn off**; other tabs are not affected.
+
+In Chrome and Edge, a condition reaches any request, documents, scripts and images included (tick **Every kind** to
+list them), and the toolbar's **Network** and **CPU** throttle the whole page as DevTools does: fast or slow 3G,
+offline, or a CPU 4, 6 or 20 times slower. They go through the debugging protocol: Chrome shows its debugging bar until
+you turn them all off, and **Cancel** on it ends the throttling, leaving the requests' conditions to the page's `fetch`
+and XHR calls. Firefox has only those: documents, scripts, images and a service worker's requests go past, and a page
+that replaces `fetch` itself may behave differently.
+
+A replay started while a condition is on runs under it, and its panel says which conditions were on, beside the
+verdict.
+
+## Save login for tests
+
+**Save login for tests**, in the Piwi panel's toolbar, saves the site's login as the
+file Playwright's `storageState` reads: the site's cookies, `httpOnly` ones included, which a page's scripts cannot
+read, and its `localStorage`. IndexedDB is left out. **Save login file** asks, the first time, for permission to read
+that one site's cookies, then downloads `user.json`:
+
+```ts
+test.use({ storageState: 'playwright/.auth/user.json' });
+```
+
+The file logs anyone in as you until the session expires: save it with a test account, as
+`playwright/.auth/user.json`, and add `playwright/.auth` to `.gitignore`. The page offers both lines, and a setup test
+that refreshes the file.
+
+## Open this page at a viewport
+
+**Viewport**, in the Piwi panel's toolbar, shows a bar that opens the inspected page in a new window whose viewport,
+not its outer frame, has the size of one of your Playwright projects: **Mobile Safari (390×664)**. With a connection, the sizes come from the `use.viewport`
+the [reporter](/guide/reporter) sends with each run, per project; without one, or for another size, choose **Size typed
+by hand**. In Chrome and Edge, **In this tab** gives the tab itself that viewport instead, as DevTools' device toolbar
+does, until **Back to the window's size**. Either way it sizes the viewport only, without touch, device pixel ratio or
+user agent.
+
+## Playwright view
+
+**Playwright view**, in the Piwi panel's toolbar, labels the page as a test sees it: each button, link, field, heading and
+landmark with the role and name `getByRole` finds it by, such as `button · Apply coupon` or `link · Cart (2)`, and its
+test id beside it when it has one. Two marks point at the elements a test will struggle with:
+
+- **Red**: no stable locator reaches it. A `<div>` with a click handler, a `tabindex` or a pointer cursor but no role,
+  or a button or link with no name, and no test id either.
+- **Amber**: its `getByRole` finds other elements too, two buttons both named "Show popup", or "Save" beside "Save
+  draft". A test needs `exact: true`, a scope or `.nth()`.
+
+The labels follow scrolling and come back after the page changes. The panel in the corner counts each kind, and
+**Role** shows the labels of one role only. Hidden elements get no label, as `getByRole` does not find them. Press
+**Esc** or `V` again to turn it off. The [lint overlay](./extension#lint-overlay) stays for suggesting the test ids to
+add.
+
 <!-- https://piwitests.dev/features/test-functions -->
 
 # Test functions catalog
@@ -5919,6 +6705,10 @@ Because the dashboard runs in your browser while the source lives on your
 machine, the mapping from a repo-relative path (`tests/checkout.spec.ts`) to a
 real file is configured **per browser** and stored locally — it is never sent to
 the server.
+
+To see Piwi's answers inside the editor instead — CI failures at their lines, the
+tests behind each locator, the heal as a quick fix — install the
+[editor extension](/features/editors).
 
 ## Set it up
 
@@ -6009,6 +6799,156 @@ that project. Everything else falls back to your global settings.
 All of this — the method, workspace root(s), editor flavor and JetBrains
 product/port — lives in your browser's `localStorage` under `piwi-ide-prefs`.
 Nothing about your local filesystem is sent to the Piwi server.
+
+<!-- https://piwitests.dev/features/editors -->
+
+# Editor extensions
+
+The Piwi extension for VS Code (and Cursor, VSCodium) and the Piwi plugin for the JetBrains IDEs with the LSP API
+(WebStorm, IntelliJ IDEA Ultimate, Rider, from 2023.3) bring what the dashboard knows about your suite to the line you
+are editing. Both run the same editor service; [JetBrains IDEs](#jetbrains-ides) lists what the plugin draws
+differently.
+
+## Install and connect
+
+Install **Piwi** from the extensions view (`piwitests.piwi`) or from **Settings → Plugins** in a JetBrains IDE. It
+starts on a workspace that holds a Playwright config, and reads the connection the reporter already uses, in this
+order:
+
+1. `PIWI_DASHBOARD_URL`, `PIWI_API_KEY` and `PIWI_PROJECT_NAME` in the environment;
+2. the same variables in the `.env` next to the Playwright config, then at the repository root (a URL there
+   takes only its own key);
+3. the [desktop app](/features/desktop), when it runs;
+4. its own settings: run **Piwi: Connect** (**Tools → Piwi → Connect…** in a JetBrains IDE), give the instance URL
+   and an [API key](/operate/api-keys), and pick the project. The key goes to the editor's secret storage, never to a
+   file.
+
+Nothing from your workspace is sent to the instance: the project's
+[locator index](/guide/concepts#locator-index), [code reach](/features/code-reach) and latest run are downloaded and
+compared with your files locally.
+
+## CI failures in the Problems panel
+
+The failures of the latest run on the checked-out branch are errors in the Problems panel, at the line that failed:
+the call in the error's stack when that file is in your workspace (often a page object), else the `test(…)` line. The
+message is the failure's one-line headline. The run is read every minute, every 15 seconds while it runs.
+
+On a failure, the quick fixes are:
+
+- **Heal: use …** — when [locator healing](/features/locator-healing) has a recommendation for the failing locator,
+  the same edit an [auto-heal pull request](/features/auto-heal) would make, applied to the line in place.
+- **Open the trace** — downloads the trace and opens it with `npx playwright show-trace`.
+- **Apply the fix plan, then run its verification** — when the failure's [cluster](/features/failure-clusters) has a
+  [fix plan](/features/fix-plans) whose patch applies to your files (or locator rewrites whose lines still read as
+  captured): VS Code previews the edit before applying it, then runs the plan's verify command in a terminal.
+- **Copy context for agent** — one block with the failure, its locator healing and the cluster's fix plan, for a coding
+  agent.
+- **Open the failure in the dashboard** — the execution page, with every piece of [evidence](/features/evidence).
+
+Hover the line for the failure screenshot, and the tickets linked to the failure's cluster or test with their status.
+Without one, **File an issue** opens the cluster in the dashboard, where issues are created.
+
+## The status bar
+
+The latest run on the branch: how many tests passed, failed and were flaky, with its progress while it runs. Click it
+to open the run. When the extension is not connected, the item says why and runs **Piwi: Connect**.
+
+## The tests behind each line
+
+Lines above the code (CodeLens):
+
+| File | What it shows | Click |
+|---|---|---|
+| A spec | the tests Piwi knows in it; above each `test(…)`, how often it passed, its [flaky](/features/flaky-tests) score, CI minutes wasted and root cause, its quarantine and the passes left before release, and the selections that include it | opens the test in the dashboard |
+| A page object or spec | above each locator line, the tests using it, their actions, and how many fail or are flaky | runs those tests |
+| An application file | the tests that reach it, from [code reach](/features/code-reach) | runs those tests |
+| A page file (Nuxt `pages/**`) | the tests acting on that page, its locators and how many are brittle | runs those tests |
+
+**Piwi: Run the tests that reach this file** runs them in a terminal, with the arguments `piwi run` would use;
+**Piwi: Run selection…** runs one of the project's saved [selections](/features/test-selection).
+
+## Timeouts
+
+A test whose `test.slow()` is no longer needed, or whose timeout is far above its p95, gets a note on its line with the
+time a tighter one saves on each failing run, and a quick fix: remove the `test.slow()`, or set `test.setTimeout` to the
+suggested value.
+
+## Completion
+
+- After `page.` (or `this.page.`) in a spec or a page object: the locator chains your suite already uses on the pages
+  this file's tests visit, most used first and brittle ones last, each with its test count, its pages and its stability.
+- At the start of a statement: the [functions](/features/test-functions) of your catalog whose URL pattern matches
+  those pages, as a call with a placeholder per parameter.
+- In a `piwi:` annotation: the types (`piwi:owner`, `piwi:priority`, `piwi:feature`, `piwi:link`), then the owners your
+  `CODEOWNERS` names, the priorities, or the project's features; in `tag: ['@…']`, the tags your tests already use.
+
+## Brittle locators
+
+A locator the [stability rules](/reference/locator-stability) rate brittle is a warning on its line; one worth a
+look is a hint. When the capture fixtures stored a stable alternative for that call site on its last passing run, the
+quick fix replaces the chain with it.
+
+## The locators a change breaks
+
+In an application file, the unsaved buffer is compared with `HEAD` as you type, the same way
+[`piwi preflight`](/features/preflight) compares a diff. A changed line whose string a locator finds its element by is
+a warning, with the chains it breaks and their tests on hover, and one quick fix that rewrites every call site.
+
+## Piwi's MCP server for the agent
+
+In VS Code 1.101 and later, the extension provides Piwi's [MCP server](/features/mcp) to the editor's agent with the
+connection it already has: it is listed under the MCP servers, and the agent can read failures, flaky tests and
+healings. In an editor without that API, **Piwi: Copy the MCP server configuration** puts an `mcp.json` entry on the
+clipboard. It holds your API key: paste it into your user settings, not into the repository.
+
+## Commands
+
+| Command | What it does |
+|---|---|
+| Piwi: Connect | Choose the instance, the API key and the project |
+| Piwi: Refresh | Fetch the indexes and the latest run again |
+| Piwi: Run the tests that reach this file | Run them in a terminal |
+| Piwi: Open in dashboard | Open this file's test, or the latest run |
+| Piwi: Run selection… | Run one of the project's saved selections |
+| Piwi: Open the latest run | Open the run the status bar shows |
+| Piwi: Copy the MCP server configuration | For editors without the MCP provider API |
+| Piwi: Pair with Piwi Picker | Copy the address Piwi Picker sends to |
+
+## Send from Piwi Picker
+
+A locator picked with the [Piwi Picker](./extension) browser extension, or a flow it recorded, lands at the editor's
+cursor:
+
+1. In the editor, run **Piwi: Pair with Piwi Picker** (**Tools → Piwi → Pair with Piwi Picker** in a JetBrains IDE).
+   It copies a pairing address, `http://127.0.0.1:<port>/…#<token>`.
+2. In Piwi Picker's settings, paste it under **Send to editor** and click **Pair**; the browser asks once for access to
+   that local address.
+3. A picked locator's row and the recording review then show **Send to editor**. A locator is inserted in the copy
+   form you chose; a recording is rendered by the editor as the body of a test, like
+   [`piwi codegen --body`](/reference/cli#codegen), with the project's functions and the locators its tests already
+   use.
+
+The editor listens on the loopback interface only (VS Code on its own port, a JetBrains IDE on its built-in server),
+and accepts a request only with the token. Nothing goes through the Piwi instance. With several VS Code windows open,
+the one that paired receives.
+
+## JetBrains IDEs
+
+The plugin starts the editor service with the project's Node.js interpreter (**Settings → Languages & Frameworks →
+Node.js**). The IDE's LSP client shows the warnings, quick fixes and hover in open files as described above; the rest
+is drawn natively:
+
+- **The Piwi tool window** lists the latest run's failures, since the IDE highlights open files only. Double-click one
+  to open its failing line, where the highlight carries **Heal**, **Open the trace** and the dashboard link. The trace
+  opens in the Run tool window.
+- **Code Vision** shows the lines above files, tests and locators; click one to run what it names.
+- **The status bar** shows the latest run; the actions are under **Tools → Piwi**, and **Run the tests that reach this
+  file** is also in the editor's context menu.
+- **MCP**: **Copy the MCP server configuration** puts an `mcpServers` entry on the clipboard for **Settings → Tools → AI
+  Assistant → Model Context Protocol** or another agent. It runs the server through `mcp-remote`, with the key in its
+  environment.
+
+IntelliJ IDEA Community Edition and Android Studio do not have the LSP API the plugin needs.
 
 <!-- https://piwitests.dev/operate/deployment -->
 
@@ -6772,6 +7712,10 @@ dedicated CI account.
 1. Click **Create API key**, enter a descriptive name (e.g. "GitHub Actions"), and set an optional expiry.
 2. Click **Generate key**, and copy the key **immediately**: it will never be shown again.
 3. Store it as a CI secret (e.g. `PIWI_API_KEY`).
+
+Connecting the [browser extension](/features/extension-connection) creates a key the same way, once you click
+**Allow** on the page it opens: it is named after the browser ("Piwi Picker in Chrome on Windows") and listed with the
+others.
 
 ## Revoking an API key
 
@@ -7743,7 +8687,7 @@ which the cross-shard clue points out.
 
 ### Ownership metadata (`piwi:` annotations)
 
-Four `piwi:`-prefixed annotations attach ownership to a test. They are ordinary Playwright annotations, so no new API is
+Five `piwi:`-prefixed annotations attach ownership to a test. They are ordinary Playwright annotations, so no new API is
 involved:
 
 ```typescript
@@ -7770,6 +8714,7 @@ test(
 | `piwi:priority` | `critical`, `high`, `medium` or `low` (anything else is ignored) |
 | `piwi:feature` | Any text — the product area, for grouping across spec files |
 | `piwi:link` | An absolute `http(s)` URL; other schemes are dropped rather than stored |
+| `piwi:bug` | The id of the Piwi bug report the test reproduces (`37` or `#37`); written by the spec a [bug report](/features/report-a-bug) generates |
 
 Metadata shows as badges next to the test wherever it is listed, is filterable by owner and priority on the **Test
 cases** tab, and is carried into [pull-request feedback](/features/pr-feedback) so a failure comment names the team
@@ -7777,6 +8722,16 @@ that owns it. Unknown `piwi:` fields and unparseable values are ignored — a ty
 
 The values are also re-validated server-side, because a payload can reach the ingest API without passing through the
 reporter.
+
+### Expected failures (`test.fail()`)
+
+The reporter sends each test's `expectedStatus` as Playwright reports it (`failed` for a `test.fail()` test), stored on
+`test_runs_cases.expected_status`; for a reporter or an import that does not send it, the server derives it from the
+`fail`, `skip` and `fixme` annotations. The status follows Playwright: an expected failure that failed counts as passed,
+and one that passed counts as failed, with "Expected to fail, but passed.". That second row is shown as **Looks fixed**
+rather than as a failure: it joins no failure cluster, the pull-request comment tells you to remove `test.fail()`, and
+the `bug.looks_fixed` [notification event](/reference/notification-events) fires once, on the first run of a branch
+where it passes. A test that runs in several browser projects looks fixed only when it passed in all of them.
 
 ### Per-test timeout
 
@@ -7862,7 +8817,7 @@ after it.
 
 | Rule | Strength | Fires when |
 |---|---|---|
-| Failed request before the failure<br>`failed-request-before-failure` | strong | A request returned 5xx or was aborted in the 10 seconds before the moment of failure. |
+| Failed request before the failure<br>`failed-request-before-failure` | strong | A request returned 5xx, or failed without a response (the clue names the browser's error, such as `net::ERR_CONNECTION_RESET`), in the 10 seconds before the moment of failure. |
 | Slow request overlapping the failure<br>`slow-request-overlapping-failure` | medium | A request slower than `PIWI_AI_SLOW_REQUEST_MS` (default 1,500 ms) was still in flight during the failed step. |
 | Console mentions the target<br>`console-mentions-target` | strong for an error, medium for a warning | A console entry in the failure window names the failing locator or route. |
 | Dialog open at the failure<br>`dialog-open-on-failure` | strong | A browser dialog (`alert`, `confirm`, `prompt`, `beforeunload`) closed in the failure window, so it was open when the action ran. Needs Playwright 1.63 or later. |
@@ -7963,7 +8918,7 @@ may need a different one.
 
 # Piwi CLI
 
-The `@piwitests/reporter` package ships a command-line tool, `piwi`, for the things that happen *around* a test run: wiring a project up, gating a CI job on the dashboard's analysis, running a saved test selection, and managing AI-step artifacts and agent skills. This page is the reference for every command and flag; each command's own `--help` prints the same list.
+The `@piwitests/reporter` package ships a command-line tool, `piwi`, for the things that happen *around* a test run: wiring a project up, gating a CI job on the dashboard's analysis, running a saved test selection, turning a recording into a spec, and managing AI-step artifacts and agent skills. This page is the reference for every command and flag; each command's own `--help` prints the same list.
 
 ## Invoking it
 
@@ -7985,6 +8940,9 @@ npx @piwitests/reporter <command> [options]
 | [`run`](#select-run) | Run a saved test selection with `playwright test` |
 | [`probe`](#probe) | Run the dashboard's probe plan and record what the suite noticed |
 | [`ai`](#ai) | Manage committed natural-language AI-step artifacts |
+| [`codegen`](#codegen) | Turn a steps file (a Piwi Picker recording) into a Playwright spec |
+| [`preflight`](#preflight) | List the test locators your change breaks, and fix them |
+| [`bug`](#bug) | Write a bug report's failing test into the project and run it once |
 
 Several commands read connection settings from the environment as a fallback: `PIWI_DASHBOARD_URL` (dashboard URL), `PIWI_API_KEY` (API key), and `PIWI_PROJECT_NAME` (project). A flag always wins over its environment variable.
 
@@ -8021,7 +8979,7 @@ npx @piwitests/reporter skills list
 npx @piwitests/reporter skills add [names...] [options]
 ```
 
-The six skills are `setup-piwi`, `investigate-failure`, `apply-locator-healing`, `stabilize-flaky-tests`, `run-the-right-tests` and `write-the-missing-test`. `add` with no names installs all of them.
+The seven skills are `setup-piwi`, `investigate-failure`, `apply-locator-healing`, `stabilize-flaky-tests`, `run-the-right-tests`, `write-the-missing-test` and `fix-a-reported-bug`. `add` with no names installs all of them.
 
 | Flag (for `add`) | Description |
 |---|---|
@@ -8166,6 +9124,107 @@ npx @piwitests/reporter ai prune
 
 **Exit codes:** `0` clean (or `--help`) · `1` hygiene issues found · `2` bad arguments / command unavailable.
 
+## `codegen`
+
+Turn a [steps file](/reference/steps-format) into a Playwright spec. Piwi Picker saves one with
+[**Download steps**](/features/extension#record-actions). The spec is written for a test project: URLs on the recorded
+site become paths, so your config's `baseURL` applies; each element uses the first of its recorded locators that the
+[stability rules](/reference/locator-stability) call stable; and after each step that leads to another page, the spec
+waits for that page's URL. Nothing is sent anywhere unless a project is configured.
+
+```bash
+npx @piwitests/reporter codegen steps.json --out tests/checkout.spec.ts --test-import ./fixtures
+```
+
+`codegen bug:<id>` reads the steps of a [bug report](/features/bug-reports) from the dashboard (`--server-url`) instead
+of a file.
+
+| Flag | Description |
+|---|---|
+| `--out <file>` | Write the spec to this file instead of printing it; an existing file is kept unless `--force` |
+| `--force` | Replace the file `--out` names |
+| `--body` | Print only the test's lines, to paste into an existing test, with the imports they need as comments |
+| `--title <text>` | Test title (default: the steps file's own title) |
+| `--test-import <mod>` | Module `test` and `expect` are imported from, such as your fixtures file (default `@playwright/test`) |
+| `--absolute-urls` | Keep the recorded URLs instead of paths |
+| `--no-url-checks` | Do not wait for each new page's URL |
+| `--env-values` | Read every typed value from a `PIWI_TEST_VALUE_<n>` environment variable instead of writing it into the spec |
+| `--fail` | Mark the test as expected to fail (`test.fail()`) |
+| `--fail-reason <text>` | The reason written beside `test.fail()`, such as a ticket key |
+| `--tag <tag>` | Add a tag; repeat for more (`@` is added when missing) |
+| `--project <name\|id>` | Project (env `PIWI_PROJECT_NAME`): its [function catalog](/features/test-functions) turns matching steps into calls to your own functions, and a locator your tests already use is preferred when it is not brittle |
+| `--server-url <url>` | Dashboard URL (env `PIWI_DASHBOARD_URL`) |
+| `--api-key <key>` | API key (env `PIWI_API_KEY`) |
+| `--offline` | Do not contact the dashboard, even when one is configured |
+| `-h`, `--help` | Show help |
+
+Warnings go to stderr, one per step worth a look: a password read from the environment, an element with no locator,
+or one whose best locator is brittle. A dashboard that cannot be reached only costs the catalog and the preferred
+locators; the spec is still written.
+
+**Exit codes:** `0` written or printed · `2` the steps file could not be read or checked, or the spec could not be
+written.
+
+## `preflight`
+
+List the test locators a change breaks, before it runs: [Locator preflight](/features/preflight) explains what it
+reads and how it matches. It diffs the working tree against a ref, compares the strings the diff removes or renames
+with the project's locator index, and prints each broken chain with its tests, its call sites and its rewrite.
+
+```bash
+npx @piwitests/reporter preflight
+npx @piwitests/reporter preflight --base @{upstream} --strict
+npx @piwitests/reporter preflight --fix --run -- --workers=2
+```
+
+| Flag | Description |
+|---|---|
+| `--base <ref>` | Diff the working tree against this ref (default `HEAD`: uncommitted changes) |
+| `--branch <name>` | Compare with this branch's locator index (default: the project's default branch) |
+| `--test-root <dir>` | Where call sites resolve (default: the directory of the nearest `playwright.config`) |
+| `--locale <code>` | Translation files of this locale resolve keys first (default `en`) |
+| `--fix` | Write the rewrites into the call sites whose line holds the string |
+| `--run` | Run the tests that reach the changed files and the specs of the broken locators; Playwright arguments go after `--` |
+| `--strict` | Exit 1 when a likely break is left unfixed |
+| `--server-url <url>` | Dashboard URL (env `PIWI_DASHBOARD_URL`, then `.env`, then the running desktop app) |
+| `--api-key <key>` | API key (env `PIWI_API_KEY`) |
+| `--project <name\|id>` | Project (env `PIWI_PROJECT_NAME`) |
+| `--json` | Print the breaks, their call sites, the edits and the impact as JSON |
+| `-h`, `--help` | Show help |
+
+The index is cached in `.piwi/locator-index.json` per dashboard, project and branch, and used when the dashboard
+cannot be reached.
+
+**Exit codes:** `0` ok, breaks or not · `1` a likely break left unfixed with `--strict`, or `--run`'s tests failed ·
+`2` the index could not be fetched and there is no cached copy, or the diff could not be read.
+
+## `bug`
+
+Get a [bug report](/features/bug-reports)'s failing test from the dashboard, written with the project's
+[generated specs settings](/features/bug-reports#the-failing-test): `test.fail()` while the bug exists, `@bug`, and
+`piwi:bug <id>` so the report follows its runs. Printed by default; `--write` puts it in the project's bugs folder
+(`tests/bugs` unless the project names another) and runs it once with `playwright test`, so you see the bug reproduce
+before you fix it.
+
+```bash
+npx @piwitests/reporter bug 37 --write
+```
+
+| Flag | Description |
+|---|---|
+| `--write` | Write the spec to the project's bugs folder (from the repository root), then run it once |
+| `--out <file>` | Write it to this file instead, then run it once; its test import is written for that file's folder |
+| `--no-run` | With `--write` or `--out`: write it without running it |
+| `--force` | Replace an existing file |
+| `--run-mode` | The spec without `test.fail()`, as a reproduction runs it |
+| `--server-url <url>` | Dashboard URL (env `PIWI_DASHBOARD_URL`) |
+| `--api-key <key>` | API key (env `PIWI_API_KEY`) |
+| `-h`, `--help` | Show help |
+
+**Exit codes:** `0` printed or written, and when run, the test failed on the bug as `test.fail()` expects · `1` the run
+did not: the bug may be fixed, or a step no longer matches the page · `2` the report could not be read or the file
+could not be written.
+
 ## Related
 
 - [Getting started](/guide/getting-started) — `init` in the setup flow
@@ -8173,6 +9232,110 @@ npx @piwitests/reporter ai prune
 - [Test selections](/features/test-selection) — what `select` / `run` resolve
 - [AI steps](/features/ai-steps) — the authoring/replay lifecycle `ai` manages
 - [Agent skills](/features/agent-skills): what `skills` installs and what each skill does
+
+<!-- https://piwitests.dev/reference/steps-format -->
+
+# Steps file format
+
+A **steps file** is a recording as data rather than code. [Piwi Picker](/features/extension#record-actions) saves one
+with **Download steps**, and [`piwi codegen`](/reference/cli#codegen) turns one into a Playwright spec. Because it
+holds steps and not code, the same file can be rendered for different projects (their `test` import, their
+`baseURL`) and read again by newer tools.
+
+```json
+{
+  "v": 1,
+  "title": "Coupon not applied",
+  "origin": "https://staging.acme.test",
+  "recordedAt": 1790467200000,
+  "note": null,
+  "steps": [
+    { "action": "goto", "target": null, "value": "/cart", "redacted": false, "pageUrl": "/cart", "timestamp": 0 },
+    {
+      "action": "click",
+      "target": {
+        "tagName": "button",
+        "role": "button",
+        "accessibleName": "Apply",
+        "testId": null,
+        "text": "Apply",
+        "alternatives": [{ "locator": "getByRole('button', { name: 'Apply' })", "method": "getByRole", "score": 90 }]
+      },
+      "value": null,
+      "redacted": false,
+      "pageUrl": "/cart",
+      "timestamp": 1
+    }
+  ]
+}
+```
+
+## The document
+
+| Field | Type | Meaning |
+|---|---|---|
+| `v` | `1` | The format version. |
+| `title` | string or null | The test's title when rendered. |
+| `origin` | string or null | The origin the steps were recorded on, such as `https://staging.acme.test`. |
+| `recordedAt` | number | When the recording started, in milliseconds since 1970. |
+| `note` | string or null | Free text from whoever recorded it. |
+| `steps` | list | The steps, in order. |
+
+URLs on `origin` are stored as paths (`/cart?from=mail`), so a spec rendered from the file can use the project's
+`baseURL` instead of the site the steps were recorded on.
+
+## A step
+
+| Field | Type | Meaning |
+|---|---|---|
+| `action` | string | `goto`, `click`, `dblclick`, `hover`, `fill`, `check`, `uncheck`, `selectOption`, `press`, `setInputFiles`, `dragTo` or `assert`. |
+| `target` | object or null | The element the step acted on; null for `goto`, a key press on the page, or an `assert` on the URL. |
+| `value` | string or null | The URL for `goto`, the typed text for `fill`, the option for `selectOption`, the key for `press`, the chosen files' names for `setInputFiles`, one per line. |
+| `redacted` | boolean | The value was typed in a password field and was not kept; the spec reads it from `PIWI_TEST_VALUE_<n>`. |
+| `pageUrl` | string | The page the step happened on. |
+| `timestamp` | number | When it happened. |
+| `assertion` | object | On `assert` steps only; see below. |
+| `dropTarget` | object | On `dragTo` steps only: the element the target is dropped on, a target like the other. |
+
+A `hover` step moves the pointer over its target and is written as `await <locator>.hover();`. Piwi Picker records
+one before a click on an element that shows only while another is hovered (a row's actions, a menu that opens on
+hover); the hover is on the element that shows it.
+
+A `setInputFiles` step keeps the names of the files chosen, never their content. The spec writes
+`await <locator>.setInputFiles('invoice.pdf');`, which reads the file from the directory Playwright runs in, and the
+converter warns that the file is needed. A `dragTo` step is written as `await <locator>.dragTo(<drop locator>);`.
+
+A target holds what identifies the element: `tagName`, `role`, `accessibleName`, `testId`, `text`, and
+`alternatives`, its locators ranked best first. Each alternative has a `locator` (a Playwright locator chain such as
+`getByRole('button', { name: 'Apply' })`), the `method` it ends with, and a `score`.
+
+An assertion states what the page should show:
+
+| Field | Type | Meaning |
+|---|---|---|
+| `matcher` | string | `toHaveText`, `toHaveValue`, `toHaveAccessibleName`, `toHaveURL`, `toBeVisible`, `toBeHidden`, `toBeEnabled` or `toBeDisabled`. |
+| `expected` | string or null | The expected value, required for the first four. A `toHaveURL` value is a path or a URL. |
+| `actual` | string or null | What the page showed when it was recorded, kept when it differs; the spec writes it in a comment. |
+| `negated` | boolean | Written as `expect(…).not.…`. |
+| `note` | string or null | Written as a comment above the assertion. |
+
+## Checks
+
+A file is checked in full before anything uses it, and every problem found is reported with its path
+(`steps[2].target.alternatives[0].locator: is not a Playwright locator chain`).
+
+- Each locator must parse as a Playwright locator chain: the `getBy…`, `locator`, `filter`, `nth` family of calls, with
+  string, number, regex and object arguments. It is written into the spec from its parsed form, so a file can choose
+  locators but can never add code. A regex must be a valid pattern on one line.
+- `origin` must be an `http` or `https` origin.
+- A redacted step never keeps a value.
+- A `hover` or `dblclick` step needs a target and never keeps a value; a `setInputFiles` step needs a target; a
+  `dragTo` step needs a target and a `dropTarget`, and never keeps a value.
+- Limits: 200 steps, 10 alternatives per target, 2,000 characters for values, expected values, URLs and notes, 500 for
+  titles, names, texts and locators, and 5 MB for the file.
+
+A recording saved before the format existed (`{ "steps", "startedAt", "startUrl" }`) is read too, and the old
+`assertVisible` action is read as an `assert` step with `toBeVisible`.
 
 <!-- https://piwitests.dev/reference/gap-detectors -->
 
@@ -8196,6 +9359,7 @@ without it.
 | **Control nobody exercises** | blind-spot | a control on a page that no test reaches | the page inventory | `On 12 page(s) · no locator targets it` |
 | **Reachable, unvisited** | blind-spot | a page other pages link to that no test navigates to | the page inventory | `Linked from 7 page(s) · never navigated to` |
 | **API-only route** | blind-spot | a reached route no page loads | the page inventory; without it, every reached route qualifies | `No control triggers it and no page loads it` |
+| **Escaped defect** | blind-spot | a page with [bug reports](/features/bug-reports) no test names yet, one gap per page | Piwi Picker sending reports | `Bug report #37: Coupon not applied to the total — no test names it yet` |
 | **Changed, unreached** | blind-spot | a changed file no test reaches, at pull-request time | an SCM token | `+41 −3 · no test in run #812 · 0 in 30 runs` |
 | **Single covering test** | fragile | a node exactly one trusted test reaches | nothing more | `Only checkout › coupon reaches this` |
 | **Orphan test** | fragile | a test whose every reached node disappeared from the last 30 runs | nothing more | `All 3 node(s) it reaches disappeared from recent runs` |
@@ -8269,6 +9433,7 @@ one fires and what a webhook channel receives; channels, subscriptions and deliv
 | `perf.regression` | A run is at least 20% slower than the median of the previous five completed runs on the same branch and environment; the regression-% filter raises the bar |
 | `diagnosis.completed` | An AI diagnosis finishes (requires an [AI provider](/guide/ai-provider)) |
 | `auto_heal.pr_opened` | [Auto-heal](/features/auto-heal) opened a pull request; the payload carries `prNumber`, `prUrl`, `branch` and `editCount` |
+| `bug.looks_fixed` | A `test.fail()` test passed in a completed run, in every browser project that ran it, and did not already pass on the previous completed run of the same branch; the payload lists the `tests`, each with the bug report (`bugId`, from `piwi:bug`) and ticket (`link`) it names |
 
 **`report.ready`** needs no subscription: a [report schedule](/features/quality-reports#report-schedules) sends it to
 the channels it names, through the same outbox. Its webhook body adds the whole report:

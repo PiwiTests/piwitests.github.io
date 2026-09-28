@@ -1388,6 +1388,145 @@ CREATE INDEX `idx_trc_locator_pages_payload` ON `test_runs_cases` (`locator_page
 
 ALTER TABLE `project_integrations` ADD `field_defaults` text;
 
+CREATE TABLE `extension_device_codes` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`device_code_hash` text NOT NULL,
+	`user_code_hash` text NOT NULL,
+	`client_name` text NOT NULL,
+	`status` text DEFAULT 'pending' NOT NULL,
+	`user_id` integer,
+	`api_key_id` integer,
+	`interval_seconds` integer DEFAULT 5 NOT NULL,
+	`last_polled_at` integer,
+	`expires_at` integer NOT NULL,
+	`decided_at` integer,
+	`created_at` integer NOT NULL,
+	FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`api_key_id`) REFERENCES `api_keys`(`id`) ON UPDATE no action ON DELETE set null
+);
+
+CREATE UNIQUE INDEX `idx_extension_device_codes_device` ON `extension_device_codes` (`device_code_hash`);
+CREATE UNIQUE INDEX `idx_extension_device_codes_user` ON `extension_device_codes` (`user_code_hash`);
+CREATE INDEX `idx_extension_device_codes_expires` ON `extension_device_codes` (`expires_at`);
+CREATE INDEX `idx_extension_device_codes_user_id` ON `extension_device_codes` (`user_id`);
+CREATE INDEX `idx_extension_device_codes_api_key` ON `extension_device_codes` (`api_key_id`);
+CREATE TABLE `project_url_patterns` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`project_id` integer NOT NULL,
+	`pattern` text NOT NULL,
+	`environment` text,
+	`branch` text,
+	`position` integer DEFAULT 0 NOT NULL,
+	`created_at` integer NOT NULL,
+	`updated_at` integer NOT NULL,
+	FOREIGN KEY (`project_id`) REFERENCES `projects`(`id`) ON UPDATE no action ON DELETE cascade
+);
+
+CREATE UNIQUE INDEX `idx_project_url_patterns_pattern` ON `project_url_patterns` (`project_id`,`pattern`);
+
+ALTER TABLE `test_runs_cases` ADD `expected_status` text;
+
+CREATE TABLE `bug_reports` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`project_id` integer NOT NULL,
+	`title` text NOT NULL,
+	`note` text,
+	`page_key` text,
+	`path` text,
+	`origin` text,
+	`status` text DEFAULT 'open' NOT NULL,
+	`steps` text NOT NULL,
+	`evidence` text NOT NULL,
+	`context` text NOT NULL,
+	`language` text,
+	`created_by` integer,
+	`test_case_id` integer,
+	`status_run_id` integer,
+	`closed_at` integer,
+	`closed_by_run_id` integer,
+	`created_at` integer NOT NULL,
+	`updated_at` integer NOT NULL,
+	FOREIGN KEY (`project_id`) REFERENCES `projects`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`created_by`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE set null,
+	FOREIGN KEY (`test_case_id`) REFERENCES `test_cases`(`id`) ON UPDATE no action ON DELETE set null,
+	FOREIGN KEY (`status_run_id`) REFERENCES `test_runs`(`id`) ON UPDATE no action ON DELETE set null,
+	FOREIGN KEY (`closed_by_run_id`) REFERENCES `test_runs`(`id`) ON UPDATE no action ON DELETE set null
+);
+
+CREATE INDEX `idx_bug_reports_project_status` ON `bug_reports` (`project_id`,`status`);
+CREATE INDEX `idx_bug_reports_test_case` ON `bug_reports` (`test_case_id`);
+CREATE INDEX `idx_bug_reports_created_by` ON `bug_reports` (`created_by`);
+CREATE INDEX `idx_bug_reports_status_run` ON `bug_reports` (`status_run_id`);
+CREATE INDEX `idx_bug_reports_closed_by_run` ON `bug_reports` (`closed_by_run_id`);
+CREATE TABLE `bug_reproductions` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`bug_report_id` integer NOT NULL,
+	`source` text NOT NULL,
+	`verdict` text NOT NULL,
+	`diverged_at` integer,
+	`origin` text,
+	`user_agent` text,
+	`run_id` integer,
+	`created_by` integer,
+	`created_at` integer NOT NULL,
+	FOREIGN KEY (`bug_report_id`) REFERENCES `bug_reports`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`run_id`) REFERENCES `test_runs`(`id`) ON UPDATE no action ON DELETE set null,
+	FOREIGN KEY (`created_by`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE set null
+);
+
+CREATE INDEX `idx_bug_reproductions_report` ON `bug_reproductions` (`bug_report_id`);
+CREATE INDEX `idx_bug_reproductions_run` ON `bug_reproductions` (`run_id`);
+CREATE INDEX `idx_bug_reproductions_created_by` ON `bug_reproductions` (`created_by`);
+ALTER TABLE `projects` ADD `generated_specs` text;
+ALTER TABLE `test_cases` ADD `bug_report_id` integer;
+
+ALTER TABLE `entity_links` ADD `bug_report_id` integer REFERENCES bug_reports(id);
+CREATE INDEX `idx_entity_links_bug_report` ON `entity_links` (`bug_report_id`);
+
+ALTER TABLE `project_url_patterns` ADD `path_prefix` text;
+
+ALTER TABLE `network_requests` ADD `failure` text;
+
+ALTER TABLE `project_url_patterns` ADD `test_path_prefix` text;
+
+CREATE TABLE `code_reach` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`project_id` integer NOT NULL,
+	`test_case_id` integer NOT NULL,
+	`branch` text DEFAULT '' NOT NULL,
+	`file` text NOT NULL,
+	`origin` text DEFAULT 'client' NOT NULL,
+	`last_seen_run_id` integer,
+	`last_seen_at` integer NOT NULL,
+	FOREIGN KEY (`project_id`) REFERENCES `projects`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`test_case_id`) REFERENCES `test_cases`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`last_seen_run_id`) REFERENCES `test_runs`(`id`) ON UPDATE no action ON DELETE set null
+);
+
+CREATE UNIQUE INDEX `idx_code_reach_unique` ON `code_reach` (`test_case_id`,`branch`,`file`);
+CREATE INDEX `idx_code_reach_project_file` ON `code_reach` (`project_id`,`file`);
+CREATE INDEX `idx_code_reach_last_seen_run` ON `code_reach` (`last_seen_run_id`);
+CREATE TABLE `run_locator_breaks` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`run_id` integer NOT NULL,
+	`project_id` integer NOT NULL,
+	`locator` text NOT NULL,
+	`rewrite` text,
+	`replacements` text,
+	`anchor` text NOT NULL,
+	`confidence` text NOT NULL,
+	`call_sites` text NOT NULL,
+	`test_case_ids` text NOT NULL,
+	`created_at` integer NOT NULL,
+	FOREIGN KEY (`run_id`) REFERENCES `test_runs`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`project_id`) REFERENCES `projects`(`id`) ON UPDATE no action ON DELETE cascade
+);
+
+CREATE INDEX `idx_run_locator_breaks_run` ON `run_locator_breaks` (`run_id`);
+CREATE INDEX `idx_run_locator_breaks_project` ON `run_locator_breaks` (`project_id`);
+ALTER TABLE `test_runs_cases` ADD `code_reach_payload_id` integer REFERENCES case_payloads(id);
+CREATE INDEX `idx_trc_code_reach_payload` ON `test_runs_cases` (`code_reach_payload_id`) WHERE code_reach_payload_id IS NOT NULL;
+
 BEGIN TRANSACTION;
 
 -- Tags
@@ -1428,6 +1567,16 @@ INSERT INTO project_tags (project_id, tag_id) VALUES (3, 4);
 INSERT INTO project_tags (project_id, tag_id) VALUES (4, 2);
 INSERT INTO project_tags (project_id, tag_id) VALUES (5, 2);
 INSERT INTO project_tags (project_id, tag_id) VALUES (5, 3);
+
+-- Project URL patterns (browser extension)
+INSERT INTO project_url_patterns (id, project_id, pattern, environment, branch, path_prefix, test_path_prefix, position, created_at, updated_at) VALUES (1, 1, 'https://staging.checkout.example.com/**', 'staging', 'develop', NULL, NULL, 0, 1745139600000, 1745139600000);
+INSERT INTO project_url_patterns (id, project_id, pattern, environment, branch, path_prefix, test_path_prefix, position, created_at, updated_at) VALUES (2, 1, 'https://checkout.example.com/**', 'production', NULL, NULL, NULL, 1, 1745139600000, 1745139600000);
+INSERT INTO project_url_patterns (id, project_id, pattern, environment, branch, path_prefix, test_path_prefix, position, created_at, updated_at) VALUES (3, 1, 'https://preview.checkout.example.com/app/**', 'preview', NULL, '/app', NULL, 2, 1745139600000, 1745139600000);
+INSERT INTO project_url_patterns (id, project_id, pattern, environment, branch, path_prefix, test_path_prefix, position, created_at, updated_at) VALUES (4, 1, 'http://localhost:4173/**', 'local', NULL, NULL, '/shop', 3, 1745139600000, 1745139600000);
+
+-- Bug reports (Piwi Picker)
+INSERT INTO bug_reports (id, project_id, title, note, page_key, path, origin, status, steps, evidence, context, language, created_at, updated_at) VALUES (1, 1, 'Coupon not applied to the total', NULL, '/cart', '/cart', 'https://staging.checkout.example.com', 'open', '{"v":1,"title":"Coupon not applied to the total","origin":"https://staging.checkout.example.com","recordedAt":0,"note":null,"steps":[{"action":"goto","target":null,"value":"/cart","redacted":false,"pageUrl":"/cart","timestamp":1},{"action":"fill","target":{"tagName":"input","role":"textbox","accessibleName":"Coupon","testId":null,"text":null,"alternatives":[{"locator":"getByLabel(''Coupon'')","method":"getByLabel","score":90}]},"value":"SPRING10","redacted":false,"pageUrl":"/cart","timestamp":2},{"action":"click","target":{"tagName":"button","role":"button","accessibleName":"Apply coupon","testId":null,"text":null,"alternatives":[{"locator":"getByRole(''button'', { name: ''Apply coupon'' })","method":"getByRole","score":90}]},"value":null,"redacted":false,"pageUrl":"/cart","timestamp":3},{"action":"assert","target":{"tagName":"p","role":null,"accessibleName":null,"testId":"cart-total","text":"Total: 40.00","alternatives":[{"locator":"getByTestId(''cart-total'')","method":"getByTestId","score":95}]},"value":null,"redacted":false,"pageUrl":"/cart","timestamp":4,"assertion":{"matcher":"toHaveText","expected":"Total: 36.00","actual":"Total: 40.00","negated":false,"note":"The 10% coupon is accepted but the total does not change"}}]}', '{"console":[{"level":"error","source":"console","message":"Coupon service failed: 500","page":"/cart","time":4}],"consoleDropped":0,"requests":[{"method":"POST","url":"/api/cart/coupon","status":500,"page":"/cart","time":4}],"requestsDropped":0,"screenshots":[],"screenshotNote":"none was taken","outline":"- main:\n  - heading \"Your cart\" [level=1]\n  - textbox \"Coupon\": SPRING10\n  - button \"Apply coupon\"\n  - paragraph: \"Total: 40.00\""}', '{"origin":"https://staging.checkout.example.com","pageKey":"/cart","path":"/cart","browser":"Chrome 141","userAgent":null,"viewport":{"width":1440,"height":900},"time":0,"extensionVersion":"0.41.0"}', 'en', 1745508000, 1745508000);
+INSERT INTO bug_reproductions (id, bug_report_id, source, verdict, diverged_at, origin, user_agent, created_at) VALUES (1, 1, 'replay', 'reproduced', NULL, 'http://localhost:3000', NULL, 1745511600);
 
 -- Timeline markers
 INSERT INTO markers (id, project_id, occurred_at, label, description, category, environment, source, run_id, created_at, updated_at) VALUES (1, 1, 1745323200, 'Deployed checkout v2.4.0', 'Rolled out the new payment provider integration.', 'deploy', NULL, 'manual', NULL, 1745323200, 1745323200);
@@ -8099,6 +8248,40 @@ INSERT INTO locator_snapshots (id, test_case_id, location, used_method, used_arg
 INSERT INTO locator_snapshots (id, test_case_id, location, used_method, used_args, used_args_fp, element_tag, element_attrs, element_text, alternatives, last_seen_run_id, last_seen_at) VALUES (14, 27, 'tests/ui/button.spec.ts:10:16', 'getByRole', '["button"]', '20caff8e861f1476988eee6b73311ebddc2da9f6ddc3992bbd70919c5ff341e0', 'button', '{"data-testid":"primary-btn","class":"btn btn-primary","accessibleName":"Primary","center":{"x":320,"y":280}}', 'Primary', '[{"locator":"getByTestId(''primary-btn'')","method":"getByTestId","args":{"testId":"primary-btn"},"score":100},{"locator":"getByRole(''button'', { name: ''Primary'' })","method":"getByRole","args":{"role":"button","name":"Primary"},"score":90},{"locator":"getByText(''Primary'')","method":"getByText","args":{"text":"Primary"},"score":75},{"locator":"locator(''.btn-primary'')","method":"locator","args":{"selector":".btn-primary"},"score":30}]', 53, 1745130540000);
 INSERT INTO locator_snapshots (id, test_case_id, location, used_method, used_args, used_args_fp, element_tag, element_attrs, element_text, alternatives, last_seen_run_id, last_seen_at) VALUES (15, 50, 'tests/admin/reports.spec.ts:12:18', 'getByRole', '["button",{"name":"Export CSV"}]', '5bf23ce6331cb33c5e132cb54cbbd744354a2a6b06b666c33560e074e58f8b3a', 'button', '{"class":"export-btn","accessibleName":"Export CSV","center":{"x":1180,"y":96},"rolePosition":{"role":"button","count":3,"index":2}}', 'Export CSV', '[{"locator":"getByRole(''button'', { name: ''Export CSV'' })","method":"getByRole","args":{"role":"button","name":"Export CSV"},"score":90},{"locator":"getByText(''Export CSV'')","method":"getByText","args":{"text":"Export CSV"},"score":75},{"locator":"locator(''.export-btn'')","method":"locator","args":{"selector":".export-btn"},"score":40}]', 73, 1745234664567);
 
+-- Code reach (references test_cases and test_runs)
+INSERT INTO code_reach (id, project_id, test_case_id, branch, file, origin, last_seen_run_id, last_seen_at) VALUES (1, 1, 1, '', 'src/components/CheckoutForm.vue', 'client', 20, 1744973163000);
+INSERT INTO code_reach (id, project_id, test_case_id, branch, file, origin, last_seen_run_id, last_seen_at) VALUES (2, 1, 1, '', 'src/pages/index.vue', 'client', 20, 1744973163000);
+INSERT INTO code_reach (id, project_id, test_case_id, branch, file, origin, last_seen_run_id, last_seen_at) VALUES (3, 1, 2, '', 'src/components/ContactFields.vue', 'client', 20, 1744973163000);
+INSERT INTO code_reach (id, project_id, test_case_id, branch, file, origin, last_seen_run_id, last_seen_at) VALUES (4, 1, 2, '', 'src/lib/cart.ts', 'client', 20, 1744973163000);
+INSERT INTO code_reach (id, project_id, test_case_id, branch, file, origin, last_seen_run_id, last_seen_at) VALUES (5, 1, 2, '', 'src/pages/index.vue', 'client', 20, 1744973163000);
+INSERT INTO code_reach (id, project_id, test_case_id, branch, file, origin, last_seen_run_id, last_seen_at) VALUES (6, 1, 3, '', 'src/lib/payment-provider.ts', 'client', 20, 1744973163000);
+INSERT INTO code_reach (id, project_id, test_case_id, branch, file, origin, last_seen_run_id, last_seen_at) VALUES (7, 1, 3, '', 'src/pages/index.vue', 'client', 20, 1744973163000);
+INSERT INTO code_reach (id, project_id, test_case_id, branch, file, origin, last_seen_run_id, last_seen_at) VALUES (8, 1, 3, '', 'src/services/orders.ts', 'client', 20, 1744973163000);
+INSERT INTO code_reach (id, project_id, test_case_id, branch, file, origin, last_seen_run_id, last_seen_at) VALUES (9, 1, 4, '', 'src/components/RevenueChart.vue', 'client', 20, 1744973163000);
+INSERT INTO code_reach (id, project_id, test_case_id, branch, file, origin, last_seen_run_id, last_seen_at) VALUES (10, 1, 4, '', 'src/pages/index.vue', 'client', 20, 1744973163000);
+INSERT INTO code_reach (id, project_id, test_case_id, branch, file, origin, last_seen_run_id, last_seen_at) VALUES (11, 1, 5, '', 'src/components/ContactFields.vue', 'client', 20, 1744973163000);
+INSERT INTO code_reach (id, project_id, test_case_id, branch, file, origin, last_seen_run_id, last_seen_at) VALUES (12, 1, 5, '', 'src/pages/index.vue', 'client', 20, 1744973163000);
+INSERT INTO code_reach (id, project_id, test_case_id, branch, file, origin, last_seen_run_id, last_seen_at) VALUES (13, 1, 5, '', 'src/pages/reports/monthly.vue', 'client', 20, 1744973163000);
+INSERT INTO code_reach (id, project_id, test_case_id, branch, file, origin, last_seen_run_id, last_seen_at) VALUES (14, 1, 6, '', 'src/components/CheckoutForm.vue', 'client', 20, 1744973163000);
+INSERT INTO code_reach (id, project_id, test_case_id, branch, file, origin, last_seen_run_id, last_seen_at) VALUES (15, 1, 6, '', 'src/pages/index.vue', 'client', 20, 1744973163000);
+INSERT INTO code_reach (id, project_id, test_case_id, branch, file, origin, last_seen_run_id, last_seen_at) VALUES (16, 1, 6, '', 'src/services/orders.ts', 'client', 20, 1744973163000);
+INSERT INTO code_reach (id, project_id, test_case_id, branch, file, origin, last_seen_run_id, last_seen_at) VALUES (17, 1, 7, '', 'src/components/RevenueChart.vue', 'client', 20, 1744973163000);
+INSERT INTO code_reach (id, project_id, test_case_id, branch, file, origin, last_seen_run_id, last_seen_at) VALUES (18, 1, 7, '', 'src/lib/cart.ts', 'client', 20, 1744973163000);
+INSERT INTO code_reach (id, project_id, test_case_id, branch, file, origin, last_seen_run_id, last_seen_at) VALUES (19, 1, 7, '', 'src/pages/index.vue', 'client', 20, 1744973163000);
+INSERT INTO code_reach (id, project_id, test_case_id, branch, file, origin, last_seen_run_id, last_seen_at) VALUES (20, 1, 8, '', 'src/lib/payment-provider.ts', 'client', 20, 1744973163000);
+INSERT INTO code_reach (id, project_id, test_case_id, branch, file, origin, last_seen_run_id, last_seen_at) VALUES (21, 1, 8, '', 'src/pages/index.vue', 'client', 20, 1744973163000);
+INSERT INTO code_reach (id, project_id, test_case_id, branch, file, origin, last_seen_run_id, last_seen_at) VALUES (22, 1, 8, '', 'src/pages/reports/monthly.vue', 'client', 20, 1744973163000);
+INSERT INTO code_reach (id, project_id, test_case_id, branch, file, origin, last_seen_run_id, last_seen_at) VALUES (23, 1, 9, '', 'src/components/CheckoutForm.vue', 'client', 20, 1744973163000);
+INSERT INTO code_reach (id, project_id, test_case_id, branch, file, origin, last_seen_run_id, last_seen_at) VALUES (24, 1, 9, '', 'src/pages/index.vue', 'client', 20, 1744973163000);
+INSERT INTO code_reach (id, project_id, test_case_id, branch, file, origin, last_seen_run_id, last_seen_at) VALUES (25, 1, 10, '', 'src/components/ContactFields.vue', 'client', 20, 1744973163000);
+INSERT INTO code_reach (id, project_id, test_case_id, branch, file, origin, last_seen_run_id, last_seen_at) VALUES (26, 1, 10, '', 'src/lib/cart.ts', 'client', 20, 1744973163000);
+INSERT INTO code_reach (id, project_id, test_case_id, branch, file, origin, last_seen_run_id, last_seen_at) VALUES (27, 1, 10, '', 'src/pages/index.vue', 'client', 20, 1744973163000);
+INSERT INTO code_reach (id, project_id, test_case_id, branch, file, origin, last_seen_run_id, last_seen_at) VALUES (28, 1, 11, '', 'src/lib/payment-provider.ts', 'client', 20, 1744973163000);
+INSERT INTO code_reach (id, project_id, test_case_id, branch, file, origin, last_seen_run_id, last_seen_at) VALUES (29, 1, 11, '', 'src/pages/index.vue', 'client', 20, 1744973163000);
+INSERT INTO code_reach (id, project_id, test_case_id, branch, file, origin, last_seen_run_id, last_seen_at) VALUES (30, 1, 11, '', 'src/services/orders.ts', 'client', 20, 1744973163000);
+INSERT INTO code_reach (id, project_id, test_case_id, branch, file, origin, last_seen_run_id, last_seen_at) VALUES (31, 1, 12, '', 'src/components/RevenueChart.vue', 'client', 20, 1744973163000);
+INSERT INTO code_reach (id, project_id, test_case_id, branch, file, origin, last_seen_run_id, last_seen_at) VALUES (32, 1, 12, '', 'src/pages/index.vue', 'client', 20, 1744973163000);
+
 -- Probe ledger (Test Map, checked axis)
 INSERT INTO probes (project_id, test_case_id, node_id, route_key, level, fault, applied, outcome, handled, run_id, evidence, probed_at) VALUES (1, 1, NULL, 'POST /api/orders', 'client', 'status-500', 1, 'not-noticed', 'n/a', 20, '{"mutation":"status-500"}', 1745569800000);
 
@@ -8155,6 +8338,9 @@ CREATE TEMP TABLE _rebase AS SELECT (CAST(strftime('%s', 'now') AS INTEGER) - 17
 UPDATE tags SET created_at = created_at + (SELECT delta_sec FROM _rebase), updated_at = updated_at + (SELECT delta_sec FROM _rebase);
 UPDATE projects SET created_at = created_at + (SELECT delta_sec FROM _rebase), updated_at = updated_at + (SELECT delta_sec FROM _rebase);
 UPDATE markers SET occurred_at = occurred_at + (SELECT delta_sec FROM _rebase), created_at = created_at + (SELECT delta_sec FROM _rebase), updated_at = updated_at + (SELECT delta_sec FROM _rebase);
+UPDATE project_url_patterns SET created_at = created_at + (SELECT delta_sec FROM _rebase) * 1000, updated_at = updated_at + (SELECT delta_sec FROM _rebase) * 1000;
+UPDATE bug_reports SET created_at = created_at + (SELECT delta_sec FROM _rebase), updated_at = updated_at + (SELECT delta_sec FROM _rebase);
+UPDATE bug_reproductions SET created_at = created_at + (SELECT delta_sec FROM _rebase);
 UPDATE users SET created_at = created_at + (SELECT delta_sec FROM _rebase), updated_at = updated_at + (SELECT delta_sec FROM _rebase);
 UPDATE app_settings SET updated_at = updated_at + (SELECT delta_sec FROM _rebase);
 UPDATE test_selections SET created_at = created_at + (SELECT delta_sec FROM _rebase), updated_at = updated_at + (SELECT delta_sec FROM _rebase);
@@ -8176,6 +8362,7 @@ UPDATE project_assignments SET created_at = created_at + (SELECT delta_sec FROM 
 UPDATE analytics_dashboards SET created_at = created_at + (SELECT delta_sec FROM _rebase) * 1000, updated_at = updated_at + (SELECT delta_sec FROM _rebase) * 1000, last_viewed_at = last_viewed_at + (SELECT delta_sec FROM _rebase) * 1000;
 UPDATE entity_links SET created_at = created_at + (SELECT delta_sec FROM _rebase) * 1000, updated_at = updated_at + (SELECT delta_sec FROM _rebase) * 1000;
 UPDATE locator_snapshots SET last_seen_at = last_seen_at + (SELECT delta_sec FROM _rebase) * 1000;
+UPDATE code_reach SET last_seen_at = last_seen_at + (SELECT delta_sec FROM _rebase) * 1000;
 UPDATE probes SET probed_at = probed_at + (SELECT delta_sec FROM _rebase) * 1000;
 UPDATE graph_nodes SET last_seen_at = last_seen_at + (SELECT delta_sec FROM _rebase) * 1000, created_at = created_at + (SELECT delta_sec FROM _rebase) * 1000, pruned_at = pruned_at + (SELECT delta_sec FROM _rebase) * 1000;
 UPDATE graph_edges SET last_seen_at = last_seen_at + (SELECT delta_sec FROM _rebase) * 1000, created_at = created_at + (SELECT delta_sec FROM _rebase) * 1000;
