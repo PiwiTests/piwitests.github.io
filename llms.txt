@@ -33,6 +33,7 @@
 - [Failure evidence](https://piwitests.dev/features/evidence): Everything captured about one failing execution on one screen: the evidence tabs, clues, attempts, the page diff and the trace-powered views.
 - [Failure clusters & the inbox](https://piwitests.dev/features/failure-clusters): Failures that share an error fingerprint grouped into one cluster, triaged once from the failure inbox with an owner, a known issue and snoozing.
 - [Flaky tests & quarantine](https://piwitests.dev/features/flaky-tests): How Piwi scores and classifies flaky tests from their history, ranks them by the CI time they waste, and quarantines them with a way out.
+- [Flake Lab](https://piwitests.dev/features/flake-lab): Make a flaky test fail on demand: piwi flake replays each suspect from the test's history next to a control run, and piwi flake verify proves the fix under the same condition.
 - [Slow tests & wasted time](https://piwitests.dev/features/slow-tests): Where the suite's time goes: duration trends, timeout headroom, stale test.slow() marks, slow endpoints and Web Vitals.
 - [AI diagnosis](https://piwitests.dev/features/ai-diagnosis): An LLM you configure explains a failure cluster against your git diff, with a suggested patch checked against your source before you see it. Off by default.
 - [Fix a broken locator](https://piwitests.dev/recipes/broken-locator): A UI change broke a Playwright locator. Piwi proposes ranked replacements captured from the last run where the test passed, and points at the line to change.
@@ -94,7 +95,7 @@
 - [Test metadata](https://piwitests.dev/reference/test-metadata): What the reporter records with every run and test without configuration: source control, CI, browser, suites, annotations, tags, locks, ownership, timeouts and skips.
 - [Clue rules](https://piwitests.dev/reference/clues): Every rule that can produce a clue on a failing execution, its strength and when it fires, and the stories that chain several clues into one sentence.
 - [Locator stability rules](https://piwitests.dev/reference/locator-stability): Every rule Piwi uses to call a locator your tests use brittle or worth watching, what it catches and why that breaks.
-- [Piwi CLI](https://piwitests.dev/reference/cli): Every command and flag of the piwi CLI that ships with @piwitests/reporter: init, skills, gate, report, select, run, probe, ai, codegen, preflight and bug.
+- [Piwi CLI](https://piwitests.dev/reference/cli): Every command and flag of the piwi CLI that ships with @piwitests/reporter: init, skills, gate, report, select, run, probe, flake, ai, codegen, preflight and bug.
 - [Steps file format](https://piwitests.dev/reference/steps-format): The steps file: a recording as data, which Piwi Picker saves and piwi codegen turns into a Playwright spec. Every field, the limits and how a file is checked.
 - [MCP tools](https://piwitests.dev/reference/mcp-tools): Every tool the dashboard's MCP server serves, by module, with the capability that removes it when declined, generated from the tool catalog.
 - [Analytics widgets](https://piwitests.dev/reference/analytics-widgets): Every widget of the Analytics page and of analytics dashboards, band by band, with what it shows and whether it follows a test filter, generated from the widget registry.

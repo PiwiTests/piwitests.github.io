@@ -1527,6 +1527,47 @@ CREATE INDEX `idx_run_locator_breaks_project` ON `run_locator_breaks` (`project_
 ALTER TABLE `test_runs_cases` ADD `code_reach_payload_id` integer REFERENCES case_payloads(id);
 CREATE INDEX `idx_trc_code_reach_payload` ON `test_runs_cases` (`code_reach_payload_id`) WHERE code_reach_payload_id IS NOT NULL;
 
+CREATE TABLE `flake_arms` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`experiment_id` integer NOT NULL,
+	`arm_key` text NOT NULL,
+	`position` integer DEFAULT 0 NOT NULL,
+	`suspect_id` text,
+	`label` text NOT NULL,
+	`conditions` text NOT NULL,
+	`runs` integer DEFAULT 0 NOT NULL,
+	`matching_failures` integer DEFAULT 0 NOT NULL,
+	`other_failures` integer DEFAULT 0 NOT NULL,
+	`discarded_rounds` integer DEFAULT 0 NOT NULL,
+	`stopped_early` integer DEFAULT false NOT NULL,
+	`p_value` real,
+	`verdict` text,
+	FOREIGN KEY (`experiment_id`) REFERENCES `flake_experiments`(`id`) ON UPDATE no action ON DELETE cascade
+);
+
+CREATE INDEX `idx_flake_arms_experiment` ON `flake_arms` (`experiment_id`);
+CREATE TABLE `flake_experiments` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`project_id` integer NOT NULL,
+	`test_case_id` integer NOT NULL,
+	`kind` text NOT NULL,
+	`commit_sha` text,
+	`failure_commit_sha` text,
+	`source` text DEFAULT 'cli' NOT NULL,
+	`machine` text,
+	`playwright_project` text,
+	`verdict` text,
+	`reproducing_arm_id` integer,
+	`verifies_arm_id` integer,
+	`created_at` integer NOT NULL,
+	`finished_at` integer,
+	FOREIGN KEY (`project_id`) REFERENCES `projects`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`test_case_id`) REFERENCES `test_cases`(`id`) ON UPDATE no action ON DELETE cascade
+);
+
+CREATE INDEX `idx_flake_experiments_test_case` ON `flake_experiments` (`test_case_id`,`created_at`);
+CREATE INDEX `idx_flake_experiments_project` ON `flake_experiments` (`project_id`);
+
 BEGIN TRANSACTION;
 
 -- Tags
@@ -8362,6 +8403,11 @@ INSERT INTO code_reach (id, project_id, test_case_id, branch, file, origin, last
 -- Probe ledger (Test Map, checked axis)
 INSERT INTO probes (project_id, test_case_id, node_id, route_key, level, fault, applied, outcome, handled, run_id, evidence, probed_at) VALUES (1, 1, NULL, 'POST /api/orders', 'client', 'status-500', 1, 'not-noticed', 'n/a', 20, '{"mutation":"status-500"}', 1745569800000);
 
+-- Flake-lab experiments and their arms (references test_cases)
+INSERT INTO flake_experiments (id, project_id, test_case_id, kind, commit_sha, failure_commit_sha, source, machine, playwright_project, verdict, reproducing_arm_id, verifies_arm_id, created_at, finished_at) VALUES (1, 1, 9, 'reproduce', 'a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4', 'a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4', 'cli', 'dev-laptop', 'chromium', 'reproduced', 2, NULL, 1745399700000, 1745399880000);
+INSERT INTO flake_arms (id, experiment_id, position, discarded_rounds, other_failures, arm_key, suspect_id, label, conditions, runs, matching_failures, stopped_early, p_value, verdict) VALUES (1, 1, 0, 0, 0, 'control', NULL, 'control', '[]', 10, 0, 0, NULL, NULL);
+INSERT INTO flake_arms (id, experiment_id, position, discarded_rounds, other_failures, arm_key, suspect_id, label, conditions, runs, matching_failures, stopped_early, p_value, verdict) VALUES (2, 1, 1, 0, 0, 'suspect-1', 'slow-route:GET /api/cart', 'delay GET /api/cart 1.9 s', '[{"kind":"delay","route":"GET /api/cart","ms":1900,"match":"all"}]', 4, 3, 1, 0.01098901098901099, 'reproduced');
+
 -- Feature graph nodes (Test Map)
 INSERT INTO graph_nodes (project_id, kind, key, attrs, origin, first_seen_run_id, last_seen_run_id, last_seen_at, created_at) VALUES (1, 'route', 'POST /api/orders', NULL, 'observed', 20, 20, 1745569800000, 1745569800000);
 INSERT INTO graph_nodes (project_id, kind, key, attrs, origin, first_seen_run_id, last_seen_run_id, last_seen_at, created_at) VALUES (1, 'route', 'GET /api/cart', NULL, 'observed', 20, 20, 1745569800000, 1745569800000);
@@ -8441,6 +8487,7 @@ UPDATE entity_links SET created_at = created_at + (SELECT delta_sec FROM _rebase
 UPDATE locator_snapshots SET last_seen_at = last_seen_at + (SELECT delta_sec FROM _rebase) * 1000;
 UPDATE code_reach SET last_seen_at = last_seen_at + (SELECT delta_sec FROM _rebase) * 1000;
 UPDATE probes SET probed_at = probed_at + (SELECT delta_sec FROM _rebase) * 1000;
+UPDATE flake_experiments SET created_at = created_at + (SELECT delta_sec FROM _rebase) * 1000, finished_at = finished_at + (SELECT delta_sec FROM _rebase) * 1000;
 UPDATE graph_nodes SET last_seen_at = last_seen_at + (SELECT delta_sec FROM _rebase) * 1000, created_at = created_at + (SELECT delta_sec FROM _rebase) * 1000, pruned_at = pruned_at + (SELECT delta_sec FROM _rebase) * 1000;
 UPDATE graph_edges SET last_seen_at = last_seen_at + (SELECT delta_sec FROM _rebase) * 1000, created_at = created_at + (SELECT delta_sec FROM _rebase) * 1000;
 UPDATE scenario_gaps SET created_at = created_at + (SELECT delta_sec FROM _rebase) * 1000, updated_at = updated_at + (SELECT delta_sec FROM _rebase) * 1000, accepted_at = accepted_at + (SELECT delta_sec FROM _rebase) * 1000, covered_at = covered_at + (SELECT delta_sec FROM _rebase) * 1000, closed_at = closed_at + (SELECT delta_sec FROM _rebase) * 1000;
