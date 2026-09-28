@@ -1,1 +1,0 @@
-import{ei as c,ej as l,ek as f}from"./DJ3wxe81.js";function o(n,a){const t=l(),s=a?.weekStartsOn??a?.locale?.options?.weekStartsOn??t.weekStartsOn??t.locale?.options?.weekStartsOn??0,e=c(n,a?.in),r=e.getDay(),i=(r<s?7:0)+r-s;return e.setDate(e.getDate()-i),e.setHours(0,0,0,0),e}function D(n,a,t){const[s,e]=f(t?.in,n,a);return+o(s,t)==+o(e,t)}export{D as i};
