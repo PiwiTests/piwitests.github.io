@@ -1015,8 +1015,7 @@ or turn a collector off with `collectScmInfo: false` or `collectCiInfo: false`.
 
 ## Sharding
 
-Playwright's `--shard=1/3` splits a suite across parallel jobs. Piwi merges them back into **one run**
-— you shouldn't have to think about shards when reading results.
+Playwright's `--shard=1/3` splits a suite across parallel jobs. Piwi merges them back into **one run**.
 
 ```yaml
 strategy:
@@ -1039,6 +1038,8 @@ How the merge works:
    shard progress badge (`2/3`) while shards are still arriving.
 
 **All shards must use the same `projectName`.** That's the one requirement.
+
+Jobs sharded with `piwi run --shard` merge the same way ([details](/features/test-selection#print-shard-and-reorder)).
 
 If your CI isn't detected, set the label yourself to anything common to all shards:
 
@@ -1300,12 +1301,13 @@ still overrides the env model); without it, the other provider variables below a
 
 The [Configuration reference](/reference/configuration#ai-diagnosis) lists every AI variable.
 
-When a run finishes and `PIWI_AI_AUTO_DIAGNOSE` is on, the `PIWI_AI_AUTO_DIAGNOSE_MAX` budget is spent where it buys the most. The run's clusters are ordered by their representative failing execution's top [clue](/features/evidence#clues): a cluster whose failure carries **no deterministic clue** (the one the model has to reason about from scratch) goes first, then the ones with only a weak clue, and only then a failure a strong clue already explains, with the newest cluster breaking ties.
+When a run finishes and `PIWI_AI_AUTO_DIAGNOSE` is on, the `PIWI_AI_AUTO_DIAGNOSE_MAX` budget is spent where it buys the most. The run's clusters are ordered by their representative failing execution's top [clue](/features/evidence#clues): a cluster whose failure carries **no deterministic clue** (the one the model has to reason about from scratch) goes first, then the ones with only a weak clue, and only then a failure a strong clue already explains, with the newest cluster breaking ties. A cluster that already has a completed or a running diagnosis is left out before the ordering, so a recurring, already-diagnosed cluster never takes one of the slots.
 
 ### Streaming diagnosis
 
-A diagnosis streams: the model's reasoning appears in a live panel as it arrives, and turns into the result card when
-it completes. The [API docs](https://piwitests.dev/demo/docs) describe the streaming
+A diagnosis streams: the model's reasoning appears in a live panel as it arrives, with a stage indicator (*Researching patterns* while a
+[research model](#model-roles) pre-analyzes the failure, when one is configured, then *Diagnosing root cause*), and turns
+into the result card when it completes. The [API docs](https://piwitests.dev/demo/docs) describe the streaming
 protocol (the in-app reference at `/docs` shows the same spec).
 
 To be told when a diagnosis finishes without watching the panel, turn on **Settings → AI → Diagnosis notifications**: a per-browser preference (stored on that device only) that shows a browser notification on completion once you grant the permission.
@@ -1502,7 +1504,7 @@ Each entry in the `X-Piwi-Logs` array has this shape:
 | `message` | `string` | Log message (truncated at 500 characters) |
 | `stack` | `string` | Optional. Shrunk stack trace, max 5 frames — framework/internal frames removed (`node:internal` and `node_modules` for Nitro); the ASP.NET Core integration also shortens namespace parts to their first lowercase letter |
 
-The ASP.NET Core integration additionally captures `exceptionMessage` when an exception was logged.
+In the ASP.NET Core integration, `stack` starts with the exception's message and is omitted when no exception was logged.
 
 ## Server spans
 
@@ -2989,7 +2991,8 @@ Failed executions that share the same **error fingerprint** join one cluster, so
 
 - The fingerprint **masks volatile fragments** of the error: timeouts and other numbers, UUIDs and hashes, URLs and
   emails, the *expected* and *received* values of an assertion, and dynamic locator options such as the
-  `{ name: '…' }` of a table row. The locator target itself (the test id, the role) still tells different failures apart.
+  `{ name: '…' }` of a table row, wherever the error prints the locator. The locator target itself (the test id, the
+  role) still tells different failures apart.
 - It is **call-site agnostic**: the failing stack frame is shown for context but does not split a cluster, so one root
   cause reached from several spec files stays one cluster.
 - The fingerprint is always computed from the error the cluster was created from, so an improved normalization
@@ -3143,7 +3146,7 @@ The project's **Failures** tab has a **Flaky** view with a **configurable lookba
 
 ### Root-cause classification
 
-Every flaky test is automatically tagged with one of five categories, using keyword and distribution heuristics over its errors, steps, and browser spread, sharpened by the failed requests actually captured and by the attempt diff. It reads the test's last 100 failed attempts and its last 100 passes from any run, green or red, so the failed attempt of a test that passed on retry counts, and a rare flake keeps its failures however many passes came since:
+Every flaky test is automatically tagged with one of five categories, using keyword and distribution heuristics over its errors, steps, and browser spread, sharpened by the failed requests actually captured and by the [attempt diff](./evidence#attempts). It reads the test's last 100 failed attempts and its last 100 passes from any run, green or red, so the failed attempt of a test that passed on retry counts, and a rare flake keeps its failures however many passes came since:
 
 | Category | Typical signals |
 |----------|-----------------|
@@ -3153,7 +3156,8 @@ Every flaky test is automatically tagged with one of five categories, using keyw
 | `environment` | Fails at least 3 times on exactly one browser while another browser passed at least 3 times without failing |
 | `other` | No clear signal |
 
-It also counts the failed and 5xx requests of recent failing attempts, and weighs most a request that failed on the failing attempt only (the [attempt diff](./evidence#attempts)).
+A test is classified when it passes on retry in a finished run, and a listed test still without a category when the
+list opens.
 
 Filter the flaky table by category to triage a class of failures at once.
 
@@ -4199,7 +4203,9 @@ Settings → Auto-heal (administrator only):
 - **Projects** — the explicit allowlist. Auto-heal ignores any project not listed.
 - **Minimum score** — the stability score an edit needs (default 80). A confirmed pick is always eligible.
 - **Open as draft** — open PRs as drafts (default on; ignored on Bitbucket).
-- **Max open PRs** — a per-project ceiling on simultaneously-open auto-heal PRs (default 3).
+- **Max open PRs** — a per-project ceiling on auto-heal PRs still open on your repository (default 3). Piwi checks
+  the SCM for each PR it opened every ten minutes, and whenever the ceiling is reached, so a merged or closed PR
+  stops counting.
 - **Branch prefix** / **commit message** — the branch namespace (default `piwi/heal/`) and the commit subject
   (default `test: heal broken locators`, a conventional-commit subject so your commit lint accepts it).
 
@@ -4331,9 +4337,9 @@ modal asks for it.
 
 There is nothing to switch on beyond the connection. The modal prefills the Jira project, issue type, labels and
 assignee from the [project binding](#the-project-binding) when one exists, else offers pickers over the connected site;
-toggles choose what the body carries (diagnosis and patch on, [share link](/features/share-links) off); the *Screenshot*
-toggle is stored but attaches nothing. From an AI agent, the [`create_issue` MCP tool](/reference/mcp-tools#create_issue)
-files the same ticket once the binding names a Jira project and issue type.
+toggles choose what the body carries (diagnosis and patch on, [share link](/features/share-links) off).
+From an AI agent, the [`create_issue` MCP tool](/reference/mcp-tools#create_issue) files the same ticket once the
+binding names a Jira project and issue type.
 
 ## Language
 
@@ -4507,8 +4513,8 @@ flags shape a resolution:
   so a `--require-selection` gate still sees the whole set.
 - `--budget 5m` caps the total time for this resolution.
 
-Jobs split with `piwi run --shard` are not merged into one run, so `--require-selection` sees one job's share. Every
-flag and the output formats are in the [CLI reference](/reference/cli#select-run).
+`piwi run --shard` jobs merge into one run that still covers the whole selection. Every flag and the output formats are
+in the [CLI reference](/reference/cli#select-run).
 
 ## Built-in selections
 
@@ -6076,7 +6082,7 @@ A dashboard link opened in your browser opens in the app instead.
 **Projects → New project → Choose folder…** creates a project from a checkout on this machine. The app detects the
 name it would report under and checks the setup (a Playwright config, Playwright installed, the reporter wired in);
 anything missing is a warning, and `npx @piwitests/reporter init` in the folder fixes it. The link to the folder
-stays on this machine, under **project page → Edit → Local folder**, with the same checks and **Change** and
+stays on this machine, under **project page → Settings → Local folder**, with the same checks and **Change** and
 **Unlink**. Linking a folder offers to import the runs already in its `blob-report/` and `test-results/` folders, and
 [Open in IDE](/features/ide-integration) resolves source links against it when no workspace root is set.
 
@@ -9453,7 +9459,7 @@ npx @piwitests/reporter run impact --base origin/main
 | `--project <name\|id>` | Project (env `PIWI_PROJECT_NAME`) |
 | `--format <fmt>` | `args` (`file:line`, default) · `grep` · `files`. For the full resolution use `--json`; `run` rejects `--format json` |
 | `--budget <duration>` | Cap total time, e.g. `5m`, `90s`, `300000` (ms) |
-| `--shard <i/n>` | Keep only shard *i* of *n*, balanced by test duration and lock-aware (a lock's holders stay in one shard) |
+| `--shard <i/n>` | Keep only shard *i* of *n*, balanced by test duration and lock-aware (a lock's holders stay in one shard). `run` reports the shard to the dashboard (`PIWI_SHARD`), so the shards merge into one run |
 | `--fail-fast` | Order the least-reliable tests first |
 | `--base <ref>` | For `impact`: the ref to diff the working tree against |
 | `--strict` | Fail (exit 2) instead of falling back when unreachable |
@@ -9462,6 +9468,16 @@ npx @piwitests/reporter run impact --base origin/main
 | `-h`, `--help` | Show help |
 
 Pass extra Playwright arguments after `--`: `piwi run smoke -- --headed --workers=1`.
+
+When the dashboard is unreachable, `run` reuses the last good resolution from `.piwi/selection-cache.json`. An entry is
+keyed by the `--project` value as written, the selection key and the flags that shape the resolution, so a project given
+by name is found offline, and a name and an id for the same project are separate entries. With nothing cached, `run`
+runs the full suite, or exits `2` under `--strict`.
+
+`run --shard` sets `PIWI_SHARD=<i/n>` for the Playwright process, which the reporter reports as the run's shard, so the
+shard jobs of one pipeline merge into one [run](/guide/ci#sharding) and do not cancel each other's runs. Playwright gets
+no `--shard` of its own, since the resolved tests are already the shard's. A `select` job that passes the printed
+arguments to `playwright test` sets `PIWI_SHARD` itself, to the same `i/n` it gave `--shard`.
 
 When `run` spawns Playwright and the target config has **no Piwi reporter**, it appends `--add-reporter @piwitests/reporter` so the run still reaches the dashboard — provided the installed Playwright is **1.63 or later** (the version that added the flag; it appends to the configured reporters rather than replacing them). It logs one line naming what it added. On older Playwright it logs that the reporter is not configured and runs as before. This trial append gives you results, traces and screenshots but not the [capture fixtures](/guide/capture-fixtures) or [`wrapConfig`](/guide/reporter#installing-via-wrapconfig) defaults — wire the reporter into the config (via [`init`](#init)) for the full set. A config that already lists the reporter is left untouched.
 
