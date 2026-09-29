@@ -56,7 +56,7 @@
 - [Timeline markers](https://piwitests.dev/features/timeline-markers): Deploys and infrastructure changes drawn on the trend charts, so a step change in pass rate or duration has a visible cause.
 - [Notifications & alerts](https://piwitests.dev/features/notifications): Browser, email, Slack, Microsoft Teams and webhook channels, the events they fire on, and per-project subscriptions with digests and mute.
 - [MCP server](https://piwitests.dev/features/mcp): The MCP server built into the dashboard: what it gives an agent, how to authenticate, and the setup for each coding agent.
-- [Agent skills](https://piwitests.dev/features/agent-skills): Six SKILL.md files, installed by the reporter's CLI, that teach a coding agent what to do with Piwi's evidence: investigate a failure, heal a locator, fix a flaky test, write the missing one.
+- [Agent skills](https://piwitests.dev/features/agent-skills): Seven SKILL.md files, installed by the reporter's CLI, that teach a coding agent what to do with Piwi's evidence: investigate a failure, heal a locator, fix a flaky test, write the missing one.
 - [Desktop app](https://piwitests.dev/features/desktop): The whole dashboard as a local desktop app: no Docker or Node, local test runs from the window, and one-click MCP setup for AI assistants.
 - [Browser extension](https://piwitests.dev/features/extension): Piwi Picker, the browser extension: pick and lint locators, record actions and copy context for an agent on the live page, with or without a Piwi instance.
 - [Extension connection](https://piwitests.dev/features/extension-connection): Connect Piwi Picker to your Piwi instance in one step, and keep the URL patterns that tell it which project a page belongs to on the instance, shared by your team.

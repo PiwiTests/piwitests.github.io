@@ -28,7 +28,7 @@ With Docker:
 
 ```sh [Linux / macOS]
 docker pull phenx/piwitests-server:latest
-mkdir -p .data && chown -R 1001:1001 .data # the container runs as non-root UID 1001
+mkdir -p .data && sudo chown -R 1001:1001 .data # the container runs as non-root UID 1001
 docker run -p 3000:3000 -v $(pwd)/.data:/app/.data phenx/piwitests-server:latest
 ```
 
@@ -44,8 +44,8 @@ why the snippet creates `.data` with the right owner; see
 [Permission issues with volumes](/operate/deployment#permission-issues-with-volumes) if the container cannot write to
 it. [Deployment](/operate/deployment) covers Docker Compose, PostgreSQL and Kubernetes.
 
-With the desktop app, copy its access token from **Settings → Storage** before the next step: the reporter uses it to
-send results.
+With the desktop app, keep it running: a reporter with no server configured finds it by itself. Its URL and access
+token, for when you need them, are on its **Setup** page under **Send results to this app**.
 
 Your test project is unaffected by these requirements: Node 22 is the dashboard's requirement, not your suite's. Want
 to look around first? The [live demo](https://piwitests.dev/demo/) runs in your browser on seeded data.
@@ -124,15 +124,15 @@ It is read from the action or matcher, the locator, the expected and received va
 
 ## 2. Most likely: why
 
-Under the headline, the **Most likely** line gives you the one explanation, not a pile of them. It is built from **[clues](/features/evidence#clues)**: deterministic, rule-based findings correlated from the evidence, with *no model involved*. When several clues form a known combination, the line is a [story](./concepts#story), one sentence that chains them:
+Under the headline, the **Most likely** line gives you the one explanation, not a pile of them. It is built from **[clues](/features/evidence#clues)**: deterministic, rule-based findings correlated from the evidence, with *no model involved*. When the clues match a known pattern (some patterns need only one clue), the line is a [story](./concepts#story), one sentence that chains them:
 
 > *"the Pay button stayed disabled because POST /api/checkout/quote was still in flight (28 s); the console said so 1.5 s before the click gave up"*
 
-Otherwise it is the strongest clue, or the cluster's completed [AI diagnosis](/features/ai-diagnosis). It carries a strength (or confidence) chip and how many clues **agree**; a **more** disclosure lists every clue, each with a **citation** to the evidence it came from. Click a citation and the page jumps to the proof. When no rule fires, the line is absent. The [Clue rules](/reference/clues) page lists every rule.
+Otherwise it is the cluster's completed [AI diagnosis](/features/ai-diagnosis), else the strongest clue. It carries a strength (*Strong*, *Medium* or *Weak*, or the diagnosis's confidence) and how many clues **agree**; an **All clues** disclosure lists every clue, each with a **citation** to the evidence it came from. Click a citation and the page jumps to the proof. When no rule fires, the line is absent. The [Clue rules](/reference/clues) page lists every rule.
 
 ## 3. The situation: what's going on
 
-Below the explanation, the **situation** sentence puts the failure in context in one line: since when it's been failing (the first failing run, its commit and author), how many other tests share the same cause and the [cluster](/features/failure-clusters) they join, with its triage status and whether an earlier fix regressed, and who owns it. An exceptional case (a new regression, a pass on retry, a newly flaky test, an infrastructure failure) leads the sentence as its one badge.
+Below the explanation, the **situation** sentence puts the failure in context in one line: since when it's been failing (the first failing run), this run's commit and author, how many other tests share the same cause and the [cluster](/features/failure-clusters) they join, with its triage status and whether an earlier fix regressed, and who owns it. An exceptional case (a new regression, a pass on retry, a newly flaky test, an infrastructure failure) leads the sentence as its one badge.
 
 ## 4. Next: what to do
 
@@ -142,10 +142,10 @@ The block closes on a **facts** line, one size smaller: the failing file and lin
 
 ## 5. The evidence: see it
 
-One **evidence card** with tabs (**Timeline, Screen, Source, Network, Console, State, Performance**) holds everything captured. It opens on the tab the leading clue cites, and a click on any citation switches tabs for you. The one to know first is **Timeline**: it places the test's steps, console entries, network requests and backend logs on a single clock and marks the **moment of failure**, so "console (1) / network (3)" becomes *what the app was doing when the test gave up*. **Screen** holds the failure screenshot, the visual diff against the last green run, and the failure-time page state; **Source** shows the test source as a real call stack, so a failure inside a helper shows the helper. Each tab is described on [Failure evidence](/features/evidence).
+One **evidence card** with tabs (**Timeline, Screen, Source, Network, Console, State, Performance**, plus **Attempts** when the test retried) holds everything captured. It opens on **Timeline** when it can place two or more steps, requests or console entries, otherwise on the tab the leading clue cites, and a click on any citation switches tabs for you. The one to know first is **Timeline**: it places the test's steps, console entries, network requests and backend logs on a single clock and marks the **moment of failure**, so "console (1) / network (3)" becomes *what the app was doing when the test gave up*. **Screen** holds the failure screenshot, the visual diff against the last green run, and the failure-time page state; **Source** shows the test source as a real call stack, so a failure inside a helper shows the helper. Each tab is described on [Failure evidence](/features/evidence).
 
 ::: tip Most of this needs one file
-The error, trace, headline and clustering work with the reporter alone. The console, network, Web Vitals, failure-time snapshot and locator healing come from the [capture fixtures](./capture-fixtures), one file in your test setup. A tab that needs them and never received any data is left out, and one footer line says so.
+The error, trace, headline and clustering work with the reporter alone, and an uploaded trace recovers the console, network and failure-time snapshot. Web Vitals, page state and locator healing come from the [capture fixtures](./capture-fixtures), one file in your test setup. A tab that needs them and never received any data is left out, and until you decide on the fixtures one footer line names what they would add.
 :::
 
 ## 6. More ways to fix
@@ -204,8 +204,8 @@ A named container for one suite's results — usually one repository, or one sui
 are created automatically the first time results are submitted under a new `projectName`; you never
 have to pre-register one.
 
-A project carries its own tags, retention, access assignments, SCM connection, and AI-diagnosis
-instructions.
+A project carries its own tags, access assignments, SCM connection, default branch, capability
+decisions, and AI-diagnosis instructions. Retention is instance-wide.
 
 ### Test run
 
@@ -310,7 +310,8 @@ runs inside your network with a token it already has. So ownership works on day 
 
 That derived owner is used in [pull-request comments](/features/pr-feedback), on the flaky leaderboard, and by the
 `owners` [notification filter](/features/notifications#subscriptions), which routes a run only to the team whose tests broke.
-It needs an [SCM token](./source-control); without one, ownership falls back to annotations alone.
+A public repository's CODEOWNERS is read without a token; a private one needs an
+[SCM token](./source-control), and without it ownership falls back to annotations alone.
 
 ## Failures
 
@@ -352,16 +353,17 @@ The policy and its ordering are on [Fix plans](/features/fix-plans#the-next-step
 
 ### Cluster state
 
-Where a **failure cluster** stands, said in one sentence with one verb next to a coloured dot: *still
-failing*, *fixed and verified — still open*, *stopped failing*, *regressed — the fix did not hold*, *resolved*,
-*ignored*, *snoozed* or *all tests quarantined*. It reconciles the human triage status with the
+Where a **failure cluster** stands, said in one sentence with one verb next to a colored dot: *still
+failing*, *not seen for N runs — still open*, *fixed and verified — still open*, *stopped failing*,
+*regressed — the fix did not hold*, *its tracker issue is done*, *resolved*, *ignored*, *snoozed* or *all
+tests quarantined*. It reconciles the human triage status with the
 machine-observed verdict; when they disagree the state line offers the one action that closes the gap. See
 [Failure clusters](/features/failure-clusters#the-state-line).
 
 ### Flakiness score
 
-A test case's **composite score** from three independent signals — retry passes, status alternation
-across runs, and overall failure rate — plus a **root-cause class** (timing, network, assertion,
+A test case's **composite score** from two signals — retry passes (weighted 60%) and status alternation
+across runs (40%), shown next to its overall failure rate — plus a **root-cause class** (timing, network, assertion,
 environment, other) and an **impact ranking** in wasted CI minutes. It's a property of the test case,
 computed over its execution history, which is why a test needs a few runs of history before it can be
 called flaky. See [Flaky tests](/features/flaky-tests).
@@ -518,8 +520,8 @@ reads them to know which project the page it is on belongs to. See
 |---|---|---|
 | Project | `/projects/:id` | [UI overview](/features/ui-overview#project-detail) |
 | Test run | `/test-runs/:id` | [UI overview](/features/ui-overview#test-run-detail) |
-| Test case | `/test-cases/:id` | [UI overview](/features/evidence#the-test-case-page) |
-| Execution | `/test-run-cases/:id` | [UI overview](/features/evidence#one-execution-diagnosis-first) |
+| Test case | `/test-cases/:id` | [Failure evidence](/features/evidence#the-test-case-page) |
+| Execution | `/test-run-cases/:id` | [Failure evidence](/features/evidence#one-execution-diagnosis-first) |
 | Failure cluster | `/failure-clusters/:id` | [Failure clusters & the inbox](/features/failure-clusters) |
 | Cross-project view | `/analytics` | [Analytics](/features/analytics) |
 | Quality report | *Export* on `/analytics` and `/projects/:id` | [Quality reports](/features/quality-reports) |
@@ -546,15 +548,12 @@ npm install --save-dev @piwitests/reporter
 
 ### Try it without editing your config
 
-On **Playwright 1.63 or later**, `--add-reporter` appends this reporter to whatever your config already uses (unlike `--reporter`, which replaces them), so you can send one run to a dashboard with no install and no config edit. Most reporter options have a `PIWI_*` [environment variable](/reference/reporter-options), so point it at your dashboard that way:
+On **Playwright 1.63 or later**, `--add-reporter` appends this reporter to whatever your config already uses (unlike `--reporter`, which replaces them), so you can send one run to a dashboard with no config edit. Most reporter options have a `PIWI_*` [environment variable](/reference/reporter-options), so point it at your dashboard that way:
 
 ::: code-group
 
 ```bash [Linux / macOS]
-PIWI_DASHBOARD_URL=http://localhost:3000 \
-PIWI_API_KEY=your-api-key \
-PIWI_PROJECT_NAME=my-project \
-npx playwright test --add-reporter @piwitests/reporter
+PIWI_DASHBOARD_URL=http://localhost:3000 PIWI_API_KEY=your-api-key PIWI_PROJECT_NAME=my-project npx playwright test --add-reporter @piwitests/reporter
 ```
 
 ```powershell [Windows (PowerShell)]
@@ -563,7 +562,7 @@ $env:PIWI_DASHBOARD_URL='http://localhost:3000'; $env:PIWI_API_KEY='your-api-key
 
 :::
 
-This is a trial path: you get results, traces and screenshots, but not the [capture fixtures](#capture-fixtures) or [`wrapConfig`](#installing-via-wrapconfig)'s capture defaults. On Playwright before 1.63 the flag does not exist; configure the reporter normally instead. [`piwi run`](/reference/cli#select-run) makes the same append automatically when the config has no Piwi reporter.
+This is a trial path: you get results and your configured traces and screenshots, but not the [capture fixtures](#capture-fixtures) or [`wrapConfig`](#installing-via-wrapconfig)'s capture defaults. On Playwright before 1.63 the flag does not exist; configure the reporter normally instead. [`piwi run`](/reference/cli#select-run) makes the same append automatically when the config has no Piwi reporter.
 
 ## Basic configuration
 
@@ -631,7 +630,7 @@ capture, failure-time ARIA snapshots and the locator snapshots behind [locator h
 
 Options go in the reporter's entry in `playwright.config.ts`, or in `wrapConfig`'s second argument. Most options can
 also be set with a `PIWI_*` environment variable, which fills in an option you left unset: an option in the config
-wins, except `PIWI_VERBOSE`, which overrides even an explicit `verbose`. [Reporter options](/reference/reporter-options)
+wins, except `PIWI_VERBOSE`, which overrides even an explicit `verbose` outside `wrapConfig`. [Reporter options](/reference/reporter-options)
 lists every option with its default and its variable, and [Test metadata](/reference/test-metadata) what the reporter
 records on its own.
 
@@ -678,7 +677,7 @@ Control how frequently results are sent during streaming:
 ['@piwitests/reporter', {
   serverUrl: 'http://localhost:3000',
   projectName: 'my-project',
-  streamingBatchSize: 10,     // send every 10 tests
+  streamingBatchSize: 10,     // send every 10 queued events (test begin/end and live steps)
   streamingBatchDelay: 5000,  // or every 5 seconds
 }]
 ```
@@ -687,20 +686,23 @@ Control how frequently results are sent during streaming:
 
 By default a run appears on the dashboard when the first test starts. If your config has a `globalSetup` step
 (seeding a database, authenticating, building the app), register the run before it so the dashboard shows an
-**initializing** state during setup. `wrapConfig` does this for you; otherwise wrap your `globalSetup` with
-`createGlobalSetup`, passing the same options you give the reporter:
+**initializing** state during setup. `wrapConfig` does this for you; otherwise export `createGlobalSetup` from the
+file `globalSetup` points to; it reads its options from the reporter entry:
 
 ```typescript
-import { defineConfig } from '@playwright/test'
+// global-setup.ts
 import { createGlobalSetup } from '@piwitests/reporter'
 
-const dashboard = { serverUrl: 'http://localhost:3000', projectName: 'my-project' }
+export default createGlobalSetup({}, async (config) => {
+  // your own setup, run after registration
+})
+```
 
+```typescript
+// playwright.config.ts
 export default defineConfig({
-  globalSetup: createGlobalSetup(dashboard, async (config) => {
-    // your existing setup logic, run after the run is registered
-  }),
-  reporter: [['list'], ['@piwitests/reporter', dashboard]],
+  globalSetup: './global-setup.ts',
+  reporter: [['list'], ['@piwitests/reporter', { serverUrl: 'http://localhost:3000', projectName: 'my-project' }]],
 })
 ```
 
@@ -715,7 +717,7 @@ Attach multiple report types to a single test run. Each report appears as a sepa
 export default defineConfig({
   reporter: [
     ['list'],
-    ['@playwright/test/reporter-html', { outputFolder: 'playwright-report' }],
+    ['html', { outputFolder: 'playwright-report', open: 'never' }],
     ['monocart-reporter', { name: 'My Tests', outputFile: 'monocart-report/index.html' }],
     ['blob'],
     ['@piwitests/reporter', {
@@ -732,7 +734,7 @@ export default defineConfig({
 ```
 
 `html` (`playwright-report/`) and `monocart` (`monocart-report/`) open in a new tab; `blob` (`blob-report/`) downloads
-as an archive. Any other type is accepted too, with its directory given in `dir`.
+as an archive. Any other type is accepted too, read from `dir` or else `<type>-report/`.
 
 ## With authentication enabled
 
@@ -749,7 +751,7 @@ When the dashboard has authentication enabled, pass an **API key**: create one i
 ```
 
 The key is sent as an `Authorization: Bearer` header. `username` and `password` (`PIWI_USERNAME`, `PIWI_PASSWORD`)
-work too, and the reporter logs in before each upload; prefer an API key in CI.
+work too (the reporter logs in once and reuses the session); prefer an API key in CI.
 
 ## Troubleshooting
 
@@ -778,8 +780,6 @@ to a batch submit at the end.
 # Capture fixtures
 
 The [reporter](./reporter) uploads complete test results (statuses, errors, traces, HTML reports) without any change to your test code. The **capture fixtures** are an optional, one-file addition that observes your tests from the inside and unlocks the dashboard's richest features: slow-endpoint analysis, Web Vitals, console capture, failure-time ARIA snapshots, and [locator healing](/features/locator-healing).
-
-If you do one thing beyond installing the reporter, do this.
 
 ## Setup
 
@@ -822,7 +822,7 @@ That's the entire setup: nothing to start, wrap, or await inside your tests.
 
 | Data | Captured | Powers |
 |------|----------|--------|
-| **Network requests**: method, URL, status, duration, start time, content type, for fetch, XHR and document traffic only (static assets are skipped); one that failed without a response keeps the browser's error (`net::ERR_CONNECTION_RESET`) | per request | [Slow endpoints](/features/slow-tests); [backend log correlation](./backend-logs) via the `X-Piwi-Logs` response header; the [failure timeline](/features/evidence#one-execution-diagnosis-first) |
+| **Network requests**: method, URL, status, duration, start time, content type, for fetch, XHR, document and `other` traffic only (static assets are skipped); one that failed without a response keeps the browser's error (`net::ERR_CONNECTION_RESET`) | per request | [Slow endpoints](/features/slow-tests); [backend log correlation](./backend-logs) via the `X-Piwi-Logs` response header; the [failure timeline](/features/evidence#one-execution-diagnosis-first) |
 | **Console entries**: `warning`, `error` and `assert` messages with source location and a timestamp (not `console.log`) | as they happen | The console card and the failure timeline on the [execution page](/features/evidence#one-execution-diagnosis-first); [AI diagnosis](/features/ai-diagnosis) evidence |
 | **Web Vitals**: TTFB, DOM Interactive, DOMContentLoaded, Load Complete, First Paint, First Contentful Paint, plus LCP, CLS and INP (Chromium-only) | at test teardown | Web vitals card with color-coded thresholds; [performance trends](/features/slow-tests) |
 | **ARIA snapshot** of the final page state: the YAML dump, plus the JSON aria tree on Playwright 1.63 or later | on failure | Failure evidence on the [execution](/features/evidence#one-execution-diagnosis-first) and cluster pages; [AI diagnosis](/features/ai-diagnosis) context; the JSON tree feeds [locator healing](/features/locator-healing)'s rename matching and the page diff |
@@ -902,12 +902,13 @@ Capture is designed to never fail or noticeably slow down a test:
 - A capture that can't complete (mid-navigation, detached element) is dropped silently; it never throws into your test.
 - Capture adds no steps to the report or trace, and errors, step locations and stacks name your own call.
 
-`collectPerformanceMetrics: false` turns all fixture capture off; `captureLocators: false` turns off only the locator
+`collectPerformanceMetrics: false` discards all fixture data; `captureLocators: false` turns off only the locator
 snapshots and pages, and `capturePageState: false` only the test-end app state (URL, storage key names, cookie flags, never
 values). Two opt-in aids for headed local runs, `inspectOnFailure` and `pickLocatorOnFailure`, open
 [the failing page for inspection](/features/locator-healing#inspect-the-failing-page-live-local-runs) or
 [let you pick a replacement locator](/features/locator-healing#pick-a-replacement-locator-on-the-failing-page-local-runs).
-Each option and its environment variable is in [Reporter options](/reference/reporter-options#what-gets-captured).
+Set all but `collectPerformanceMetrics` through [`wrapConfig`](./reporter#installing-via-wrapconfig) or their `PIWI_*`
+variable: the test workers never see a plain reporter entry's options.
 
 ## Green page sampling on pass
 
@@ -1005,7 +1006,7 @@ Without any configuration, the reporter records:
   and the repository URL. On a pull-request build the target branch is recorded as the run's **base branch**, which
   [baselines](/guide/concepts#baseline-last-green-run) fall back to when the branch has no history of its own.
 - **CI**: provider, workflow or job name, build number, and a link back to the CI build.
-- **Environment**: Node, Playwright and OS versions, plus each test's browser and viewport.
+- **Environment**: the Playwright version, and each test's browser and viewport.
 - **Shard index**: from Playwright's own `--shard` config.
 
 [Test metadata](/reference/test-metadata#scm-information-git) lists the variables each field comes from. Set
@@ -1032,7 +1033,7 @@ How the merge works:
 
 1. Each shard derives a **run label**, a stable identifier for the CI pipeline, from the provider's build id
    (`GITHUB_RUN_ID`, `CI_PIPELINE_ID`, `CIRCLE_WORKFLOW_ID` and their equivalents on the systems listed above).
-2. Shards sharing a run label **and** a `projectName` resolve to the same run.
+2. Shards sharing a run label **and** a `projectName` resolve to the same run when streaming.
 3. Each shard streams independently; the run stays `running` until the **last** shard calls finish.
 4. Counters accumulate across shards. The run is `failed` if any shard reported a failure, and the run page shows a
    shard progress badge (`2/3`) while shards are still arriving.
@@ -1108,7 +1109,7 @@ e2e:
 - run: cat piwi-run.json   # { runUrl, runId, projectId, projectName, status, ciBuildUrl, failedCount, failures }
 ```
 
-`failures` lists every test whose final attempt failed as `{ title, file, retry, browser, url }`, with
+`failures` lists every test whose final attempt failed as `{ title, file, retry, browser, headline, url }`, with
 `url` the same per-test link the log prints.
 
 ## Pull-request feedback
@@ -1155,7 +1156,8 @@ misconfigured pipeline fails loudly instead of waving every merge through.
 
 Three behaviors worth knowing:
 
-- **A quarantined test's failure does not count**, but the gate always reports how many it excluded.
+- **A quarantined test's failure does not count** toward `--max-failed`, `--require-tag` or `--require-selection`, and
+  the gate reports how many it excluded.
 
 - **A test that failed and then passed on retry satisfies `--require-tag`.** Flakiness is what `--max-new-flaky` is
   for.
@@ -1174,8 +1176,8 @@ dashboard instead: the alerting rules stay in one place rather than in every pip
 for the full request trace. The usual causes are an unreachable `PIWI_DASHBOARD_URL` from the runner's
 network, or a missing API key against an instance with authentication enabled.
 
-**Shards create several runs instead of one.** The run label wasn't detected, or the shards disagree on
-`projectName`. Set `runLabel` explicitly.
+**Shards create several runs instead of one.** The run label wasn't detected, the shards disagree on
+`projectName`, or streaming is off. Set `runLabel` explicitly.
 
 **Traces or screenshots are missing.** Playwright records neither by default, so there is nothing to upload. Set
 `use: { trace: 'retain-on-failure', screenshot: 'only-on-failure' }` in your Playwright config, or install through
@@ -1183,8 +1185,8 @@ network, or a missing API key against an instance with authentication enabled.
 
 **A run is stuck as `interrupted`.** When a run sends nothing for two minutes (a cancelled job, a killed runner,
 a dropped network), the server marks it `interrupted`. If the reporter comes back, the next event revives the run, so
-`interrupted` is only final when the job really died. Those runs are excluded by the **full runs only** filter in
-[Analytics](/features/analytics#scope).
+`interrupted` is only final when the job really died. [Analytics](/features/analytics#scope) counts them as failing
+runs; **full runs only** drops only partial runs.
 
 ## Related
 
@@ -1281,15 +1283,17 @@ once on the server; API keys never leave it.
 
 ## Enabling AI diagnosis
 
-Configure a provider via **Settings → AI**, or with environment variables (env always takes precedence over values stored through the UI, and the UI shows env-managed fields read-only).
+Configure a provider via **Settings → AI**, or with environment variables. `PIWI_AI_PROVIDER` is the switch: once it
+is set, the provider configuration comes from the environment and the UI shows it read-only (a model picked in the UI
+still overrides the env model); without it, the other provider variables below are not read.
 
 | Variable | Description |
 |----------|-------------|
 | `PIWI_AI_PROVIDER` | `anthropic`, `openai`, or `claude-cli` |
 | `PIWI_AI_API_KEY` | Provider API key (stored encrypted when set via the UI; never returned by the API) |
 | `PIWI_AI_MODEL` | Model name (default: `claude-opus-4-8` for Anthropic) |
-| `PIWI_AI_BASE_URL` | Base URL for OpenAI-compatible providers (e.g. Ollama, LM Studio, vLLM) |
-| `PIWI_AI_AUTO_DIAGNOSE` | `true` to automatically diagnose new clusters when a run finishes |
+| `PIWI_AI_BASE_URL` | Base URL of the provider API: required for `openai`, OpenAI itself (`https://api.openai.com/v1`) included; optional for `anthropic` (a gateway or proxy) |
+| `PIWI_AI_AUTO_DIAGNOSE` | `true` to diagnose, when a run finishes, the clusters that failed in it and have no completed diagnosis yet |
 | `PIWI_AI_AUTO_DIAGNOSE_MAX` | Max clusters auto-diagnosed per finished run (budget cap; default `3`) |
 | `PIWI_AI_RESEARCH_MODEL` / `_PROVIDER` / `_BASE_URL` / `_API_KEY` | Optional **research** model for two-stage diagnosis; provider/base URL/key default to the main ones |
 | `PIWI_AI_EMBEDDING_PROVIDER` / `_MODEL` / `_BASE_URL` / `_API_KEY` | Optional **embedding** model for semantic failure clustering (OpenAI-compatible only: Anthropic has no embeddings API) |
@@ -1300,8 +1304,8 @@ When a run finishes and `PIWI_AI_AUTO_DIAGNOSE` is on, the `PIWI_AI_AUTO_DIAGNOS
 
 ### Streaming diagnosis
 
-A diagnosis streams: the model's reasoning appears in a live panel as it arrives, with a stage indicator, and turns
-into the result card when it completes. The [API docs](https://piwitests.dev/demo/docs) describe the streaming
+A diagnosis streams: the model's reasoning appears in a live panel as it arrives, and turns into the result card when
+it completes. The [API docs](https://piwitests.dev/demo/docs) describe the streaming
 protocol (the in-app reference at `/docs` shows the same spec).
 
 To be told when a diagnosis finishes without watching the panel, turn on **Settings → AI → Diagnosis notifications**: a per-browser preference (stored on that device only) that shows a browser notification on completion once you grant the permission.
@@ -1331,6 +1335,7 @@ PIWI_AI_MODEL=claude-opus-4-8
 ```bash
 PIWI_AI_PROVIDER=openai
 PIWI_AI_API_KEY=sk-...
+PIWI_AI_BASE_URL=https://api.openai.com/v1
 PIWI_AI_MODEL=gpt-4o
 ```
 
@@ -1340,14 +1345,14 @@ PIWI_AI_MODEL=gpt-4o
 PIWI_AI_PROVIDER=openai
 PIWI_AI_BASE_URL=http://localhost:11434/v1
 PIWI_AI_MODEL=llama3.1
-PIWI_AI_API_KEY=ollama   # any non-empty value for local servers
+PIWI_AI_API_KEY=ollama   # optional: sent only when set, for servers that check one
 ```
 
 A local model keeps every diagnosis on your own infrastructure; see [Privacy & data flow](./privacy).
 
 **Claude Code CLI (local, no API key)**: in the [desktop app](/features/desktop), pick **Claude Code (local)**. It runs the local `claude` CLI with your Claude Code sign-in, so **Settings → AI** manages sign-in and shows a live usage tally. Every role but embeddings can use it; `PIWI_CLAUDE_CLI_PATH` overrides the path.
 
-Use **Settings → AI → Test** to check the configured provider. The dashboard shows its AI actions only once a provider is configured.
+Each role's form in **Settings → AI** has a **Test connection** button that checks its provider. The dashboard shows its AI actions only once a provider is configured.
 
 ## Response language
 
@@ -1478,7 +1483,7 @@ On the Playwright side there is nothing to configure: the reporter reads the hea
 
 ## Backend logs
 
-The integration adds an `X-Piwi-Logs` response header (gzip-compressed, Base64-encoded JSON) to every HTTP response, and the reporter stores its entries as `serverLogs` on that request. They appear in:
+The integration adds an `X-Piwi-Logs` response header (gzip-compressed, Base64-encoded JSON) to HTTP responses: the Nitro plugin to every response (an empty array when nothing was logged), the ASP.NET Core middleware only to responses that captured at least one entry. The reporter stores its entries as `serverLogs` on that request. They appear in:
 
 - **The [execution page](/features/evidence#one-execution-diagnosis-first)**: in the network requests, a request that returned server-side logs shows a warning and error count and expands to every entry attached to it (level, category, message, timestamp and stack trace). Error logs also raise a [clue](/features/evidence#clues).
 - **The [AI diagnosis](/features/ai-diagnosis) context**: warnings and errors are included when a failure is diagnosed.
@@ -1495,7 +1500,7 @@ Each entry in the `X-Piwi-Logs` array has this shape:
 | `level` | `string` | `"Warning"` or `"Error"` (the ASP.NET Core integration also emits `"Critical"`) |
 | `category` | `string` | Logger category or tag (e.g. `MyApp.Services.OrderService`) |
 | `message` | `string` | Log message (truncated at 500 characters) |
-| `stack` | `string` | Optional. Shrunk stack trace — framework/internal frames removed, namespace parts shortened to first lowercase letter, max 5 frames |
+| `stack` | `string` | Optional. Shrunk stack trace, max 5 frames — framework/internal frames removed (`node:internal` and `node_modules` for Nitro); the ASP.NET Core integration also shortens namespace parts to their first lowercase letter |
 
 The ASP.NET Core integration additionally captures `exceptionMessage` when an exception was logged.
 
@@ -1734,7 +1739,7 @@ Each step is a page on this site: the [failing execution](/features/evidence) an
 Two rules run through every feature, and they're worth knowing before you adopt it:
 
 1. **The tool proposes, the developer decides.** Piwi never rewrites a test, never merges a fix, and never applies a patch on its own. It gathers, ranks and suggests; the last step is always yours. Even [auto-heal PRs](/features/auto-heal) only *open* a pull request for you to review and merge.
-2. **Deterministic first, AI second.** Anything that has to be right every time — clustering, flaky scoring, locator ranking, fix verification — is computed without a model. AI sits on top, where a suggestion is enough, and what it produces is checked against your real source before you see it. AI is off by default and brings your own key.
+2. **Deterministic first, AI second.** Anything that has to be right every time — clustering, flaky scoring, locator ranking, fix verification — is computed without a model; the one exception is opt-in: with an embedding model configured, near-duplicate clusters are merged by similarity. AI sits on top, where a suggestion is enough, and what it produces is checked against your real source before you see it. AI is off by default and brings your own key.
 
 ## The pieces
 
@@ -1805,7 +1810,7 @@ In the **Fault0** column, ➖ marks a capability we did not find in its public d
 
 ### Is my data safe? Does Piwi phone home?
 
-**Zero telemetry.** Piwi makes no outbound calls except the ones you configure; [Privacy & data flow](./privacy) lists each one.
+**Zero telemetry.** Piwi makes no outbound calls except the ones you configure, plus two that need no setting: anonymous public-API reads of the repository your runs report (its default branch and CODEOWNERS), and fetching the title of a link you attach. [Privacy & data flow](./privacy) lists each one.
 
 ### Does AI diagnosis send my code to a third party?
 
@@ -1847,30 +1852,36 @@ Test results are unusually revealing: they carry your source paths, error messag
 app, network calls, and sometimes your git history. That's a good reason to know exactly where the
 bytes go. This page is the inventory.
 
-The short version: **Piwi makes no outbound network call you didn't configure.** There is no telemetry,
-no usage analytics, no update check, no crash reporting, and no license or activation call. An instance
-running on an air-gapped network works the same as one on the internet.
+The short version: **there is no telemetry**, no usage analytics, no crash reporting, and no license or
+activation call. The server never checks for updates; the desktop app checks once at startup (turn that off in
+**Settings → About**) and when you click **Check for updates** there. Every outbound call the server makes is listed
+below, and all but two are something you switched on. An instance running on an air-gapped network works the same as
+one on the internet.
 
 ## What leaves your server
 
-Every outbound connection Piwi can make is something you switched on:
+Every outbound connection Piwi can make:
 
 | Destination | When | Carries |
 |---|---|---|
-| Your AI provider | Only if you configure [AI diagnosis](/features/ai-diagnosis) | The diagnosis context: error text, failing steps, the relevant git diff, and — if enabled — failure screenshots |
-| Your git host | Only if you connect a repository with a token | API reads: commits and diffs for the project's repo |
+| Your AI provider | Only if you configure [AI diagnosis](/features/ai-diagnosis) | The diagnosis context: error text, failing steps, test and related source files, console and network entries, page (ARIA/DOM) snapshots, server logs, the relevant git diff, and up to five failure screenshots by default (`PIWI_AI_MAX_IMAGES=0` sends none). [AI-step](/features/ai-steps) authoring sends masked page snapshots |
+| Your git host | Whenever runs report a GitHub, GitLab or Bitbucket remote (the reporter records `origin` by default) | Without a token: anonymous public-API reads of the repository's default branch and its CODEOWNERS. With a token: commits, diffs and files, plus the PR comments, commit statuses, heal branches and CI re-runs of the features you turn on |
+| A URL you attach as a link | When someone adds a link to a run, test or cluster | A request for its title (the git host's API for an issue or PR link) |
+| Your issue tracker (Jira) | Only if you [connect it](/features/issue-tracking) | Issue reads, and the issues and comments you file |
 | Your SMTP server | Only if you configure [email notifications](/features/notifications) | Notification and account emails |
-| Your Slack / webhook URLs | Only for subscriptions you create | The event payload (run status, cluster, test names) |
+| Your Slack / webhook URLs | Only for subscriptions you create | The event payload (run status, cluster, test names, file paths, short error excerpts) |
 | Your S3 endpoint | Only if you switch [storage](/operate/storage) to S3 | Trace files, HTML reports, attachments |
 | Google / GitHub | Only if you enable [OAuth sign-in](/operate/authentication#oauth-google-github) | The standard OAuth exchange |
 
 The reporter sends your own instance what its options switch on. [Code reach](/features/code-reach), off by
 default, sends repository-relative file paths only: never source code, coverage counts or line numbers.
 
-Nothing on that list has a default. With none of them configured, a Piwi instance talks to nobody.
+Two rows need no setting: the anonymous git-host reads happen whenever runs report a public-host remote,
+and a link's title is fetched when someone attaches it. Both fail quietly without network access.
+Everything else is off until you configure it.
 
-The **AI provider** is the one worth pausing on, because it's the only case where your code and error
-text can leave your network. It's opt-in, it goes only to the endpoint *you* set — including a local
+The **AI provider** is the one worth pausing on, because it's the only destination that receives your
+source code and the full failure context. It's opt-in, it goes only to the endpoint *you* set — including a local
 model over Ollama or vLLM, in which case nothing leaves the machine at all — you can preview the exact
 context before it's sent, and you can cap its size. See
 [AI diagnosis → Privacy](/features/ai-diagnosis#privacy).
@@ -1912,8 +1923,10 @@ report's title and steps, with their typed values and nothing else, to that app 
 
 Some data is skipped at the source, so it never exists to leak:
 
-- **Input values.** The [capture fixtures](./capture-fixtures) record what an element *is* — role,
-  accessible name, test id — never what was typed into it. A password field's value is never captured.
+- **Input values in locator snapshots.** The [capture fixtures](./capture-fixtures) record what an
+  element *is* — role, accessible name, test id — never what was typed into it. Playwright's own records
+  are different: step titles and parameters, traces and the failure-time ARIA snapshot include the values
+  a test typed, password fields too, so don't fill real secrets in tests.
 - **Page-inventory field contents.** The optional [page inventory](./reporter#configuration-options)
   (`capturePageInventory`, **off by default**) records the names of a page's controls and links so the
   dashboard can tell which the suite never exercises. The name of a control that holds user input — a
@@ -1922,9 +1935,9 @@ Some data is skipped at the source, so it never exists to leak:
   query and hash, which can carry signed tokens.
 - **Storage and cookie values.** Page state records the *names* of `localStorage` /`sessionStorage`
   keys and their value lengths, and cookie names with their flags. Never the values.
-- **Sensitive headers.** `Authorization`, `Cookie` and friends are masked server-side in the trace
-  network view, and token-shaped strings in URLs and bodies are masked too — so a bearer token that
-  appeared in a request doesn't end up readable in the dashboard.
+- **Sensitive headers.** `Authorization`, `Cookie` and friends are masked server-side in Piwi's trace
+  network view, and token-shaped strings in URLs and bodies are masked too. The trace file itself is
+  stored as uploaded, so the bundled trace viewer and a downloaded trace still show them.
 - **Backend logs, in production.** The [backend-log integrations](./backend-logs) emit their header only
   in development and test environments by default.
 
@@ -1963,7 +1976,8 @@ by anything else. See [Storage → Data retention](/operate/storage#data-retenti
 You don't have to take the page's word for it. The source is public and the outbound surface is
 small enough to audit: watch the container's egress, or read
 [`server/utils/`](https://github.com/PiwiTests/platform/tree/main/apps/application/server/utils) — the AI
-provider, SCM, SMTP, storage and notification clients are the only things there that open a socket.
+provider, SCM, SMTP, notification, OAuth, Jira and link-unfurl clients are the only things there that open
+a socket; the S3 client is in `server/storage/`.
 
 ## Related
 - [Authentication](/operate/authentication), [API keys](/operate/api-keys) and [Project access](/operate/project-access): roles, keys and project-level access
@@ -2036,7 +2050,7 @@ and a **Learn more** link into these docs, and every source path [opens in your 
 
 ## Home
 
-`/`: a health check across all projects. A **stat strip** whose every number is a link, the **failure inbox** of open clusters, triaged from the row or the keyboard
+`/`: a health check across all projects. A **stat strip** whose every number but the average pass rate is a link, the **failure inbox** of open clusters, triaged from the row or the keyboard
 ([Failure clusters & the inbox](./failure-clusters#the-failure-inbox)), a **Project health** table with run-history
 bars and a tendency badge, and recent activity.
 
@@ -2175,7 +2189,7 @@ On CI, git alone is unreliable: a pull-request checkout is usually a detached `H
 2. **The CI provider's branch variables** — `GITHUB_HEAD_REF` / `GITHUB_REF_NAME` on GitHub Actions, the merge-request and commit refs on GitLab, and the equivalents for CircleCI, Travis, Azure, Jenkins and Bitbucket. On a pull-request build the **source** branch wins over the plain ref, so the run records the branch under test.
 3. **`git rev-parse --abbrev-ref HEAD`** — the local answer, used only when it is a real branch. A detached `HEAD` is discarded rather than recorded.
 
-When the provider exposes it, the reporter also captures the **pull-request number**, so [pull-request feedback](/features/pr-feedback) can look the PR up exactly instead of guessing from the branch name, and the pull request's **target branch** (`GITHUB_BASE_REF`, `CI_MERGE_REQUEST_TARGET_BRANCH_NAME`, `SYSTEM_PULLREQUEST_TARGETBRANCH`, `BITBUCKET_PR_DESTINATION_BRANCH`, Jenkins' `CHANGE_TARGET`, Travis' `TRAVIS_BRANCH` on a PR build), which becomes the run's **base branch** — the branch baselines fall back to. Set `PIWI_BASE_BRANCH` to name it yourself. Branch, PR and base-branch detection happen automatically as part of CI collection — see [CI & sharding → What gets detected](/guide/ci#what-gets-detected).
+When the provider exposes it, the reporter also captures the **pull-request number**, so [pull-request feedback](/features/pr-feedback) can look the PR up exactly instead of guessing from the branch name, and the pull request's **target branch** (`GITHUB_BASE_REF`, `CI_MERGE_REQUEST_TARGET_BRANCH_NAME`, `SYSTEM_PULLREQUEST_TARGETBRANCH`, `BITBUCKET_PR_DESTINATION_BRANCH`, Jenkins' `CHANGE_TARGET`, Travis' `TRAVIS_BRANCH` on a PR build), which becomes the run's **base branch** — the branch baselines fall back to. Set `PIWI_BASE_BRANCH` to name it yourself. Branch, PR and base-branch detection happen automatically as part of the reporter's git metadata collection (`collectScmInfo`) — see [CI & sharding → What gets detected](/guide/ci#what-gets-detected).
 
 ## The default branch
 
@@ -2183,9 +2197,9 @@ Each project has a **Default branch** setting on its **Settings** tab (placehold
 
 ## Filtering by branch
 
-On a project page, the filter bar carries a **branch** multi-select (the git-branch icon, "All branches") next to the environment filter. It appears once the project has runs from more than one branch, and it scopes the **runs list** and the **flaky leaderboard** to the branches you pick. [Analytics](./analytics) has its own branch scope control, so a pass-rate trend or slow-test table can be read for one branch at a time.
+On a project page, the filter bar carries a **branch** multi-select (the git-branch icon, "All branches") next to the environment filter. It appears once any of the project's runs carries a branch. It scopes the **runs list** to the branches you pick, and the **flaky leaderboard** when you pick exactly one. [Analytics](./analytics) has its own branch scope control, so a pass-rate trend or slow-endpoints table can be read for one branch at a time.
 
-Because the branch is an indexed column, these filters are served by the database rather than by fetching a wide batch and sifting metadata in memory. Runs reported before the column existed fall back to the branch recorded in their metadata, so old history still filters.
+The branch is an indexed column, so the flaky leaderboard, Analytics and the MCP `list_runs` tool filter by it in the database; the project's runs list filters its latest 200 runs in the browser. Runs reported before the column existed fall back to the branch recorded in their metadata, so old history still filters.
 
 ## Branch-aware baselines
 
@@ -2194,12 +2208,12 @@ Because the branch is an indexed column, these filters are served by the databas
 - **The run-level baseline**, what the Changes tab, the stored regression signals, the CI gate, pull-request feedback, the bisect window and the AI diagnosis all compare against, follows the [baseline rule](/guide/concepts#baseline-last-green-run): same environment first, then the same branch, the base branch, any branch. Two feature branches reporting interleaved runs never become each other's baseline.
 - **Choosing the base branch** — the Changes tab lets you take the baseline from any branch that has a passing run, so a long-lived branch can be compared against `release/2` rather than `main`; the choice is in the URL (`?baseBranch=`) and on the API and MCP tool. See [What changed in a run](./run-changes#the-baseline).
 - **The visual-diff baseline** follows the same rule for one execution.
-- **Pull-request feedback** builds its "new failures vs. pre-existing" split from those same signals, and **exonerates** a test that is already flaky on the default branch — a failure the PR did not introduce is reported as pre-existing rather than blamed on the change. The `max-new-regressions` [CI gate](/guide/ci#blocking-a-merge) then counts the right number.
+- **Pull-request feedback** builds its "new failures vs. pre-existing" split from the same baseline, so a failure the PR did not introduce is reported as pre-existing, and the `max-new-regressions` [CI gate](/guide/ci#blocking-a-merge) counts the same new failures. A failure whose test is already flaky on the default branch is also marked *Also flaky on `main` … — likely not yours*; the mark does not move it out of the new failures or the gate's count.
 - **Performance alerts** — the `perf.regression` [notification](./notifications) measures a run against the previous runs on the same branch **in the same environment**.
 
 ## From an agent (MCP)
 
-The MCP tools take a branch filter too: `list_runs` and the flaky tools accept a `branch` argument, so an agent can ask "what is failing on `main`" or "is this test flaky on my branch" without pulling every run. See the [MCP server](/features/mcp).
+The MCP `list_runs` tool takes a `branch` argument, so an agent can ask "what is failing on `main`" without pulling every run. `list_flaky_tests` takes no branch; it reads the same default-branch view as the dashboard's flaky leaderboard. See the [MCP server](/features/mcp).
 
 ## Notifications
 
@@ -2207,7 +2221,7 @@ Notification subscriptions can filter by branch and alert only on the default br
 
 ## Limits
 
-- **Branch scoping is opt-in per view for trends.** Analytics trends aggregate across every branch until you apply the filter; the flaky leaderboard already reads the default branch (plus runs with no branch) unless you scope it.
+- **Views read the default branch by default.** Analytics counts each project's default branch (plus runs with no branch) until you pick branches or *All branches* (see [Branch policy](./analytics#branch-policy)). The flaky leaderboard does the same unless you scope it, but only once the project's default branch is known (set on its Settings tab, or resolved from the SCM provider); until then it reads every branch.
 - **Branches are a run dimension, not yet entities.** There is no per-branch merge-readiness verdict, branch-class gate policy, or retention by branch class yet — those are the "branches as entities" work still under *Exploring* in the [roadmap](https://github.com/PiwiTests/platform/blob/main/ROADMAP.md).
 - **A run needs a resolvable branch.** A purely local run with no CI variables, a detached `HEAD`, and no `PIWI_BRANCH` records no branch at all, so it will not appear under any branch filter.
 
@@ -2232,7 +2246,7 @@ By default the baseline is the last passing full run chosen by the [baseline rul
 
 Two ways to compare against something else:
 
-- **Base branch** — take the baseline from one branch only: its last passing run, same environment first. The list offers every branch with an earlier passing run, so it appears once the project has one to choose. Deep-linkable as `?baseBranch=<name>`.
+- **Base branch** — take the baseline from one branch only: its last passing run, same environment first. The list offers every branch with a passing run, so it appears once a branch other than this run's own has one. Deep-linkable as `?baseBranch=<name>`.
 - **Run** — compare against one specific run, whatever its branch or environment. Deep-linkable as `?baseline=<runId>`, so a link to a comparison reopens the same two runs. **Previous run** is the shortcut for the run just before this one.
 
 **Automatic** returns to the default choice. The same two options exist on the REST API (see the [API docs](https://piwitests.dev/demo/docs)) and on the MCP `get_run_insights` tool (`baseBranch`).
@@ -2292,7 +2306,7 @@ Exports are bounded so one download cannot exhaust the server:
 | Variable | Default | Bounds |
 |---|---|---|
 | `PIWI_EXPORT_MAX_INLINE_BYTES` | 8 MB | What a single HTML file will embed as a `data:` URI. Larger files stay out of the one-file HTML; the ZIP still carries them at full size. |
-| `PIWI_EXPORT_MAX_BYTES` | 500 MB | The whole export. Evidence is added largest-last until the budget is reached. The archive is built in memory, so this also bounds what one export costs the server. |
+| `PIWI_EXPORT_MAX_BYTES` | 500 MB | The whole export. Evidence is added in order — each execution's attachments, then its trace archives — and a file that would pass the budget is left out. The archive is built in memory, so this also bounds what one export costs the server. |
 | `PIWI_EXPORT_MAX_CASES` | 25 | Member executions carrying full evidence in a cluster export. Remaining affected tests are listed by name. |
 
 Anything left out is listed in an **Omitted from this export** table in the report and in the ZIP's
@@ -2314,7 +2328,7 @@ Piwi instance. Bundling the viewer's assets into the export itself is on the
 
 ## Perfetto trace
 
-A run and an execution also export as a **Perfetto trace** — a [Trace Event Format](https://perfetto.dev/docs/reference/trace-config-proto) JSON file that opens the run on a timeline in
+A run and an execution also export as a **Perfetto trace** — a [Trace Event Format](https://perfetto.dev/docs/getting-started/other-formats) JSON file that opens the run on a timeline in
 [ui.perfetto.dev](https://ui.perfetto.dev) or Chrome's `chrome://tracing`, with no Piwi server needed.
 
 The file lays the run out the way it ran: **one process per shard, one thread per worker**. Each
@@ -2426,7 +2440,7 @@ the reader's address, since such a proxy fetches for many readers.
 ## Security properties
 
 - The token is a 256-bit random secret (`psl_` + 64 hex characters) — unguessable at any request rate. The server
-  stores only its SHA-256 hash.
+  stores its SHA-256 hash and the first 8 hex characters, which the dialog shows as the link's prefix.
 - Everything a link serves is data its creator could already see: minting requires access to the execution, the
   cluster, every project of the snapshot, or the dashboard, so a link is a narrower delegation of an existing
   member's read access, never an escalation.
@@ -2459,7 +2473,7 @@ and sorts the failures for you. The distinction you want is right there in the h
 - **Newly flaky / passed on retry** — it passed but needed a retry.
 
 <figure>
-  <img src="/screenshots/run-changes.png" alt="Run Changes tab showing the baseline selector, new failures, fixed tests and the commits landed since the baseline">
+  <img src="/screenshots/run-changes.png" alt="Run Changes tab showing the baseline selector, new failures, newly flaky tests, slower and faster tests, and the commits landed since the baseline">
   <figcaption>The Changes tab — read against one baseline, with new failures separated from tests that only passed on retry.</figcaption>
 </figure>
 
@@ -2483,15 +2497,15 @@ Read it like this:
 |---|---|
 | Solid green, then red from one run onward | A regression. Find the commit in that gap. |
 | Red/green alternating for weeks | A flake that happened to fail on your run. |
-| Green, then red, and the failing execution **passed on retry** | A flake — the `passed on retry` chip is on the execution's Verdict card. |
+| Green, then red, and the failing execution **passed on retry** | A flake — the execution's header carries a *Passed on retry* badge. |
 | Newly red *and* the failure is shared with other tests | Probably neither — see [triaging a mass failure](./mass-failure). |
 
 ## 3. Find what changed around it
 
 Once you know it's a real regression, narrow the window:
 
-- The failing execution's **Verdict** card links back to the **last green run**, so you have two commits
-  to diff between.
+- The failing execution's **History** section links back to the **last green run** ("Last passed in run
+  #N"), so you have two commits to diff between.
 - If the drop lines up with a deploy or an infrastructure change, a
   [timeline marker](/features/timeline-markers) draws it as a vertical line on the trend chart — "it started
   the day we switched CI runners" is a much faster answer than a bisect.
@@ -2509,12 +2523,13 @@ through, and `get_test_stability_trend` answers "is this getting flakier?" for o
 
 **Wire it into CI.** The [CI gate](/guide/ci#blocking-a-merge) already knows the difference: a test in
 [quarantine](/features/flaky-tests#quarantine-with-a-way-out) keeps running and keeps reporting, but doesn't
-block the merge — and the gate always states how many failures it excluded.
+block the merge — and the gate reports how many failures it excluded.
 
 **Get told instead of looking.** [Notifications](/features/notifications) let you subscribe to
 `run.failed.default_branch` rather than `run.failed`, so you hear about main going red instead of every
 red branch build — the difference between an alert people read and one people mute. `flakiness.spike`
-fires separately when flakiness crosses your configured threshold.
+fires separately for any run with flaky tests; a subscription's flakiness threshold (set through the API)
+narrows it.
 
 ## Related
 - [Flaky tests](/features/flaky-tests) — how the composite score and root-cause categories are computed
@@ -2535,8 +2550,8 @@ Failures sharing an **error fingerprint** are grouped automatically, so the run 
 *"40 failures, 3 root causes"* before you open anything.
 
 <figure>
-  <img src="/screenshots/failure-clusters.png" alt="Failure clusters tab grouping failures by normalized error signature">
-  <figcaption>The Failure clusters tab — one row per root cause, with error type, occurrence count, and triage status.</figcaption>
+  <img src="/screenshots/failure-clusters.png" alt="A red run's Tests tab grouped by cluster: one group per root cause with its test count, triage status and an Open cluster link, and the passing tests folded away">
+  <figcaption>A red run's <strong>Tests</strong> tab opens grouped by <strong>Cluster</strong> — one group per root cause, with its triage status and a link to the cluster page.</figcaption>
 </figure>
 
 The grouping is always on and needs no configuration; [How failures are
@@ -2544,11 +2559,13 @@ grouped](/features/failure-clusters#how-failures-are-grouped) explains what the 
 
 ## 2. Rule out the boring causes first
 
-Before treating any cluster as a product bug, check the two heuristics on the run's failure groups:
+Before treating any cluster as a product bug, check the two flags on the run's failure groups. They come
+from `get_failure_groups` over MCP or from the REST API; the dashboard doesn't show them.
 
-- **Worker correlation** — if a cluster's failures are concentrated on one worker, you're looking at a
-  misbehaving worker, not forty broken tests.
-- **Flaky share** — a cluster made up largely of known-flaky tests is noise riding on a bad run.
+- **Worker correlated** — two or more of the cluster's failures, all on one worker, in a run that used
+  several: you're looking at a misbehaving worker, not forty broken tests.
+- **Flaky** — a test in the cluster passed on retry in this run: part of the cluster is noise riding on a
+  bad run.
 
 An environment that never came up has a signature of its own: everything fails, fast, on a navigation
 or connection error. That's one cluster, one fix, and no test code involved.
@@ -2567,7 +2584,7 @@ conversation over.
 ## 4. Confirm the fix actually landed
 
 When a later run executes every test a cluster covers and they all pass, Piwi records the fix. The run doesn't have
-to be a full one: re-running just the affected tests and seeing them all pass closes the cluster too. The three
+to be a full one: re-running just the affected tests and seeing them all pass records the fix too. The three
 verdicts, *stopped failing*, *diagnosis verified* and *regressed*, are explained on [Did the fix
 work?](/features/failure-clusters#did-the-fix-work).
 
@@ -2593,7 +2610,7 @@ your own channel — see the [API docs](https://piwitests.dev/demo/docs).
 
 **Before anyone opens anything.** Subscribe to the `cluster.new` [notification](/features/notifications) event
 instead of `run.failed`: you hear once when a genuinely new root cause appears, not on every red build,
-and the payload carries a sample error excerpt and the affected cases.
+and the payload carries a sample error excerpt and how many tests it affects.
 
 ## Related
 - [Failure clusters & the inbox](/features/failure-clusters): how failures are grouped, and whether the fix worked
@@ -2611,20 +2628,20 @@ test that flakes constantly but finishes in 200 ms costs almost nothing.
 
 Rank by what it *costs* instead, fix three, and leave the rest running.
 
-## 1. Sort by impact, not by score
+## 1. Work by impact, not by score
 
-The **Flaky tests** tab scores each test from three signals — retry passes, status alternation, and
-overall failure rate — then ranks by **impact**: wasted CI minutes (retries × average failed duration)
-and pipeline-block effect.
+The **Flaky** view of the project's **Failures** tab scores each test from two signals — retry passes
+and status alternation, weighted 60/40 — shows its overall failure rate alongside, and lists the tests
+by **impact**: wasted CI minutes (retry passes × average failed duration) plus a per-retry penalty.
 
 <figure>
-  <img src="/screenshots/flaky-detection.png" alt="Flaky tests tab listing tests with impact, composite score, failure rate, retry passes, flip counts and root cause, above root-cause filter chips and a lookback selector">
-  <figcaption>The Flaky tests tab — sortable by impact or score, filterable by root cause, over a lookback window you choose.</figcaption>
+  <img src="/screenshots/flaky-detection.png" alt="The Flaky view listing intermittent tests with wasted CI minutes, score, failure rate, top suspect, root cause, retry passes or flips and last flake, under root-cause filter chips and a runs-window selector">
+  <figcaption>The Flaky view — ranked by impact, filterable by root cause, over the last 20, 50 or 100 runs.</figcaption>
 </figure>
 
-Sort by **Impact** and work down. The column carries a color-coded dot for wasted CI minutes — green
-under 5, amber under 30, red at 30 or more — and in a suite carrying real flake debt a few red rows
-usually account for most of the total.
+Start at the top and work down. Each row carries a color-coded dot for wasted CI minutes — green under
+5, amber under 30, red at 30 or more — and in a suite carrying real flake debt a few red rows usually
+account for most of the total.
 
 ## 2. Filter by root cause and fix a class at once
 
@@ -2640,8 +2657,8 @@ compatibility bug.
 
 Two filters change the answer, and both are worth setting deliberately:
 
-- **Lookback window** — recent behavior or a longer baseline. A test fixed last week still looks awful
-  over 90 days.
+- **Runs window** — the last 20, 50 or 100 runs: recent behavior or a longer baseline. A test fixed last
+  week still looks awful over the last 100.
 - **Environment** — select one environment and the analysis is scoped to its runs, so `staging` noise
   doesn't inflate a test that's stable in `production`. Set it via the reporter's `environment` option
   or `PIWI_ENVIRONMENT`.
@@ -2657,12 +2674,12 @@ is excluded from the [CI gate](/guide/ci#blocking-a-merge)'s verdict and nothing
 
 - Passing runs accumulate as a **streak**; one failure resets it.
 - After five consecutive passes the test is flagged **ready to release** — you're told, not asked.
-- **Candidates** are proposed from the flaky analysis, ranked by wasted CI minutes.
+- **Candidates** (over the API) are flaky tests wasting 2+ CI minutes with a score of 40+, ranked by impact.
 - **Debt** is reported in aggregate: how many are in, how many are ready to leave, how long the oldest
   has been there.
 
-The gate always states how many failures quarantine excluded, and `--max-quarantined` caps the list so
-it can't grow unbounded.
+The gate reports how many failures quarantine excluded, and `--max-quarantined <n>` fails it
+when more than *n* tests are quarantined, so the list can't grow unbounded.
 
 ## 5. Check the fix held
 
@@ -2673,8 +2690,8 @@ across every project, including wasted CI minutes and a global flaky leaderboard
 
 ## Other ways in
 
-**Ask your agent.** `list_flaky_tests` over the [MCP server](/features/mcp) returns the scores, impact ranking,
-and root-cause category; `get_test_stability_trend` answers whether one test is getting worse. Useful
+**Ask your agent.** `list_flaky_tests` over the [MCP server](/features/mcp) returns each test's score, impact,
+wasted CI minutes and root-cause category, highest score first; `get_test_stability_trend` answers whether one test is getting worse. Useful
 for "what should I fix this sprint?" without opening a browser.
 
 **Script it.** Quarantine is a REST resource, so promoting candidates or releasing ready tests can
@@ -2722,7 +2739,7 @@ Piwi classifies wait steps as **wasted time** and totals them per execution and 
 only explicit sleeps count — `waitForTimeout` and friends — because framework-injected waits
 (load-state, wait-for-function) are usually unavoidable and would drown the signal.
 
-- A failing execution's summary shows the wasted time spent in fixed waits, right next to its duration.
+- The run's test list shows each test's fixed-wait time; so does an execution's **Details** popover.
 - A run's **Timeline** tab draws a per-worker timeline: turn on **Show waits** and the sleeps show as bars that
   open the test.
 - Tune what counts in **Settings → Performance** (or lock it with
@@ -2760,7 +2777,7 @@ That is why Piwi ranks flaky tests by **wasted CI minutes** rather than by flaki
 often but finishes in 200ms costs little, and one that flakes weekly on a four-minute timeout hurts.
 
 [Cutting the flakiness that costs the most](./flaky-cleanup) is the whole recipe for this. The short
-version: sort by impact, fix the red dots, and
+version: work down the impact order, fix the red dots, and
 [quarantine](/features/flaky-tests#quarantine-with-a-way-out) the rest so they stop blocking merges while
 still running.
 
@@ -2829,9 +2846,9 @@ explained](/guide/first-failure). Traces stream in while the run is still runnin
   <figcaption>A failing execution: the situation block, then one evidence card whose tabs hold everything captured.</figcaption>
 </figure>
 
-Below the block, one **evidence card** holds tabs, each with a count or a dot when it holds data. It opens on the tab the story's leading clue cites (when it
-is strong or medium), else on **Timeline** when it can place two or more items, else on **Screen** when a screenshot or
-video exists, else on **Source**; never on **State**.
+Below the block, one **evidence card** holds tabs, each with a count or a dot when it holds data. It opens on **Source** or
+**Performance** when a strong or medium leading clue cites it, else on **Timeline** when it can place two or more items,
+else on the cited tab, else on **Screen** when a screenshot or video exists, else on **Source**; never on **State**.
 
 - **Timeline**: one time axis for the steps, console entries, requests, their backend logs and (Playwright 1.63+)
   browser dialogs, with the failure marked, over a steps table giving each step's offset (`t-1.1s`) and duration.
@@ -2846,7 +2863,7 @@ video exists, else on **Source**; never on **State**.
 - **Network**: the requests with inline [backend logs](/guide/backend-logs); one with no response shows the browser's
   error (`net::ERR_CONNECTION_RESET`). **Console**: the console output.
   **State**: the app state at test end and the environment diff against the last green run. **Performance**:
-  performance hints, Web Vitals, the slowest step and wasted time.
+  performance hints and Web Vitals.
 
 Below the evidence sit the folded [**More ways to fix**](./fix-plans#more-ways-to-fix) toolbox and a **history** strip
 of this test's recent executions. A **passing** execution shows the identity and facts lines only, with the evidence
@@ -2857,8 +2874,8 @@ card on **Timeline**. Network, console, Web Vitals, ARIA and alternative-locator
 
 A **clue** is a one-line finding a deterministic rule draws from the evidence already captured, with no model
 involved. Each carries a **strength** (strong, medium or weak) and a **citation** to the evidence section it came from,
-so a click jumps to the proof; the **Most likely** line leads with the strongest one, or with the story several of them
-form, and the AI diagnosis receives them as evidence. Every rule, and when it fires, is listed on
+so a click jumps to the proof; the **Most likely** line leads with the story they form, else a completed diagnosis, else
+the strongest one, and the AI diagnosis receives them as evidence. Every rule, and when it fires, is listed on
 [Clue rules](/reference/clues).
 
 ### Attempts
@@ -2976,8 +2993,9 @@ Failed executions that share the same **error fingerprint** join one cluster, so
   cause reached from several spec files stays one cluster.
 - The fingerprint is always computed from the error the cluster was created from, so an improved normalization
   regroups clusters in place and keeps their triage, notes and diagnoses.
-- The run page marks each cluster with **flaky** and **worker-correlation** heuristics: "the app is broken" versus
-  "worker 3 is misbehaving".
+- A run's **Tests** tab can group its failures by cluster, each group with its triage status; the
+  `get_failure_groups` [MCP tool](/reference/mcp-tools#get_failure_groups) adds a **worker-correlation** flag: "the
+  app is broken" versus "worker 3 is misbehaving".
 
 <figure>
   <img src="/diagrams/failure-clustering-fingerprint.svg" alt="The fingerprint pipeline: a raw error is normalized, hashed and routed to one cluster">
@@ -2988,9 +3006,10 @@ With an embedding model configured, near-duplicate clusters that the fingerprint
 
 ## The failure inbox
 
-The **Failure inbox** on Home lists every open failure cluster across the projects you can see, newest
-first. Each row shows the cluster's **headline**, its **top clue**, the **owner or assignee**, the **age**, the
-**affected-test count**, and only the exceptional **badges**, such as a regression on the default branch.
+The **Failure inbox** on Home lists up to 50 open failure clusters across the projects you can see, most
+recently seen first. Each row shows the cluster's **headline**, its **top clue**, the **owner or assignee**, the
+**affected-test count**, when it was **last seen**, and only the exceptional **badges**, such as a regression on the
+default branch.
 
 ### Queues
 
@@ -3000,7 +3019,7 @@ The inbox is split into queues, each with a live count, shareable in the URL as 
 |---|---|
 | **All open** | Every open, non-snoozed cluster. |
 | **New** | Clusters first seen, or seen again, since you last opened the inbox (kept per browser). |
-| **Mine** | Clusters whose assignee, or derived owner, is you. |
+| **Mine** | Clusters whose assignee, or `piwi:owner` annotation, is you. |
 | **Needs ticket** | Untracked default-branch clusters older than 2 days, by default; see [issue tracking](./issue-tracking). |
 | **Regressions** | Clusters that regressed on the default branch and are still failing there. |
 | **Fix didn't hold** | Clusters whose fix landed then regressed. |
@@ -3011,16 +3030,16 @@ The inbox is split into queues, each with a live count, shareable in the URL as 
 
 Every row can be triaged in place. Select a row with the mouse or `j` / `k`, then: `o` open, `r` resolve, `i` ignore,
 `q` quarantine the cluster's tests, `a` assign, `s` snooze, `l` link a known issue, `c` create a Jira issue (when a
-tracker is connected). `x` selects rows for a **bulk bar** that applies the same actions to all of them. Every action is undoable for a few
-seconds. [Keyboard shortcuts](/reference/keyboard-shortcuts#failure-inbox) lists every key.
+tracker is connected). `x` selects rows for a **bulk bar** that applies the same actions to all of them. Resolve, ignore, snooze and assign on
+one row can be undone for a few seconds. [Keyboard shortcuts](/reference/keyboard-shortcuts#failure-inbox) lists every key.
 
 Linking a known issue (`l`) pins a URL; with an [issue tracker connected](/operate/integrations), Jira links unfurl
 and stay in sync, and you can **[file the issue from the failure](/features/issue-tracking)** (`c`).
 
 ## Owners and assignees
 
-A cluster's **owner** is derived, not stored: it comes from the failing test's `piwi:owner` annotation, or
-falls back to the repository's `CODEOWNERS`. You can override it by **assigning** the cluster to a person:
+A cluster's **owner** is derived, not stored: it comes from the failing test's `piwi:owner` annotation; the
+cluster page (not the inbox) falls back to the repository's `CODEOWNERS`. You can override it by **assigning** the cluster to a person:
 an assignee takes precedence over the derived owner, and the **Mine** queue matches either one against the
 signed-in user (by name or email, best effort).
 
@@ -3045,10 +3064,11 @@ verify and reproduce sit in the folded [**More ways to fix**](./fix-plans#more-w
 ### The state line
 
 The cluster page states where a cluster stands in **one sentence with one verb**, next to a colored dot:
-*still failing*, *fixed and verified, still open*, *stopped failing*, *regressed, the fix did not hold*,
-*resolved*, *ignored*, *snoozed* or *all tests quarantined*. When the verdict the runs showed and the status a person
-set disagree, the line offers the **one action** that reconciles them (*Mark resolved*, *Reopen*, *Unsnooze*,
-*Release*). Beside it, **Triage** sets the status (open / resolved / ignored), a note and the assignee, and snoozes
+*still failing*, *not seen for N runs*, *fixed and verified, still open*, *stopped failing*, *ticket Done*,
+*regressed, the fix did not hold*, *resolved*, *ignored*, *snoozed* or *all tests quarantined*. When the runs or the
+tracker say an open cluster is done, the line offers the **one action** that reconciles them, *Mark resolved*; a
+snoozed cluster offers *Unsnooze*, an all-quarantined one *Release*. A regression reopens a resolved cluster on its
+own. Beside it, **Triage** sets the status (open / resolved / ignored), a note and the assignee, and snoozes
 the cluster for a day, a week or until it recurs.
 
 ### Occurrences over time
@@ -3104,11 +3124,12 @@ For the same signals aggregated across every project, see [Analytics](./analytic
 
 ## Flaky test detection
 
-A test is flaky when its result isn't deterministic. Piwi computes a **composite flakiness score** per test from three signals:
+A test is flaky when its result isn't deterministic. Piwi computes a **flakiness score** (0–100) per test from two signals, weighted 60/40:
 
 - **Retry passes** — failed on the first attempt, passed on retry.
 - **Status alternation** — flips between pass and fail across runs.
-- **Failure rate** — overall proportion of failures.
+
+The **failure rate** is shown but not scored.
 
 The project's **Failures** tab has a **Flaky** view with a **configurable lookback window** so you can focus on recent behavior or a longer baseline. Each flaky test links to its history and carries a **Quarantine** action.
 
@@ -3116,7 +3137,7 @@ The project's **Failures** tab has a **Flaky** view with a **configurable lookba
 
 <figure>
   <img src="/screenshots/flaky-detection.png" alt="Flaky tests tab listing tests with composite score, failure rate, retry passes, and flip counts">
-  <figcaption>The Flaky view of a project's Failures tab — each intermittent test scored by retry passes, status flips, and failure rate, ranked by impact, filterable by root-cause category, each with its top suspect.</figcaption>
+  <figcaption>The Flaky view of a project's Failures tab — each intermittent test scored by retry passes and status flips (failure rate alongside), ranked by impact, filterable by root-cause category, each with its top suspect.</figcaption>
 </figure>
 
 ### Root-cause classification
@@ -3189,15 +3210,16 @@ The usual approach is `--grep-invert @quarantine`: the test stops running, nothi
 list only grows.
 
 **A quarantined test in Piwi keeps running and keeps reporting.** It is excluded from the [CI gate](/guide/ci#blocking-a-merge)'s
-verdict and nothing else. That single difference is what makes the exit possible:
+`--max-failed`, `--require-tag` and `--require-selection` checks and nothing else. That single difference is what makes the exit possible:
 
-- Passing runs after quarantine accumulate as a **streak**, and one failure resets it.
+- Passing executions after quarantine (one per attempt per browser project) accumulate as a **streak**; one failure
+  resets it.
 - After five consecutive passes the test is flagged **ready to release** — the dashboard tells you, rather than waiting
   to be asked.
 - A fix [verified](#verified-fixed) after the quarantine flags it at once, while it holds. Release stays yours to
   click.
-- **Candidates** are proposed from the flaky analysis, ranked by *wasted CI minutes* rather than flakiness score. A test
-  that flakes constantly but finishes in 200 ms costs nothing; one that flakes weekly and burns a four-minute timeout is
+- **Candidates** (API only) are flaky tests wasting 2+ CI minutes with a score of 40+, ranked by impact. A test that
+  flakes constantly but finishes in 200 ms costs nothing; one that flakes weekly and burns a four-minute timeout is
   what actually hurts.
 - **Debt** is reported in aggregate: how many are quarantined, how many are ready to release, how long the oldest has
   been in, and how many still have no passing streak at all.
@@ -3211,7 +3233,7 @@ Manage it from the **Quarantine** view of the project's **Failures** tab, or ove
 
 Individual test cases in a run carry at-a-glance badges:
 
-- **New regression** (red) — the first run in which the test failed
+- **New regression** (red) — failing here but passing in the baseline (the last passing run)
 - **Newly flaky** (purple) — the first run in which the test was flaky
 - **Passed on retry** (purple) — failed at least once in this run, then passed
 
@@ -3221,7 +3243,7 @@ A failing execution shows the same badges in its header (see [Test case detail](
 
 ## Spec health by file
 
-The project's **Tests** tab has a **Group by File** view that groups the tests under each spec file and carries that file's pass rate, flaky rate, failure count, test count and average time in the group header, so an unhealthy area of the suite jumps out.
+The project's **Tests** tab has a **Group by File** view that groups tests by their first two path segments (`tests/admin` for `tests/admin/users.spec.ts`) and carries that group's pass rate, flaky rate, failure count, execution count and average time over the last 90 days in its header, so an unhealthy area of the suite jumps out.
 
 ## Across every project
 
@@ -3449,7 +3471,7 @@ This reads the per-test timeout the [reporter captures](/reference/test-metadata
 ## Network and Web Vitals
 
 - **Network analysis** — slow API calls grouped by method and normalized route (e.g. `/users/:id`), for a run picked from the tab.
-- **Browser Web Vitals** — TTFB, DOMContentLoaded, FCP and more, with color-coded thresholds.
+- **Browser Web Vitals** — TTFB, DOMContentLoaded, FCP and more, with color-coded thresholds, shown per execution in the **Performance** tab of the execution page's evidence rather than on the project.
 
 Both require the [capture fixtures](/guide/capture-fixtures) in your test setup — without them the reporter has no network timings or Web Vitals to aggregate.
 
@@ -3481,8 +3503,9 @@ runs that follow.
 
 Pairs in the **ambiguous band**, between `PIWI_CLUSTER_SUGGEST_THRESHOLD` (default `0.80`) and the merge threshold, are
 not merged automatically. When AI is configured, a model judges the pair from its error text, locators, most-affected
-tests and overlap, and merges only on a confident yes; otherwise the pair becomes a **merge suggestion** on the
-project's Failure clusters tab, for a reporter or admin to approve or dismiss. This runs after every finished run
+tests and overlap: it merges on a confident yes, turns a less confident yes into a **merge suggestion** on the
+project's Failure clusters tab, for a reporter or admin to approve or dismiss, and leaves a no apart. Without AI, or
+past five model calls in a run, the pair becomes a suggestion directly. This runs after every finished run
 whenever an embedding role is configured, independently of auto-diagnose.
 
 <figure>
@@ -3519,8 +3542,9 @@ A diagnosis is grounded in your actual run, not a generic "ask AI" button. Each 
 ## Diagnosing one execution
 
 A cluster page diagnoses every failure that shares a fingerprint. On a single failing
-[execution](./evidence#one-execution-diagnosis-first), the **Diagnosis** section of **More ways to fix** diagnoses just
-that execution, with the same panel and model: handy when a failure has not clustered yet. Execution and cluster
+[execution](./evidence#one-execution-diagnosis-first), the **Diagnosis** section of **More ways to fix** shows the
+cluster's completed diagnosis with an **Open** link to it; without one, it diagnoses just that execution, with the same
+panel and model: handy when a failure has not clustered yet. Execution and cluster
 diagnoses are stored separately, and running one never overwrites the other.
 
 A stored diagnosis stays on screen even with no provider configured. With no result and no provider, **Copy prompt**
@@ -3536,7 +3560,7 @@ The diagnosis is fed the code that changed. On a cluster page you can:
 - **Preview the exact context** before running it, so nothing leaves your server by surprise.
 
 Without a pinned baseline, the diff starts at the last green run before the cluster first appeared, else at the last
-run where this test passed; the response names which one it used. With the repository reachable, Piwi also sends the
+run where this test passed; the context preview names which one it used. With the repository reachable, Piwi also sends the
 **full current content** of the most suspect changed files and of the failing test's local imports (page objects,
 helpers, fixtures), capped by `PIWI_AI_MAX_SOURCE_FILES` (default 4) and `PIWI_AI_MAX_SOURCE_FILE_CHARS`. The
 repository connection is set up on [Source control](/guide/source-control).
@@ -3562,7 +3586,8 @@ The diagnosis, its patch, the locator fix and the verify command come together i
 
 ## Diagnosis history
 
-Every re-diagnose keeps the previous result, up to 50 versions per cluster. **History** in the panel header lists them
+Every re-diagnose keeps the previous result; a nightly sweep keeps the newest 20 per cluster
+(`PIWI_RETENTION_DIAGNOSIS_VERSIONS`, `0` keeps all). **History** in the panel header lists them
 newest first, with the model, category, confidence and token cost, and shows what changed since each one.
 
 A diagnosis is flagged **may be stale** only when the evidence changed since it ran **and** the cluster is still
@@ -3608,11 +3633,11 @@ replacement is proposed from a page that worked rather than from the broken one 
 
 ## 1. Open the failing execution's alternative locators
 
-On a failing test case, the **Alternative locators** panel lists candidate replacements ranked by
-stability, with one marked as the recommended fix.
+On a failing execution, the **Locator fix** panel (under *More ways to fix*) lists candidate replacements
+ranked by stability, with one marked as the recommended fix.
 
 <figure>
-  <img src="/screenshots/locator-healing.png" alt="Alternative locators panel with ranked replacement locators and a recommended fix">
+  <img src="/screenshots/locator-healing.png" alt="Locator fix panel with ranked replacement locators and a recommended fix">
   <figcaption>Ranked replacements captured from the last passing run — the recommendation favours locators that match the conventions already in your suite.</figcaption>
 </figure>
 
@@ -3714,8 +3739,9 @@ element resolved just as a click does): the target element's attributes, plus al
 stability score (`data-testid` = 100, role + accessible name ≈ 90, semantic CSS ≈ 35–40, hash-suffixed ≈ 10). Capture
 also generates **rename-proof** alternatives: locators scoped to a stable ancestor
 (`getByTestId('signup-form').getByRole('textbox')` ≈ 72, a unique landmark ≈ 55) and a name-free `getByRole` when the
-element is the only one of its role. Each candidate is checked against the live page, and one that would match several
-elements is dropped. Input values are never captured.
+element is the only one of its role. Each candidate is checked against the live page: an ambiguous test id, id, `name`
+or class is dropped, and an ambiguous role, text, placeholder, alt or title candidate ranks below every unique one.
+Input values are never captured.
 
 <figure>
   <img src="/diagrams/locator-healing-capture.svg" alt="Diagram of the capture flow: a successful action or passing assertion goes through the capture proxy to an in-page element probe, which produces ranked alternative locators stored as one row per call site">
@@ -3729,13 +3755,16 @@ When a locator later fails, the server looks for replacements, most trustworthy 
    panel says where: "“Pay now” became “Pay” in CheckoutButton.vue:14". It needs a run with a diff (a pull request,
    or a commit after a passing run) and a source-control token. Its edit replaces the string inside your quotes, and
    an [auto-heal PR](./auto-heal) can use it.
-2. **Prior run**: the same call site (`file:line:col`) had a passing snapshot.
-3. **Element match**: the element is gone from the failing page's ARIA snapshot under its old name, so fresh locators
-   are generated for the element it most likely became, matched by role, heading level and, on a total rename, its
-   position among elements of the same role.
-4. **Fingerprint**: the call site moved lines, but the locator matches a prior snapshot.
-5. **Cross-test**: another test in the project captured the same locator.
-6. **ARIA fallback**: no snapshot exists, so limited suggestions come from the failure-time ARIA snapshot.
+2. **Prior run**: the same call site (`file:line:col`, or `file:line` when only the column moved) had a passing
+   snapshot.
+3. **Fingerprint**: the call site moved lines, but the locator matches a prior snapshot.
+4. **Cross-test**: another test in the project captured the same locator.
+5. **ARIA fallback**: no snapshot exists, so limited suggestions come from the failure-time ARIA snapshot.
+
+A snapshot found by rungs 2 to 4 is then checked against the failing page's ARIA snapshot. When the element is gone
+under its old name and a confident match exists, fresh locators for the element it most likely became replace the
+stored ones (an **element match**), matched by role, heading level and, on a total rename, its position among
+elements of the same role.
 
 <figure>
   <img src="/diagrams/locator-healing-resolution.svg" alt="Diagram of the healing resolution flow: the failing error is parsed into a locator signature and call site, matched through the stored history, checked against the failing page's ARIA snapshot, and shown in the Locator fix panel">
@@ -3774,7 +3803,7 @@ you confirmed with a picker shows a **Your pick** badge and becomes the recommen
 With `inspectOnFailure: true` (or `PIWI_INSPECT_ON_FAIL=true`), a failing test opens **Piwi's own inspector overlay**
 on its still-open page right before the browser closes. Click any element to get ranked, uniqueness-checked locators
 for it; one you confirm is recorded like a pick. It is not Playwright's inspector, so what you confirm flows back into
-the healing data.
+the healing data when the failure names a locator to replace.
 
 ```bash
 # Linux / macOS
@@ -3784,9 +3813,9 @@ PIWI_INSPECT_ON_FAIL=true npx playwright test --headed
 $env:PIWI_INSPECT_ON_FAIL='true'; npx playwright test --headed
 ```
 
-Both local options need a **headed** browser (`--headed` or `headless: false`), never activate under CI (any `CI`
-variable), skip expected failures (`test.fail()`), and with retries configured open only on the final attempt. The run
-waits while the overlay is open (the test timeout is lifted), so prefer `--workers=1`.
+Both local options need a **headed** browser (`--headed` or `headless: false`), never activate under CI (`CI` set to
+anything but empty or `false`), skip expected failures (`test.fail()`), and with retries configured open only on the
+final attempt. The run waits while the overlay is open (the test timeout is lifted), so prefer `--workers=1`.
 
 ## Pick a replacement locator on the failing page (local runs)
 
@@ -3817,8 +3846,9 @@ same picker ships as the [Piwi Picker browser extension](/features/extension), f
 
 - Healing runs only when the locator **never resolved**, matched nothing, or matched several elements. When it resolved
   and the step failed afterwards (`element is not enabled`, a wrong count, a hidden element) or the page failed to
-  load, the panel says *The locator resolved; this is not a locator problem*, because rewriting a locator that found
-  its element would be a harmful edit.
+  load, the panel says *The locator resolved; this is not a locator problem* (for a page that failed to load, *The page
+  failed to navigate before any locator ran*), because rewriting a locator that found its element would be a harmful
+  edit.
 - Suggestions need a passing run captured with the fixtures in place; until then only the ARIA fallback applies.
 - Capture costs one DOM read per call site, at most once per call site per test. Negated assertions, absence checks
   (`toBeHidden`, `toBeDetached`) and multi-element checks (`toHaveCount`) are never probed. Turn it off with
@@ -4063,19 +4093,19 @@ The same plan is reachable three ways:
 - **As Markdown**: the REST API returns the same rendering as plain text, so an export or a script can drop it straight into an issue (see the [API docs](https://piwitests.dev/demo/docs)).
 - **For agents** — the `get_fix_plan` [MCP tool](/reference/mcp-tools#get_fix_plan) returns the structured plan, so a coding agent gets in one call what a person reads on the card.
 
-The last part makes it a loop, not a lookup: the plan names the Playwright command that runs exactly the affected tests, and Piwi records the fix once they pass — so the work is confirmed, not guessed at. Nothing leaves your machine: your dashboard, your model, and a patch validated against your own source.
+The last part makes it a loop, not a lookup: the plan names a Playwright command scoped to the affected spec files and (up to five) test titles, and Piwi records the fix once they pass — so the work is confirmed, not guessed at.
 
 ## The next step
 
-Both the cluster and the [execution](./evidence#one-execution-diagnosis-first) page lead with a single **Next** line — one action chosen for you, with a word on why, not a row of equal buttons. A policy picks it from what the page knows, first match wins: open a **blocking** failure, **mark resolved** a verified-but-open cluster, **replace the locator** when [healing](./locator-healing) has one, **apply the diagnosed patch** (or follow the diagnosis when it is stale), **see what changed** when a fix regressed, **compare attempts** on a retry pass, **re-run in CI** for a crash, **diagnose with AI**, else **reproduce locally**. Where the fix is a code change, the step's **···** menu also holds **Copy retry command**; every other action lives in the toolbox below.
+Both the cluster and the [execution](./evidence#one-execution-diagnosis-first) page lead with a single **Next** line — one action chosen for you, with a word on why, not a row of equal buttons. A policy picks it from what the page knows, first match wins: open a **blocking** failure, **mark resolved** a verified-but-open cluster, **replace the locator** when [healing](./locator-healing) has one, **apply the diagnosed patch** (or follow the diagnosis when it is stale), **see what changed** when a fix regressed, **compare attempts** on a retry pass, **re-run in CI** for a crash or failed navigation, **diagnose with AI**, else **reproduce locally**. Where the fix is a code change, the step's **···** menu also holds **Copy retry command**; every other action lives in the toolbox below.
 
 ## More ways to fix
 
-Both pages end in one **More ways to fix** toolbox — the block that replaced the old Fix card. Each way to fix, verify or reproduce is a section folded to one line (a label and a one-line summary), so no code block opens by default; the section the next step points at opens with the page, and you unfold the rest as needed.
+Both pages end in one **More ways to fix** toolbox. Each way to fix, verify or reproduce is a section folded to one line (a label and a one-line summary), so no code block opens by default; the section the next step points at opens with the page, and you unfold the rest as needed.
 
 ## Reproduce and bisect
 
-The fix plan also hands back the two things you do next: a copy-paste recipe that reproduces the failure locally, and a generated `git bisect` that finds the commit that broke it. Both sit in the toolbox's **Reproduce and bisect** section, and travel with the plan through `?format=markdown` and the `get_fix_plan` MCP tool. The exact test command leads; **Show the full recipe ▸** unfolds the checkout, install and bisect.
+The fix plan also hands back the two things you do next: a copy-paste recipe that reproduces the failure locally, and a generated `git bisect` that finds the commit that broke it. Both sit in the toolbox's **Reproduce and bisect** section, and travel with the plan through `?format=markdown` and the `get_fix_plan` MCP tool. The exact test command leads; **Show the full recipe ▸** unfolds the checkout and installs, and the bisect follows under **Find the breaking commit**.
 
 The **recipe** is the local reproduction, in order: check out the commit the run failed on (`git switch --detach <sha>`), install dependencies, pin Playwright to the run's version, install the browser it ran on, and run exactly the failing test. Each part degrades on its own — no recorded commit skips the checkout and says so, an unknown version drops the pin — and the run's environment is listed beside it. Every command is `git`, `npm` or `npx`, identical on Linux, macOS and Windows; the dashboard still offers **Linux / macOS** and **Windows (PowerShell)** tabs.
 
@@ -4100,7 +4130,7 @@ git bisect run npx playwright test "tests/admin/users.spec.ts" -g "Users table p
 git bisect reset
 ```
 
-The bisect needs a **last-green commit** and an **SCM connection**: when Piwi has no commit for the failing run or for the last green run before it, or the two are the same commit, the section says so in one line instead of showing a script. The recipe is always there.
+The bisect needs two commits, the failing run's and the **last green** run's, which the reporter records from git (`collectScmInfo`, on by default): when either is missing, or the two are the same commit, the section says so in one line instead of showing a script. The recipe is always there.
 
 In the [desktop app](/features/desktop#reproducing-a-failure-and-finding-the-breaking-commit) the same section can do the work for you: **Reproduce here** runs the recipe against the linked folder in a throwaway `git worktree` (your checkout is never touched), and **Find the breaking commit here** drives the whole bisect with live progress, then records the first bad commit on the cluster.
 
@@ -4108,7 +4138,7 @@ In the [desktop app](/features/desktop#reproducing-a-failure-and-finding-the-bre
 
 An open cluster often isn't new — the same failure, or one close to it, was fixed weeks ago. The fix plan looks back over the project's **resolved** clusters (resolved, or with a verified fix that held) and, when one resembles the open cluster closely enough, shows it in the **Fixed before** section of the toolbox — on both pages, and in the `?format=markdown` export and the `get_fix_plan` MCP tool.
 
-A match is scored deterministically first — the same fingerprint family (error kind, masked message, masked locator), the same failing locator, the same spec file or test — and then, when an [embedding model](/guide/ai-provider#model-roles) is configured, by semantic similarity of the stored cluster vectors. The top three matches are shown, each with **when** it was resolved, the **commit** that fixed it (linked when the repository host is known), **how long** it stayed open, the triage note, the owner, the earlier diagnosis and its thumbs feedback, and one short reason it matched ("same error and locator", "same spec, similar message (0.91)"). Nothing matches → the section renders nothing, no empty-state noise.
+A match is scored deterministically first — the same fingerprint family (error kind, masked message, masked locator), the same failing locator, the same spec file or test — and then, when an [embedding model](/guide/ai-provider#model-roles) is configured, by semantic similarity of the stored cluster vectors. The top three matches are shown, each with **when** it was resolved, the **commit** that fixed it (linked when the repository host is known), **how long** it stayed open, the triage note, the earlier diagnosis and its thumbs feedback, and one short reason it matched ("same error and locator", "same spec, similar message (0.91)"); the Markdown export and the MCP tool also name its owner. Nothing matches → the section renders nothing, no empty-state noise.
 
 **Apply the same triage** copies the earlier cluster's triage note onto the open one, prefixed `Same as cluster #N:` so the history reads as an intentional reuse. It never changes the open cluster's status — a new cluster is never marked resolved just because an old one was. The same top match is fed to the AI diagnosis as a *Previously fixed similar failure* clue, so the model can reuse a known fix rather than re-derive it.
 
@@ -4135,12 +4165,13 @@ strongest thing the dashboard does, so the posture is conservative by design.
 ## What it does, exactly
 
 - Triggers only on a **full run on the default branch** — never a feature branch, and never a run reported from a
-  heal branch (that would feed on itself).
+  heal branch (that would feed on itself). A run that recorded no branch at all is treated as the default branch.
 - Edits are **deterministic one-line locator rewrites** taken from a passing run's captured snapshot, or from the
   run's own diff renaming the string the locator finds its element by. No AI-generated code is ever in the write path.
 - Each edit must come from a stored snapshot (`prior-run`, `fingerprint`, or `cross-test`) or a
   [diff rename](./locator-healing#what-it-does) (`diff-rename`, scored 95) and score at or above the configured
-  minimum — or be a locator **you confirmed** in the picker.
+  minimum — or be a locator **you confirmed** in the picker. A snapshot whose element name is gone from the failing
+  page is skipped unless you confirmed the pick.
 - Before committing, Piwi re-reads each file at the branch head and only writes lines it can still match exactly. A
   line that has drifted is dropped, not guessed.
 - One PR per run, batching every qualifying edit. A duplicate run never opens a second PR.
@@ -4148,6 +4179,8 @@ strongest thing the dashboard does, so the posture is conservative by design.
 ## Requirements
 
 - **`PIWI_SITE_URL`** must be set, so the links in the PR body resolve.
+- A run that recorded its git remote URL (the reporter's `collectScmInfo`, on by default), and the **capture
+  fixtures**, which record the snapshots every edit but a diff rename comes from.
 - An **SCM token with write scope**, resolved as [Source control](/guide/source-control#set-the-token) describes: a per-project token, falling back
   to the global one. It needs:
   - **GitHub** — `repo` (classic), or a fine-grained token with `contents: write` + `pull_requests: write`.
@@ -4161,10 +4194,10 @@ Prefer a **per-project token** for auto-heal: the global token grants write ever
 
 Settings → Auto-heal (administrator only):
 
-- **Enabled** — the master switch.
+- **Open pull requests to heal broken locators** — the master switch.
 - **Projects** — the explicit allowlist. Auto-heal ignores any project not listed.
 - **Minimum score** — the stability score an edit needs (default 80). A confirmed pick is always eligible.
-- **Draft** — open PRs as drafts (default on; ignored on Bitbucket).
+- **Open as draft** — open PRs as drafts (default on; ignored on Bitbucket).
 - **Max open PRs** — a per-project ceiling on simultaneously-open auto-heal PRs (default 3).
 - **Branch prefix** / **commit message** — the branch namespace (default `piwi/heal/`) and the commit subject
   (default `test: heal broken locators`, a conventional-commit subject so your commit lint accepts it).
@@ -4173,9 +4206,10 @@ The heal actions Piwi opened for a project are listed on the REST API; see the [
 
 ## Limits
 
-- **GitHub and GitLab and Bitbucket** are supported; GitHub Enterprise is not.
+- **GitHub** (github.com), **GitLab** (gitlab.com, or a self-hosted host whose name contains `gitlab`) and
+  **Bitbucket Cloud** (bitbucket.org) are supported; GitHub Enterprise and Bitbucket Server / Data Center are not.
 - The default branch is resolved per project — an explicit setting in project settings, else the repository's default
-  branch from the SCM provider, else `main` — so the "default branch only" guard applies even when the reporter
+  branch from the SCM provider, else the reporter's `defaultBranch` hint, else the branch most of the project's runs are on, else `main` — so the "default branch only" guard applies even when the reporter
   recorded no `defaultBranch` in its metadata.
 - Retries use progressive backoff and record the provider's own error on the action, so a failure is visible rather
   than silent.
@@ -4220,7 +4254,7 @@ Once a cluster has a known issue, its key follows the failure everywhere:
 
 - the **cluster state line**, the **inbox row**, a failing **execution's page** and its row in the **run's test list**
   show the key with its status color;
-- `cluster.new`, `cluster.fixed` and `cluster.regressed` **Slack and email** messages name it;
+- `cluster.new`, `cluster.fixed` and `cluster.regressed` **Slack** messages name it, as does the `cluster.new` email;
 - the **pull-request feedback** comment says *tracked in PROJ-123* on each failure whose cluster has one;
 - the **fix plan** lists it under *Links*, and the `get_cluster` / `get_fix_plan` MCP tools return it.
 
@@ -4238,7 +4272,7 @@ write back as the cluster evolves:
 
 | When Piwi observes | What Piwi does |
 |---|---|
-| A cluster's **fix is verified** | Comments *Fix landed in run #N …*, and — with *transition on fix* — moves the issue. |
+| A cluster's **fix lands** (stopped failing or diagnosis verified) | Comments *Fix landed in run #N …*, and — with *transition on fix* — moves the issue. |
 | A cluster **regresses** | Comments *Regressed in run #N …*, and optionally reopens the issue. |
 | **New occurrences** on an open ticket | At most one comment a day: *Still failing — +N occurrences in M runs …*. |
 | A cluster is **merged** | With *comment on merge*, notes it on both issues; the survivor inherits the links. |
@@ -4256,8 +4290,8 @@ An administrator binds a project under **Project → Settings → Issue tracker*
 type, default labels and assignee, the [ticket language](#language), what a ticket carries, the policies above, and
 **owner routes** — mapping a cluster's owner (`@acme/checkout`, an email) to a Jira project, component, assignee and
 labels. The create-issue draft picks the first matching route and fills the rest from the defaults, so a team's failures
-reach that team's destination. The **automatic-creation** fields are shown greyed out: stored, but inert — Piwi does not
-file tickets on its own in this release.
+reach that team's destination. The **automatic-creation** fields are greyed out: stored, but inert (see
+[Limits](#limits)).
 
 <div class="doc-screenshot">
   <img src="/screenshots/project-integration-binding.png" alt="The project's Issue tracker settings: connection, Jira project and issue type, labels, sync-policy switches, an owner-routes table, and the greyed-out automatic-creation fields">
@@ -4296,15 +4330,16 @@ modal asks for it.
 
 There is nothing to switch on beyond the connection. The modal prefills the Jira project, issue type, labels and
 assignee from the [project binding](#the-project-binding) when one exists, else offers pickers over the connected site;
-toggles choose what the body carries (diagnosis and patch on, screenshot and [share link](/features/share-links) off).
-From an AI agent, the [`create_issue` MCP tool](/reference/mcp-tools#create_issue) files the same ticket.
+toggles choose what the body carries (diagnosis and patch on, [share link](/features/share-links) off); the *Screenshot*
+toggle is stored but attaches nothing. From an AI agent, the [`create_issue` MCP tool](/reference/mcp-tools#create_issue)
+files the same ticket once the binding names a Jira project and issue type.
 
 ## Language
 
 A ticket is written for a team, so its language is a property of its **destination**. It resolves from the **project
 binding**'s language, else the **connection**'s default (a French Atlassian site can default every ticket to French),
 else **English**. The create modal offers a per-issue *Language* select and the `create_issue` MCP tool takes a
-`locale`. **English and French ship today**; another language is one catalog file in `shared/integrations/messages/`.
+`locale`. **English and French ship today**; another language is a catalog file in `shared/integrations/messages/` plus its entry in the locale lists.
 
 Only the copy **Piwi authors** is translated — headings, fact labels, policy comments, dates and counts (via `Intl`).
 Your data (test titles, error text, locators, paths, the verify command, the patch) is **never** translated. The model's
@@ -4316,7 +4351,7 @@ French-configured site works unchanged.
 
 - **Jira Cloud only** in this release (REST v3, email + API token); Server / Data Center, GitHub and GitLab Issues
   follow as provider files.
-- **Creation stays manual** — Piwi syncs a ticket and files it on a click, but never files one on its own yet.
+- **Creation stays manual** — Piwi files a ticket on a click, never on its own yet.
 - A ticket's body is a **snapshot** at creation; the policies add comments and status changes rather than editing it.
 - The dashboard's deterministic sentences (headline, story, clue, state line) are **English templates** that quote
   locators and Playwright terms, so they stay English even in a French ticket.
@@ -4332,11 +4367,11 @@ start the CI run that proves it.
 
 ## What gets posted
 
-Two things get posted when a run finishes on a branch with an open pull request:
+Two things get posted when a run finishes:
 
-- **A summary comment**: one comment per pull request, edited on each later run rather than appended, so a busy
+- **A summary comment** on the branch's open pull request: one comment per pull request, edited on each later run rather than appended, so a busy
   branch doesn't collect a comment per push.
-- **A commit status**: passed or failed against the run's commit, so the pull request shows the result in its checks
+- **A commit status**: passed or failed against the run's commit, pull request or not, so a pull request shows the result in its checks
   list. Required for a branch-protection rule.
 
 What the comment says, in this order:
@@ -4450,13 +4485,13 @@ npx @piwitests/reporter run smoke
 `piwi run <key>` resolves the selection and runs `playwright test` with exactly those tests. It finds your dashboard
 the way the reporter does, through `PIWI_DASHBOARD_URL`, `PIWI_API_KEY` (if auth is on) and `PIWI_PROJECT_NAME`, and
 passes anything after `--` straight to Playwright. The run is **stamped** with the selection it came from, so the
-dashboard shows `smoke · 42 tests` instead of an anonymous filter, and a [gate](/guide/ci) can re-resolve the same definition
-to check nothing was silently dropped.
+[pull-request comment](/features/pr-feedback) names the subset, and a [gate](/guide/ci) can re-resolve the same
+definition to check nothing was silently dropped.
 
 If the dashboard is unreachable, `piwi run` falls back to the full suite with a warning (and reuses the last good
 resolution from `.piwi/selection-cache.json` when it has one): a reporting problem never breaks the test run. Pass
-`--strict` to invert that for CI, where an unresolvable selection should stop the pipeline. Resolving to **zero** tests
-is always an error: a smoke job that silently runs nothing is worse than one that fails loudly.
+`--strict` to invert that for CI, where an unresolvable selection should stop the pipeline. Resolving a named selection to
+**zero** tests is always an error: a smoke job that silently runs nothing is worse than one that fails loudly.
 
 ### Print, shard and reorder
 
@@ -4471,8 +4506,8 @@ flags shape a resolution:
   so a `--require-selection` gate still sees the whole set.
 - `--budget 5m` caps the total time for this resolution.
 
-Because Piwi merges a run's shards into one, the merged run still covers the whole selection. Every flag and the
-output formats are in the [CLI reference](/reference/cli#select-run).
+Jobs split with `piwi run --shard` are not merged into one run, so `--require-selection` sees one job's share. Every
+flag and the output formats are in the [CLI reference](/reference/cli#select-run).
 
 ## Built-in selections
 
@@ -4505,6 +4540,7 @@ absent `include` starts from the whole suite. The predicates, all optional:
 
 | Predicate | Matches when |
 |---|---|
+| `ids` | the test-case id is one of these |
 | `tags` / `anyTags` | the test carries all / any of these tags |
 | `owner`, `priority`, `feature` | the `piwi:` annotation is one of these |
 | `files` | the file path matches one of these globs (`**`, `*`, `?`) |
@@ -4535,7 +4571,7 @@ import { defineConfig } from '@playwright/test';
 import { wrapConfig, resolveSelection } from '@piwitests/reporter';
 
 const selection = await resolveSelection(); // reads PIWI_SELECTION; undefined when unset
-export default wrapConfig(defineConfig({ grep: selection?.grep }));
+export default wrapConfig(defineConfig({ grep: selection?.grep ? new RegExp(selection.grep) : undefined }));
 ```
 
 It stamps the run like `piwi run`, and returns `undefined` (so everything runs) when no selection is named or the
@@ -4591,10 +4627,10 @@ nothing.
 Piwi can _propose_ selections and tags from the history it keeps, with the evidence attached, never applied. The
 **Suggestions** panel on the Selections tab (and the `suggest_selections` MCP tool) surface three kinds:
 
-- **`@slow` tags**: tests whose average duration sits well past the suite's 95th percentile.
+- **`@slow` tags**: tests whose average duration is above the suite's 95th percentile.
 - **`@feature` tags**: the dominant route family a test hits (say `checkout`) when it carries no `feature` annotation.
 - **A mined smoke suite**: a greedy set cover over _observed_ route coverage under a time budget, keeping the test
-  that buys the most new routes per second until the budget is spent. Only stable tests qualify. "Save as selection"
+  that adds the most new routes until the budget is spent. Only stable tests qualify. "Save as selection"
   turns the picks into a selection pinned to exactly those tests.
 
 Coverage here means the routes a test was _seen_ to hit on recent runs, not instrumented code coverage.
@@ -4654,6 +4690,8 @@ export { expect } from '@playwright/test'
 | `page.piwiLocator(template)` | a real, synchronous `Locator` | locating one element by description |
 | `page.piwiRun(template)` | `Promise<void>` | replaying a compiled multi-step flow |
 
+While a missing entry is being authored (`resolve` mode), `piwiLocator` returns a stand-in that supports direct actions such as `.fill()` and `.click()`, but not chaining (`.first()`) or `expect(...)`; those work once the entry is committed.
+
 Placeholders are type-checked at compile time: a template with `{param}` **requires** a matching params object, and a misspelled or missing name is a TypeScript error.
 
 ```typescript
@@ -4662,13 +4700,13 @@ await page.piwiRun('add {qty} of {sku} to the cart', { qty: '2', sku: 'PIWI-1' }
 
 ## The lifecycle: author once, replay forever
 
-An AI step moves through three modes, set with the `ai.mode` option or `PIWI_AI`:
+An AI step moves through three modes, set with the `ai.mode` option or `PIWI_AI`. An `ai.mode` set in `wrapConfig` overrides `PIWI_AI`, including the one `piwi ai resolve` sets:
 
 | Mode | What it does |
 |------|--------------|
 | `replay` *(default)* | Executes the committed artifact read-only. **Never** calls the model. Fails closed on a missing entry. |
 | `resolve` | Authors any missing entry by driving the model, verifies it against the live page, and writes it to disk. |
-| `heal` | Repairs a committed entry that no longer replays (e.g. a renamed element), without re-authoring from scratch. |
+| `heal` | Not available yet: currently behaves exactly like `resolve` — committed entries are replayed as they are, and missing ones are authored. |
 
 The intended workflow:
 
@@ -4732,17 +4770,19 @@ Intent mappings are as private as everything else here: templates keep their `{p
 
 ## Privacy
 
-Parameter values are **masked out of everything sent to the model**. The page snapshot the agent sees has your `{param}` values replaced with markers, and placeholders survive compilation as markers that are substituted locally at replay. Secrets in parameters never leave your machine. See [Privacy & data flow](/guide/privacy) for the full picture.
+Parameter values are **masked out of everything sent to the model**, with one exception: the opt-in `screenshotFallback` image is sent as-is. The page snapshot the agent sees has your `{param}` values replaced with markers, and placeholders survive compilation as markers that are substituted locally at replay. With `screenshotFallback` off (the default), secrets in parameters never leave your machine. See [Privacy & data flow](/guide/privacy) for the full picture.
 
 ## Keep the artifacts healthy
 
-`piwi ai check` is offline and fits a CI lint step: it catches an entry whose prompt was deleted or renamed, a file
-that isn't in canonical form, and two prompts that collide, and exits `1` on any of them. `piwi ai prune` deletes
-orphaned entries. Every subcommand and flag is in the [CLI reference](/reference/cli#ai).
+`piwi ai check` is offline and fits a CI lint step: it exits `1` on an entry whose prompt was deleted or renamed, or a
+file that isn't in canonical form, and reports two prompts that collide as a warning that does not fail it.
+`piwi ai prune` is not available yet (it exits `2`). Every subcommand and flag is in the [CLI reference](/reference/cli#ai).
 
 ## Configuration
 
-Set these under the `ai` key of your reporter options; every option has an environment-variable equivalent, and all
+Set these under the `ai` key of `wrapConfig`'s second argument, which copies them into the `PIWI_AI*` variables the
+test workers read; an `ai` key on a plain `['@piwitests/reporter', { … }]` entry is ignored, so without `wrapConfig`
+use the environment variables. Every option has an environment-variable equivalent, and all
 of them are in the [AI steps section of Reporter options](/reference/reporter-options#ai-steps). Authoring also reads
 `PIWI_DASHBOARD_URL` and `PIWI_API_KEY` (the server that runs the model), and `PIWI_AI_UPDATE=true` (or
 `--update-ai`) forces re-authoring of entries that already exist.
@@ -5176,6 +5216,9 @@ it folds to a one-line summary.
 - **Tests**: optional; a selection, test tags or browsers (below).
 
 Probe runs (the fault-injected replays `piwi probe` produces) are never counted, whatever the filters.
+Two widgets read past the period: **Flakiest tests** ranks each project's last 50 runs whatever the
+period or *Full runs only*, and applies an environment or branch only when exactly one is picked; **Failure
+clusters** lists every open cluster, using the period only for its resolved count.
 
 ### Periods
 
@@ -5572,7 +5615,6 @@ Each marker belongs to one project and carries:
 - **Markers panel** — a **Markers** button beside the **Run trend** chart (on the project's Runs tab) opens a panel listing the project's markers, with add / edit / delete controls.
 - **Test-case history** — a single test's duration history chart shows the same markers, so you can tell whether an event affected that specific test.
 - **Run detail** — a run shows an **"After: …"** chip for the nearest preceding marker, so a single run tells you which event it followed.
-- **Run compare** — comparing two runs surfaces any markers that fall between them ("something changed between these runs").
 
 ## Environment scoping
 
@@ -5651,11 +5693,12 @@ Sends native OS notifications to any open Piwi tab, even in the background, thro
 - **With authentication**: create a channel of type `browser` in **Settings → Notifications** and subscribe it to events; the stream then delivers exactly the events and projects your subscriptions cover.
 - **Without authentication**: no channel is needed; the **bell** on each project page stores per-browser preferences (a cookie) for which events raise notifications.
 
-The diagnosis panel toggles diagnosis completion notifications without deleting the subscription.
+Diagnosis-completion notifications can be switched off per browser in **Settings → AI diagnosis → Diagnosis
+notifications** without deleting the subscription.
 
 ### Email
 
-Requires SMTP to be configured (see below). Sends to a destination address.
+Requires SMTP to be configured (see below). Sends to a destination address. With authentication on, each user with an account email also gets an automatic **Account email** channel.
 
 ### Slack
 
@@ -5674,19 +5717,20 @@ Microsoft keeps it, and the form flags it. Each event, digest and
 
 ### Webhook
 
-Piwi `POST`s a JSON body to your URL, signed with an HMAC-SHA256 `X-Piwi-Signature` header derived from the channel's
-secret, which the form can generate (storing it needs `PIWI_SECRET_KEY`). Private and loopback addresses are refused.
+Piwi `POST`s a JSON body to your URL. When the channel has a secret, which the form can generate (storing it needs
+`PIWI_SECRET_KEY`), each request is signed with an HMAC-SHA256 `X-Piwi-Signature` header. Private and loopback
+addresses are refused.
 The body, its fields and how to verify the signature are in
 [Notification events & webhooks](/reference/notification-events#webhook-body).
 
 ### Reaching the person who fixed it
 
-When an [SCM token](/guide/source-control) is configured, `cluster.fixed` and `cluster.regressed` resolve the fixing commit's author through the provider (for a regression, the author of the fix that did not hold). On top of the normal subscription routing, the event is then delivered to that person directly:
+`cluster.fixed` and `cluster.regressed` resolve the fixing commit's author through the SCM provider, which for a private repository needs an [SCM token](/guide/source-control) (for a regression, the author of the fix that did not hold). On top of the normal subscription routing, the event is then delivered to that person directly:
 
 - **Email**, through the same outbox, when SMTP is configured **and** the commit's email belongs to a registered Piwi user. The mail goes to that user's account email, never to the raw commit address, so a fix by an outside contributor never becomes a mail to a stranger.
 - **A browser notification** for that user, delivered even when they have no matching subscription.
 
-Without a token, an exposed email or a successful lookup, subscriptions alone apply.
+When the lookup fails (a private repository without a token, a host that exposes no email), subscriptions alone apply.
 
 ### Global channels & subscriptions
 
@@ -5694,15 +5738,16 @@ Admins can mark a channel **global** so it is available to all users, and mark a
 
 ## Subscriptions
 
-A subscription controls *what* is delivered and *how*:
+A subscription controls *what* is delivered and *how*. The project **bell** creates one for that project — a channel and one or more of the events above, delivered in real time. **Settings → Notifications** lists them, and mutes one for 7 days or removes it.
 
-- **Events**: one or more of the events above.
-- **Scope**: all projects, or a single project.
-- **Filters**: by branch, status, **owner** (only when the run broke a test that team owns; see
-  [Tags & ownership](/guide/concepts#tags-ownership)), or a numeric threshold (such as flakiness above N%).
-- **Mode**: `realtime`, sent as events happen, or `digest`, held until the configured time and sent as **one combined
-  message** per email, Slack or Teams channel.
-- **Mute**: silence a subscription until a chosen time without deleting it.
+The subscriptions REST API (see the [API docs](https://piwitests.dev/demo/docs)) adds:
+
+- **Scope**: all projects (`projectId: null`, for a user who can access every project), or a single project.
+- **Filters**: for run events, by branch, status or **owner** (only when the run broke a test that team owns; see
+  [Tags & ownership](/guide/concepts#tags-ownership)); `flakinessThreshold` (a 0–1 rate) and `perfRegressionPct`.
+- **Mode**: `realtime`, sent as events happen, or `digest` with `digestAt` (`HH:MM`, UTC), held until then and sent as
+  **one combined message** per email, Slack or Teams channel.
+- **Mute**: `mutedUntil`, any time, without deleting the subscription.
 
 ## SMTP configuration
 
@@ -5749,8 +5794,11 @@ guide for this instance.
 ## What it provides
 
 The server exposes tools, mostly read-only, from listing projects to one failure's full evidence and a cluster's
-fix plan; [MCP tools](/reference/mcp-tools) lists every one. They return compact JSON, list tools page with
-`{ items, nextCursor }`, and a tool that fails returns a normal result with `isError: true` and a readable message.
+fix plan; [MCP tools](/reference/mcp-tools) lists every one. Two answer questions about Piwi itself:
+`describe_piwi` reads the documentation bundled with the server, and `get_release_notes` the changelog up to the
+running version. They return compact JSON, list tools page with `{ items, nextCursor }` (`get_project_test_catalog`
+with `offset`/`nextOffset`), and a tool that fails returns a normal result with `isError: true` and a readable
+message (one whose SCM or AI provider is not configured returns `{ error }`).
 
 **Modules.** Every tool belongs to one module, `core`, `workflow`, `healing` or `agents`, the groups the Setup page
 asks about. Declining a capability drops the tools that depend on it. Append `?modules=core` (comma-separated) to the
@@ -5767,14 +5815,15 @@ administrator role.
 
 ## Authentication
 
-The MCP server takes the same API keys as the REST API: `pd_` keys, created in **Settings → Users → [your account] →
-API keys**. Pass the key as a Bearer token on every request:
+The MCP server takes the same API keys as the REST API: `pd_` keys, created in **Settings → Account → API keys**
+(administrators manage anyone's keys from **Settings → Users**). Pass the key as a Bearer token on every request:
 
 ```
 Authorization: Bearer pd_YOUR_API_KEY
 ```
 
-When `PIWI_AUTH_ENABLED` is not set, every request is accepted without a key.
+When `PIWI_AUTH_ENABLED` is not set, every request is accepted without a key, except in the desktop app, which
+requires its local access token as the Bearer value.
 
 ## Client setup
 
@@ -5902,7 +5951,7 @@ run. The `setup-piwi` [agent skill](/features/agent-skills) does the same withou
 
 The [MCP server](/features/mcp) gives an agent read access to your results; **skills** tell it what to *do* with them.
 A skill is a single `SKILL.md` file, the portable open format (front matter plus Markdown instructions) that Claude
-Code and other coding agents read from a project's skills directory. Piwi ships six, and the reporter's CLI installs
+Code and other coding agents read from a project's skills directory. Piwi ships seven, and the reporter's CLI installs
 them into your test project.
 
 ## What each skill does
@@ -5922,14 +5971,14 @@ not connected, so a skill works before the MCP server is set up, only more slowl
 
 ## Where it is
 
-The skills ship inside the reporter package. `npx @piwitests/reporter init` installs the five workflow skills as part
+The skills ship inside the reporter package. `npx @piwitests/reporter init` installs the six workflow skills as part
 of setup (everything but `setup-piwi`, which an agent runs before the reporter exists). The **MCP server** page of the
 dashboard (`/mcp`) lists them next to the tools.
 
 ## Use it
 
 ```bash
-npx @piwitests/reporter skills add          # install all six into .claude/skills/
+npx @piwitests/reporter skills add          # install all seven into .claude/skills/
 npx @piwitests/reporter skills list         # see what each one does
 npx @piwitests/reporter skills add investigate-failure --dir .cursor/skills   # one skill, elsewhere
 ```
@@ -5999,7 +6048,8 @@ on Windows, **More info** then **Run anyway** in SmartScreen. Linux shows no pro
 Data lives in the OS app-data folder (`%APPDATA%\io.piwitests.dashboard\.data` on Windows,
 `~/Library/Application Support/io.piwitests.dashboard/.data` on macOS, `~/.local/share/io.piwitests.dashboard/.data`
 on Linux): `piwi.db` (SQLite) and `storage/`. **Settings → Storage → Data location** and the tray's **Open data
-folder** show it. Back it up by copying the folder while the app is closed.
+folder** show it. Back up the parent folder while the app is closed; its `secret.key` decrypts stored AI keys and SCM
+tokens.
 
 The window navigates like a browser, with back and forward buttons at the top of the sidebar. Closing the window quits the app unless you turn on **Run in background** in the
 tray menu; **Start on login** launches it hidden into the tray. While the window is in the background, your
@@ -6014,7 +6064,7 @@ the config nor the environment sets a server URL or an API key, so a project poi
 job, is never redirected. [Finding the desktop app automatically](/guide/reporter#finding-the-desktop-app-automatically)
 has the details.
 
-When the tests run as another user or in a container, **Settings → Storage → Send results to this app** gives the
+When the tests run as another user or in a container, **Setup → Send results to this app** gives the
 address (port 3000 unless it is taken) and the token to configure by hand. Keep the token in `PIWI_API_KEY`, not in
 the config.
 
@@ -6035,12 +6085,12 @@ stays on this machine, under **project page → Edit → Local folder**, with th
 Playwright and the app's bundled Node. The first time, it asks you to link the project to its folder.
 
 - **The arrow next to the button** holds the options: headless, headed, the Playwright inspector or UI mode; tests
-  by `file:line`, title or file; a forced trace; `--repeat-each` up to 1,000 times. The last choice becomes the
-  project's one-click default, and **Run with options…** shows the exact command.
+  by `file:line`, title or file; a forced trace; `--repeat-each` up to 100 times (1,000 in **Run with
+  options…**, which shows the command). The last choice becomes the project's one-click default.
 - **Runs keep going while you browse.** Output streams into the **Local runs** tray, a sidebar pill keeps it one
   click away, and stopping is always explicit.
-- **More places to run from:** **Reproduce locally** on a test case (20 times with a trace), **Run affected
-  locally** on a failure cluster, and a [bug report](/features/bug-reports#running-it-with-playwright-in-the-desktop-app)
+- **More places to run from:** **Reproduce locally** on a test case (20 times with a trace), **Run locally**
+  on a failure cluster, and a [bug report](/features/bug-reports#running-it-with-playwright-in-the-desktop-app)
   sent from Piwi Picker.
 - **Wrong folder?** When none of the tests exist in the linked folder, the button opens the dialog to fix the link.
 
@@ -6061,7 +6111,7 @@ linked folder, **without touching your checkout**:
 
 It needs `git` and your package manager on this machine, and bisects one repository. The application under test has
 to build from the same checkout: a Playwright `webServer` starts it at each commit, or set a **start command** and a
-readiness URL under the linked folder's settings.
+readiness URL under **Reproduce and bisect**.
 
 ### Reproducing a flake
 
@@ -6086,8 +6136,8 @@ The app serves the [MCP server](/features/mcp) with three local tools a hosted i
 time) and `apply_locator_fix` (a recommended locator fix applied to the file, previewed by default). It registers as
 `piwi-desktop`, so it sits beside a hosted Piwi in the same client.
 
-The **MCP server** page detects Claude Code, Claude Desktop, Cursor, VS Code, Windsurf and Gemini CLI, and connects
-each in one click by writing a `piwi-desktop` entry, with the address and token, into the client's own config file.
+The **MCP server** page detects Claude Code, Claude Desktop, Cursor, Opencode, VS Code, Windsurf and Gemini CLI, and
+connects each in one click by writing a `piwi-desktop` entry, with the address and token, into the client's own config file.
 It keeps a backup, touches only that entry, shows the snippet instead for a config that is not plain JSON, and
 rewrites the entry at each launch if the port changed. Claude Desktop, which takes only local
 commands, is pointed at the app's built-in bridge (`piwi-desktop mcp-stdio`), so no token is copied; the app has to be
@@ -6104,7 +6154,7 @@ key; a dev build without it says so.
 
 - **One machine, one user.** The app accepts results only from this machine; a team needs the
   [Docker image](/operate/deployment).
-- **Unsigned installers**, so the first launch needs the steps above.
+- **Unsigned installers**: the first launch needs the steps above.
 - **Local runs need the checkout**: a linked folder with Playwright installed, and `git` for reproduce, bisect and
   the lab.
 
@@ -6904,7 +6954,7 @@ add.
 
 # Test functions catalog
 
-The test functions catalog is a **per-project registry of your own page-object methods and helpers**, each stored with the DOM pattern its steps produce. It lets recordings and agents refer to *your* code instead of raw locators: the [browser extension](./extension) collapses matched steps in a recording into a call to your function, and an MCP agent can register the functions it writes. The catalog lives in the dashboard, and the extension and MCP tools read from it.
+The test functions catalog is a **per-project registry of your own page-object methods and helpers**, each stored with the DOM pattern its steps produce. It lets recordings and agents refer to *your* code instead of raw locators: the [browser extension](./extension) collapses matched steps in a recording into a call to your function, and an MCP agent can register the functions it writes. The catalog lives in the dashboard: the extension reads from it, and MCP agents add to it.
 
 ## Where it lives
 
@@ -6912,14 +6962,14 @@ A project's **Test functions** page in the dashboard (**Project → Test functio
 
 ## Registering a function
 
-Four ways in, all landing in the same reviewed entry:
+Four ways in, all producing the same kind of entry. The paste paths stop at a review form; the MCP tool saves directly, and its entries show an `ai-extracted` badge by default.
 
-- **By hand** — **Add function** and fill in the name, parameters and pattern yourself.
-- **Paste the source, let AI propose it** — paste a page-object method or helper's source and a model proposes the name, parameters, and DOM pattern into a **review form you edit before saving**. With [AI](/features/ai-diagnosis) configured on the instance, an **Extract** button calls it directly.
+- **By hand** — **Add function** and fill in the name, kind (page-object method, helper function or fixture), module (its import specifier), parameters and DOM pattern yourself — plus the receiver and class for a page-object method, and an optional URL-pattern glob limiting which pages it applies to.
+- **Paste the source, let AI propose it** — paste a page-object method or helper's source and a model proposes the name, parameters, and DOM pattern into a **review form you edit before saving**; the module and URL pattern are never inferred, so you fill those in. With [AI](/features/ai-diagnosis) configured on the instance, an **Extract** button calls it directly.
 - **Bring your own AI** — no instance AI, or you'd rather not use it? **Copy prompt for your own AI** copies the full extraction prompt (the rules, the JSON schema, and your pasted code) to paste into any AI chat (ChatGPT, Claude.ai, an IDE assistant). Paste the reply back and it is validated against the exact same schema — no Piwi AI credits spent either way.
 - **From a coding agent (MCP)** — an MCP-connected agent (Claude Code, Cursor, …) calls the `create_test_function` [MCP tool](/reference/mcp-tools#create_test_function) directly, reading the source with its own model. No AI call happens on the server side; the tool only validates and persists.
 
-Registered entries are edited in place from the same page — the pencil button reopens the form with everything filled in.
+Registered entries are edited in place from the same page — the pencil button reopens the form with everything filled in. Registering, editing, deleting and both paste paths need the reporter or administrator role; any project member can view the catalog.
 
 ## Object parameters
 
@@ -6938,7 +6988,7 @@ Extraction is deliberately conservative. A function that branches on its argumen
 
 - [Browser extension](./extension) — records against the catalog and consumes it
 - [MCP server](./mcp) — the `create_test_function` tool
-- [AI diagnosis](/features/ai-diagnosis) — the model the **Extract** button uses
+- [AI diagnosis](/features/ai-diagnosis) — **Extract** uses the research model when one is configured, otherwise the diagnosis model
 
 <!-- https://piwitests.dev/features/ide-integration -->
 
@@ -6993,8 +7043,9 @@ pick, clicking a path first tries the launcher —
 This needs **no** `vscode://`/`jetbrains://` protocol handler, no JetBrains
 Toolbox, no open-project name to match and no "allow unsigned requests" — the
 reasons the URL schemes are unreliable, on Rider especially — and unlike a URL
-scheme it reports back whether the file actually opened. The only requirement is
-that the launcher is on your `PATH`:
+scheme it reports back whether the launcher started (and flags a missing file).
+It needs a workspace root or a linked project folder, and the launcher on your
+`PATH`:
 
 - **JetBrains:** Toolbox → **Settings** → **Generate shell scripts** (the script
   name is the product tag, e.g. `rider`).
@@ -7259,7 +7310,7 @@ Piwi is one Node.js server with its data in one directory. Run it as a Docker co
 
 ```sh [Linux / macOS]
 docker pull phenx/piwitests-server:latest
-mkdir -p .data && chown -R 1001:1001 .data # the container runs as non-root UID 1001
+mkdir -p .data && sudo chown -R 1001:1001 .data # the container runs as non-root UID 1001
 docker run -p 3000:3000 -v $(pwd)/.data:/app/.data phenx/piwitests-server:latest
 ```
 
@@ -7329,7 +7380,7 @@ The server reads three process-level variables directly:
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `NODE_ENV` | `production` | Set automatically |
-| `HOST` | `0.0.0.0` | Listen on all interfaces |
+| `HOST` | `0.0.0.0` | Listen on all interfaces. The Docker image sets `NITRO_HOST=0.0.0.0`, which takes precedence — override the bind address there with `NITRO_HOST` |
 | `PORT` | `3000` | Application port |
 
 Everything else is a `PIWI_*` variable, listed with its default and whether the Settings UI can override it in the generated [configuration reference](/reference/configuration). The [configuration generator](/reference/configuration/generator) turns your choices into a ready-to-paste block from the same registry.
@@ -7410,6 +7461,8 @@ metadata:
   name: piwi-dashboard
 spec:
   replicas: 1
+  strategy:
+    type: Recreate   # never two pods at once, not even during a rollout
   selector:
     matchLabels:
       app: piwi-dashboard
@@ -7442,6 +7495,17 @@ spec:
       - name: data
         persistentVolumeClaim:
           claimName: piwi-dashboard-data
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: piwi-dashboard-data
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
 ---
 apiVersion: v1
 kind: Service
@@ -7489,7 +7553,7 @@ isolates the environment.
 
 ## Health checks
 
-`GET /api/health` verifies database connectivity and returns `200 {"status":"ok"}` when healthy, `503` otherwise — use it for load-balancer targets, uptime monitors, and container orchestration. The Docker image ships a built-in `HEALTHCHECK` against it, so `docker ps` shows `healthy`/`unhealthy` out of the box. The version endpoint additionally reports the running version and database backend ([Upgrading](./upgrading#verifying-the-upgrade-landed)).
+`GET /api/health` verifies database connectivity and returns `200 {"status":"ok","database":"ok"}` when healthy, `503 {"status":"error","database":"unreachable"}` otherwise — use it for load-balancer targets, uptime monitors, and container orchestration. The Docker image ships a built-in `HEALTHCHECK` against it, so `docker ps` shows `healthy`/`unhealthy` out of the box. The version endpoint additionally reports the running version and database backend ([Upgrading](./upgrading#verifying-the-upgrade-landed)).
 
 ## Reverse proxy (HTTPS)
 
@@ -7554,7 +7618,7 @@ On **Linux hosts**, the bind-mounted directory must be writable by the container
 
 ```bash
 mkdir -p .data
-chown -R 1001:1001 .data   # match the container's non-root UID 1001
+sudo chown -R 1001:1001 .data   # match the container's non-root UID 1001
 docker run -p 3000:3000 -v $(pwd)/.data:/app/.data phenx/piwitests-server:latest
 ```
 
@@ -7595,8 +7659,9 @@ The dashboard will be available at `http://localhost:8080`.
 
 If you don't have a server to run Docker on, these templates stand up an instance on a hosting provider
 instead. They all provision the same thing: **one container, one persistent volume mounted at
-`/app/.data`, authentication on, and `PIWI_SECRET_KEY` / `PIWI_AUTH_SECRET` generated by the platform**.
-The only real difference is the provider's own volume and pricing model.
+`/app/.data`, and authentication on**. Railway, Render and Coolify also generate `PIWI_SECRET_KEY` and
+`PIWI_AUTH_SECRET`; on Fly.io and Koyeb you set them yourself. Beyond that, the difference is the provider's
+own volume and pricing model.
 
 The manifests are generated from the same variable registry as the
 [configuration reference](/reference/configuration), so they can't drift from what the app actually reads.
@@ -7606,9 +7671,9 @@ choices of variables.
 | Provider | How | Persistent volume | Notes |
 |---|---|---|---|
 | [Railway](#railway) | Button | Yes | Managed PostgreSQL available alongside |
-| [Render](#render) | Button | Yes, on a paid instance | Fully repo-driven, nothing to configure by hand |
+| [Render](#render) | Button | Yes, on a paid instance | Repo-driven; only `PIWI_SITE_URL` is set by hand |
 | [Fly.io](#fly-io) | `fly launch` | Yes | One command rather than a button; cheapest always-on option |
-| [Koyeb](#koyeb) | Button | Volume attached afterwards | Fastest to a running URL, but see the warning below |
+| [Koyeb](#koyeb) | Button | Volume attached afterwards | Starts once you set its secrets; see the warning below |
 | [Coolify / Dokploy](#coolify-dokploy) | Paste a Compose file | Yes | Onto a server you already own |
 
 Not supported as one-click: **Vercel, Netlify and DigitalOcean App Platform** have no persistent disk, so
@@ -7648,11 +7713,23 @@ point at the right origin.
 Fly has no browser button, but [`fly.toml`](https://github.com/PiwiTests/platform/blob/main/fly.toml) makes
 it one command plus the secrets:
 
-```bash
+::: code-group
+
+```bash [Linux / macOS]
 fly launch --no-deploy   # accepts the committed fly.toml
 fly secrets set PIWI_SECRET_KEY=$(openssl rand -hex 32) PIWI_AUTH_SECRET=$(openssl rand -hex 32)
 fly deploy
 ```
+
+```powershell [Windows (PowerShell)]
+fly launch --no-deploy   # accepts the committed fly.toml
+$key = node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
+$auth = node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
+fly secrets set PIWI_SECRET_KEY=$key PIWI_AUTH_SECRET=$auth
+fly deploy
+```
+
+:::
 
 If `fly launch` picks a different app name because yours is taken, update `PIWI_SITE_URL` in `fly.toml` to
 match. Autoscaling is deliberately off (`auto_stop_machines = false`, `min_machines_running = 1`): the
@@ -7675,7 +7752,8 @@ Koyeb carries the whole service definition in the URL, so nothing needs to be in
 > ```
 
 Set `PIWI_SECRET_KEY`, `PIWI_AUTH_SECRET` and `PIWI_SITE_URL` in the Koyeb console after the first deploy,
-because the URL can't generate secrets. The full command list is kept in
+because the URL can't generate secrets. With authentication on, the service refuses to start until
+`PIWI_AUTH_SECRET` is set. The full command list is kept in
 [`deploy/koyeb-deploy-url.txt`](https://github.com/PiwiTests/platform/blob/main/deploy/koyeb-deploy-url.txt).
 
 ## Coolify / Dokploy
@@ -7698,7 +7776,8 @@ and TLS are wired up automatically.
   **Create the first admin account** form. Complete it before sharing the URL, or provision the admin from
   a script as [Authentication → Initial setup](./authentication#initial-setup) shows.
 - **Work down the [production checklist](./production-checklist).** The templates already turn
-  authentication on and generate both secrets; pinning a version and backups are still yours to do.
+  authentication on (and, except on Fly.io and Koyeb, generate both secrets); pinning a version and backups
+  are still yours to do.
 
 ## Related
 
@@ -7722,7 +7801,7 @@ A fresh Piwi instance starts as an **open dashboard with authentication off** �
    node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
    ```
 
-3. **Terminate TLS.** Always put the dashboard behind an HTTPS reverse proxy. Mind the two things a proxy gets wrong by default: **upload size** (trace and report uploads reach hundreds of MB) and **SSE buffering** (live runs and browser notifications use long-lived `text/event-stream` responses that must not be buffered). See [Deployment → Reverse proxy (HTTPS)](./deployment#reverse-proxy-https).
+3. **Terminate TLS.** Always put the dashboard behind an HTTPS reverse proxy. Mind the two things a proxy gets wrong by default: **upload size** (trace and report uploads reach hundreds of MB) and **SSE buffering** (live runs and browser notifications use long-lived `text/event-stream` responses that must not be buffered). With authentication on, browser sign-in needs HTTPS in any case: the session cookie is `Secure`, so over plain `http://` it only works on `localhost`. See [Deployment → Reverse proxy (HTTPS)](./deployment#reverse-proxy-https).
 4. **Tell Piwi it's behind a proxy.** Set `PIWI_TRUST_PROXY=true` so the per-client rate limits on the auth endpoints key on the real client address from `X-Forwarded-For` instead of pooling every request into the proxy's one address. Leave it off when clients connect directly — see the [configuration reference](/reference/configuration#authentication).
 5. **Persist and back up the data.** Mount `/app/.data` (or your configured database and storage paths) on a persistent volume, and set up a backup before you accumulate history you care about. See [Backup & restore](./backup-restore).
 6. **Pin a version.** Running `latest` lets an unattended `docker pull` move you across a breaking change. Pin an exact tag and bump it deliberately — migrations are forward-only, so the rollback path is *restore a backup*, not "pull the old tag." See [Upgrading](./upgrading).
@@ -7733,12 +7812,12 @@ Never leave the built-in development secrets in place on a real deployment.
 
 The defaults are conservative, so the checklist above is short. Without any extra work:
 
-- The container runs as a **non-root** user (`nodejs`, UID/GID 1001).
+- The container runs as a **non-root** user (`nodejs`, UID 1001).
 - Passwords are hashed with **scrypt** and per-password salts; login, initial-setup and password-reset endpoints are **rate-limited** per client address (and failed logins per account), returning `429` with `Retry-After`.
 - **API keys** are stored only as SHA-256 hashes and shown once, at creation — a leaked database yields no usable key.
 - Secrets supplied by **environment variable** are never written to the database and never returned by the API; the settings UI shows them read-only with a lock badge.
 - Stored credentials are encrypted with **AES-256-GCM** once `PIWI_SECRET_KEY` is set.
-- Database **migrations are forward-only** and run on startup; a failed migration stops the server rather than serving a half-migrated schema.
+- Database **migrations are forward-only** and run on startup, before any request reaches the database; if one fails, every database call fails and `/api/health` returns `503` rather than serving a half-migrated schema.
 
 ## Optional, and worth a thought
 
@@ -7799,13 +7878,7 @@ For provisioning an instance from a script, the same step is available as an API
 ::: code-group
 
 ```bash [Linux / macOS]
-curl -X POST http://localhost:3000/api/auth/setup \
-  -H "Content-Type: application/json" \
-  -d '{
-    "username": "admin",
-    "password": "your-secure-password",
-    "name": "Administrator"
-  }'
+curl -X POST http://localhost:3000/api/auth/setup -H "Content-Type: application/json" -d '{"username": "admin", "password": "your-secure-password", "name": "Administrator"}'
 ```
 
 ```powershell [Windows (PowerShell)]
@@ -7820,7 +7893,7 @@ Both routes go through the same setup endpoint, which is only available while th
 
 ## Logging in
 
-Sign in at `/login`. Sessions are stored in encrypted cookies and last for 7 days.
+Sign in at `/login`. Sessions are stored in encrypted cookies and last for 7 days. The session cookie is marked `Secure`, so browser sign-in needs HTTPS — over plain `http://` it only works on `localhost`.
 
 ## OAuth (Google, GitHub)
 
@@ -8126,7 +8199,7 @@ of the same instant:
 | `en-US` | `9/22/2026, 2:30:05 PM`   |
 | `en-GB` | `22/09/2026, 14:30:05`    |
 | `fr-FR` | `22/09/2026 14:30:05`     |
-| `de-DE` | `22.09.2026, 14:30:05`    |
+| `de-DE` | `22.9.2026, 14:30:05`     |
 | `ja-JP` | `2026/9/22 14:30:05`      |
 
 The settings dropdown lists common locales; `Intl` accepts any valid tag, so an environment value is
@@ -8160,7 +8233,7 @@ The **Setup** page (`/setup`, administrators only) is the permanent home for "ho
 
 ## Declining a capability
 
-Not every team uses every capability. Any optional one can be **declined** so the dashboard stops showing it everywhere: the evidence tabs, empty panels, settings page, sidebar entry, project actions and MCP tools it owns all go, rather than lingering half-visible. Decline instance-wide from the Setup ladder (*Not for this instance*) or the presets, or per project from the project's edit form and the places the capability appears (for example the execution page's evidence footer, *Not for this project*). A project override can also **enable** a capability the instance declined.
+Not every team uses every capability. Any optional one can be **declined** so the dashboard stops showing it everywhere: the evidence tabs, empty panels, settings page, sidebar entry, project actions and MCP tools it owns all go, rather than lingering half-visible. Decline instance-wide from the Setup ladder (*Not for this instance*) or the presets, or per project from the project's **Settings** tab and the places the capability appears (for example the execution page's evidence footer, *Not for this project*). A project override can also **enable** a capability the instance declined.
 
 Declining is administrator-only and never final: each declined capability keeps a *Reconsider* link on the Setup ladder that clears the decision, and because data always wins, a declined capability that starts receiving data reads as active again with the stored decision shown next to it. See [Why a card is empty](/features/evidence#why-a-card-is-empty) for how this reads on the execution page.
 
@@ -8226,10 +8299,10 @@ Jira project permission:
 | Add Comments | `ADD_COMMENTS` | The write-back policies (fix landed, regressed, still failing, merged). |
 | Transition Issues | `TRANSITION_ISSUES` | The *transition on fix* and *reopen* policies. |
 | Assign Issues | `ASSIGN_ISSUES` | Set the assignee on a created issue, and list assignable users in the picker. |
-| Create Attachments | `CREATE_ATTACHMENTS` | Attach the failure screenshot when its toggle is on. |
+| Create Attachments | `CREATE_ATTACHMENTS` | Attach a bug report's screenshots to the issue filed from it. |
 
 For the **full integration**, grant all six on each bound project. You can drop the ones whose feature you do not
-use: `CREATE_ATTACHMENTS` if you never attach a screenshot, `ASSIGN_ISSUES` if you never set an assignee,
+use: `CREATE_ATTACHMENTS` if you never file an issue from a bug report, `ASSIGN_ISSUES` if you never set an assignee,
 `ADD_COMMENTS` and `TRANSITION_ISSUES` if the [write-back policies](/features/issue-tracking#keep-the-ticket-honest)
 stay off. `BROWSE_PROJECTS` on its own is enough for read-only unfurl and status sync.
 
@@ -8269,10 +8342,10 @@ See the [configuration reference](/reference/configuration#integrations) for the
 
 ## Trusted base URLs and private hosts
 
-A connection base URL is supplied by an administrator, so Piwi trusts it: a self-hosted tracker on a
-private network — `https://jira.internal.example.com` or an RFC 1918 address — works without extra
-configuration. Every URL a non-administrator supplies (pinning a link, for instance) still goes through the
-SSRF guard that blocks private hosts.
+A connection base URL is supplied by an administrator, so Piwi trusts it: a host on a private network —
+`https://jira.internal.example.com` or an RFC 1918 address — is reachable without extra configuration. The client
+itself speaks Jira Cloud's REST v3 only. Every URL a non-administrator supplies (pinning a link, for instance) still
+goes through the SSRF guard that blocks private hosts.
 
 ## What unfurl gives today
 
@@ -8296,8 +8369,9 @@ to French); a project binding overrides it, and the create modal offers a per-is
 
 A background task reads every tracked issue back through its connection and caches the status, title and assignee, so a
 closed ticket stops showing as open in the dashboard. It runs **every 15 minutes by default**; set
-[`PIWI_INTEGRATIONS_SYNC_MINUTES`](/reference/configuration) (1–1440) to change the cadence. Links on an open cluster
-refresh every sweep; links on a resolved or ignored cluster refresh at most once a day. A connection that fails to
+[`PIWI_INTEGRATIONS_SYNC_MINUTES`](/reference/configuration) (1–1440) to change the cadence; a value of 60 or more is
+rounded to whole hours. Each sweep refreshes up to 100 links. Links on an open cluster refresh every sweep; links on
+a resolved or ignored cluster refresh at most once a day. A connection that fails to
 answer records the error on the connection card and does not stop the sweep. An administrator can run one sweep on
 demand through the REST API (see the [API docs](https://piwitests.dev/demo/docs)); the response counts the links it refreshed, failed and skipped.
 
@@ -8317,7 +8391,8 @@ register a webhook so a close or reopen reflects immediately instead of within t
 3. Piwi looks the issue up by its id in its links and refreshes just that one, applying the resolve/reopen policies.
 
 The webhook is **public but secret-in-path** and rate-limited, and it can only ever *refresh a link* — it can never
-create or transition anything. Regenerating the token invalidates the old URL; *Disable webhook* clears it.
+create or transition anything. **Regenerate webhook** invalidates the old URL; turning the webhook off is an
+administrator call in the REST API (see the [API docs](https://piwitests.dev/demo/docs)).
 
 ## Related
 
@@ -8345,10 +8420,11 @@ Test artifacts — HTML reports, traces, attachments — do **not** live here; t
 
 ## SQLite (default)
 
-Nothing to configure. The database file is created at `.data/piwi.db` on the first API call, inside the
+Nothing to configure. The database file is created at `.data/piwi.db` when the server starts, inside the
 directory you mounted as `/app/.data` (container) or the working directory you ran from (`npx`).
 
-Set `PIWI_DATABASE_PATH` to put it somewhere else:
+Set `PIWI_DATABASE_PATH` to put it somewhere else. Its directory must already exist — Piwi creates `.data/`
+itself only when `PIWI_DATABASE_PATH` is unset:
 
 ::: code-group
 
@@ -8452,7 +8528,8 @@ When the static credential variables are omitted, Piwi uses the AWS SDK default 
 task roles, EC2 instance roles, environment credentials and shared AWS configuration without storing access keys in
 Piwi. If either static credential variable is set, both are required.
 
-Minimum required IAM permissions:
+Minimum required IAM permissions. `s3:ListBucket` lets Piwi delete a run's whole prefix; without it, S3 answers a
+missing file with `403` instead of `404`:
 
 ```json
 {
@@ -8460,8 +8537,13 @@ Minimum required IAM permissions:
   "Statement": [
     {
       "Effect": "Allow",
-      "Action": ["s3:PutObject", "s3:GetObject", "s3:HeadObject"],
+      "Action": ["s3:PutObject", "s3:GetObject", "s3:DeleteObject"],
       "Resource": "arn:aws:s3:::your-bucket-name/*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["s3:ListBucket"],
+      "Resource": "arn:aws:s3:::your-bucket-name"
     }
   ]
 }
@@ -8637,7 +8719,7 @@ If artifacts are in S3, lean on the bucket's own durability and versioning rathe
 Restoring is also how you roll back after an upgrade goes wrong — the rollback path is "restore your backup", never "pull the old tag" against an already-migrated database.
 
 1. **Stop the container.**
-2. **Restore the database and `.data/storage/`** from a backup pair taken at the same time. For SQLite, put `piwi-backup.db` back as `.data/piwi.db` and unpack the storage archive; for PostgreSQL, restore the dump into an empty database (`psql "$PIWI_DATABASE_URL" < piwi-db.sql`).
+2. **Restore the database and `.data/storage/`** from a backup pair taken at the same time. For SQLite, delete any leftover `.data/piwi.db-wal` and `.data/piwi.db-shm` files (the server runs SQLite in write-ahead-log mode, and a stale log would be replayed onto the restored file), put `piwi-backup.db` back as `.data/piwi.db` and unpack the storage archive; on a Linux host, hand the restored files back to the container's user with `sudo chown -R 1001:1001 .data`. For PostgreSQL, restore the dump into an empty database (`psql "$PIWI_DATABASE_URL" < piwi-db.sql`).
 3. **Start the version the backup was taken on.** A backup from version *N* must be restored under version *N* (or newer, which will migrate it forward) — not an older one.
 
 Then confirm the running version at **Settings → About**, and that recent runs are present. See [Upgrading](./upgrading) for the full version-change story and the checks that tell you a migration landed.
@@ -8740,7 +8822,7 @@ what happens before you pull a new tag.
 
 ## What happens when a new version starts
 
-On boot, before the server accepts a single request:
+On boot, before any request can touch the database (requests that need it wait for these steps):
 
 1. **Database migrations run automatically** — SQLite or PostgreSQL, whichever you're on. There is no
    separate migrate command and nothing to run by hand. Before migrating, Piwi compares the migrations
@@ -8751,8 +8833,9 @@ On boot, before the server accepts a single request:
    This is non-destructive: existing clusters are updated in place, and clusters that now collide are
    merged rather than dropped, so your triage statuses and notes survive.
 
-Steps 2 and 3 log an error and continue if they fail — they never block startup. **Step 1 does not.**
-If a migration fails, the server refuses to start rather than serving against a half-migrated schema.
+Steps 2 and 3 log an error and continue if they fail. **Step 1 does not.** If a migration fails, the
+process keeps running but every database call fails with the migration error and `GET /api/health`
+returns `503`, so the container reports unhealthy — nothing is served against a half-migrated schema.
 That's deliberate: a loud failure you can restore from beats silent corruption.
 
 ## A database that ran another build
@@ -8771,8 +8854,8 @@ this build`, lists what differs, and repairs it in a single transaction:
 
 The log ends with `Migration history repaired` and the next start is a normal one. If the result would
 still differ from the expected schema — a column only the other build has, `NOT NULL` without a
-default, for instance — nothing is changed and the server stops with `Migration history repair
-failed` and the difference it found: restore a backup, or start from an empty database.
+default, for instance — nothing is changed, and it fails like any migration (see above) with `Migration
+history repair failed` and the difference it found: restore a backup, or start from an empty database.
 
 A database that is only **ahead** of this version, as after starting an older version on it, gets a
 single warning, `applied migration(s) are not in this build`, and nothing else: see below.
@@ -8809,9 +8892,10 @@ The available tag patterns — and the GHCR mirror — are in
 
 Three ways, in increasing order of automation:
 
-- **Settings → About** shows the running version, the build SHA, the Node version, and which database
-  backend is active.
-- The version endpoint returns the same thing as JSON, with no authentication required:
+- **Settings → About** shows the running version, the build SHA, the Node.js version the server was
+  built with, and which database backend is active.
+- The version endpoint returns the version, build SHA and database backend as JSON, along with the
+  Node.js version actually running — no authentication required:
 
   ```bash
   curl -s http://localhost:3000/api/version
@@ -8852,8 +8936,8 @@ progress bar.
 
 ## If an upgrade goes wrong
 
-**The container won't start after upgrading.** Check the logs for `Migration error`. The schema is
-mid-flight or incompatible; restore your backup and open an
+**The container is unhealthy after upgrading** (`/api/health` returns `503` and anything that reads data fails). Check
+the logs for `Migration error`. The schema is mid-flight or incompatible; restore your backup and open an
 [issue](https://github.com/PiwiTests/platform/issues) with the error. If the error starts with
 `Migration history repair failed`, the database ran another build and could not be brought in line
 automatically ([details](#a-database-that-ran-another-build)); it was left as it was.
@@ -8902,7 +8986,7 @@ The branch is resolved through a fallback chain so a CI pull-request build never
 branch variables (`GITHUB_HEAD_REF`/`GITHUB_REF_NAME`, `CI_MERGE_REQUEST_SOURCE_BRANCH_NAME`/
 `CI_COMMIT_REF_NAME`, `CIRCLE_BRANCH`, and the equivalents for Travis, Azure, Jenkins and Bitbucket),
 then the local git checkout. On a pull-request build the target branch (`GITHUB_BASE_REF`,
-`CI_MERGE_REQUEST_TARGET_BRANCH_NAME`, `SYSTEM_PULLREQUEST_TARGETBRANCH`,
+`CI_MERGE_REQUEST_TARGET_BRANCH_NAME`, `TRAVIS_BRANCH` on a Travis pull-request build, `SYSTEM_PULLREQUEST_TARGETBRANCH`,
 `BITBUCKET_PR_DESTINATION_BRANCH`, `CHANGE_TARGET`, or `PIWI_BASE_BRANCH` to name it yourself) is
 recorded as the run's **base branch**, which [baselines](/guide/concepts#baseline-last-green-run) fall
 back to when the branch has no history of its own.
@@ -8924,7 +9008,7 @@ These six platforms get rich per-provider fields. The **run label** that ties [s
 
 ### Playwright configuration
 
-The reporter also records browser project configs, worker count, test timeout, and parallel settings.
+The reporter also records browser project configs, worker count, the global timeout, and parallel settings.
 
 ### Browser configuration per test case
 
@@ -9365,7 +9449,7 @@ npx @piwitests/reporter run impact --base origin/main
 | `--server-url <url>` | Dashboard URL (env `PIWI_DASHBOARD_URL`) |
 | `--api-key <key>` | API key (env `PIWI_API_KEY`) |
 | `--project <name\|id>` | Project (env `PIWI_PROJECT_NAME`) |
-| `--format <fmt>` | `args` (`file:line`, default) · `grep` · `files` · `json` |
+| `--format <fmt>` | `args` (`file:line`, default) · `grep` · `files`. For the full resolution use `--json`; `run` rejects `--format json` |
 | `--budget <duration>` | Cap total time, e.g. `5m`, `90s`, `300000` (ms) |
 | `--shard <i/n>` | Keep only shard *i* of *n*, balanced by test duration and lock-aware (a lock's holders stay in one shard) |
 | `--fail-fast` | Order the least-reliable tests first |
@@ -9451,14 +9535,13 @@ Manage committed natural-language [AI-step](/features/ai-steps) artifacts (`page
 ```bash
 npx @piwitests/reporter ai check
 npx @piwitests/reporter ai resolve --grep "checkout"
-npx @piwitests/reporter ai prune
 ```
 
 | Subcommand | What it does |
 |---|---|
-| `check` | Scan committed entries for orphans, non-canonical files and duplicate templates. Read-only; exits `1` when issues are found |
-| `resolve` | Author missing entries by running the suite in resolve mode against the configured authoring server (forces `--workers=1`) |
-| `prune` | Delete orphaned/dormant entries |
+| `check` | Scan committed entries for orphans, non-canonical files and duplicate templates. Read-only; exits `1` on errors (orphans, non-canonical or invalid files) — duplicate templates are reported as warnings and do not fail it |
+| `resolve` | Author missing entries by running the suite in resolve mode against the configured authoring server (forces `--workers=1`). Needs `PIWI_DASHBOARD_URL` (plus `PIWI_API_KEY` when auth is on) and exits `2` without it |
+| `prune` | Reserved for cleaning up orphaned/dormant entries — not available in this build; it prints a notice and exits `2` |
 
 | Flag | Applies to | Description |
 |---|---|---|
@@ -9468,9 +9551,9 @@ npx @piwitests/reporter ai prune
 | `--grep <re>` | `resolve` | Only author entries for matching tests |
 | `--project <name>` | `resolve` | Author under one Playwright project (a resolve profile) |
 | `--env K=V` | `resolve` | Extra env for the run (repeatable — flags/viewport profiles) |
-| `--update-ai` | `resolve` | Re-author entries that already exist (needs `PIWI_DASHBOARD_URL` / `PIWI_API_KEY`) |
+| `--update-ai` | `resolve` | Re-author entries that already exist |
 
-**Exit codes:** `0` clean (or `--help`) · `1` hygiene issues found · `2` bad arguments / command unavailable.
+**Exit codes:** `0` clean (or `--help`) · `1` hygiene errors found · `2` bad arguments / command unavailable. `resolve` passes through the test run's exit code.
 
 ## `codegen`
 
