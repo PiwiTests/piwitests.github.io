@@ -7025,16 +7025,10 @@ differently.
 ## Install and connect
 
 Install **Piwi** from the extensions view (`piwitests.piwi`) or from **Settings → Plugins** in a JetBrains IDE. It
-starts on a workspace that holds a Playwright config, and reads the connection the reporter already uses, in this
-order:
-
-1. `PIWI_DASHBOARD_URL`, `PIWI_API_KEY` and `PIWI_PROJECT_NAME` in the environment;
-2. the same variables in the `.env` next to the Playwright config, then at the repository root (a URL there
-   takes only its own key);
-3. the [desktop app](/features/desktop), when it runs;
-4. its own settings: run **Piwi: Connect** (**Tools → Piwi → Connect…** in a JetBrains IDE), give the instance URL
-   and an [API key](/operate/api-keys), and pick the project. The key goes to the editor's secret storage, never to a
-   file.
+starts on a workspace that holds a Playwright config, and reads the connection the reporter already uses: the
+`PIWI_*` variables in the environment or the workspace `.env`, or the [desktop app](/features/desktop). Otherwise,
+run **Piwi: Connect** (**Settings → Tools → Piwi** in a JetBrains IDE) and sign in with the browser:
+[Editor connection](./editor-connection) has the steps.
 
 Nothing from your workspace is sent to the instance: the project's
 [locator index](/guide/concepts#locator-index), [code reach](/features/code-reach) and latest run are downloaded and
@@ -7118,7 +7112,7 @@ clipboard. It holds your API key: paste it into your user settings, not into the
 
 | Command | What it does |
 |---|---|
-| Piwi: Connect | Choose the instance, the API key and the project |
+| Piwi: Connect, Disconnect | See [Editor connection](./editor-connection) |
 | Piwi: Refresh | Fetch the indexes and the latest run again |
 | Piwi: Run the tests that reach this file | Run them in a terminal |
 | Piwi: Open in dashboard | Open this file's test, or the latest run |
@@ -7148,11 +7142,12 @@ the one that paired receives.
 ## JetBrains IDEs
 
 The plugin starts the editor service with the project's Node.js interpreter (**Settings → Languages & Frameworks →
-Node.js**). The IDE's LSP client shows the warnings, quick fixes and hover in open files as described above; the rest
+Node.js**) when you open a file of the project. The IDE's LSP client shows the warnings, quick fixes and hover in open files as described above; the rest
 is drawn natively:
 
-- **The Piwi tool window** lists the latest run's failures, since the IDE highlights open files only. Double-click one
-  to open its failing line, where the highlight carries **Heal**, **Open the trace** and the dashboard link. The trace
+- **The Piwi tool window** names the connection, has Connect and Refresh in its toolbar, and lists the latest run's
+  failures, since the IDE highlights open files only. Double-click
+  one to open its failing line, where the highlight carries **Heal**, **Open the trace** and the dashboard link. The trace
   opens in the Run tool window.
 - **Code Vision** shows the lines above files, tests and locators; click one to run what it names.
 - **The status bar** shows the latest run; the actions are under **Tools → Piwi**, and **Run the tests that reach this
@@ -7162,6 +7157,57 @@ is drawn natively:
   environment.
 
 IntelliJ IDEA Community Edition and Android Studio do not have the LSP API the plugin needs.
+
+<!-- https://piwitests.dev/features/editor-connection -->
+
+# Editor connection
+
+The [editor extensions](./editors) read everything from your Piwi instance. They find it in this order, and the first
+that names an instance wins:
+
+1. `PIWI_DASHBOARD_URL`, `PIWI_API_KEY` and `PIWI_PROJECT_NAME` in the environment the editor was started with;
+2. the same variables in the `.env` next to the Playwright config, then at the repository root (a URL there takes only
+   its own key);
+3. the [desktop app](/features/desktop), when it runs;
+4. the editor's own settings, which **Piwi: Connect** fills in.
+
+A project set up for the reporter needs nothing more. An editor started from the Dock or the Start menu may not see
+the variables your shell exports: the `.env` or Connect work either way.
+
+## Connect
+
+Run **Piwi: Connect** from the command palette, or click **Piwi: connect** in the status bar. In a JetBrains IDE it is
+the **Connect…** button of **Settings → Tools → Piwi**, in the **Piwi** tool window's toolbar, and under
+**Tools → Piwi**.
+
+1. Give the instance's address, such as `https://piwi.example.com`.
+2. When the instance has a login, choose **Sign in with the browser**. The instance's page opens with a code: check
+   that the editor shows the same code, then click **Allow**. The editor receives an [API key](/operate/api-keys)
+   created for you and named after it, such as "Piwi in WebStorm on macOS", which you can revoke with your other keys.
+   Or paste a key you created yourself. An instance without a login needs no key.
+3. Pick the project.
+
+When the environment, a `.env` or the desktop app names another instance, Connect saves your choice and says which
+source comes first.
+
+## What is saved where
+
+| | VS Code | JetBrains IDEs |
+|---|---|---|
+| Address and project | `piwi.serverUrl` and `piwi.project` in the workspace settings | `.idea/piwi.xml` |
+| API key | The editor's secret storage | The IDE's password safe |
+
+The address and the project can be shared with the team. The key never goes to a file, and is saved for its instance
+only: a repository whose settings name another instance never receives it. **Piwi: Disconnect** (the **Disconnect**
+button in a JetBrains IDE) forgets the address, the project and that instance's key.
+
+## Which connection is in use
+
+The status bar's tooltip names the instance and where it came from. In a JetBrains IDE, **Settings → Tools → Piwi**
+and the **Piwi** tool window say the same, or why the editor is not connected. The plugin starts its service when you
+open a file of a project that holds a Playwright config; until then, both say so.
+
+**Piwi: Open settings** in VS Code opens the extension's settings.
 
 <!-- https://piwitests.dev/operate/deployment -->
 

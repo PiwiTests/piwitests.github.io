@@ -67,6 +67,7 @@
 - [Test functions catalog](https://piwitests.dev/features/test-functions): The catalog of the helpers and page-object methods your suite calls, how functions are registered, and how agents and the extension use it.
 - [Open in IDE](https://piwitests.dev/features/ide-integration): Open any source path shown in the dashboard at its file and line in VS Code or JetBrains, and how to set up each method.
 - [Editor extensions](https://piwitests.dev/features/editors): Piwi in VS Code and the JetBrains IDEs: the latest CI failures at their failing lines with the heal as a quick fix, the tests behind each locator and file, brittle locators, and the locators an unsaved change breaks.
+- [Editor connection](https://piwitests.dev/features/editor-connection): Connect the Piwi extension for VS Code or the JetBrains plugin to your instance: the connection the reporter already uses, or a browser sign-in that creates an API key for the editor, saved for that instance only.
 
 ## Self-hosting
 
