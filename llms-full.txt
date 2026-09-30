@@ -5762,13 +5762,25 @@ Admins can mark a channel **global** so it is available to all users, and mark a
 
 ## Subscriptions
 
-A subscription controls *what* is delivered and *how*. The project **bell** creates one for that project — a channel and one or more of the events above, delivered in real time. **Settings → Notifications** lists them, and mutes one for 7 days or removes it.
+A subscription controls *what* is delivered and *how*. The project **bell** creates one for that project — a channel, one or more of the events above and, optionally, the branches and environments it covers, delivered in real time. **Settings → Notifications** lists them with their filters, and mutes one for 7 days or removes it.
+
+### Branches and environments
+
+The bell offers the branches and environments the project's runs reported, and takes a typed name too: `*` matches
+any characters, so `release/*` covers every release branch. A subscription delivers only events from runs on one of
+its branches **and** in one of its environments; a run that reported no branch (or environment) matches none, and an
+empty list matches every run. The filters apply to every event that comes from a run: the `run.*` events,
+`flakiness.spike`, `perf.regression`, the `cluster.*` events and `bug.looks_fixed`. `diagnosis.completed` and
+`auto_heal.pr_opened` are not filtered.
+
+### Through the API
 
 The subscriptions REST API (see the [API docs](https://piwitests.dev/demo/docs)) adds:
 
 - **Scope**: all projects (`projectId: null`, for a user who can access every project), or a single project.
-- **Filters**: for run events, by branch, status or **owner** (only when the run broke a test that team owns; see
-  [Tags & ownership](/guide/concepts#tags-ownership)); `flakinessThreshold` (a 0–1 rate) and `perfRegressionPct`.
+- **Filters**: `branches` and `environments` as above; for run events, status or **owner** (only when the run broke a
+  test that team owns; see [Tags & ownership](/guide/concepts#tags-ownership)); `flakinessThreshold` (a 0–1 rate) and
+  `perfRegressionPct`.
 - **Mode**: `realtime`, sent as events happen, or `digest` with `digestAt` (`HH:MM`, UTC), held until then and sent as
   **one combined message** per email, Slack or Teams channel.
 - **Mute**: `mutedUntil`, any time, without deleting the subscription.
@@ -9995,6 +10007,7 @@ For run events the payload includes up to three failing tests, so you can act wi
     "totalTests": 120,
     "failedTests": 3,
     "branch": "main",
+    "environment": "staging",
     "topFailures": [
       {
         "title": "applies discount code",
@@ -10019,8 +10032,12 @@ The [pull-request comment](/features/pr-feedback) quotes failures the same way.
 
 ## Payload fields by event
 
-- **Run events** (`run.*`, `flakiness.spike`, `perf.regression`): the run, its counts and branch, `topFailures`, and
-  the `owners` of the failing tests. `perf.regression` adds `durationMs`, `baselineDurationMs` and `regressionPct`.
+Every event that comes from a run carries that run's `branch` and `environment` when the run reported them: the
+`run.*` events, `flakiness.spike`, `perf.regression`, the `cluster.*` events and `bug.looks_fixed`. A subscription's
+[branch and environment filters](/features/notifications#branches-and-environments) match on these two fields.
+
+- **Run events** (`run.*`, `flakiness.spike`, `perf.regression`): the run, its counts, `topFailures`, and the `owners`
+  of the failing tests. `perf.regression` adds `durationMs`, `baselineDurationMs` and `regressionPct`.
 - **`cluster.new`**: the cluster's `signature` and `title`, `sampleErrorExcerpt` (cut like `errorExcerpt`) and
   `affectedCases`.
 - **`cluster.fixed`** and **`cluster.regressed`**: the cluster's `signature`, `title` and the `runId` that decided the
