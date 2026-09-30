@@ -1237,8 +1237,9 @@ A private repository needs one.
 
 Piwi takes the repository from the run: the reporter records the Git remote URL, the branch and the commit of the
 checkout it runs in (see [SCM information](/reference/test-metadata#scm-information-git)). Supported hosts are
-`github.com`, `gitlab.com` and self-hosted GitLab (a host name containing `gitlab`), and `bitbucket.org`. A run
-without a remote URL has nothing to diff.
+`github.com`, `gitlab.com`, `bitbucket.org` and self-hosted GitLab. List each self-hosted GitLab host in
+[`PIWI_SCM_GITLAB_HOSTS`](/reference/configuration#integrations): the remote URL comes from the reporter, so Piwi sends
+the token only to a host you named. A run without a remote URL has nothing to diff.
 
 ### Scopes
 
@@ -1298,6 +1299,9 @@ still overrides the env model); without it, the other provider variables below a
 | `PIWI_AI_AUTO_DIAGNOSE_MAX` | Max clusters auto-diagnosed per finished run (budget cap; default `3`) |
 | `PIWI_AI_RESEARCH_MODEL` / `_PROVIDER` / `_BASE_URL` / `_API_KEY` | Optional **research** model for two-stage diagnosis; provider/base URL/key default to the main ones |
 | `PIWI_AI_EMBEDDING_PROVIDER` / `_MODEL` / `_BASE_URL` / `_API_KEY` | Optional **embedding** model for semantic failure clustering (OpenAI-compatible only: Anthropic has no embeddings API) |
+
+A saved key is sent only to the provider and base URL it was saved for: pointing a role at another base URL in
+**Settings → AI**, or testing one there, needs the key entered again.
 
 The [Configuration reference](/reference/configuration#ai-diagnosis) lists every AI variable.
 
@@ -4505,7 +4509,7 @@ resolution from `.piwi/selection-cache.json` when it has one): a reporting probl
 `piwi select <key>` resolves and prints the Playwright arguments instead of running them, for a two-step job. Three
 flags shape a resolution:
 
-- `--shard i/n` keeps only shard _i_ of _n_, split so each shard's summed test duration is even. The split is
+- `--shard i/n` keeps only shard _i_ of _n_ (up to 1,000 shards), split so each shard's summed test duration is even. The split is
   **lock-aware**: every test that shares a [lock](/reference/test-metadata#test-locks) goes to the same shard, because
   Playwright serializes lock holders only inside one process. Shard with `piwi run --shard` rather than Playwright's
   own `--shard`, which would split the lock; a resolution whose tests share a lock carries a `split-lock` warning.
@@ -7453,7 +7457,7 @@ The server reads three process-level variables directly:
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `NODE_ENV` | `production` | Set automatically |
-| `HOST` | `0.0.0.0` | Listen on all interfaces. The Docker image sets `NITRO_HOST=0.0.0.0`, which takes precedence — override the bind address there with `NITRO_HOST` |
+| `HOST` | `0.0.0.0` | Listen on all interfaces. The Docker image sets `NITRO_HOST=0.0.0.0`, which takes precedence — override the bind address there with `NITRO_HOST`. `npx @piwitests/server` defaults to `127.0.0.1` |
 | `PORT` | `3000` | Application port |
 
 Everything else is a `PIWI_*` variable, listed with its default and whether the Settings UI can override it in the generated [configuration reference](/reference/configuration). The [configuration generator](/reference/configuration/generator) turns your choices into a ready-to-paste block from the same registry.
@@ -7620,6 +7624,10 @@ $env:PORT='8080'; npx @piwitests/server
 ```
 
 :::
+
+It listens on `127.0.0.1` only, so other machines cannot reach it: with authentication off, the default, anyone who
+reaches the port is an administrator. To serve other machines, turn [authentication](./authentication) on and set
+`HOST=0.0.0.0`.
 
 Docker remains the recommended path for production: it ships a pinned Node runtime, runs as a non-root user and
 isolates the environment.
@@ -8415,10 +8423,10 @@ See the [configuration reference](/reference/configuration#integrations) for the
 
 ## Trusted base URLs and private hosts
 
-A connection base URL is supplied by an administrator, so Piwi trusts it: a host on a private network —
-`https://jira.internal.example.com` or an RFC 1918 address — is reachable without extra configuration. The client
-itself speaks Jira Cloud's REST v3 only. Every URL a non-administrator supplies (pinning a link, for instance) still
-goes through the SSRF guard that blocks private hosts.
+A connection base URL is supplied by an administrator, so Piwi trusts it: a private host such as
+`https://jira.internal.example.com` or an RFC 1918 address is reachable without extra configuration. The client speaks
+Jira Cloud's REST v3 only. A URL a non-administrator supplies (a pinned link) goes through the SSRF guard that blocks
+private hosts. Moving a connection to another site drops its stored credentials.
 
 ## What unfurl gives today
 
