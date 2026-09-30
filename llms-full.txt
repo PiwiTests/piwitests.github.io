@@ -2100,8 +2100,9 @@ full runs only) scopes every list. The **More** menu holds Edit, [Test functions
 - **Runs**: the run trend chart, with its [timeline markers](./timeline-markers), over every run; select two runs and
   **Compare** to see [what changed](./run-changes) between them, or select any number and
   [delete them](/operate/storage#storage-management).
-- **Tests**: every test case with its pass rate and last run, filterable by status, tag, lock, owner and priority, and
-  groupable by spec file ([test metadata](/reference/test-metadata)).
+- **Tests**: every test case with its pass rate and last run, in file order, with the
+  [test search](/reference/test-search) (title, describe block, file, tag, lock, owner, priority, feature) and a status
+  filter, and groupable by file, or by file and describe block.
 - **Failures**: the [failure clusters](./failure-clusters), the [flaky tests](./flaky-tests#flaky-test-detection) and the
   [quarantine](./flaky-tests#quarantine-with-a-way-out) list.
 - **Flake Lab**: where each flaky test stands in the [Flake Lab](./flake-lab) and the command it needs next, and the
@@ -2124,8 +2125,9 @@ chain in the locator index, per branch. See [Who uses a locator](./locator-usage
 the HTML report on a green one) and one facts line, and a **count bar** filters the tests by status. While it runs,
 results stream in live. The tabs:
 
-- **Tests**: every execution with its failure headline, grouped by cluster (the default on a red run), file, describe
-  block or [lock](/reference/test-metadata#test-locks), with bulk triage.
+- **Tests**: every execution with its failure headline, in run order, grouped by cluster (the default on a red run),
+  file, describe block or [lock](/reference/test-metadata#test-locks), with the same
+  [test search](/reference/test-search) as a project's Tests tab and bulk triage.
 - **Changes**: what differs against one baseline run. See [What changed in a run](./run-changes).
 - **Timeline**: each worker's tests on one time axis, with hooks, waits and locks, the slowest tests and the worker
   distribution ([Slow tests & wasted time](./slow-tests)).
@@ -9130,7 +9132,7 @@ The reporter also records browser project configs, worker count, the global time
 
 The reporter automatically captures each test case's Playwright project configuration — `projectName`, `browserName`, `channel`, `viewport`, and the rendering options `colorScheme`, `reducedMotion`, `forcedColors` and `contrast` (Playwright 1.63's standalone contrast option) — via `test.parent.project()`. This is stored in the `browser` field of every test case result and feeds the [environment diff](/features/evidence#one-execution-diagnosis-first) that compares a failing execution against its last passing one.
 
-In the dashboard UI, the test run detail page shows a browser icon and project name as the first column of the test cases table, and you can filter by browser using the dropdown above the table.
+In the dashboard UI, every row of a run's Tests tab shows the browser icon, and `browser:chromium` in its [search](/reference/test-search) narrows the list to one project.
 
 ### Suite hierarchy (describe blocks)
 
@@ -9158,8 +9160,8 @@ Tags are stored twice: on the execution (`test_runs_cases.tags`, what that run s
 it was written — filter for `smoke` or `@smoke` and you get the same rows. Removing a tag from a spec clears it on the
 next run that reports the test.
 
-Tags drive the tag filter on a project's **Test cases** tab, the same filter on the flaky leaderboard, and the
-`requireTags` rule of the [CI gate](/guide/ci#blocking-a-merge).
+Tags drive the `tag:` qualifier of the Tests tabs' [search](/reference/test-search), the tag filter on the flaky
+leaderboard, and the `requireTags` rule of the [CI gate](/guide/ci#blocking-a-merge).
 
 ### Test locks
 
@@ -9174,8 +9176,8 @@ test.describe('payments', { lock: ['database', 'external-api'] }, () => { /* eve
 
 The reporter reads the lock names and sends them as `locks`, stored on the execution (`test_runs_cases.locks`) and
 denormalized onto the test case (`test_cases.locks`, the latest declaration) — the same treatment as tags. They power
-the [Timeline tab's lock lanes and *Locks* table](/features/ui-overview#test-run-detail), the lock filter and *Group by lock*
-on the Tests tabs, lock badges on every test row, and two [clues](/features/evidence#clues) (a lock's previous holder failed;
+the [Timeline tab's lock lanes and *Locks* table](/features/ui-overview#test-run-detail), the `lock:` search qualifier on
+the Tests tabs and *Group by lock* on a run's, lock badges on every test row, and two [clues](/features/evidence#clues) (a lock's previous holder failed;
 a lock was held on two shards at once).
 
 Capture is **best effort**. Playwright exposes locks only to an in-process reporter — there is no public API property,
@@ -9215,8 +9217,8 @@ test(
 | `piwi:link` | An absolute `http(s)` URL; other schemes are dropped rather than stored |
 | `piwi:bug` | The id of the Piwi bug report the test reproduces (`37` or `#37`); written by the spec a [bug report](/features/report-a-bug) generates |
 
-Metadata shows as badges next to the test wherever it is listed, is filterable by owner and priority on the **Test
-cases** tab, and is carried into [pull-request feedback](/features/pr-feedback) so a failure comment names the team
+Metadata shows as badges next to the test wherever it is listed, is searchable with `owner:`, `priority:` and `feature:`
+on the Tests tabs ([test search](/reference/test-search)), and is carried into [pull-request feedback](/features/pr-feedback) so a failure comment names the team
 that owns it. Unknown `piwi:` fields and unparseable values are ignored — a typo costs you the field, not the run.
 
 The values are also re-validated server-side, because a payload can reach the ingest API without passing through the
@@ -9297,6 +9299,89 @@ export default defineConfig({
 - [Reporter](/guide/reporter): install and configure the reporter
 - [Reporter options](/reference/reporter-options): every option and its `PIWI_*` variable
 - [Core concepts](/guide/concepts): test case, execution and the other terms these fields attach to
+
+<!-- https://piwitests.dev/reference/test-search -->
+
+# Test search
+
+A run's **Tests** tab and a project's **Tests** tab share one search box and one language: words that look in every
+text of a test, and qualifiers in the style of GitHub search that look in one field, such as `file:cart.spec.ts` or
+`describe:"Guest checkout"`. The box lists the qualifiers when it is empty and the values each one can take as you type,
+and the list marks what matched. `Ctrl` + `F` (`⌘` + `F` on macOS) jumps to the box; pressed again there, it opens the
+browser's own find.
+
+## Words and phrases
+
+A word matches the test title, its describe blocks or its file path, and, on a run's Tests tab, the error text too.
+Every word must match, in any of them: `login timeout` finds the tests that mention both. Quotes keep spaces inside one
+term: `"guest checkout"`.
+
+## Qualifiers
+
+| Qualifier | Also written | Matches | Tests tab |
+|---|---|---|---|
+| `file:` | `path:` | The spec file path | Run and project |
+| `describe:` | `suite:` | A describe block | Run and project |
+| `title:` | `test:`, `name:` | The test title | Run and project |
+| `tag:` | | A tag, with or without its `@` | Run and project |
+| `browser:` | `project:` | The Playwright project the execution ran in | Run |
+| `error:` | | The error text | Run |
+| `lock:` | | A [lock](/reference/test-metadata#test-locks) the test declares | Run and project |
+| `owner:` | | The `piwi:owner` [annotation](/reference/test-metadata#ownership-metadata-piwi-annotations) | Run and project |
+| `priority:` | | The `piwi:priority` annotation | Run and project |
+| `feature:` | | The `piwi:feature` annotation | Run and project |
+
+How the terms combine:
+
+- `file:`, `describe:`, `title:` and `error:` match anywhere in the text, and `*` stands for any characters:
+  `file:checkout/*.spec.ts`. The other qualifiers match a whole value.
+- Case never matters.
+- Every term must match. The exception is a qualifier of which a test has only one value (`file:`, `browser:`, `owner:`,
+  `priority:`, `feature:`): repeated, it matches any of the values, so `file:cart file:checkout` lists both files.
+- A leading `-` excludes: `-tag:slow`, `-describe:legacy`, `-flaky`.
+- A qualifier the tab does not have, such as `error:` on a project, is read as a word.
+
+## Examples
+
+| Search | Finds |
+|---|---|
+| `file:cart` | The tests of every file whose path contains `cart` |
+| `describe:"Guest checkout" -tag:slow` | The tests inside a *Guest checkout* block that are not tagged `@slow` |
+| `timeout browser:webkit` | On a run: the WebKit executions whose title, blocks, path or error mention `timeout` |
+| `owner:@team/payments priority:critical` | The critical tests the payments team owns |
+| `title:"refund*email"` | The tests whose title has `refund`, then `email` further on |
+
+## Completion
+
+The suggestions follow the term under the caret. An empty term lists the qualifiers; a qualifier lists the values it can
+take, with how many tests carry each; a word lists the qualifiers it starts and the values that contain it. On a run the
+values come from its executions; on a project, from every test case in the chosen age window.
+
+| Keys | Action |
+|---|---|
+| `↓` / `↑` | Move through the suggestions |
+| `Enter` / `Tab` | Take the highlighted suggestion |
+| `Esc` | Close the suggestions |
+
+While you type a qualifier's value, the closest match is highlighted, so `Enter` completes it. A plain word is never
+replaced by a qualifier unless you move to one first.
+
+## Order
+
+Both tabs read in the order of the suite unless you pick another sort. A run's Tests tab opens in **Run order**, when
+each test first started (a retried test counts from its first attempt), and in **File order** when grouped by file:
+file path, then the line and column the test is declared at, the order `playwright test --list` prints. A project's Tests
+tab opens in File order. In the *File + Describe* grouping, a describe block keeps its place in the file among the tests
+around it. Outside that grouping, a test's describe blocks are named before its title: `Checkout › pays by card`.
+
+The test catalog's `q` API parameter and the `query` argument of the MCP `get_project_test_catalog` tool take the same
+language ([API docs](https://piwitests.dev/demo/docs), [MCP tools](/reference/mcp-tools)).
+
+## Related
+
+- [UI overview](/features/ui-overview): the run and project Tests tabs
+- [Test metadata](/reference/test-metadata): the tags, locks and `piwi:` annotations the qualifiers read
+- [Keyboard shortcuts](/reference/keyboard-shortcuts): every key the dashboard registers
 
 <!-- https://piwitests.dev/reference/clues -->
 
@@ -10101,6 +10186,17 @@ row. The triage actions need write access to the project.
 | `l` | Link a known issue |
 | `c` | Create an issue in the connected tracker, when the cluster has none |
 
+## Test lists
+
+On a run's and a project's **Tests** tab ([test search](/reference/test-search)):
+
+| Keys | Action |
+|---|---|
+| `Ctrl` + `F` (`⌘` + `F` on macOS) | Focus the search box; pressed again there, open the browser's find |
+| `↓` / `↑` | Move through the search suggestions |
+| `Enter` / `Tab` | Take the highlighted suggestion |
+| `Esc` | Close the suggestions |
+
 ## Screenshot viewer
 
 | Keys | Action |
@@ -10126,5 +10222,6 @@ jump to the first / last project of the row.
 ## Related
 
 - [UI overview](/features/ui-overview): the pages these keys move between
+- [Test search](/reference/test-search): the language of the Tests tabs' search box
 - [Failure clusters & the inbox](/features/failure-clusters): the triage actions
 - [Project access](/operate/project-access#permission-grid): the permission grid
