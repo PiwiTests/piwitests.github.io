@@ -1234,8 +1234,9 @@ logged, and the feature shows nothing rather than failing a run.
 ## Set the token
 
 - **Instance-wide**: **Settings → AI → Repository access**. Every project uses it unless it has its own.
-- **Per project**: the project's edit page, field **SCM token**. It overrides the instance-wide token for that
-  project. Prefer one per project for write access: an instance-wide write token can write everywhere it reaches.
+- **Per project**: the **Source control** section of the project's **Settings** tab, field **SCM token**. It overrides
+  the instance-wide token for that project. Prefer one per project for write access: an instance-wide write token can
+  write everywhere it reaches.
 
 A token is stored encrypted with [`PIWI_SECRET_KEY`](/reference/configuration#general) and never returned by the API;
 the field shows that one is stored. Leave the field empty to keep it. To remove it, save the instance-wide field empty,
@@ -1387,9 +1388,9 @@ Each role's form in **Settings → AI** has a **Test connection** button that ch
 Set a **response language** and every free-text field a person reads (summary, root cause, evidence, fix description and
 AI-generated cluster titles) comes back in that language, while code, locators, paths and error text stay verbatim. Set
 it instance-wide in Settings → AI (or [`PIWI_AI_LANGUAGE`](/reference/configuration), e.g. `French`, which locks the
-field), and override it per project under Project → Settings. This is what makes a French ticket's *Most likely* section
-French: the ticket's copy follows the [destination's language](/features/issue-tracking#language) and the prose follows
-this setting. Unset, responses are in English.
+field), and override it per project under Project → Settings → AI diagnosis. This is what makes a French ticket's *Most
+likely* section French: the ticket's copy follows the [destination's language](/features/issue-tracking#language) and
+the prose follows this setting. Unset, responses are in English.
 
 ## Context limits (and token cost)
 
@@ -2122,8 +2123,12 @@ full runs only) scopes every list. The **More** menu holds Edit, [Test functions
   ([Scenario gaps & the Test Map](./scenario-gaps)). Hidden when the Test Map is switched off.
 - **Performance**: duration trends, the slowest tests, timeout opportunities and the slow endpoints
   ([Slow tests & wasted time](./slow-tests)).
-- **Settings**: project [access](/operate/project-access), the default branch, a per-project
-  [SCM token](/guide/source-control) and [AI instructions](./ai-diagnosis#custom-instructions).
+- **Settings**: one section at a time, picked from a menu beside it: the label and tags, the project's
+  [members](/operate/project-access), [source control](/guide/source-control) (token, default branch, CI re-run),
+  [AI instructions](./ai-diagnosis#custom-instructions), [capabilities](/operate/capabilities),
+  [targets](./analytics#targets), the [issue tracker](./issue-tracking), the
+  [browser extension URLs](./extension-connection#url-patterns) and, in the desktop app, the
+  [local folder](./desktop#running-tests-from-the-app).
 
 ## Locators
 
@@ -2224,7 +2229,7 @@ When the provider exposes it, the reporter also captures the **pull-request numb
 
 ## The default branch
 
-Each project has a **Default branch** setting on its **Settings** tab (placeholder `e.g. main`). Leave it blank and Piwi resolves it from your SCM provider. The default branch is the reference point for the rest of this page: baselines fall back to it, and "already flaky on the default branch" is measured against it.
+Each project has a **Default branch** setting in the **Source control** section of its **Settings** tab (placeholder `e.g. main`). Leave it blank and Piwi resolves it from your SCM provider. The default branch is the reference point for the rest of this page: baselines fall back to it, and "already flaky on the default branch" is measured against it.
 
 ## Filtering by branch
 
@@ -3640,7 +3645,7 @@ failing; the banner says whether new occurrences or new evidence caused it.
 
 ## Custom instructions
 
-Tailor the analysis to your stack with **global** instructions (Settings → AI) and **per-project** instructions. Use them to describe your architecture, common false positives, or house style for fixes.
+Tailor the analysis to your stack with **global** instructions (Settings → AI) and **per-project** instructions (Project → Settings → AI diagnosis). Use them to describe your architecture, common false positives, or house style for fixes.
 
 ## Context limits (and token cost)
 
@@ -4461,8 +4466,8 @@ trigger that run in CI for you: **Re-run in CI**, next to *Copy retry command*, 
 the cluster's retry arguments (`file:line` specs, `--project` when they share one) and links to the run it started. The
 last dispatch (when, by whom, and a link) shows under the Test evidence header.
 
-It is **off by default** and configured per project on the project's edit page, under **CI re-run**. Turn it on and
-fill in the block for your provider:
+It is **off by default** and configured per project in the **Source control** section of the project's **Settings** tab,
+under **CI re-run**. Turn it on and fill in the block for your provider:
 
 | Provider | Target you configure | Token scope |
 |---|---|---|
@@ -4954,8 +4959,9 @@ reaches is named a **declared, never hit** blind spot instead of staying invisib
   package serves no manifest.
 - **A committed manifest.** A `piwi.manifest.json` next to your Playwright config (`{ "routes": [...], "pages": [...] }`)
   is uploaded whenever present, whatever the backend.
-- **An OpenAPI URL**, set per project. Piwi fetches the document on a recompute and records each route's documented
-  response codes, so a *success only* gap can name the error codes a route documents but never returned under test.
+- **An OpenAPI URL**, set per project under Project → Settings → Capabilities → Scenario gaps. Piwi fetches the document
+  on a recompute and records each route's documented response codes, so a *success only* gap can name the error codes a
+  route documents but never returned under test.
 
 ## What this is not
 
@@ -5229,8 +5235,9 @@ It needs:
   `PIWI_SERVER_PROBES=true`. Both apply faults only outside production. The ASP.NET Core package applies throw,
   status, delay and extreme-value faults; its data and dependency probes record as *inconclusive*;
 - the same `PIWI_PROBE_SECRET` where `piwi probe` runs;
-- **Server probes** turned on in the project's edit page, where the fault classes and routes are allow-listed.
-  Dependency faults on state-changing routes (`POST`, `PUT`, `PATCH`, `DELETE`) stay off unless you allow them.
+- **Server probes** turned on under **Scenario gaps** in the **Capabilities** section of the project's **Settings** tab,
+  where the fault classes and routes are allow-listed. Dependency faults on state-changing routes (`POST`, `PUT`,
+  `PATCH`, `DELETE`) stay off unless you allow them.
 
 With server probes on, half of the budget goes to server faults.
 
@@ -5349,9 +5356,9 @@ dashboard, export it as a [quality report](./quality-reports) instead.
 
 ## Targets
 
-A project can carry **targets**, set in its **Settings** tab: a test pass rate to reach, and limits on
-flaky tests, wasted CI minutes per week, the age of the oldest open failure cause and the median time to
-fix. Each one is optional. Over the period a dashboard shows, a target is **met** or **missed**:
+A project can carry **targets**, set in the **Targets** section of its **Settings** tab: a test pass rate to reach, and
+limits on flaky tests, wasted CI minutes per week, the age of the oldest open failure cause and the median time to fix.
+Each one is optional. Over the period a dashboard shows, a target is **met** or **missed**:
 
 - the headline tiles mark each number that has a target, met or missed, with one project in scope;
 - the portfolio's **Targets** column counts the targets each project meets;
@@ -6414,7 +6421,7 @@ A URL pattern is a glob over a page's whole address: `*` matches within one part
 `https://staging.shop.example/**` covers every page of that site, and `https://shop.example/admin/*` the pages one
 level under `/admin`. A pattern starts with `http://`, `https://` or a wildcard.
 
-Each project keeps its own list in its **Settings** tab, under **Browser extension URLs**. A pattern can name:
+Each project keeps its own list in the **Browser extension** section of its **Settings** tab. A pattern can name:
 
 - an **environment**, a label shown beside the project in Piwi Picker (`staging`, `production`);
 - a **branch**, the one deployed at those addresses, whose tests [Tested elements](./tested-elements) shows;
@@ -6870,9 +6877,9 @@ test('bug: coupon not applied to the total', {
 });
 ```
 
-Two project settings shape it, under **Generated specs** in the project's settings: the folder bug specs go to
-(`tests/bugs` by default) and the module `test` and `expect` are imported from, such as `../fixtures` when your tests
-use fixtures of their own.
+Two project settings shape it, under **Generated specs** in the **Source control** section of the project's **Settings**
+tab: the folder bug specs go to (`tests/bugs` by default) and the module `test` and `expect` are imported from, such as
+`../fixtures` when your tests use fixtures of their own.
 
 From a terminal, [`piwi bug 37 --write`](/reference/cli#bug) writes the spec into that folder and runs it once, so you
 see the bug before you fix it.
@@ -8455,7 +8462,7 @@ The **Setup** page (`/setup`, administrators only) is the permanent home for "ho
 
 ## Declining a capability
 
-Not every team uses every capability. Any optional one can be **declined** so the dashboard stops showing it everywhere: the evidence tabs, empty panels, settings page, sidebar entry, project actions and MCP tools it owns all go, rather than lingering half-visible. Decline instance-wide from the Setup ladder (*Not for this instance*) or the presets, or per project from the project's **Settings** tab and the places the capability appears (for example the execution page's evidence footer, *Not for this project*). A project override can also **enable** a capability the instance declined.
+Not every team uses every capability. Any optional one can be **declined** so the dashboard stops showing it everywhere: the evidence tabs, empty panels, settings page, sidebar entry, project actions and MCP tools it owns all go, rather than lingering half-visible. Decline instance-wide from the Setup ladder (*Not for this instance*) or the presets, or per project from the **Capabilities** section of the project's **Settings** tab and the places the capability appears (for example the execution page's evidence footer, *Not for this project*). A project override can also **enable** a capability the instance declined.
 
 Declining is administrator-only and never final: each declined capability keeps a *Reconsider* link on the Setup ladder that clears the decision, and because data always wins, a declined capability that starts receiving data reads as active again with the stored decision shown next to it. See [Why a card is empty](/features/evidence#why-a-card-is-empty) for how this reads on the execution page.
 
