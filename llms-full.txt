@@ -1240,7 +1240,16 @@ the field shows that one is stored. Leave the field empty to keep it. To remove 
 or click **Remove stored token** under the project field.
 
 Public repositories work without a token for the read features, within the host's rate limit for anonymous calls.
-A private repository needs one.
+A private repository needs one, except on the desktop app with a linked folder (below).
+
+### On the desktop app
+
+The [desktop app](/features/desktop) needs no token for the read features. When a project is
+[linked to a folder](/features/desktop#projects-from-local-folders) that is a clone of the repository (one of its
+remotes points at the run's remote URL), Piwi reads the commits, diffs and files with `git` in that folder, on your
+machine. A commit or branch the clone does not have is asked of the host as above, so run `git fetch` in the folder to
+see commits pushed since your last fetch. With a token set, the host is read instead, as on a server, and the write
+features always need one.
 
 ### Which repository
 
@@ -1269,8 +1278,8 @@ section is absent, it says why.
 - **No commits or diff.** The cluster's **What changed** line and the coverage name the cause: no commit or repository
   URL on the run (the reporter reads both from the Git checkout the tests run in, the URL from its `origin` remote), a
   host Piwi does not read, no SCM token, or the host's error. A 404 from GitHub on a private repository means the token
-  cannot see it. While the diff is missing, the line still links the range on the host's compare page and copies the
-  `git log` command for it.
+  cannot see it. On the desktop app, it says when the linked folder does not have the commits yet. While the diff is
+  missing, the line still links the range on the host's compare page and copies the `git log` command for it.
 - **No baseline.** The diff starts at the last green run before the failure first appeared; a project with no green
   run falls back to the last run where the test passed, and a manual baseline commit overrides both.
 - **No pull-request comment.** Pull-request feedback also needs `PIWI_SITE_URL` and a write-scoped token, and posts on
@@ -1883,7 +1892,7 @@ Every outbound connection Piwi can make:
 | Destination | When | Carries |
 |---|---|---|
 | Your AI provider | Only if you configure [AI diagnosis](/features/ai-diagnosis) | The diagnosis context: error text, failing steps, test and related source files, console and network entries, page (ARIA/DOM) snapshots, server logs, the relevant git diff, and up to five failure screenshots by default (`PIWI_AI_MAX_IMAGES=0` sends none). [AI-step](/features/ai-steps) authoring sends masked page snapshots |
-| Your git host | Whenever runs report a GitHub, GitLab or Bitbucket remote (the reporter records `origin` by default) | Without a token: anonymous public-API reads of the repository's default branch and its CODEOWNERS. With a token: commits, diffs and files, plus the PR comments, commit statuses, heal branches and CI re-runs of the features you turn on |
+| Your git host | Whenever runs report a GitHub, GitLab or Bitbucket remote (the reporter records `origin` by default) | Without a token: anonymous public-API reads of the repository's default branch and its CODEOWNERS; the desktop app reads a project's linked clone with `git` instead, and asks the host only for a commit the clone lacks. With a token: commits, diffs and files, plus the PR comments, commit statuses, heal branches and CI re-runs of the features you turn on |
 | A URL you attach as a link | When someone adds a link to a run, test or cluster | A request for its title (the git host's API for an issue or PR link) |
 | Your issue tracker (Jira) | Only if you [connect it](/features/issue-tracking) | Issue reads, and the issues and comments you file |
 | Your SMTP server | Only if you configure [email notifications](/features/notifications) | Notification and account emails |
@@ -6119,8 +6128,9 @@ A dashboard link opened in your browser opens in the app instead.
 name it would report under and checks the setup (a Playwright config, Playwright installed, the reporter wired in);
 anything missing is a warning, and `npx @piwitests/reporter init` in the folder fixes it. The link to the folder
 stays on this machine, under **project page → Settings → Local folder**, with the same checks and **Change** and
-**Unlink**. Linking a folder offers to import the runs already in its `blob-report/` and `test-results/` folders, and
-[Open in IDE](/features/ide-integration) resolves source links against it when no workspace root is set.
+**Unlink**. Linking a folder offers to import the runs already in its `blob-report/` and `test-results/` folders;
+[Open in IDE](/features/ide-integration) resolves source links against it when no workspace root is set; and a clone
+of the repository serves its git history without an [SCM token](/guide/source-control#on-the-desktop-app).
 
 ## Running tests from the app
 
@@ -6138,7 +6148,7 @@ Playwright and the app's bundled Node. The first time, it asks you to link the p
 - **Wrong folder?** When none of the tests exist in the linked folder, the button opens the dialog to fix the link.
 
 The run uses your project's own Playwright config, so its results come here like a run from your terminal, and the
-tray links to the new run. The **Local folder** checks show whether Playwright and the reporter are set up.
+tray links to the new run.
 
 ### Reproducing a failure and finding the breaking commit
 
