@@ -260,7 +260,9 @@ passing `staging` run on `feature/x`, then the last passing `staging` run on `ma
 has the "any branch" rung; a run with no environment label only walks the branch ladder. The Changes
 tab names the run it picked and the rung that applied ("No passing staging run exists on feature/x; the
 last passing run on the default branch main in staging"), and lets you pick a different **base branch**
-or one specific run — see [What changed in a run](/features/run-changes#the-baseline).
+or one specific run — see [What changed in a run](/features/run-changes#the-baseline). When no earlier
+full run passed, the Changes tab and the MCP `get_run_insights` tool fall back to the last failed run,
+found by the same ladder; the regression signals, the CI gate and pull-request feedback do not.
 
 The environment, visual and page diffs compare one execution against the same test's last passing
 execution on the same browser, with the same environment-first order: a `development` failure is diffed
@@ -2234,8 +2236,8 @@ The branch is an indexed column, so the flaky leaderboard, Analytics and the MCP
 
 **Baselines are chosen within an environment and a branch.**
 
-- **The run-level baseline**, what the Changes tab, the stored regression signals, the CI gate, pull-request feedback, the bisect window and the AI diagnosis all compare against, follows the [baseline rule](/guide/concepts#baseline-last-green-run): same environment first, then the same branch, the base branch, any branch. Two feature branches reporting interleaved runs never become each other's baseline.
-- **Choosing the base branch** — the Changes tab lets you take the baseline from any branch that has a passing run, so a long-lived branch can be compared against `release/2` rather than `main`; the choice is in the URL (`?baseBranch=`) and on the API and MCP tool. See [What changed in a run](./run-changes#the-baseline).
+- **The run-level baseline**, what the Changes tab, the stored regression signals, the CI gate, pull-request feedback, the bisect window and the AI diagnosis all compare against, follows the [baseline rule](/guide/concepts#baseline-last-green-run): same environment first, then the same branch, the base branch, any branch. Two feature branches reporting interleaved runs never become each other's baseline. When no earlier full run passed, the Changes tab [falls back to the last failed run](./run-changes#when-no-earlier-run-passed).
+- **Choosing the base branch** — the Changes tab lets you take the baseline from any branch with an earlier full run, so a long-lived branch can be compared against `release/2` rather than `main`; the choice is in the URL (`?baseBranch=`) and on the API and MCP tool. See [What changed in a run](./run-changes#the-baseline).
 - **The visual-diff baseline** follows the same rule for one execution.
 - **Pull-request feedback** builds its "new failures vs. pre-existing" split from the same baseline, so a failure the PR did not introduce is reported as pre-existing, and the `max-new-regressions` [CI gate](/guide/ci#blocking-a-merge) counts the same new failures. A failure whose test is already flaky on the default branch is also marked *Also flaky on `main` … — likely not yours*; the mark does not move it out of the new failures or the gate's count.
 - **Performance alerts** — the `perf.regression` [notification](./notifications) measures a run against the previous runs on the same branch **in the same environment**.
@@ -2273,12 +2275,22 @@ Every section reads the **same baseline**, so the "new failures" count is comput
 
 By default the baseline is the last passing full run chosen by the [baseline rule](/guide/concepts#baseline-last-green-run): same environment first, then same branch, base branch, any branch. The line under the selector spells out the rung that applied, for example _"No passing staging run exists on feature/x; the last passing run on the default branch main in staging."_
 
+### When no earlier run passed
+
+A project that has never had a green run still gets a comparison. When no earlier full run passed, the tab walks the same ladder again for the **last failed run** and says so: _"No earlier full run passed; the last failed run on feature/x in staging."_ The sections read the same way against it: **New failures** are the tests that passed in that run and fail here, **Still failing** the ones that failed in both. Timed-out and interrupted runs stopped before the suite ended, so they are never picked automatically.
+
+Only the Changes tab and the MCP `get_run_insights` tool take a failed run. The stored regression signals, the [CI gate](/guide/ci#blocking-a-merge) and [pull-request feedback](/features/pr-feedback) keep comparing with a passing run, so their verdicts never rest on a run that was itself red.
+
+When nothing qualifies (the earlier runs are partial, timed out or interrupted), the tab says so and offers the earlier runs to pick from. On the project's first finished run, it says there is nothing earlier yet.
+
+### Picking another baseline
+
 Two ways to compare against something else:
 
-- **Base branch** — take the baseline from one branch only: its last passing run, same environment first. The list offers every branch with a passing run, so it appears once a branch other than this run's own has one. Deep-linkable as `?baseBranch=<name>`.
-- **Run** — compare against one specific run, whatever its branch or environment. Deep-linkable as `?baseline=<runId>`, so a link to a comparison reopens the same two runs. **Previous run** is the shortcut for the run just before this one.
+- **Base branch** — take the baseline from one branch only: its last passing run, else its last failed run, same environment first. The list offers every branch with an earlier full run that passed or failed, so it appears once a branch other than this run's own has one. Deep-linkable as `?baseBranch=<name>`.
+- **Run** — compare against one earlier run, whatever its branch, environment or outcome. The list shows the 50 runs before this one, each with its branch, environment, start time and outcome, partial runs marked; type a branch or environment name to filter it. Deep-linkable as `?baseline=<runId>`, so a link to a comparison reopens the same two runs. **Previous run** is the shortcut for the run just before this one.
 
-**Automatic** returns to the default choice. The same two options exist on the REST API (see the [API docs](https://piwitests.dev/demo/docs)) and on the MCP `get_run_insights` tool (`baseBranch`).
+**Automatic** returns to the default choice. The same options exist on the REST API (see the [API docs](https://piwitests.dev/demo/docs)), where `earlierRuns` lists the runs that can be passed as `baseline`, and on the MCP `get_run_insights` tool (`baseBranch`).
 
 ## What it shows
 
