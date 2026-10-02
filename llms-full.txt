@@ -1683,6 +1683,14 @@ What Playwright never recorded cannot be recovered. Web vitals, page state and l
 installed. [Test locks](/reference/test-metadata#test-locks) are also absent: Playwright exposes them only to a live in-process
 reporter, never through the blob report, so an imported run shows no lock lanes, filters or lock clues.
 
+The run's commit and branch come from the archive when Playwright recorded them: a blob report written with
+[`captureGitInfo`](https://playwright.dev/docs/api/class-testconfig#test-config-capture-git-info) carries them in its
+config metadata, and the imported run then joins its branch's history and baselines. A trace carries neither.
+
+Each imported execution is dated from the start of its attempt, so an old archive lands where it ran in a test's
+history, not at the top. An archive older than the project's newest run leaves the tests' current tags, owner,
+priority, locks and locator snapshots as they are.
+
 Imports are also deliberately **silent**: they never send notifications, never trigger AI diagnosis, and never compute
 regression signals. Backfilling a year of history should not page your team about failures they fixed months ago, or
 label an old failure a new regression.
@@ -3434,7 +3442,9 @@ still fails, or too few runs passed to say) · `2` error. Every flag is on the [
   this loop.
 
 The lab's own runs are stamped as flake-lab runs: the reporter still sends them, and the dashboard keeps them out of
-the flaky score, regression signals, clusters, notifications, quarantine and the suspects.
+the flaky score, regression signals, clusters, notifications, quarantine and the suspects. Nor do they reach the
+editor's CI failures, pass rates, durations, the `failed` selection, change coverage, the environment, visual and page
+diffs, green samples, or a test's tags, owner, locks and locator snapshots.
 
 ## Run it in CI
 
@@ -4270,7 +4280,7 @@ shows only what tests do on the page you are on. Without the fixtures a use has 
 
 - **Playwright 1.61 or later**, with step collection on (`collectPerformanceMetrics`, the default). Playwright 1.63 puts the chain in each step's parameters; 1.61 and 1.62 print it in the step title, which Piwi reads the same way.
 - **Getter calls are not reported.** Playwright hides `textContent()`, `inputValue()`, `isVisible()` and similar calls from reporters, so a locator used only through them is not in the index.
-- **Long and described chains.** Piwi keeps the first 500 steps of an execution (`PIWI_INGEST_MAX_STEPS`) and the first 200 characters of each step parameter (`PIWI_INGEST_MAX_STEP_PARAM_VALUE_CHARS`), and `locator.describe()` replaces the chain with its description. Chains cut short or described are skipped.
+- **Long and described chains.** Piwi keeps 500 steps of an execution (`PIWI_INGEST_MAX_STEPS`, the steps that failed first) and the first 200 characters of each step parameter (`PIWI_INGEST_MAX_STEP_PARAM_VALUE_CHARS`), and `locator.describe()` replaces the chain with its description. Chains cut short or described are skipped.
 - **Matching is by chain text.** Two different chains that happen to resolve to the same element count separately. The counts tell you where to look, not that a test will break. To match on the element itself, open the page and use the extension's [Tested elements](./tested-elements), which evaluates every chain there.
 - **The index fills itself.** New runs are indexed as they arrive. When the server starts, it indexes each project's stored history once: for every test, Playwright project and branch, the latest passed execution, or the latest one when none passed. The rebuild endpoint empties a project's index and indexes its stored history again, which also splits by branch the uses indexed before branches were recorded (until then they count as the default branch's): see the [API docs](https://piwitests.dev/demo/docs), or `/docs` on your own instance.
 
@@ -5459,7 +5469,8 @@ the response records the pair as *inconclusive*, and an inconclusive pair waits 
 
 A probe run is stamped as one, with retries off. It never counts as a real run: no failure clusters, no regression
 signals, no notifications, no pull-request feedback, no metric, no quarantine streak, never the baseline another run is
-compared with, and nothing in the Test Map but the probe outcomes.
+compared with, and nothing in the Test Map but the probe outcomes. It never moves a pass rate, a duration or the
+`failed` selection either, and leaves a test's tags, owner, locks and locator snapshots as they are.
 A probed test that notices its fault fails, so a non-zero Playwright exit is expected. The
 [CLI reference](/reference/cli#probe) lists every flag.
 
@@ -7584,9 +7595,10 @@ compared with your files locally.
 
 ## CI failures in the Problems panel
 
-The failures of the latest run on the checked-out branch (else the default branch) are errors in the Problems panel,
-at the line that failed: the call in the error's stack when that file is in your workspace (often a page
-object), else the `test(…)` line. The message is the failure's headline. The run is read every minute.
+The failures of the latest complete run (whole suite, finished, no lab run) on the checked-out branch, else the
+default branch, are errors in the Problems panel, at the line that failed: the call in the error's stack when that file
+is in your workspace (often a page object), else the `test(…)` line. The message is the failure's headline. The run is
+read every minute.
 
 On a failure, the quick fixes are:
 
@@ -7606,8 +7618,8 @@ created.
 
 ## The status bar
 
-The latest run on the branch: how many tests passed, failed and were flaky, with its progress while it runs. Click it
-to open the run. When the extension is not connected, the item says why and runs **Piwi: Connect**.
+The latest complete run on the branch: how many tests passed, failed and were flaky. Click it to open the run. When
+the extension is not connected, the item says why and runs **Piwi: Connect**.
 
 ## The tests behind each line
 
