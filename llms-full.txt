@@ -2729,7 +2729,7 @@ You will not fix them all today, and disabling them is how suites rot. The usual
 list only grows.
 
 [Quarantine in Piwi](/features/flaky-tests#quarantine-with-a-way-out) keeps the test running and reporting. It
-is excluded from the [CI gate](/guide/ci#blocking-a-merge)'s verdict and nothing else:
+is excluded from the [CI gate](/guide/ci#blocking-a-merge)'s verdict and the run's commit status, and nothing else:
 
 - Passing runs accumulate as a **streak**; one failure resets it.
 - After five consecutive passes the test is flagged **ready to release** — you're told, not asked.
@@ -3130,7 +3130,8 @@ The cluster page states where a cluster stands in **one sentence with one verb**
 tracker say an open cluster is done, the line offers the **one action** that reconciles them, *Mark resolved*; a
 snoozed cluster offers *Unsnooze*, an all-quarantined one *Release*. A regression reopens a resolved cluster on its
 own. Beside it, **Triage** sets the status (open / resolved / ignored), a note and the assignee, and snoozes
-the cluster for a day, a week or until it recurs.
+the cluster for a day, a week or until it recurs. Changing the status, from the inbox, a list, bulk triage or an
+agent, keeps the triage note and the lines Piwi added to it.
 
 ### Occurrences over time
 
@@ -3150,6 +3151,12 @@ long the cluster was open. Three verdicts, because they are not the same claim:
 **Every affected test must pass**: a test that did not run counts against the fix. A filtered run can close a cluster
 if it covered all of it, so `--grep` over exactly the affected tests is enough.
 
+**The commit must have changed.** A run at the commit the cluster last failed at (a CI retry, or **Re-run in CI**)
+proves nothing was fixed: Piwi records it as flake evidence and the state line says *passed again at the same commit,
+which is flake evidence, not a fix*. **The branch must match**: only a run on the branch the cluster last failed on, or
+on the default branch, records a fix, so a green pull-request or heal branch leaves a cluster that fails on `main`
+open.
+
 The verdict moves the status only on strong evidence: *Diagnosis verified* sets an **open** cluster **resolved**, and
 *Regressed* sets a **resolved** one back to **open**, each adding a line to the triage note. *Stopped failing* alone
 changes nothing, and an *ignored* cluster is never touched. The [notifications](./notifications) `cluster.fixed` and
@@ -3164,8 +3171,10 @@ back** badge, when a new run fails it again.
 
 ## From an AI agent
 
-Over the [MCP server](/features/mcp), `list_open_clusters` takes the same `queue` argument, and `set_cluster_status`
-triages.
+Over the [MCP server](/features/mcp), `list_open_clusters` takes the same `queue` argument, and the inbox's actions
+have tools: `triage_cluster` sets the status (with a note), assigns, snoozes, quarantines or releases one or more
+clusters at once, `decide_merge_suggestion` approves or rejects a merge suggestion, `rerun_cluster_in_ci` re-runs a
+cluster's tests in CI, and `link_issue` links an existing ticket. `set_cluster_status` triages one cluster.
 
 ## Related
 
@@ -3272,8 +3281,8 @@ The usual approach is `--grep-invert @quarantine`: the test stops running, nothi
 list only grows.
 
 **A quarantined test in Piwi keeps running and keeps reporting.** It is excluded from the [CI gate](/guide/ci#blocking-a-merge)'s
-`--max-failed`, `--max-new-regressions`, `--max-new-flaky`, `--require-tag` and `--require-selection` checks and nothing
-else. That single difference is what makes the exit possible:
+`--max-failed`, `--max-new-regressions`, `--max-new-flaky`, `--require-tag` and `--require-selection` checks and the
+[commit status](./pr-feedback#what-gets-posted), nothing else. That makes the exit possible:
 
 - Passing executions after quarantine (one per attempt per browser project) accumulate as a **streak**; one failure
   resets it.
@@ -3913,6 +3922,11 @@ Every re-diagnose keeps the previous result; a nightly sweep keeps the newest 20
 (`PIWI_RETENTION_DIAGNOSIS_VERSIONS`, `0` keeps all). **History** in the panel header lists them
 newest first, with the model, category, confidence and token cost, and shows what changed since each one.
 
+A re-diagnose sends the previous assessment to the model: its category, confidence, summary and root cause, the
+cluster's triage note, and, when you rated it unhelpful, your note and an instruction not to repeat it without new
+evidence. A rating belongs to the version it rated: the new diagnosis starts unrated, and the history keeps the old
+one's thumbs.
+
 A diagnosis is flagged **may be stale** only when the evidence changed since it ran **and** the cluster is still
 failing; the banner says whether new occurrences or new evidence caused it.
 
@@ -4461,7 +4475,7 @@ In the [desktop app](/features/desktop#reproducing-a-failure-and-finding-the-bre
 
 An open cluster often isn't new — the same failure, or one close to it, was fixed weeks ago. The fix plan looks back over the project's **resolved** clusters (resolved, or with a verified fix that held) and, when one resembles the open cluster closely enough, shows it in the **Fixed before** section of the toolbox — on both pages, and in the `?format=markdown` export and the `get_fix_plan` MCP tool.
 
-A match is scored deterministically first — the same fingerprint family (error kind, masked message, masked locator), the same failing locator, the same spec file or test — and then, when an [embedding model](/guide/ai-provider#model-roles) is configured, by semantic similarity of the stored cluster vectors. The top three matches are shown, each with **when** it was resolved, the **commit** that fixed it (linked when the repository host is known), **how long** it stayed open, the triage note, the earlier diagnosis and its thumbs feedback, and one short reason it matched ("same error and locator", "same spec, similar message (0.91)"); the Markdown export and the MCP tool also name its owner. Nothing matches → the section renders nothing, no empty-state noise.
+A match is scored deterministically first — the same fingerprint family (error kind, masked message, masked locator), the same failing locator, the same spec file or test — and then, when an [embedding model](/guide/ai-provider#model-roles) is configured, by semantic similarity of the stored cluster vectors. The top three matches are shown, each with **when** it was resolved, the **commit** that fixed it (linked when the repository host is known), **how long** it stayed open, the triage note, the earlier diagnosis and its thumbs feedback (a diagnosis rated unhelpful shows only the thumbs-down, never its text), and one short reason it matched ("same error and locator", "same spec, similar message (0.91)"); the Markdown export and the MCP tool also name its owner. Nothing matches → the section renders nothing, no empty-state noise.
 
 **Apply the same triage** copies the earlier cluster's triage note onto the open one, prefixed `Same as cluster #N:` so the history reads as an intentional reuse. It never changes the open cluster's status — a new cluster is never marked resolved just because an old one was. The same top match is fed to the AI diagnosis as a *Previously fixed similar failure* clue, so the model can reuse a known fix rather than re-derive it.
 
@@ -4497,7 +4511,9 @@ strongest thing the dashboard does, so the posture is conservative by design.
   page is skipped unless you confirmed the pick.
 - Before committing, Piwi re-reads each file at the branch head and only writes lines it can still match exactly. A
   line that has drifted is dropped, not guessed.
-- One PR per run, batching every qualifying edit. A duplicate run never opens a second PR.
+- One PR per run, batching every qualifying edit. A duplicate run never opens a second PR for the same edits while
+  their PR is open, however long it stays open; an attempt that failed or was skipped is retried by the next run that
+  qualifies.
 
 ## Requirements
 
@@ -4697,7 +4713,9 @@ Two things get posted when a run finishes:
 - **A summary comment** on the branch's open pull request: one comment per pull request, edited on each later run rather than appended, so a busy
   branch doesn't collect a comment per push.
 - **A commit status**: passed or failed against the run's commit, pull request or not, so a pull request shows the result in its checks
-  list. Required for a branch-protection rule.
+  list. Required for a branch-protection rule. A run whose only failures are [quarantined](./flaky-tests#quarantine-with-a-way-out)
+  tests passes, and the status says how many (`118/120 passed, 2 quarantined`); turn on **Quarantined failures fail
+  the commit status** under the project's **Settings → Source control** to fail it on any failure.
 
 What the comment says, in this order:
 
@@ -5208,7 +5226,8 @@ The top new gaps of each project are the **Gaps digest**
 [quality report](/features/quality-reports#what-a-report-contains); [schedule it](/features/quality-reports#report-schedules)
 to your channels. Agents list and draft gaps with
 [`list_scenario_gaps`](/reference/mcp-tools#list_scenario_gaps) and
-[`draft_scenario`](/reference/mcp-tools#draft_scenario), and the
+[`draft_scenario`](/reference/mcp-tools#draft_scenario), give a verdict with
+[`triage_gap`](/reference/mcp-tools#triage_gap), and the
 [write-the-missing-test](/features/agent-skills) skill drives the loop.
 
 ## What feeds the map
@@ -6153,9 +6172,10 @@ MCP URL to narrow the list further; narrowing never re-enables a declined tool.
 
 **Access.** The server follows the REST API's project assignments: with authentication on, a non-admin key reads only
 its projects, and cross-project tools (`list_recent_activity`, `list_open_clusters`, `search`) are filtered to them.
-The write tools (setting a cluster's status or baseline commit, running or rating a diagnosis, filing an issue,
-registering a test function) need the **reporter** or **administrator** role, and `get_instance_stats` the
-administrator role.
+The write tools (triaging clusters and gaps, deciding a merge suggestion, setting a bug report's status, re-running a
+cluster in CI, linking or filing an issue, setting a cluster's baseline commit, running or rating a diagnosis,
+registering a test function) need the **reporter** or **administrator** role, as the same actions do in the
+dashboard and the REST API, and `get_instance_stats` the administrator role.
 
 **Transport.** Streamable HTTP: JSON-RPC 2.0 over `POST /mcp`, with no SSE or WebSocket. Protocol versions
 `2025-06-18`, `2025-03-26` and `2024-11-05` are supported.
@@ -7229,7 +7249,8 @@ screenshot. See [Replay a bug report](./replay-a-bug-report).
 ## For agents
 
 The [MCP server](./mcp) has `list_bug_reports`, `get_bug_report` (the steps in words, what was expected, the evidence
-and the reproductions) and `render_steps`, which writes a report's failing test, or any steps file's.
+and the reproductions), `render_steps`, which writes a report's failing test, or any steps file's, and
+`set_bug_report_status`, which dismisses, reopens or closes a report.
 
 ## Related
 

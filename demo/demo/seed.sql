@@ -1626,6 +1626,9 @@ CREATE TABLE `test_run_resource_reports` (
 CREATE UNIQUE INDEX `idx_test_run_resource_reports_run_shard` ON `test_run_resource_reports` (`run_id`,`shard`);
 ALTER TABLE `test_runs` DROP COLUMN `resource_report`;
 
+ALTER TABLE `failure_clusters` ADD `flake_evidence_run_id` integer;
+ALTER TABLE `projects` ADD `quarantine_fails_status` integer DEFAULT false NOT NULL;
+
 BEGIN TRANSACTION;
 
 -- Tags

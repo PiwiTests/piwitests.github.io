@@ -1,1 +1,0 @@
-import{d as s,u as o,w as r,o as n,r as c,G as p}from"./etGiPDgv.js";const h=s({__name:"edit",async setup(_){let e,t;const a=o();return[e,t]=r(()=>p({path:`/projects/${a.params.id}`,query:{tab:"settings"},hash:a.hash},{replace:!0})),await e,t(),(i,u)=>(n(),c("div"))}});export{h as default};
