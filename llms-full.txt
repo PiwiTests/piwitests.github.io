@@ -1686,11 +1686,12 @@ reporter, never through the blob report, so an imported run shows no lock lanes,
 
 The run's commit and branch come from the archive when Playwright recorded them: a blob report written with
 [`captureGitInfo`](https://playwright.dev/docs/api/class-testconfig#test-config-capture-git-info) carries them in its
-config metadata, and the imported run then joins its branch's history and baselines. A trace carries neither.
+config metadata, and the imported run then joins its branch's history and baselines. A trace carries neither: its
+branch is [unknown](/features/analytics#branch-policy).
 
 Each imported execution is dated from the start of its attempt, so an old archive lands where it ran in a test's
 history, not at the top. An archive older than the project's newest run leaves the tests' current tags, owner,
-priority, locks and locator snapshots as they are.
+priority, locks and locator snapshots as they are, and wakes no snoozed cluster.
 
 Imports are also deliberately **silent**: they never send notifications, never trigger AI diagnosis, and never compute
 regression signals. Backfilling a year of history should not page your team about failures they fixed months ago, or
@@ -2149,7 +2150,9 @@ chain in the locator index, per branch. See [Who uses a locator](./locator-usage
 
 `/test-runs/:id`: one run. The header carries the status, the primary action (**Copy retry command** on a red run,
 the HTML report on a green one) and one facts line, and a **count bar** filters the tests by status. While it runs,
-results stream in live. The tabs:
+results stream in live. When ingest left something out or rebuilt it, the facts line counts **ingest notes** and
+**Details** lists them: steps and console entries over the [ingest caps](/reference/configuration#ingest-limits), traces not stored,
+evidence rebuilt from a trace, and the fallback the reporter took to send the run. The tabs:
 
 - **Tests**: every execution with its failure headline, in run order, grouped by cluster (the default on a red run),
   file, describe block or [lock](/reference/test-metadata#test-locks), with the same
@@ -5622,8 +5625,9 @@ weekly or monthly. Buckets start at UTC midnight, so a heatmap cell is one UTC d
 
 ### Branch policy
 
-By default only runs on each project's **default branch** count, plus runs whose branch is unknown, so
-a broken feature branch no longer moves the trends. The default branch is the project's setting, else
+By default only runs on each project's **default branch** count, so a broken feature branch does not
+move the trends. A run whose branch is unknown (a trace import, a run outside git) counts only in a
+project that never reported a branch. The default branch is the project's setting, else
 the one its latest run reported, else `main`. *All branches* counts every run; branches picked in the
 filter bar override both.
 
@@ -10650,6 +10654,7 @@ one fires and what a webhook channel receives; channels, subscriptions and deliv
 | `run.finished` | A run completes (any status) |
 | `run.failed` | A run completes with failures |
 | `run.failed.default_branch` | A run fails on the repository's default branch |
+| `run.interrupted` | A run stops reporting before its end and the stale-run sweep marks it interrupted (two minutes without activity). The payload is a run event's, with `status: "interrupted"` and the results stored so far; Flake Lab and probe runs send none |
 | `cluster.new` | A new failure cluster appears |
 | `cluster.fixed` | A run passes every test a cluster covers: the fix landed (a filtered re-run of just those tests counts). The payload's `verification` says whether the diagnosis was corroborated (`diagnosis-verified`) or the tests merely stopped failing, and `resolved` whether the triage status was closed automatically |
 | `cluster.regressed` | A cluster with a recorded fix fails again; `reopened` says whether a *resolved* cluster was set back to open |
