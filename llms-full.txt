@@ -1136,13 +1136,13 @@ e2e:
 
 ## Pull-request feedback
 
-Piwi can post a summary comment (new failures apart from pre-existing ones) and a commit status on the pull request,
-and re-run a failure cluster's tests in CI: see [Pull-request feedback & re-run](/features/pr-feedback).
+Piwi can post a summary comment and a commit status on the pull request, and re-run a failure cluster's tests in CI:
+see [Pull-request feedback & re-run](/features/pr-feedback).
 
 ## Blocking a merge
 
-`npx playwright test` exits non-zero when anything failed. Questions such as *did this change break something that
-was working* need the run history, so the dashboard evaluates them.
+`npx playwright test` exits non-zero when anything failed. *Did this change break something that was working* needs
+the run history, so the dashboard evaluates it.
 
 ```yaml
 - run: npx playwright test
@@ -1157,8 +1157,7 @@ was working* need the run history, so the dashboard evaluates them.
     PIWI_API_KEY: ${{ secrets.PIWI_API_KEY }}
 ```
 
-The command reads the run id from `PIWI_OUTPUT_FILE` (or `--run-id`, or `./piwi-run.json`) and prints every
-violation.
+The command reads the run id from `PIWI_OUTPUT_FILE` (or `--run-id`, or `./piwi-run.json`) and prints each violation.
 
 | Rule | Fails the build when |
 |---|---|
@@ -1168,14 +1167,14 @@ violation.
 | `--max-new-flaky <n>` | More than `n` tests newly started passing only on retry |
 | `--max-quarantined <n>` | More than `n` tests are [quarantined](/features/flaky-tests#quarantine-with-a-way-out) — a ceiling on quarantine debt |
 | `--fail-on-new-cluster` | This run introduced a failure cluster never seen before |
-| `--fail-on-flaky` | This run contains any flaky test (passed only after a retry) — stricter than `--max-new-flaky`, which only counts tests *newly* flaky |
+| `--fail-on-flaky` | Any test passed only after a retry — stricter than `--max-new-flaky`, which counts tests *newly* flaky |
 | `--max-leaks <n>`, `--max-new-leaks <n>` | More than `n` [leaks](/features/resource-leaks#in-ci), or new leaks |
 
 At least one rule is required. Exit codes are part of the contract:
 **0** satisfied, **1** violated, **2** could not evaluate, so a misconfigured pipeline never passes,
 **3** [inconclusive](/features/environment-incidents).
 
-Three behaviors worth knowing:
+Four behaviors worth knowing:
 
 - **A quarantined test does not count** toward `--max-failed`, `--max-new-regressions`, `--max-new-flaky`,
   `--require-tag` or `--require-selection`, and the gate reports how many failures it excluded.
@@ -1183,6 +1182,7 @@ Three behaviors worth knowing:
 - **A test that failed and then passed on retry satisfies `--require-tag`.** Flakiness is what `--max-new-flaky` is
   for.
 - **A required tag that matches no test in the run is a violation**, so a misspelled tag cannot pass silently.
+- **Every evaluation is stored**: [merges overriding a failed gate](/features/pr-feedback#the-gate-verdict) are counted.
 
 `npx @piwitests/reporter gate --help` lists every option; `--json` prints the raw result for a pipeline to parse.
 
@@ -3478,27 +3478,18 @@ of the latest failure, and a bisect of a reproduced flake runs its arm at each s
 It runs, one after the other:
 
 1. **The control**: the test alone, 10 times, with no condition.
-2. **One arm per suspect**, most likely first: the test under that suspect's condition, up to 10 times, stopping at
-   3 failures with the same error as in CI.
+2. **One arm per suspect**: the test under that suspect's condition, up to 10 times, stopping at 3 failures with the
+   same error as in CI. Suspects no experiment tested run first, most likely first; one that did not reproduce runs
+   last, never dropped.
 
 Every run has retries off and runs the checkout you are in. Before it starts, it prints an estimate from the test's
 median duration; `--budget` (15 minutes by default) stops it from starting another arm once spent.
 
 ```text
-piwi flake · checkout › pays with a saved card · 12 failures in 30 days
-
-Suspects from history                                    condition
-  1  GET /api/cart slower (≥1.6 s)            7/8 failures · 3/44 passes    delay to 1.8 s
-  2  admin › resets catalog alongside         5/8 failures · 4/44 passes    run together
-     both write /api/products
-
-Estimate: up to 4 min · budget 15 min
-Lab · dev-laptop · HEAD 9f2c1e0 · chromium · retries off
   control                            0/10
   1  delay GET /api/cart 1.8 s       3/4    stopped at 3 · same error as in CI          reproduced
-  2  run with admin › resets catalog 1/10   same error as in CI · 1 different error (counted apart)  not reproduced
+  2  run with admin › resets catalog 1/10   same error as in CI                         not reproduced
 Verdict: reproduced by delay GET /api/cart 1.8 s (3/4 against 0/10, p = 0.011)
-Saved to the test's Flakiness tab. After your fix: npx @piwitests/reporter flake verify 1842
 ```
 
 ## The conditions
@@ -3526,13 +3517,14 @@ as a delay that trips a timeout the test never hit in CI, is shown apart and has
 | **Amplified** | p < 0.05, but under half the runs failed |
 | **Not reproduced** | anything else |
 
-An arm stops at 3 matching failures. Playwright's `--max-failures` counts every failure, so the command runs an arm
-in batches of up to five repeats and cuts its count after the third matching failure: the result is the one a run
-that stopped there would give. The control never stops early.
+An arm stops at 3 matching failures; the control never stops early.
 
 The command prints the commit it tested next to the commit of the test's latest failure, and warns when they
 differ: a condition that reproduces on today's code says little about last month's failure. The control catches a
 test that simply fails on this machine.
+
+**Not reproduced is not ruled out.** Ten clean runs only show the condition fails in under about 26% of runs (95%
+confidence): a one-in-twenty flake can still come from it, so the next experiment runs it after the untested ones.
 
 ## Verify a fix
 
@@ -3555,19 +3547,23 @@ still fails, or too few runs passed to say) · `2` error. Every flag is on the [
 
 - The project's **Flake Lab** tab lists every flaky or tested test with where it stands (not tested, reproduced, fix
   verified) and the command it needs next, then the project's newest experiments.
-- The test's **Flakiness** tab lists its experiments and each suspect's latest result ("reproduced 3/4 · 2 days
-  ago"), with buttons that copy both commands.
+- The test's **Flakiness** tab lists its experiments and each suspect's latest result ("reproduced 3 of 4 · 2 days
+  ago", "not reproduced 0 of 10 (below 26%)"), with buttons that copy both commands.
 - The **flaky list** marks a test whose latest experiment reproduced it.
-- The [clue](/reference/clues) `known-flake-suspect` turns strong on a failure showing a suspect an experiment
-  reproduced.
-- Over [MCP](/features/mcp), `get_flake_profile` returns the experiments, and `plan_flake_experiment` gives an agent
-  the commands and arms to run itself. The `stabilize-flaky-tests` [agent skill](/features/agent-skills) follows
-  this loop.
+- The [clue](/reference/clues) `known-flake-suspect` turns strong on a failure showing a reproduced suspect.
+- Over [MCP](/features/mcp), `get_flake_profile` and `plan_flake_experiment` give an agent the experiments and the
+  arms to run; the `stabilize-flaky-tests` [agent skill](/features/agent-skills) follows this loop.
 
-The lab's own runs are stamped as flake-lab runs: the reporter still sends them, and the dashboard keeps them out of
-the flaky score, regression signals, clusters, notifications, quarantine and the suspects. Nor do they reach the
-editor's CI failures, pass rates, durations, the `failed` selection, change coverage, the environment, visual and page
-diffs, green samples, or a test's tags, owner, locks and locator snapshots.
+The lab's own runs are stamped as flake-lab runs, kept out of the flaky score, clusters, notifications, quarantine,
+the suspects, the editor's CI failures and every other comparison between runs.
+
+## From the editor and the failure pages
+
+- **In the [editor](./editors#the-tests-behind-each-line)**, a flaky test's line shows its flaky rate and top suspect
+  ("flaky 18% · top suspect: GET /api/cart slower (reproduced 7 of 10)"), with **Reproduce this flake** and, once
+  reproduced, **Verify the flake fix**, run in a terminal against the instance the editor reads.
+- **On a flaky failure's page**, the next step reproduces it under the top untested suspect, then verifies the fix.
+- **Home** lists the tests waiting for a verify, then those whose top suspect is untested.
 
 ## Run it in CI
 
@@ -3604,6 +3600,10 @@ jobs:
 The experiment is recorded with the source `ci`. Exit code 1 (nothing reproduced) fails the job; add
 `continue-on-error: true` to the step when you only want the result on the tab.
 
+To start it from a failure's next step (**Reproduce in CI**, **Verify in CI**), make the input the command's arguments
+(<code v-pre>npx @piwitests/reporter ${{ inputs.piwi_flake }}</code>) and name the workflow as the **Flake Lab** target in the project's
+[CI re-run](./pr-feedback#re-run-from-the-dashboard) settings. It receives `flake 1842` or `flake verify 1842`.
+
 ## Without the dashboard
 
 `--no-upload` keeps the results off the dashboard, but the plan still comes from it. When the dashboard cannot be
@@ -3612,7 +3612,6 @@ reached, pass a plan saved earlier with `--plan <file>`: the response of the pla
 
 ## Limits
 
-- The lab runs where tests run: your machine or a CI job. The dashboard only plans and records.
 - `cpu` needs Chromium; on another browser the arm reports the condition as skipped.
 - A failure that depends on another team's run on a shared environment has no condition; it stays context on the
   Flakiness tab.
@@ -4598,7 +4597,7 @@ git bisect reset
 
 The bisect needs two commits, the failing run's and the **last green** run's, which the reporter records from git (`collectScmInfo`, on by default): when either is missing, or the two are the same commit, the section says so in one line instead of showing a script. The recipe is always there.
 
-In the [desktop app](/features/desktop#reproducing-a-failure-and-finding-the-breaking-commit) the same section can do the work for you: **Reproduce here** runs the recipe against the linked folder in a throwaway `git worktree` (your checkout is never touched), and **Find the breaking commit here** drives the whole bisect with live progress, then records the first bad commit on the cluster.
+In the [desktop app](/features/desktop#reproducing-a-failure-and-finding-the-breaking-commit) the same section can do the work for you: **Reproduce here** runs the recipe against the linked folder in a throwaway `git worktree` (your checkout is never touched), and **Find the breaking commit here** drives the whole bisect with live progress, then records the first bad commit on the cluster. For a failure on a team instance, your [editor](/features/editors#ci-failures-in-the-problems-panel) passes the bisect to the desktop app and shares the first bad commit back with its own key; an agent records one with the `set_cluster_bisect` [MCP tool](/reference/mcp-tools).
 
 ## Fixed before
 
@@ -4844,7 +4843,8 @@ Two things get posted when a run finishes:
 - **A commit status**: passed or failed against the run's commit, pull request or not, so a pull request shows the result in its checks
   list. Required for a branch-protection rule. A run whose only failures are [quarantined](./flaky-tests#quarantine-with-a-way-out)
   tests passes, and the status says how many (`118/120 passed, 2 quarantined`); turn on **Quarantined failures fail
-  the commit status** under the project's **Settings → Source control** to fail it on any failure.
+  the commit status** under the project's **Settings → Source control** to fail it on any failure. **Only comment on
+  failures** follows the same rule: such a run gets no comment.
 
 What the comment says, in this order:
 
@@ -4869,6 +4869,20 @@ translation the diff removes or renames, matched against the base branch's locat
 already listed with its failure, a passing one was updated), so it names what the run did not exercise: tests outside
 the selection, on another shard set, or in a nightly suite. Each comes with its call site and, for a rename, the
 rewritten locator.
+
+## The gate verdict
+
+Each [merge gate](/guide/ci#blocking-a-merge) evaluation is stored with its policy, its verdict, its violations and
+the pull request it judged.
+
+- **A commit status of its own.** Turn on **Gate status** under the project's **Settings → Source control** and each
+  verdict is also posted as your status context plus `/gate` (`piwi/tests/gate`), so a branch rule can require the
+  gate rather than the run. It needs **Set a commit status** on. An
+  [environment incident](./environment-incidents) posts nothing.
+- **Overrides and escapes.** Every ten minutes Piwi asks the host what became of the pull requests a gate failed on.
+  One merged while its last evaluation still failed counts as an override; one fixed first, or closed, does not. When
+  a cluster that evaluation caught as a new regression fails again on an eligible default-branch run within 30 days
+  of the merge, the override also counts as an escape past the gate.
 
 ## Turn it on
 
@@ -4900,6 +4914,9 @@ under **CI re-run**. Turn it on and fill in the block for your provider:
 
 The dispatch uses the project's SCM token, so that token needs the write scope above. The button is disabled with an
 explanatory tooltip when the feature is off, no target is configured for the repository's provider, or no token is set.
+
+An optional **Flake Lab** block names a second workflow or pipeline that runs `piwi flake` for one flaky test, started
+from that test's next step: [Run it in CI](./flake-lab#run-it-in-ci) shows the workflow.
 
 Your workflow has to actually consume the value. A minimal GitHub example that forwards the input to Playwright:
 
@@ -6557,14 +6574,13 @@ cannot. The prompt needs MCP; the `setup-piwi` skill works offline. See [MCP ser
 
 The desktop app runs the **entire dashboard on your machine**, with no Docker, no `npx` and no server to set up. It
 bundles the same server as the Docker image in a native window, keeps your data in a local folder, and adds what only
-a local app can do: run your tests from the window, reproduce a failure in a clean checkout, bisect to the commit that
-broke it, and wire your AI assistants in one click.
+a local app can do.
 
 ## What it does
 
 - **Receives your local runs** with no URL or token in your Playwright config.
 - **Links a project to its checkout**, so a run page can re-run the failed tests here.
-- **Reproduces and bisects** a failure, or a flake, in a throwaway worktree, leaving your working tree alone.
+- **Reproduces and bisects** a failure, or a flake, in a throwaway worktree, also for your editor.
 - **Imports** a blob report or trace dropped on the window.
 - **Connects AI assistants** to its MCP server by writing their config for them.
 
@@ -6589,8 +6605,7 @@ on Linux): `piwi.db` (SQLite) and `storage/`. **Settings → Storage → Data lo
 folder** show it. Back up the parent folder while the app is closed; its `secret.key` decrypts stored AI keys and SCM
 tokens.
 
-The window navigates like a browser, with back and forward buttons at the top of the sidebar. Closing the window quits the app unless you turn on **Run in background** in the
-tray menu; **Start on login** launches it hidden into the tray. While the window is in the background, your
+Closing the window quits the app unless you turn on **Run in background** in the tray menu; **Start on login** launches it hidden into the tray. While the window is in the background, your
 [notifications](/features/notifications) arrive as OS notifications, with an unread count on the dock icon or in the
 tray tooltip.
 
@@ -6626,8 +6641,7 @@ Playwright and the app's bundled Node. The first time, it asks you to link the p
 - **The arrow next to the button** holds the options: headless, headed, the Playwright inspector or UI mode; tests
   by `file:line`, title or file; a forced trace; `--repeat-each` up to 100 times (1,000 in **Run with
   options…**, which shows the command). The last choice becomes the project's one-click default.
-- **Runs keep going while you browse.** Output streams into the **Local runs** tray, a sidebar pill keeps it one
-  click away, and stopping is always explicit.
+- **Runs keep going while you browse.** Output streams into the **Local runs** tray; stopping is always explicit.
 - **More places to run from:** **Reproduce locally** on a test case (20 times with a trace), **Run locally**
   on a failure cluster, and a [bug report](/features/bug-reports#running-it-with-playwright-in-the-desktop-app)
   sent from Piwi Picker.
@@ -6651,6 +6665,13 @@ linked folder, **without touching your checkout**:
 It needs `git` and your package manager on this machine, and bisects one repository. The application under test has
 to build from the same checkout: a Playwright `webServer` starts it at each commit, or set a **start command** and a
 readiness URL under **Reproduce and bisect**.
+
+### Jobs from your editor
+
+On a failure of a team instance, the [editor extensions](/features/editors#ci-failures-in-the-problems-panel) offer
+**Reproduce in the desktop app** and **Find the breaking commit in the desktop app**. The window shows the commits and
+tests, and runs nothing until you start it. The editor gets the verdict and can share a first bad commit on the team
+instance with its own key, which the app never holds.
 
 ### Reproducing a flake
 
@@ -6678,16 +6699,14 @@ time) and `apply_locator_fix` (a recommended locator fix applied to the file, pr
 
 The **MCP server** page detects Claude Code, Claude Desktop, Cursor, Opencode, VS Code, Windsurf and Gemini CLI, and
 connects each in one click by writing a `piwi-desktop` entry, with the address and token, into the client's own config file.
-It keeps a backup, touches only that entry, shows the snippet instead for a config that is not plain JSON, and
-rewrites the entry at each launch if the port changed. Claude Desktop, which takes only local
+It keeps a backup, touches only that entry, and rewrites it at each launch if the port changed. Claude Desktop, which takes only local
 commands, is pointed at the app's built-in bridge (`piwi-desktop mcp-stdio`), so no token is copied; the app has to be
 running for it. Restart the client after connecting.
 
 ## Updates
 
-**Settings → About → Updates** checks for a newer release, downloads it and applies it on restart. It also
-checks at startup, which that card can turn off. The `.exe`
-updates silently, without admin rights; the `.msi` asks for them. Downloads are verified against the project's signing
+**Settings → About → Updates** checks for a newer release, downloads it and applies it on restart, and checks at
+startup unless turned off. The `.exe` updates silently, without admin rights; the `.msi` asks for them. Downloads are verified against the project's signing
 key; a dev build without it says so.
 
 ## Limits
@@ -7783,31 +7802,31 @@ run **Piwi: Connect** (**Settings → Tools → Piwi** in a JetBrains IDE) and s
 [Editor connection](./editor-connection) has the steps.
 
 Nothing from your workspace is sent to the instance: the project's
-[locator index](/guide/concepts#locator-index), [code reach](/features/code-reach) and latest run are downloaded and
-compared with your files locally.
+[locator index](/guide/concepts#locator-index), [code reach](/features/code-reach) and latest run are compared with
+your files locally.
 
 ## CI failures in the Problems panel
 
 The failures of the latest complete [CI run](/reference/test-metadata#run-origin) (whole suite, finished) on the
 checked-out branch, else the default branch, are errors in the Problems panel, at the line that failed: the call in the
-error's stack when that file is in your workspace (often a page object), else the `test(…)` line. The message is the failure's headline. The run is
-read every minute.
+error's stack when that file is in your workspace (often a page object), else the `test(…)` line, with the failure's
+headline. The run is read every minute.
 
 On a failure, the quick fixes are:
 
 - **Heal: use …** — when [locator healing](/features/locator-healing) has a recommendation for the failing locator,
-  the same edit an [auto-heal pull request](/features/auto-heal) would make, applied to the line in place.
-- **Open the trace** — downloads the trace and opens it with `npx playwright show-trace`.
+  the same edit an [auto-heal pull request](/features/auto-heal) would make, applied in place.
+- **Open the trace** — opens it with `npx playwright show-trace`.
+- **Reproduce in the desktop app**, **Find the breaking commit in the desktop app** — on a team instance's failure,
+  while the [desktop app](/features/desktop#jobs-from-your-editor) runs; **Share on …** records the first bad commit.
 - **Apply the fix plan, then run its verification** — when the failure's [cluster](/features/failure-clusters) has a
   [fix plan](/features/fix-plans) whose patch applies to your files (or locator rewrites whose lines still read as
-  captured): VS Code previews the edit before applying it, then runs the plan's verify command in a terminal.
-- **Copy context for agent** — one block with the failure, its locator healing and the cluster's fix plan, for a coding
-  agent.
-- **Open the failure in the dashboard** — the execution page, with every piece of [evidence](/features/evidence).
+  captured): VS Code previews the edit, then runs the plan's verify command in a terminal.
+- **Copy context for agent** — the failure, its healing and fix plan, for a coding agent.
+- **Open the failure in the dashboard** — the execution page, with its [evidence](/features/evidence).
 
-Hover the line for the error message, its call chain, the failure screenshot, and the tickets linked to the failure's
-cluster or test with their status. Without one, **File an issue** opens the cluster in the dashboard, where issues are
-created.
+Hover for the error message, its call chain, the failure screenshot, and the tickets linked to the failure's
+cluster or test. Without one, **File an issue** opens the cluster in the dashboard.
 
 ## The status bar
 
@@ -7827,6 +7846,10 @@ Lines above the code (CodeLens):
 
 In a failing test, the line it failed at (in the spec, the line that calls the page object) is tinted darker, with the
 reason, **Screenshot** and **Trace** above it.
+
+Above a flaky test: its flaky rate and [top suspect](./flake-lab#from-the-editor-and-the-failure-pages), then
+**Reproduce this flake** and, once reproduced, **Verify the flake fix**, which run `piwi flake` against the instance
+the editor reads.
 
 **Piwi: Run the tests that reach this file** runs them in a terminal, with the arguments `piwi run` would use;
 **Piwi: Run selection…** runs one of the project's saved [selections](/features/test-selection).
@@ -7861,8 +7884,7 @@ a warning, with the chains it breaks and their tests on hover, and one quick fix
 ## Piwi's MCP server for the agent
 
 In VS Code 1.101 and later, the extension provides Piwi's [MCP server](/features/mcp) to the editor's agent with the
-connection it already has: it is listed under the MCP servers, and the agent can read failures, flaky tests and
-healings. In an editor without that API, **Piwi: Copy the MCP server configuration** puts an `mcp.json` entry on the
+connection it already has, listed under the MCP servers. In an editor without that API, **Piwi: Copy the MCP server configuration** puts an `mcp.json` entry on the
 clipboard. It holds your API key: paste it into your user settings, not into the repository.
 
 ## Commands
@@ -7888,12 +7910,11 @@ cursor:
 2. In Piwi Picker's settings, paste it under **Send to editor** and click **Pair**; the browser asks once for access to
    that local address.
 3. A picked locator's row and the recording review then show **Send to editor**. A locator is inserted in the copy
-   form you chose; a recording is rendered by the editor as the body of a test, like
-   [`piwi codegen --body`](/reference/cli#codegen), with the project's functions and the locators its tests already
-   use.
+   form you chose; a recording is rendered as the body of a test, like
+   [`piwi codegen --body`](/reference/cli#codegen).
 
-The editor listens on the loopback interface only, and accepts a request only with the token. Nothing goes through the Piwi instance. With several VS Code windows open,
-the one that paired receives.
+The editor listens on the loopback interface only, and accepts a request only with the token. With several VS Code
+windows open, the one that paired receives.
 
 ## JetBrains IDEs
 
