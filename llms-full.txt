@@ -6919,11 +6919,10 @@ Pick an element to copy one block for a coding agent: the page URL, a summary of
 
 **Record actions** asks for access to the site you are on, then captures clicks, double clicks, fills, checks,
 choices, drags, the names of chosen files (never their content) and the keys that submit, close or move through a
-list, across pages. A click on what a hover shows (row actions, a
-hover menu) is recorded after that hover. **Stop** opens the
-review: **Copy as TypeScript** for a runnable spec that waits for each page it opens, **Download steps** for a
+list, across pages, and a click on what a hover shows after that hover. **Check an element** and **Check the
+address** add an `expect(…)` of what the page shows now. **Stop** opens the review: **Copy as TypeScript** for a runnable spec that waits for each page it opens, **Download steps** for a
 [steps file](/reference/steps-format) to share or render with [`piwi codegen`](/reference/cli#codegen),
-[**Send to editor**](./editors#send-from-piwi-picker), or **Discard**. Passwords are never captured, nor a card number, its security code or a one-time code in a field whose `autocomplete` names it: the spec reads them from `process.env`.
+[**Send to editor**](./editor-recording#send-from-piwi-picker), or **Discard**. Passwords are never captured, nor a card number, its security code or a one-time code in a field whose `autocomplete` names it: the spec reads them from `process.env`.
 
 ## Matching functions
 
@@ -7730,6 +7729,7 @@ Extraction is deliberately conservative. A function that branches on its argumen
 ## Using the catalog
 
 - **While recording**, the extension live-ranks which catalog function the steps so far look like, and on **Copy as TypeScript** matched steps collapse into a call to your function; anything unmatched stays as plain locators. The matcher only ever *selects among* the functions you registered — it never invents one. See the [browser extension](./extension#what-it-does).
+- **While recording from your editor**, each run of steps a function performs is written as a call to it as soon as its last step is recorded, a page object taken from the test's fixtures when the file's tests take it there. See [Record tests from the editor](./editor-recording).
 - **Against the current page**, the popup's **Test functions** checklist scores every function in the active project's catalog: ready to use here, a partial match, or not found on this page.
 
 ## Related
@@ -7762,7 +7762,9 @@ tests behind each locator, the heal as a quick fix — install the
 With the [Piwi plugin](./editors#jetbrains-ides) installed in Rider, WebStorm,
 IntelliJ IDEA Ultimate or another JetBrains IDE (from **Settings → Plugins**, or
 **[the JetBrains Marketplace ↗](https://plugins.jetbrains.com/plugin/34674-piwi)**),
-clicking a path opens it there with **nothing to set up**:
+clicking a path opens it there with **nothing to set up** once the project is
+connected to the instance the dashboard belongs to (the reporter's `PIWI_*`
+variables, **Settings → Tools → Piwi** or the desktop app):
 
 - The dashboard asks every JetBrains IDE running, on its built-in server
   (ports 63342 to 63361: a second IDE running takes the next free port). The IDE
@@ -7781,9 +7783,14 @@ clicking a path opens it there with **nothing to set up**:
   you set wins; when several projects do, the one connected to the same Piwi
   project wins.
 
-When the dashboard is served from another address than `localhost` (a shared
-instance), the IDE asks once whether to trust that address, and keeps the answer
-for a day; the first click may not open the file while the question is shown.
+The IDE answers only a page of the Piwi instance one of its open projects is
+connected to (**Settings → Tools → Piwi**, or `PIWI_DASHBOARD_URL` in the
+environment or the workspace `.env`), or of the [desktop app](./desktop.md)
+running on the same machine; an instance's page finds files only in the projects
+connected to it. A page from any other address, another page on your machine
+included, gets no answer whatever the IDE's built-in server settings allow, and
+the first address refused in an IDE session is named in a notification. When the dashboard you use is the project's instance under another
+address, connect the project to that address.
 
 ## Set it up
 
@@ -7803,7 +7810,7 @@ for a day; the first click may not open the file while the question is shown.
 |--------|--------------|-------|
 | **VS Code** | `vscode://file/<abs-path>:<line>` URL scheme | A workspace root (for the absolute path). Flavors: VS Code, Insiders, VSCodium, Cursor. |
 | **JetBrains (URL)** | The Piwi plugin, then `jetbrains://<product>/navigate/reference?project=<name>&path=<rel>:<line>` | Without the plugin: [JetBrains Toolbox](https://www.jetbrains.com/toolbox-app/), the IDE product tag (e.g. `idea`, `rider`) and the open project name (in Rider, the solution's name). |
-| **JetBrains (local server)** | The Piwi plugin, then `http://localhost:63342/api/file/<path>:<line>` | Without the plugin: the IDE running with the **[IDE Remote Control](https://plugins.jetbrains.com/plugin/19991-ide-remote-control)** plugin and **Settings → Build → Debugger → "Allow unsigned requests"** enabled. It cannot confirm the file opened. |
+| **JetBrains (local server)** | The Piwi plugin, then `http://localhost:63342/api/file/<path>:<line>` | Without the plugin: the IDE running with the **[IDE Remote Control](https://plugins.jetbrains.com/plugin/19991-ide-remote-control)** plugin and **Settings → Build → Debugger → "Allow unsigned requests"** enabled, which lets any page reach the IDE's local server. It cannot confirm the file opened. |
 | **Auto** | The Piwi plugin, then the other methods in turn (see below) | Whatever the method that answers needs. |
 
 ### Desktop app — direct launch (most reliable)
@@ -8013,23 +8020,15 @@ clipboard. It holds your API key: paste it into your user settings, not into the
 | Piwi: Run selection… | Run one of the project's saved [selections](/features/test-selection) |
 | Piwi: Open the latest run | Open the run the status bar shows |
 | Piwi: Copy the MCP server configuration | For editors without the MCP provider API |
-| Piwi: Pair with Piwi Picker | Copy the address Piwi Picker sends to |
+| Piwi: Pair with Piwi Picker | Copy the address [Piwi Picker sends to](./editor-recording#send-from-piwi-picker) |
+| Piwi: Record here, Record a new test file | Record in a browser, at the cursor or into a new spec: [Record tests from the editor](./editor-recording) |
+| Piwi: Stop recording, Pause recording, Resume recording | Control the recording in progress |
 
-## Send from Piwi Picker
+## Record a test
 
-A locator picked with the [Piwi Picker](./extension) browser extension, or a flow it recorded, lands at the editor's
-cursor:
-
-1. In the editor, run **Piwi: Pair with Piwi Picker** (**Tools → Piwi → Pair with Piwi Picker** in a JetBrains IDE).
-   It copies a pairing address, `http://127.0.0.1:<port>/…#<token>`.
-2. In Piwi Picker's settings, paste it under **Send to editor** and click **Pair**; the browser asks once for access to
-   that local address.
-3. A picked locator's row and the recording review then show **Send to editor**. A locator is inserted in the copy
-   form you chose; a recording is rendered as the body of a test, like
-   [`piwi codegen --body`](/reference/cli#codegen).
-
-The editor listens on the loopback interface only, and accepts a request only with the token. With several VS Code
-windows open, the one that paired receives.
+**Piwi: Record here** opens a browser through your project's own Playwright and writes what you do there at the cursor,
+as you do it. A locator picked or a flow recorded with [Piwi Picker](./extension) can be sent to the cursor too. Both
+are in [Record tests from the editor](./editor-recording).
 
 ## JetBrains IDEs
 
@@ -8047,9 +8046,142 @@ client shows warnings, quick fixes and hover in open files; the rest is native:
 - **MCP**: **Copy the MCP server configuration** puts an `mcpServers` entry on the clipboard for **Settings → Tools → AI
   Assistant → Model Context Protocol**. It runs the server through `mcp-remote`, with the key in its
   environment.
-- **[Open in IDE](./ide-integration)**: a path clicked in the dashboard opens at its line, with nothing to set.
+- **[Open in IDE](./ide-integration)**: a path clicked in the dashboard of the instance the project is connected to, or
+  in the desktop app, opens at its line.
+- **[Recording](./editor-recording)**: **Tools → Piwi → Record Here**, Alt+Enter or Alt+Insert, and **File → New →
+  Record a New Test File…**; the controls are in a banner above the editor.
 
 IntelliJ IDEA Community Edition and Android Studio do not have the LSP API the plugin needs.
+
+<!-- https://piwitests.dev/features/editor-recording -->
+
+# Record tests from the editor
+
+**Piwi: Record here** opens a browser through your project's own Playwright and writes what you do there at the cursor,
+as you do it: steps inside a test, a page object's method or a helper function, a new test anywhere else in a spec. It
+works in VS Code (and Cursor, VSCodium) and in the JetBrains IDEs with the
+[Piwi plugin](./editors#jetbrains-ides), and needs no instance, no desktop app and no browser extension.
+
+## Start a recording
+
+| Editor | Record at the cursor | Record a new test file |
+|---|---|---|
+| VS Code | **Piwi: Record here**, from the command palette or the editor's context menu | **Piwi: Record a new test file** |
+| JetBrains IDE | **Tools → Piwi → Record Here**, **Alt+Enter** or **Alt+Insert** (Generate), or the editor's context menu | **File → New → Record a New Test File…** |
+
+Before the browser opens, the editor asks for:
+
+1. **The start page**: a path on the project's `baseURL`, or an address; left empty, the browser opens the `baseURL`.
+2. **The page the steps run on**, when the code around the cursor offers several: `page`, a fixture such as
+   `adminPage`, or `this.page` in a page object. Any other expression can be typed.
+3. **The Playwright project**, when the config has several. The browser gets its `use` options: `baseURL`,
+   `storageState`, the viewport and device, the locale, the extra headers and `testIdAttribute`.
+
+The editor offers your last answers again. A new test file is offered next to the file you are in, and the recording
+writes a whole spec into it.
+
+## While it records
+
+- **The block** the recording writes is tinted, and written again as each step arrives: a run of steps becomes one call
+  to your own page object or helper once its last step is recorded, and the import that call needs is added at the top
+  of the file.
+- **The controls**: the step count, **Stop** and **Pause** (**Resume** while paused), above the block in VS Code and in
+  a banner above the editor in a JetBrains IDE, and **Pause**, **Stop** and the checks in the browser's recording bar. The status
+  bar shows the recording too. While paused, from the editor or the browser, what you do in the browser is not
+  recorded: use it to reach a page or set up data without writing those steps; **Resume** continues from there.
+- **Checks**: **Check an element** in the browser's recording bar lets you pick an element and check its text, its
+  value, its accessible name or its state, starting from what it shows now; **Check the address** checks the page's
+  address. Each is written as an `await expect(…)` where you added it.
+- **Typing in the block** pauses the recording. **Resume** writes the block again from the recorded steps, over your
+  edits; **Keep my edits** stops the recording and keeps the code as you changed it.
+- **Warnings** (a brittle locator, a password read from the environment, a file to upload) are on their lines. They stay
+  after the recording, until the code they describe is edited.
+
+## Stop and undo
+
+**Stop** in the editor or in the browser's recording bar, or closing the browser, ends the recording, and the code stays.
+Closing the file ends it too. One **Undo** then removes the whole recording, imports included. In VS Code, a save or an
+edit of the file during the recording starts a new undo step, so your own changes stay undoable on their own; in a
+JetBrains IDE, that Undo also takes back the edits you made in the file meanwhile, and Redo brings everything back.
+
+## The code
+
+- **Locators** come from the same converter as Piwi Picker's recordings and [`piwi codegen`](/reference/cli#codegen):
+  each is verified to find the element alone on the page, the stable ones first and those your tests already use
+  preferred. A `getByTestId` uses the attribute your config sets.
+- **Pages**: an address on the project's `baseURL` is written as a path, and the step that leads to another page is
+  followed by a wait for it, except next to a call to your own code, which waits for its pages itself.
+- **Imports**: a call to your own code, and `expect` when a step checks something, are imported at the top of the file
+  when it lacks them.
+- **Your own code**: when the editor is connected to an instance or the [desktop app](./desktop), steps that match one
+  of your [test functions](./test-functions) become a call to it.
+- **Passwords** are never recorded: the code reads them from an environment variable named after the field, such as
+  `process.env.E2E_PASSWORD`, including in a call to a page object.
+
+## Code options in the Playwright config
+
+How the recorded code looks is set for the whole repository in `playwright.config.ts`, under the `'@piwi'` key at the
+top level, next to `testDir` and `use`. Everyone who records in the repository gets the same code, with or without an
+instance:
+
+```ts
+import { defineConfig } from '@playwright/test';
+import type {} from '@piwitests/reporter'; // declares '@piwi' on the config; already there with wrapConfig
+
+export default defineConfig({
+  testDir: './tests',
+  '@piwi': {
+    codegen: {
+      testSteps: 'page',
+      tags: ['@recorded'],
+      annotations: [{ type: 'piwi:owner', description: '@shop-team' }],
+    },
+  },
+});
+```
+
+| Option | Default | What it does |
+|---|---|---|
+| `pageWaits` | `true` | `false` leaves out the wait for the next page after a step that leads to it |
+| `values` | `'literal'` | `'env'` reads every typed value from an environment variable named after its field, not only passwords |
+| `envPrefix` | `'E2E_'` | What those variables start with, as in `E2E_PASSWORD`: upper-case letters, digits and underscores |
+| `testSteps` | `'none'` | `'page'` wraps the steps of each page in `await test.step('/cart', …)`, so the report reads like the scenario; in a test only, not in a page object or a helper |
+| `tags` | none | Tags a new test gets |
+| `annotations` | none | Annotations a new test gets, `{ type, description? }` |
+
+The editor reads the section through your project's own Playwright, which hands the top-level keys starting with `@`
+to reporters as they are written, so it applies to the recordings started after the config is saved. **Send to
+editor** from Piwi Picker follows it too. An unknown option or a value of the wrong kind is left out, and the recording
+says so when it starts.
+
+## Send from Piwi Picker
+
+A locator picked with the [Piwi Picker](./extension) browser extension in your everyday browser, or a flow it
+recorded, lands at the editor's cursor too:
+
+1. In the editor, run **Piwi: Pair with Piwi Picker** (**Tools → Piwi → Pair with Piwi Picker** in a JetBrains IDE).
+   It copies a pairing address, `http://127.0.0.1:<port>/…#<token>`.
+2. In Piwi Picker's settings, paste it under **Send to editor** and click **Pair**; the browser asks once for access to
+   that local address.
+3. A picked locator's row and the recording review then show **Send to editor**. A locator is inserted in the copy
+   form you chose; a recording is rendered as the body of a test, like
+   [`piwi codegen --body`](/reference/cli#codegen).
+
+The editor listens on the loopback interface only, and accepts a request only with the token. With several VS Code
+windows open, the one that paired receives.
+
+## Limits
+
+- The browser is the one your tests use, installed by Playwright (`npx playwright install chromium`).
+- The recording does not start your `webServer`: start the application first.
+- It records the top-level page: clicks inside an iframe, and steps in a popup or a new tab, are not recorded yet.
+- A file takes one recording at a time.
+
+## Related
+
+- [Editor extensions](./editors): everything else the editor shows from your suite.
+- [Piwi Picker](./extension): records in your everyday browser, for a bug report or a steps file.
+- [Test functions](./test-functions): the page objects and helpers a recording calls.
 
 <!-- https://piwitests.dev/features/editor-connection -->
 
@@ -10549,7 +10681,7 @@ of a file.
 | `--test-import <mod>` | Module `test` and `expect` are imported from, such as your fixtures file (default `@playwright/test`) |
 | `--absolute-urls` | Keep the recorded URLs instead of paths |
 | `--no-url-checks` | Do not wait for each new page's URL |
-| `--env-values` | Read every typed value from a `PIWI_TEST_VALUE_<n>` environment variable instead of writing it into the spec |
+| `--env-values` | Read every typed value from an environment variable named after its field (`E2E_EMAIL` for a field labeled Email) instead of writing it into the spec |
 | `--fail` | Mark the test as expected to fail (`test.fail()`) |
 | `--fail-reason <text>` | The reason written beside `test.fail()`, such as a ticket key |
 | `--tag <tag>` | Add a tag; repeat for more (`@` is added when missing) |
@@ -10694,7 +10826,7 @@ URLs on `origin` are stored as paths (`/cart?from=mail`), so a spec rendered fro
 | `action` | string | `goto`, `click`, `dblclick`, `hover`, `fill`, `check`, `uncheck`, `selectOption`, `press`, `setInputFiles`, `dragTo` or `assert`. |
 | `target` | object or null | The element the step acted on; null for `goto`, a key press on the page, or an `assert` on the URL. |
 | `value` | string or null | The URL for `goto`, the typed text for `fill`, the option for `selectOption`, the key for `press`, the chosen files' names for `setInputFiles`, one per line. |
-| `redacted` | boolean | The value was typed in a password field and was not kept; the spec reads it from `PIWI_TEST_VALUE_<n>`. |
+| `redacted` | boolean | The value was typed in a password field and was not kept; the spec reads it from an environment variable named after the field, such as `E2E_PASSWORD`. |
 | `pageUrl` | string | The page the step happened on. |
 | `timestamp` | number | When it happened. |
 | `assertion` | object | On `assert` steps only; see below. |
