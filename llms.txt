@@ -32,6 +32,7 @@
 - [Cut the time it costs](https://piwitests.dev/recipes/faster-suite): Find where your suite's CI time goes, from waits and timeouts to flaky retries and slow endpoints, and what to cut first.
 - [Failure evidence](https://piwitests.dev/features/evidence): Everything captured about one failing execution on one screen: the evidence tabs, clues, attempts, the page diff and the trace-powered views.
 - [Failure clusters & the inbox](https://piwitests.dev/features/failure-clusters): Failures that share an error fingerprint grouped into one cluster, triaged once from the failure inbox with an owner, a known issue and snoozing.
+- [Environment incidents](https://piwitests.dev/features/environment-incidents): How Piwi recognizes a run that failed because the app under test was down, and keeps it out of flaky scores, baselines, fix verification and the CI gate.
 - [Flaky tests & quarantine](https://piwitests.dev/features/flaky-tests): How Piwi scores and classifies flaky tests from their history, ranks them by the CI time they waste, and quarantines them with a way out.
 - [Flake Lab](https://piwitests.dev/features/flake-lab): Make a flaky test fail on demand: piwi flake replays each suspect from the test's history next to a control run, and piwi flake verify proves the fix under the same condition.
 - [Slow tests & wasted time](https://piwitests.dev/features/slow-tests): Where the suite's time goes: duration trends, timeout headroom, stale test.slow() marks, slow endpoints and Web Vitals.

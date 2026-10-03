@@ -1,1 +1,0 @@
-import{eo as i,ep as l,eq as f}from"./CJSiiTA9.js";function o(n,a){const t=l(),s=a?.weekStartsOn??a?.locale?.options?.weekStartsOn??t.weekStartsOn??t.locale?.options?.weekStartsOn??0,e=i(n,a?.in),r=e.getDay(),c=(r<s?7:0)+r-s;return e.setDate(e.getDate()-c),e.setHours(0,0,0,0),e}function O(n,a,t){const[s,e]=f(t?.in,n,a);return+o(s,t)==+o(e,t)}export{O as i};

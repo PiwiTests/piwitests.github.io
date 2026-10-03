@@ -1,0 +1,1 @@
+const i="incident",t="incidentReview";function e(r){return r&&typeof r=="object"&&!Array.isArray(r)?{...r}:{}}function c(r){const n=e(r)[i];return n&&typeof n=="object"&&!Array.isArray(n)?n:null}function o(r){const n=e(r)[t];return n&&typeof n=="object"&&!Array.isArray(n)?n:null}export{i as I,o as a,c as r};
