@@ -385,6 +385,13 @@ same error as the test's failures in history count. An arm **reproduced** the fl
 failed that way and it fails significantly more than the control; a **verify** experiment reruns that arm after a
 fix. See [Flake Lab](/features/flake-lab).
 
+### Fix attempt
+
+A change a person or an agent reports having made to fix a failure cluster (a patch, a locator edit, a fix plan
+carried out), on a commit or a branch. It is recorded **applied**, then **verified** when the cluster's tests pass on a
+run that carries it (its commit, a `Piwi-Cluster: <id>` trailer in a commit message, or its branch), and
+**regressed** when the cluster fails again. See [Agent skills](/features/agent-skills#what-agents-report-back).
+
 ### Locator snapshot
 
 When the [capture fixtures](./capture-fixtures) are installed, every successful locator call records
@@ -4031,6 +4038,14 @@ is told to return no patch unless it can quote the lines it changes. Applying a 
 **Copy `git apply` command** or **Download `.patch`**. Only [auto-heal](./auto-heal) writes to your repository, with
 deterministic locator edits rather than model output.
 
+## Diagnoses written by an agent
+
+A coding agent can record its own diagnosis on a cluster with the MCP tool `record_diagnosis`, in the same JSON a
+model returns here. It needs no AI provider on this instance, its patch is validated against the source the cluster
+failed at when [source control](/guide/source-control) is connected, and the panel shows it as **written by an
+agent** with the model it named. It replaces the current diagnosis, which stays in the history. Declining the
+**Agent diagnoses** capability refuses them; declining AI diagnosis does not.
+
 ## Locator healing
 
 When the failure is a broken locator, the context includes the ranked replacements and the recommended fix from
@@ -6372,10 +6387,15 @@ MCP URL to narrow the list further; narrowing never re-enables a declined tool.
 
 **Access.** The server follows the REST API's project assignments: with authentication on, a non-admin key reads only
 its projects, and cross-project tools (`list_recent_activity`, `list_open_clusters`, `search`) are filtered to them.
-The write tools (triaging clusters and gaps, deciding a merge suggestion, setting a bug report's status, re-running a
-cluster in CI, linking or filing an issue, setting a cluster's baseline commit, running or rating a diagnosis,
-registering a test function) need the **reporter** or **administrator** role, as the same actions do in the
-dashboard and the REST API, and `get_instance_stats` the administrator role.
+The write tools (triaging clusters and gaps, deciding a merge suggestion, setting a bug report's status or a run's
+incident flag, re-running a cluster in CI, linking or filing an issue, setting a cluster's baseline commit, running,
+recording or rating a diagnosis, reporting a fix attempt, registering a test function) need the **reporter** or
+**administrator** role, as the same actions do in the dashboard and the REST API, and `get_instance_stats` the
+administrator role.
+
+**The write log.** Every call of a write tool is logged with the API key that made it, the tool, what it acted on and
+the result; read tools never are. A cluster's **Activity** section shows the calls on it, the log is pruned after
+`PIWI_RETENTION_NOTIFICATION_DAYS`, and declining the **Agent write log** capability on the Setup page keeps none.
 
 **Transport.** Streamable HTTP: JSON-RPC 2.0 over `POST /mcp`, with no SSE or WebSocket. Protocol versions
 `2025-06-18`, `2025-03-26` and `2024-11-05` are supported.
@@ -6501,10 +6521,12 @@ Windsurf reads `~/.codeium/windsurf/mcp_config.json`; Continue reads `~/.continu
 
 ## Prompts
 
-The server also exposes one MCP **prompt**, which a client offers as a slash command: `setup_piwi` generates the
-setup for a Playwright project that does not report here yet. It fills in this instance's URL, whether it requires a
-key and its existing projects, then walks the agent through `npx @piwitests/reporter init`, the API key and a first
-run. The `setup-piwi` [agent skill](/features/agent-skills) does the same without MCP.
+The server also exposes MCP **prompts**, which a client offers as slash commands. `setup_piwi` generates the setup
+for a Playwright project that does not report here yet. It fills in this instance's URL, whether it requires a key
+and its existing projects, then walks the agent through `npx @piwitests/reporter init`, the API key and a first run.
+The six workflow [agent skills](/features/agent-skills) are prompts too (`investigate_failure`,
+`apply_locator_healing`, `stabilize_flaky_tests`, `run_the_right_tests`, `write_the_missing_test`,
+`fix_a_reported_bug`), each with an optional `focus` argument, in the version this server ships.
 
 ## Related
 
@@ -6536,6 +6558,22 @@ them into your test project.
 Each skill prefers a connected Piwi [MCP tool](/reference/mcp-tools) and falls back to the dashboard UI when MCP is
 not connected, so a skill works before the MCP server is set up, only more slowly.
 
+## What agents report back
+
+Each workflow skill ends by telling Piwi what the agent did, so the next diagnosis, the fix verification and the gap
+detectors learn from it:
+
+| Skill | Reports back with |
+|------|--------------|
+| `investigate-failure` | `record_diagnosis` (its own diagnosis, shown as written by an agent), `submit_diagnosis_feedback` (a rating of Piwi's) and `report_fix_attempt` (the change, its commit and the diagnosis it followed) |
+| `apply-locator-healing` | `report_fix_attempt` with the locator edit |
+| `write-the-missing-test` | `triage_gap` (accepted, covered by a test, or dismissed with a reason) |
+
+The fix's commit carries a `Piwi-Cluster: <id>` trailer, the line `get_fix_plan` suggests. When the cluster's tests
+pass on a later commit, Piwi records the attempt **verified**, tied by its commit, the trailer or its branch; a later
+failure records it **regressed**. The cluster page's **Activity** section lists every attempt and every write an agent
+made to the cluster over MCP, with the API key it used.
+
 ## Where it is
 
 The skills ship inside the reporter package. `npx @piwitests/reporter init` installs the six workflow skills as part
@@ -6555,24 +6593,32 @@ is a project dependency. `init` takes `--skills <list>` (or `all`, `none`), `--s
 change what setup installs. The [CLI reference](/reference/cli#skills) lists every flag.
 
 The skills are agent-agnostic Markdown: only the destination is tool-specific, so `--dir` points the install wherever
-your agent reads skills from. An existing file is left alone unless you pass `--force`, so a skill you edited stays
-yours.
+your agent reads skills from. Each installed file carries `piwi-version` and `piwi-hash` in its front matter. A later
+`skills add` replaces a skill you never touched that an older release installed, reporting it **outdated**, and keeps
+one you **edited** unless you pass `--force`.
+
+On the [desktop app](/features/desktop), the MCP server page also installs the workflow skills into a project's
+linked folder, with the same rules.
 
 Once installed, ask in plain words: "why did the last CI run fail", "fix the flaky checkout test", "write the test
 we're missing for this change". The agent picks the skill whose description matches.
 
 ## Prompts, the no-install alternative
 
-The MCP server also offers a `setup_piwi` **prompt**, which a client shows as a slash command with nothing to
-install. It knows this instance's URL, whether it requires an API key and its existing projects, which a static skill
-cannot. The prompt needs MCP; the `setup-piwi` skill works offline. See [MCP server](/features/mcp#prompts).
+The MCP server also serves every workflow skill as a **prompt**, which a client shows as a slash command with nothing
+to install: `investigate_failure`, `apply_locator_healing` and the rest, each with an optional `focus` (a run, a
+cluster, a test). The text is the skill shipped with the server's own version. A `setup_piwi` prompt knows this
+instance's URL, whether it requires an API key and its existing projects, which a static skill cannot. Prompts need
+MCP; installed skills work offline. See [MCP server](/features/mcp#prompts).
 
 ## Limits
 
 - **Instructions, not code.** A skill tells an agent which evidence to read and in which order; the agent still
   writes the fix, and you review it.
-- **Updated with the reporter.** A newer reporter ships newer skills; run `skills add --force` to replace the
-  installed copies, which overwrites any edits.
+- **Updated with the reporter.** A newer reporter ships newer skills; `skills add` updates the copies you never
+  edited, and `--force` replaces the edited ones too.
+- **Reporting back needs write access.** The write-back tools ask for a reporter or administrator key; with a
+  read-only key the agent reports what it did to you instead.
 
 ## Related
 
@@ -6705,15 +6751,15 @@ pick the project: it is imported as on the [import page](/guide/importing-runs),
 ## Connecting AI assistants
 
 The app serves the [MCP server](/features/mcp) with three local tools a hosted instance cannot offer:
-`import_local_report` (a local `.zip` into a project), `read_local_source` (the file on disk now, not at failure
-time) and `apply_locator_fix` (a recommended locator fix applied to the file, previewed by default). It registers as
-`piwi-desktop`, so it sits beside a hosted Piwi in the same client.
+`import_local_report` (a local `.zip` into a project), `read_local_source` (the file on disk now) and `apply_locator_fix` (a recommended locator fix applied to the file, previewed by default). It registers as
+`piwi-desktop`, beside a hosted Piwi in the same client.
 
 The **MCP server** page detects Claude Code, Claude Desktop, Cursor, Opencode, VS Code, Windsurf and Gemini CLI, and
 connects each in one click by writing a `piwi-desktop` entry, with the address and token, into the client's own config file.
-It keeps a backup, touches only that entry, and rewrites it at each launch if the port changed. Claude Desktop, which takes only local
+It keeps a backup and rewrites only that entry, at each launch if the port changed. Claude Desktop, which takes only local
 commands, is pointed at the app's built-in bridge (`piwi-desktop mcp-stdio`), so no token is copied; the app has to be
-running for it. Restart the client after connecting.
+running for it. Restart the client after connecting. The page also installs the
+[agent skills](/features/agent-skills) into a linked folder.
 
 ## Updates
 
@@ -10219,13 +10265,13 @@ npx @piwitests/reporter skills list
 npx @piwitests/reporter skills add [names...] [options]
 ```
 
-The seven skills are `setup-piwi`, `investigate-failure`, `apply-locator-healing`, `stabilize-flaky-tests`, `run-the-right-tests`, `write-the-missing-test` and `fix-a-reported-bug`. `add` with no names installs all of them.
+The seven skills are `setup-piwi`, `investigate-failure`, `apply-locator-healing`, `stabilize-flaky-tests`, `run-the-right-tests`, `write-the-missing-test` and `fix-a-reported-bug`. `add` with no names installs all of them. Each installed file is stamped with the reporter's version (`piwi-version`) and a hash (`piwi-hash`); `add` reports a skill as `outdated` when an older release installed it and it was never edited, and replaces it, and as `edited` when it changed since it was installed, and keeps it.
 
 | Flag (for `add`) | Description |
 |---|---|
 | `--dir <path>` | Directory to install into (default: `.claude/skills`) |
 | `--cwd <path>` | Project root to operate on (default: current directory) |
-| `--force` | Overwrite a skill file that already exists |
+| `--force` | Replace a skill that was edited since it was installed (an untouched skill from an older release is always updated) |
 | `--dry-run` | Report what would be written without writing |
 | `--json` | Print the results as JSON |
 
