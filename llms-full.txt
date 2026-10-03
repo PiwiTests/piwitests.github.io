@@ -3123,8 +3123,9 @@ failure](/guide/first-failure)), across every test that shares the failure. The 
   means the change is not in the code.
 - **The state line**, below.
 
-The **Affected tests** list selects which test's latest execution the evidence shows. The diagnosis, the locator fix,
-verify and reproduce sit in the folded [**More ways to fix**](./fix-plans#more-ways-to-fix) toolbox.
+The **Affected tests** list selects which test's latest execution the evidence shows; its **Move to a new cluster**
+[splits tests off](./ai-diagnosis#split-a-cluster-by-hand). The diagnosis, the locator fix, verify and reproduce sit in
+the folded [**More ways to fix**](./fix-plans#more-ways-to-fix) toolbox.
 
 ### The state line
 
@@ -3251,9 +3252,9 @@ those failures. A neighbor names the paths both tests write, marked approximate 
 whose clocks agree only roughly. First attempts, the UTC hour and other runs on the same environment are context,
 without a condition. Nothing is stored.
 
-The flaky list names each test's top suspect, the [Attempts](./evidence#attempts) tab links a request to its suspect,
-the clue `known-flake-suspect` marks a failure showing one, and MCP's `get_flake_profile` returns the profile.
-The [Flake Lab](./flake-lab) tests each suspect against a control run.
+The flaky list names each test's top suspect (a reproduced one first), the [Attempts](./evidence#attempts) tab links
+requests to suspects, the clue `known-flake-suspect` marks failures showing one, and MCP's `get_flake_profile`
+returns it. The [Flake Lab](./flake-lab) tests each suspect against a control run.
 
 ### Verified fixed
 
@@ -3844,6 +3845,10 @@ project's Failure clusters tab, for a reporter or admin to approve or dismiss, a
 past five model calls in a run, the pair becomes a suggestion directly. This runs after every finished run
 whenever an embedding role is configured, independently of auto-diagnose.
 
+Each pair is judged once: the model's no is kept, so the same pair is not sent to the model again. A pair that
+someone dismissed, or that came from [moving tests to a new cluster](#split-a-cluster-by-hand), is never merged
+automatically, however close the two clusters score.
+
 <figure>
   <img src="/diagrams/failure-clustering-semantic-merge.svg" alt="Diagram of the semantic merging flow: clusters are embedded, compared by cosine similarity, and kept apart, adjudicated by a model, or merged depending on the score">
   <figcaption>The cosine score decides between keeping two clusters apart, asking a model (or a person), and merging them.</figcaption>
@@ -3852,6 +3857,14 @@ whenever an embedding role is configured, independently of auto-diagnose.
 With auto-diagnose on, new clusters also get a short **title** from one cheap batched model call per run. Without one,
 a cluster is named from its error kind, locator, route and spec file, such as
 `Timeout on getByLabel('Email address') in checkout.spec.ts`.
+
+### Split a cluster by hand
+
+The opposite of a merge needs no AI. When some of a cluster's tests fail with the same error for a different reason,
+select them in the cluster page's **Affected tests** and choose **Move to a new cluster** (reporter or administrator).
+Their failures move to a new cluster at once, with the triage note you type, and the cluster they left gains a line
+naming the move. Later failures of those tests with the same error join the new cluster, the other tests' failures
+stay where they were, and the two clusters are never merged automatically.
 
 ## Enabling AI diagnosis
 
@@ -4989,17 +5002,16 @@ get the same data from `analyze_selections`.
 
 ## Impact-from-diff
 
-`piwi run impact --base <ref>` runs only the tests your change affects. The reporter computes the working-tree diff
-against `<ref>` locally (`git diff --name-only`), and the dashboard maps those files to tests through observed edges:
+`piwi run impact --base <ref>` runs only the tests your change affects. The reporter diffs the working tree against
+`<ref>` (`git diff --name-only`), and the dashboard maps the files to tests through observed edges:
 
 - **Direct**: a changed file that _is_ a test file maps to the tests defined in it.
-- **Reach**: a changed support file (a page object, helper, or app module) maps to the tests whose most recent
-  execution ran through it, per their captured source frames.
+- **Reach**: a changed support file maps to the tests that failed inside it, per their source frames.
 - **Code reach**: a changed application file maps to the tests that executed it
   ([code reach](/features/code-reach)).
 
-It fails safe: an unmapped _source_ file widens the run to the full suite with a warning. A docs-only change runs
-nothing.
+It fails safe, widening to the full suite with a warning, when a changed file maps to no test (stylesheets too) or
+only through source frames, which miss passing tests. A docs-only change runs nothing.
 
 ## Suggestions
 
@@ -5155,7 +5167,9 @@ Parameter values are **masked out of everything sent to the model**, with one ex
 
 `piwi ai check` is offline and fits a CI lint step: it exits `1` on an entry whose prompt was deleted or renamed, or a
 file that isn't in canonical form, and reports two prompts that collide as a warning that does not fail it.
-`piwi ai prune` is not available yet (it exits `2`). Every subcommand and flag is in the [CLI reference](/reference/cli#ai).
+`piwi ai prune` is not available yet (it exits `2`): delete an orphaned entry's file by hand, and re-author a
+non-canonical one with `piwi ai resolve --update-ai`. Every subcommand and flag is in the
+[CLI reference](/reference/cli#ai).
 
 ## Configuration
 
@@ -5245,11 +5259,13 @@ Every gap takes the same four verbs as an inbox item:
 - **Snooze** for a day, a week, or until the node changes.
 - **Dismiss** with a reason: *not worth testing*, *covered elsewhere* (which records the covering test as reaching the
   node), or *wrong*.
-- **Covered by** records a covering test without dismissing the gap.
+- **Covered by** names the test that covers it and closes the gap. A gap closed this way stays closed when its
+  detector raises it again. The covering test is recorded as reaching the node, but a test recorded by hand does not
+  count as observed reach of a control, so it never switches on *control nobody exercises* for the project.
 
 Gaps persist, so triage survives recomputation: a dismissed gap keeps its verdict, and a gap **closes itself** when
 the detector no longer finds it, for example once its node gains a trusted test, so "closed this month" is real. A
-closed gap that comes back reopens. Home lists the gaps accepted more than a week ago whose test was never written.
+closed gap that comes back reopens, unless it was closed with **Covered by**. Home lists the gaps accepted more than a week ago whose test was never written.
 The map is recomputed after every run and nightly.
 
 Every verdict is also a labeled example: accepted and covered-by count *for* a detector, dismissed as *wrong* counts
@@ -5519,6 +5535,10 @@ The plan pairs each passing test with a route it reaches: pairs never probed com
 changed since its last probe, and each test gets one fault per run, up to a budget (50 pairs by default,
 `--budget` to change it). Quarantined tests and tests whose last run failed are left out. A fault that did not change
 the response records the pair as *inconclusive*, and an inconclusive pair waits a week before it returns to the plan.
+
+A test counts as changed when the source lines its steps run from differ from those of its passing runs before the
+probe: an added assertion, an edited helper or a moved line. A new tag or owner does not count, and neither does a
+change to the route's handler alone.
 
 A probe run is stamped as one, with retries off. It never counts as a real run: no failure clusters, no regression
 signals, no notifications, no pull-request feedback, no metric, no quarantine streak, never the baseline another run is
@@ -6143,9 +6163,10 @@ empty list matches every run. The filters apply to every event that comes from a
 The subscriptions REST API (see the [API docs](https://piwitests.dev/demo/docs)) adds:
 
 - **Scope**: all projects (`projectId: null`, for a user who can access every project), or a single project.
-- **Filters**: `branches` and `environments` as above; for run events, status or **owner** (only when the run broke a
-  test that team owns; see [Tags & ownership](/guide/concepts#tags-ownership)); `flakinessThreshold` (a 0–1 rate) and
-  `perfRegressionPct`.
+- **Filters**: `branches` and `environments` as above; for run events, status; **owner**, which applies to the
+  `run.*` events, `flakiness.spike`, `perf.regression` and `cluster.new` and delivers them only when a failing test
+  behind the event belongs to that team (see [Tags & ownership](/guide/concepts#tags-ownership)); `flakinessThreshold`
+  (a 0–1 rate) and `perfRegressionPct`.
 - **Mode**: `realtime`, sent as events happen, or `digest` with `digestAt` (`HH:MM`, UTC), held until then and sent as
   **one combined message** per email, Slack or Teams channel.
 - **Mute**: `mutedUntil`, any time, without deleting the subscription.
@@ -7223,7 +7244,8 @@ see the bug before you fix it.
 
 ## From report to fix
 
-Once a test naming the report (`piwi:bug 37`) runs, the report follows it:
+Once a test naming the report (`piwi:bug 37`) runs on the default branch, the report follows it (the run `piwi bug --write`
+starts moves nothing):
 
 | Status | When |
 |---|---|
@@ -9900,7 +9922,7 @@ after it.
 | Timeout budget<br>`timeout-budget` | medium | The failed step used at least 80 % of the test timeout, or the execution used at least 95 %. |
 | Environment changed<br>`environment-changed` | medium when the browser, channel, viewport, locale, timezone, base URL or environment label changed, else weak | The environment differs from the same test's last green run in the same environment. Tool versions and color scheme alone stay weak. |
 | Browser-specific<br>`browser-specific` | medium | The same test passed on at least one other browser in this run. |
-| Known flake suspect<br>`known-flake-suspect` | strong when a [Flake Lab](/features/flake-lab) experiment reproduced the suspect, else weak | This failure shows one of its test's [suspects](/features/flaky-tests#suspects), the highest ranked when it shows several: a slow or failed route, a test alongside or just before, load or a browser. The detail gives this failure's value and the suspect's counts, and, once reproduced, the arm against its control ("3 of 4 under delay GET /api/cart 1.8 s, against 0 of 10 without"). |
+| Known flake suspect<br>`known-flake-suspect` | strong when a [Flake Lab](/features/flake-lab) experiment reproduced the suspect, else weak | This failure shows one of its test's [suspects](/features/flaky-tests#suspects), when it shows several, the one an experiment reproduced, else the highest ranked: a slow or failed route, a test alongside or just before, load or a browser. The detail gives this failure's value and the suspect's counts, and, once reproduced, the arm against its control ("3 of 4 under delay GET /api/cart 1.8 s, against 0 of 10 without"). |
 
 Clues are ranked by strength, then by membership of the story, then by how close they sit to the moment of failure, and
 the list is capped at eight. An earlier fix that regressed is not a clue: the situation sentence carries it.
@@ -10714,8 +10736,8 @@ Every event that comes from a run carries that run's `branch` and `environment` 
 
 - **Run events** (`run.*`, `flakiness.spike`, `perf.regression`): the run, its counts, `topFailures`, and the `owners`
   of the failing tests. `perf.regression` adds `durationMs`, `baselineDurationMs` and `regressionPct`.
-- **`cluster.new`**: the cluster's `signature` and `title`, `sampleErrorExcerpt` (cut like `errorExcerpt`) and
-  `affectedCases`.
+- **`cluster.new`**: the cluster's `signature` and `title`, `sampleErrorExcerpt` (cut like `errorExcerpt`),
+  `affectedCases`, and the `owners` of the tests that failed into it in that run.
 - **`cluster.fixed`** and **`cluster.regressed`**: the cluster's `signature`, `title` and the `runId` that decided the
   verdict; for a fix, the `commit` and `timeToResolutionMs`. With an [SCM token](/guide/source-control), a `fixAuthor`
   object (`{ name, email }`) names the author of the fixing commit (for a regression, of the fix that did not hold).

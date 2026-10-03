@@ -1,1 +1,0 @@
-import{en as i,eo as l,ep as f}from"./BRmL35fi.js";function o(s,a){const t=l(),n=a?.weekStartsOn??a?.locale?.options?.weekStartsOn??t.weekStartsOn??t.locale?.options?.weekStartsOn??0,e=i(s,a?.in),r=e.getDay(),c=(r<n?7:0)+r-n;return e.setDate(e.getDate()-c),e.setHours(0,0,0,0),e}function O(s,a,t){const[n,e]=f(t?.in,s,a);return+o(n,t)==+o(e,t)}export{O as i};
