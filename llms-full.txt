@@ -3428,11 +3428,14 @@ list only grows.
   to be asked.
 - A fix [verified](#verified-fixed) after the quarantine flags it at once, while it holds. Release stays yours to
   click.
-- **Candidates** (API only) are flaky tests wasting 2+ CI minutes with a score of 40+, ranked by impact; a
-  high-confidence AI diagnosis calling the test flaky adds a reason. A 200 ms flake costs nothing; one burning a
-  four-minute timeout weekly hurts.
+- **Candidates** (**Proposed for quarantine** in the Flaky view) are flaky tests wasting 2+ CI minutes with a score
+  of 40+, ranked by impact; a high-confidence AI diagnosis calling the test flaky adds a reason. A 200 ms flake
+  costs nothing; one burning a four-minute timeout weekly hurts.
 - **Debt** is reported in aggregate: how many are quarantined, how many are ready to release, how long the oldest has
   been in, and how many still have no passing streak at all.
+
+**Dismiss** turns down either proposal, with an optional reason, and changes nothing else; a dismissed candidate
+returns after a newer run. Agents call [`dismiss_quarantine_proposal`](/reference/mcp-tools#dismiss_quarantine_proposal).
 
 The gate always states how many failures quarantine excluded — a green gate that silently ignored failures would be
 worthless — and `--max-quarantined` sets a ceiling so the list can't grow unbounded.
@@ -3457,10 +3460,7 @@ The project's **Tests** tab has a **Group by File** view that groups tests by th
 
 ## Across every project
 
-Everything above is scoped to one project. The **Analytics** page lifts the same signals to your whole
-portfolio over a time window you choose — portfolio health, a pass-rate heatmap, wasted CI minutes,
-regression velocity, a global flaky leaderboard, and an auto-generated insights feed. See
-[Analytics](./analytics).
+Everything above is scoped to one project; [Analytics](./analytics) lifts the same signals across every project.
 
 ## Related
 - [Regression or flake?](/recipes/regression-or-flaky): is one red test flaky?
@@ -6423,11 +6423,11 @@ MCP URL to narrow the list further; narrowing never re-enables a declined tool.
 
 **Access.** The server follows the REST API's project assignments: with authentication on, a non-admin key reads only
 its projects, and cross-project tools (`list_recent_activity`, `list_open_clusters`, `search`) are filtered to them.
-The write tools (triaging clusters and gaps, deciding a merge suggestion, setting a bug report's status or a run's
-incident flag, re-running a cluster in CI, linking or filing an issue, setting a cluster's baseline commit, running,
-recording or rating a diagnosis, reporting a fix attempt, registering a test function) need the **reporter** or
-**administrator** role, as the same actions do in the dashboard and the REST API, and `get_instance_stats` the
-administrator role.
+The write tools (triaging clusters and gaps, deciding a merge suggestion, dismissing a quarantine proposal, setting a
+bug report's status or a run's incident flag, re-running a cluster in CI, linking or filing an issue, setting a
+cluster's baseline commit, running, recording or rating a diagnosis, reporting a fix attempt, registering a test
+function) need the **reporter** or **administrator** role, as the same actions do in the dashboard and the REST API,
+and `get_instance_stats` the administrator role.
 
 **The write log.** Every call of a write tool is logged with the API key that made it, the tool, what it acted on and
 the result; read tools never are. A cluster's **Activity** section shows the calls on it, the log is pruned after
