@@ -1,0 +1,1 @@
+import{d as s,u as r,w as o,o as n,r as c,G as p}from"./_cvj8ZKU.js";const l=s({__name:"test-cases",async setup(_){let e,t;const a=r();return[e,t]=o(()=>p({path:`/projects/${a.params.id}`,query:{...a.query,tab:"tests"}},{replace:!0})),await e,t(),(u,i)=>(n(),c("div"))}});export{l as default};
