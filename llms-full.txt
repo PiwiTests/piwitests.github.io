@@ -3541,8 +3541,6 @@ as a delay that trips a timeout the test never hit in CI, is shown apart and has
 | **Amplified** | p < 0.05, but under half the runs failed |
 | **Not reproduced** | anything else |
 
-An arm stops at 3 matching failures; the control never stops early.
-
 The command prints the commit it tested next to the commit of the test's latest failure, and warns when they
 differ: a condition that reproduces on today's code says little about last month's failure. The control catches a
 test that simply fails on this machine.
@@ -3565,14 +3563,14 @@ test reads [verified fixed](./flaky-tests#verified-fixed): off the flaky ranking
 quarantined test is proposed for release at once.
 
 **Exit codes:** `0` an arm reproduced the failure (`verify`: the fix held) · `1` nothing reproduced (`verify`: it
-still fails, or too few runs passed to say) · `2` error. Every flag is on the [CLI reference](/reference/cli#flake).
+still fails, or too few runs passed to say) · `2` error.
 
 ## Where results show
 
 - The project's **Flake Lab** tab lists every flaky or tested test with where it stands (not tested, reproduced, fix
   verified) and the command it needs next, then the project's newest experiments.
-- The test's **Flakiness** tab lists its experiments and each suspect's latest result ("reproduced 3 of 4 · 2 days
-  ago", "not reproduced 0 of 10 (below 26%)"), with buttons that copy both commands.
+- The test's **Flakiness** tab lists its experiments and each suspect's latest result, with buttons that copy both
+  commands.
 - The **flaky list** marks a test whose latest experiment reproduced it.
 - The [clue](/reference/clues) `known-flake-suspect` turns strong on a failure showing a reproduced suspect.
 - Over [MCP](/features/mcp), `get_flake_profile` and `plan_flake_experiment` give an agent the experiments and the
@@ -3585,15 +3583,17 @@ the suspects, the editor's CI failures and every other comparison between runs.
 
 - **In the [editor](./editors#the-tests-behind-each-line)**, a flaky test's line shows its flaky rate and top suspect
   ("flaky 18% · top suspect: GET /api/cart slower (reproduced 7 of 10)"), with **Reproduce this flake** and, once
-  reproduced, **Verify the flake fix**, run in a terminal against the instance the editor reads.
+  reproduced, **Verify the flake fix**, run in a terminal against the instance the editor reads. Beside a team
+  instance, **Reproduce this flake in the desktop app** (also on a failure with an untested suspect) runs the
+  instance's plan in the [desktop app](./desktop#jobs-from-your-editor) once you confirm it; **Share on …** records
+  the results on the instance, as run from `desktop`.
 - **On a flaky failure's page**, the next step reproduces it under the top untested suspect, then verifies the fix.
 - **Home** lists the tests waiting for a verify, then those whose top suspect is untested.
 
 ## Run it in CI
 
 A local machine is not CI: a delay reproduces a race anywhere, but load and interference depend on the machine. To
-run the lab where the flake lives, add a manual workflow and start it with the test case id. It is not run on every
-push, since it spends minutes:
+run the lab where the flake lives, add a manual workflow and start it with the test case id:
 
 ```yaml
 # .github/workflows/flake-lab.yml
@@ -6678,7 +6678,7 @@ a local app can do.
 - **Imports** a blob report or trace dropped on the window.
 - **Connects AI assistants** to its MCP server by writing their config for them.
 
-Everything binds to `127.0.0.1`, so nothing is exposed to the network. For a shared, always-on server, run the [Docker image](/operate/deployment).
+Everything binds to `127.0.0.1`, so nothing is exposed to the network.
 
 ## Where it is
 
@@ -6741,8 +6741,7 @@ Playwright and the app's bundled Node. The first time, it asks you to link the p
   sent from Piwi Picker.
 - **Wrong folder?** When none of the tests exist in the linked folder, the button opens the dialog to fix the link.
 
-The run uses your project's own Playwright config, so its results come here like a run from your terminal, and the
-tray links to the new run.
+The run uses your project's Playwright config, so its results come here, and the tray links to the new run.
 
 ### Reproducing a failure and finding the breaking commit
 
@@ -6763,9 +6762,11 @@ readiness URL under **Reproduce and bisect**.
 ### Jobs from your editor
 
 On a failure of a team instance, the [editor extensions](/features/editors#ci-failures-in-the-problems-panel) offer
-**Reproduce in the desktop app** and **Find the breaking commit in the desktop app**. The window shows the commits and
-tests, and runs nothing until you start it. The editor gets the verdict and can share a first bad commit on the team
-instance with its own key, which the app never holds.
+**Reproduce in the desktop app** and **Find the breaking commit in the desktop app**; on a flaky test, or a failure
+whose test has an untested suspect, a [Flake Lab](/features/flake-lab#from-the-editor-and-the-failure-pages) run of
+the team instance's plan. The window shows the commits, tests or arms, and runs nothing until you start it. The editor
+gets the verdict and can share a first bad commit, or the lab's results, on the team instance with its own key, which
+the app never holds.
 
 ### Reproducing a flake
 
@@ -6807,7 +6808,6 @@ key; a dev build without it says so.
 
 - **One machine, one user.** The app accepts results only from this machine; a team needs the
   [Docker image](/operate/deployment).
-- **Unsigned installers**: the first launch needs the steps above.
 - **Local runs need the checkout**: a linked folder with Playwright installed, and `git` for reproduce, bisect and
   the lab.
 
@@ -7901,18 +7901,20 @@ your files locally.
 
 ## CI failures in the Problems panel
 
-The failures of the latest complete [CI run](/reference/test-metadata#run-origin) (whole suite, finished) on the
-checked-out branch, else the default branch, are errors in the Problems panel, at the line that failed: the call in the
-error's stack when that file is in your workspace (often a page object), else the `test(…)` line, with the failure's
-headline. The run is read every minute.
+The failures of the latest complete [CI run](/reference/test-metadata#run-origin) on the checked-out branch, else the
+default branch, are errors in the Problems panel, at the line that failed: the call in the error's stack when that file
+is in your workspace (often a page object), else the `test(…)` line, with the failure's headline. The run is read every
+minute.
 
 On a failure, the quick fixes are:
 
 - **Heal: use …** — when [locator healing](/features/locator-healing) has a recommendation for the failing locator,
   the same edit an [auto-heal pull request](/features/auto-heal) would make, applied in place.
 - **Open the trace** — opens it with `npx playwright show-trace`.
-- **Reproduce in the desktop app**, **Find the breaking commit in the desktop app** — on a team instance's failure,
-  while the [desktop app](/features/desktop#jobs-from-your-editor) runs; **Share on …** records the first bad commit.
+- **Reproduce in the desktop app**, **Find the breaking commit in the desktop app** and, when the test has an
+  untested [flake suspect](./flake-lab), **Run Flake Lab on its untested suspects in the desktop app** — on a team
+  instance's failure, while the [desktop app](/features/desktop#jobs-from-your-editor) runs; **Share on …** records
+  the first bad commit or lab results.
 - **Apply the fix plan, then run its verification** — when the failure's [cluster](/features/failure-clusters) has a
   [fix plan](/features/fix-plans) whose patch applies to your files (or locator rewrites whose lines still read as
   captured): VS Code previews the edit, then runs the plan's verify command in a terminal.
@@ -7943,10 +7945,7 @@ reason, **Screenshot** and **Trace** above it.
 
 Above a flaky test: its flaky rate and [top suspect](./flake-lab#from-the-editor-and-the-failure-pages), then
 **Reproduce this flake** and, once reproduced, **Verify the flake fix**, which run `piwi flake` against the instance
-the editor reads.
-
-**Piwi: Run the tests that reach this file** runs them in a terminal, with the arguments `piwi run` would use;
-**Piwi: Run selection…** runs one of the project's saved [selections](/features/test-selection).
+the editor reads, and, beside a team instance, **Reproduce this flake in the desktop app**.
 
 ## Timeouts
 
@@ -7978,7 +7977,7 @@ a warning, with the chains it breaks and their tests on hover, and one quick fix
 ## Piwi's MCP server for the agent
 
 In VS Code 1.101 and later, the extension provides Piwi's [MCP server](/features/mcp) to the editor's agent with the
-connection it already has, listed under the MCP servers. In an editor without that API, **Piwi: Copy the MCP server configuration** puts an `mcp.json` entry on the
+connection it already has. In an editor without that API, **Piwi: Copy the MCP server configuration** puts an `mcp.json` entry on the
 clipboard. It holds your API key: paste it into your user settings, not into the repository.
 
 ## Commands
@@ -7987,9 +7986,9 @@ clipboard. It holds your API key: paste it into your user settings, not into the
 |---|---|
 | Piwi: Connect, Disconnect | See [Editor connection](./editor-connection) |
 | Piwi: Refresh | Fetch the indexes and the latest run again |
-| Piwi: Run the tests that reach this file | Run them in a terminal |
+| Piwi: Run the tests that reach this file | Run them in a terminal, with the arguments `piwi run` would use |
 | Piwi: Open in dashboard | Open this file's test, or the latest run |
-| Piwi: Run selection… | Run one of the project's saved selections |
+| Piwi: Run selection… | Run one of the project's saved [selections](/features/test-selection) |
 | Piwi: Open the latest run | Open the run the status bar shows |
 | Piwi: Copy the MCP server configuration | For editors without the MCP provider API |
 | Piwi: Pair with Piwi Picker | Copy the address Piwi Picker sends to |
@@ -8024,7 +8023,7 @@ client shows warnings, quick fixes and hover in open files; the rest is native:
 - **The status bar** shows the latest run; the actions are under **Tools → Piwi**, and **Run the tests that reach this
   file** is also in the editor's context menu.
 - **MCP**: **Copy the MCP server configuration** puts an `mcpServers` entry on the clipboard for **Settings → Tools → AI
-  Assistant → Model Context Protocol** or another agent. It runs the server through `mcp-remote`, with the key in its
+  Assistant → Model Context Protocol**. It runs the server through `mcp-remote`, with the key in its
   environment.
 - **[Open in IDE](./ide-integration)**: a path clicked in the dashboard opens at its line, with nothing to set.
 

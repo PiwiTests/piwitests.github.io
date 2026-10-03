@@ -1,1 +1,0 @@
-import{d as o,u as r,w as s,o as n,r as c,G as p}from"./DykGcw_8.js";const l=o({__name:"compare",async setup(_){let e,t;const a=r();return[e,t]=s(()=>p(`/projects/${a.params.id}?tab=runs`,{replace:!0})),await e,t(),(u,m)=>(n(),c("div"))}});export{l as default};
