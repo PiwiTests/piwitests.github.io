@@ -1,0 +1,1 @@
+function e(){return globalThis.__TAURI__?.core??null}function t(){return globalThis.__TAURI__?.event??null}function n(){let e=globalThis;try{return e.__TAURI__?.window?.getCurrentWindow().label??null}catch{return null}}export{t as n,n as r,e as t};

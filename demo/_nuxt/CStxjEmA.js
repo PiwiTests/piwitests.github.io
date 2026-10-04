@@ -1,0 +1,1 @@
+function e(e,t){return Math.round(e*t.amount*100)/100}function t(e,t,n=`en-US`){try{return new Intl.NumberFormat(n,{style:`currency`,currency:t,maximumFractionDigits:e>=100?0:2}).format(e)}catch{return`${e.toFixed(2)} ${t}`}}export{t as n,e as t};

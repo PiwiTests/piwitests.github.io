@@ -1,1 +1,0 @@
-function r(t){if(!t)return null;try{const{protocol:n}=new URL(t);return n==="http:"||n==="https:"?t:null}catch{return null}}function e(t){return/^(?:https?:\/\/|mailto:|\/(?!\/)|#|\?)/i.test(t)}export{e as i,r as s};

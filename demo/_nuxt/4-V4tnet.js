@@ -1,0 +1,1 @@
+var e=`https://chromewebstore.google.com/detail/piwi-picker/pakhnokpjboejcghgcmkjlpnogfjihhe`,t=`https://plugins.jetbrains.com/plugin/34674-piwi`,n=`https://github.com/piwitests/platform/releases/latest`,r=`https://www.npmjs.com/package/@piwitests/reporter`;export{r as i,t as n,e as r,n as t};

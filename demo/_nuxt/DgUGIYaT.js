@@ -1,0 +1,1 @@
+import{b as e,k as t,mt as n,xt as r}from"./B8D2lM98.js";var i={class:`min-h-dvh bg-default`},a=t({__name:`tv`,setup(t){return(t,a)=>(n(),e(`div`,i,[r(t.$slots,`default`)]))}});export{a as default};

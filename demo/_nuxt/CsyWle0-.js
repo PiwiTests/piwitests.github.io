@@ -1,0 +1,1 @@
+import{f as e,u as t}from"./CKFnGvyl.js";import{Kt as n,b as r,k as i,mt as a}from"./B8D2lM98.js";var o=i({__name:`compare`,async setup(i){let o,s,c=e();return[o,s]=n(()=>t(`/projects/${c.params.id}?tab=runs`,{replace:!0})),await o,s(),(e,t)=>(a(),r(`div`))}});export{o as default};

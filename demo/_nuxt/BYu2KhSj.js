@@ -1,0 +1,1 @@
+import{n as e,r as t,t as n}from"./CPA-XKpX.js";function r(n,r){let i=e(),a=r?.weekStartsOn??r?.locale?.options?.weekStartsOn??i.weekStartsOn??i.locale?.options?.weekStartsOn??0,o=t(n,r?.in),s=o.getDay(),c=(s<a?7:0)+s-a;return o.setDate(o.getDate()-c),o.setHours(0,0,0,0),o}function i(e,t,i){let[a,o]=n(i?.in,e,t);return+r(a,i)==+r(o,i)}export{i as t};

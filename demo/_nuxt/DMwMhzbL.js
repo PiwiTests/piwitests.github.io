@@ -1,0 +1,1 @@
+new Map([{key:`failed`,name:`Currently failing`,description:`Tests whose most recent execution failed or timed out.`,definition:{include:[{lastStatus:[`failed`,`timedout`,`timedOut`]}]}},{key:`quarantine-free`,name:`Everything but quarantine`,description:`The whole suite minus tests under an active quarantine.`,definition:{exclude:[{quarantined:!0}]}}].map(e=>[e.key,e]));

@@ -1,0 +1,1 @@
+import{f as e,u as t}from"./CKFnGvyl.js";import{Kt as n,b as r,k as i,mt as a}from"./B8D2lM98.js";var o=i({__name:`test-cases`,async setup(i){let o,s,c=e();return[o,s]=n(()=>t({path:`/projects/${c.params.id}`,query:{...c.query,tab:`tests`}},{replace:!0})),await o,s(),(e,t)=>(a(),r(`div`))}});export{o as default};

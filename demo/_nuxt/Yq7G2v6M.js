@@ -1,0 +1,1 @@
+var e=function(e){return e.ADMINISTRATOR=`administrator`,e.REPORTER=`reporter`,e.USER=`user`,e}({});export{e as t};
