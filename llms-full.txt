@@ -204,7 +204,7 @@ A named container for one suite's results — usually one repository, or one sui
 are created automatically the first time results are submitted under a new `projectName`; you never
 have to pre-register one.
 
-A project carries its own tags, access assignments, SCM connection, default branch, capability
+A project carries its own tags, [role grants](#role-and-group), SCM connection, default branch, capability
 decisions, and AI-diagnosis instructions. Retention is instance-wide.
 
 ### Test run
@@ -529,6 +529,17 @@ A glob over a page's whole address (`*` within one part of the path, `**` across
 to a project, with an optional environment and branch. Each project keeps its own list, and the browser extension
 reads them to know which project the page it is on belongs to. See
 [Extension connection](/features/extension-connection#url-patterns).
+
+## Access
+
+### Role and group
+
+With [authentication](/operate/authentication) on, every account holds an **instance role**: **Administrator**, who
+can do everything, or **Member**. A Member's rights in a project come from the **project roles** they hold there
+(Viewer, Contributor, Maintainer, Project admin, Uploader), each granted on one project or on all projects. A
+**group** is a named set of users that receives project roles the way a user does. A user's rights on a project are
+the union of every role they hold there, directly or through their groups. See
+[Access, roles and groups](/operate/project-access).
 
 ## Where each concept lives in the UI
 
@@ -1770,7 +1781,7 @@ instead of failing mid-upload.
   shards are not merged. The import summary flags this when it detects one.
 - **Traces carry less than reports.** No annotations, no worker index, no `didnotrun` tests, no step subtitles or
   params, and no screenshots or videos — a trace holds only itself.
-- **Administrators only.** Importing can create projects and back-dates history, so it is not open to the reporter role.
+- **Administrators only.** Importing can create projects and back-dates history, so no project role grants it.
 - **One archive per request.** The page handles batching for you.
 
 ## Related
@@ -2053,7 +2064,7 @@ provider, SCM, SMTP, notification, OAuth, Jira and link-unfurl clients are the o
 a socket; the S3 client is in `server/storage/`.
 
 ## Related
-- [Authentication](/operate/authentication), [API keys](/operate/api-keys) and [Project access](/operate/project-access): roles, keys and project-level access
+- [Authentication](/operate/authentication), [API keys](/operate/api-keys) and [Access, roles and groups](/operate/project-access): roles, keys and project-level access
 - [Production checklist](/operate/production-checklist#before-you-expose-it) — hardening a public instance
 - [Why Piwi?](./comparison#is-my-data-safe-does-piwi-phone-home) — the same question, short form
 
@@ -2232,8 +2243,9 @@ actually uses, judged from the data it holds ([Choose what you use](/operate/cap
 ## Settings
 
 `/settings`: your **Account** and connected accounts ([OAuth](/operate/authentication#oauth-google-github)),
-**Users** ([Authentication](/operate/authentication), [API keys](/operate/api-keys)) and **Permissions**
-([Permission grid](/operate/project-access#permission-grid)), **Storage**
+**Users** ([Authentication](/operate/authentication), [API keys](/operate/api-keys)), **Groups**
+([Groups](/operate/project-access#groups)), **Permissions** ([Permission grid](/operate/project-access#permission-grid)),
+**Roles** (what each role can do, read-only), **Storage**
 ([Storage](/operate/storage#storage-management)), **Tags**, **Pull requests** ([Pull-request feedback](./pr-feedback)),
 **Auto-heal** ([Auto-heal PRs](./auto-heal)), **Integrations** ([Integrations](/operate/integrations)),
 **Performance** (wasted-time patterns and timeout hygiene), **AI** ([AI provider](/guide/ai-provider)),
@@ -2248,7 +2260,7 @@ instance's own OpenAPI reference.
 
 The [live demo](https://piwitests.dev/demo/) runs entirely in your browser and adds two controls. **Simulate a test
 run** replays a reporter's stream, so you can watch a run arrive. **Acting as** switches between seeded identities to
-show how [project access](/operate/project-access) changes what each one sees, including changes made on
+show how [roles](/operate/project-access) change what each one sees and can do, including changes made on
 the [permission grid](/operate/project-access#permission-grid).
 
 ## Related
@@ -2475,8 +2487,8 @@ On an execution page, a failure-cluster page or a report snapshot page, open **S
 2. **Copy the link immediately — it is shown only once.** The server stores a hash of the token, not the token, so
    there is no way to display the URL again later. Mint a new link instead.
 
-Creating and revoking links requires the administrator or reporter role; any project member can see which links
-exist. Each entry in the dialog shows the link's prefix, its expiry state, and how many times it was opened.
+Creating and revoking links requires the **Maintainer** role or above on the project, or an administrator; anyone
+who can read the project can see which links exist. Each entry in the dialog shows the link's prefix, its expiry state, and how many times it was opened.
 
 ## What the viewer sees
 
@@ -2513,7 +2525,7 @@ A live dashboard link renders a saved dashboard as a quality report computed at 
 itself every minute: a bookmark for a stakeholder, or a wall screen with nobody signed in. Built-in dashboards have
 none; duplicate one first.
 
-- The numbers are computed with the project access of the person who minted the link, checked again at every view
+- The numbers are computed with the access of the person who minted the link, checked again at every view
   (at most a minute behind). The link dies when that access or the dashboard goes, when it expires, or when it is
   revoked.
 - It shows the aggregates and the lists the dashboard carries, never evidence files: no screenshot, no trace, no
@@ -3317,8 +3329,8 @@ The rules can miss an outage or flag a real regression. Anyone who can edit the 
 
 Either decision is kept on the run, and finalizing the run again (a late shard, a report upload) never overrides it.
 The run page says who decided. The same action is in the [API reference](https://piwitests.dev/demo/docs), and an
-agent makes it with the MCP tool [`set_run_incident`](/reference/mcp-tools#set_run_incident), which needs a reporter
-or administrator key and is kept in the [write log](./mcp).
+agent makes it with the MCP tool [`set_run_incident`](/reference/mcp-tools#set_run_incident), which needs a key whose
+owner may make the same change in the dashboard and is kept in the [write log](./mcp).
 
 ## Limits
 
@@ -3995,7 +4007,7 @@ runs that follow.
 Pairs in the **ambiguous band**, between `PIWI_CLUSTER_SUGGEST_THRESHOLD` (default `0.80`) and the merge threshold, are
 not merged automatically. When AI is configured, a model judges the pair from its error text, locators, most-affected
 tests and overlap: it merges on a confident yes, turns a less confident yes into a **merge suggestion** on the
-project's Failure clusters tab, for a reporter or admin to approve or dismiss, and leaves a no apart. Without AI, or
+project's Failure clusters tab, for a Maintainer or above to approve or dismiss, and leaves a no apart. Without AI, or
 past five model calls in a run, the pair becomes a suggestion directly. This runs after every finished run
 whenever an embedding role is configured, independently of auto-diagnose.
 
@@ -4015,7 +4027,7 @@ a cluster is named from its error kind, locator, route and spec file, such as
 ### Split a cluster by hand
 
 The opposite of a merge needs no AI. When some of a cluster's tests fail with the same error for a different reason,
-select them in the cluster page's **Affected tests** and choose **Move to a new cluster** (reporter or administrator).
+select them in the cluster page's **Affected tests** and choose **Move to a new cluster** (Maintainer or above).
 Their failures move to a new cluster at once, with the triage note you type, and the cluster they left gains a line
 naming the move. Later failures of those tests with the same error join the new cluster, the other tests' failures
 stay where they were, and the two clusters are never merged automatically.
@@ -4821,7 +4833,7 @@ the default branch, older than the binding's age (default 2 days), with no issue
 
 ## The project binding
 
-An administrator binds a project under **Project → Settings → Issue tracker**: the connection, Jira project and issue
+A Project admin or an administrator binds the project under **Project → Settings → Issue tracker**: the connection, Jira project and issue
 type, default labels and assignee, the [ticket language](#language), what a ticket carries, the policies above, and
 **owner routes** — mapping a cluster's owner (`@acme/checkout`, an email) to a Jira project, component, assignee and
 labels. The create-issue draft picks the first matching route and fills the rest from the defaults, so a team's failures
@@ -4859,7 +4871,8 @@ modal asks for it.
 
 - A connected **Jira Cloud** site — see [Operate → Integrations](/operate/integrations#connecting-jira-cloud).
 - **`PIWI_SITE_URL`** set, so the issue body's links resolve back to the dashboard.
-- **Reporter or administrator** to create or link an issue; any project member can read the key and status.
+- The **Contributor** [role](/operate/project-access#what-each-role-can-do) or above to create or link an issue; anyone
+  who reads the project sees the key and status.
 
 ## Enable it
 
@@ -5309,7 +5322,7 @@ Point the reporter at that server and run the suite in resolve mode:
 
 ```bash
 export PIWI_DASHBOARD_URL="https://piwi.example.com"   # the authoring server
-export PIWI_API_KEY="…"                                # a reporter API key
+export PIWI_API_KEY="…"                                # a key with upload rights
 export PIWI_AI=resolve
 
 npx playwright test           # or: npx piwi ai resolve --grep "sign in"
@@ -6049,7 +6062,7 @@ covers can be read off its **Filters** block.
 ## Sharing and access
 
 - A dashboard is **private** (its owner) or **shared** (listed for every signed-in user). Anyone signed in
-  keeps private dashboards; sharing needs the reporter or administrator role.
+  keeps private dashboards; sharing needs the Maintainer role or above on at least one project, or an administrator.
 - A shared dashboard is changed by its owner or an administrator; everyone else duplicates it.
 - With authentication off, every dashboard is shared.
 - **A dashboard grants no access.** Every widget is computed for the projects you can open, and the line
@@ -6148,7 +6161,7 @@ A report grants no access: it covers only the projects its reader can open.
 
 A **report schedule** sends a quality report on its own. **Schedule…** on the Analytics page or in a
 project page's menu opens the form with the filters on screen; **New schedule** on the **Quality
-reports** page starts an empty one. Reporters and administrators create schedules.
+reports** page starts an empty one. A Contributor or above on the project, or an administrator, creates schedules.
 
 ![The Quality reports page: report snapshots and schedules](/screenshots/report-schedules.png)
 
@@ -6168,7 +6181,7 @@ reports** page starts an empty one. Reporters and administrators create schedule
 
 **Run now** sends the last complete period straight away; **Preview**, in the form, shows that report
 before you save, as its email and as the full report, and sends nothing. **Mute** keeps the snapshots
-and sends nothing; **Pause** stops the schedule. Each firing uses its owner's current project access. A **global**
+and sends nothing; **Pause** stops the schedule. Each firing uses its owner's current roles. A **global**
 schedule covers every project, goes to global channels and needs an administrator.
 
 The server checks schedules every five minutes; a firing missed while it was down happens at the next
@@ -6247,7 +6260,7 @@ The environment field is free text, with suggestions drawn from the environments
 
 ## Who can edit markers
 
-Reading markers is available to any signed-in user with access to the project. Creating, editing, and deleting them requires the **reporter** or **administrator** role. (When authentication is disabled, everyone can edit.)
+Reading markers is available to anyone who can read the project. Creating, editing, and deleting them requires the **Contributor** role or above on the project, or an administrator ([roles](/operate/project-access#what-each-role-can-do)). (When authentication is disabled, everyone can edit.)
 
 ## Automatic markers
 
@@ -6443,13 +6456,14 @@ message (one whose SCM or AI provider is not configured returns `{ error }`).
 asks about. Declining a capability drops the tools that depend on it. Append `?modules=core` (comma-separated) to the
 MCP URL to narrow the list further; narrowing never re-enables a declined tool.
 
-**Access.** The server follows the REST API's project assignments: with authentication on, a non-admin key reads only
-its projects, and cross-project tools (`list_recent_activity`, `list_open_clusters`, `search`) are filtered to them.
-The write tools (triaging clusters and gaps, deciding a merge suggestion, dismissing a quarantine proposal, setting a
-bug report's status or a run's incident flag, re-running a cluster in CI, linking or filing an issue, setting a
-cluster's baseline commit, running, recording or rating a diagnosis, reporting a fix attempt, registering a test
-function) need the **reporter** or **administrator** role, as the same actions do in the dashboard and the REST API,
-and `get_instance_stats` the administrator role.
+**Access.** The server follows the REST API's [roles](/operate/project-access): with authentication on, a Member's key
+reads only the projects its owner holds a role on, and cross-project tools (`list_recent_activity`,
+`list_open_clusters`, `search`) are filtered to them. The write tools (triaging clusters and gaps, deciding a merge
+suggestion, dismissing a quarantine proposal, setting a bug report's status or a run's incident flag, re-running a
+cluster in CI, linking or filing an issue, setting a cluster's baseline commit, running, recording or rating a
+diagnosis, reporting a fix attempt, registering a test function) need the same
+[permission](/operate/project-access#what-each-role-can-do) as the same action in the dashboard and the REST API, on
+the project they act on, and `get_instance_stats` needs an administrator.
 
 **The write log.** Every call of a write tool is logged with the API key that made it, the tool, what it acted on and
 the result; read tools never are. A cluster's **Activity** section shows the calls on it, the log is pruned after
@@ -6675,8 +6689,9 @@ MCP; installed skills work offline. See [MCP server](/features/mcp#prompts).
   writes the fix, and you review it.
 - **Updated with the reporter.** A newer reporter ships newer skills; `skills add` updates the copies you never
   edited, and `--force` replaces the edited ones too.
-- **Reporting back needs write access.** The write-back tools ask for a reporter or administrator key; with a
-  read-only key the agent reports what it did to you instead.
+- **Reporting back needs write access.** The write-back tools need a key whose owner holds the matching
+  [project role](/operate/project-access#what-each-role-can-do) (Maintainer covers all of them); with a Viewer's key
+  the agent reports what it did to you instead.
 
 ## Related
 
@@ -7006,7 +7021,7 @@ once.
 The tab closes, the settings say **Connected as** your name, and the instance's URL patterns appear under **From
 your Piwi instance**.
 
-Allowing creates an API key for your account, named after the browser, with your role and project access. It is
+Allowing creates an API key for your account, named after the browser, with your instance role and project roles. It is
 listed with your other keys in your account's API key settings, where you revoke it; the browser is then
 disconnected at its next request. **Deny**, or ten minutes without an answer, creates nothing.
 
@@ -7051,7 +7066,7 @@ The newest few runs of every environment are read, so a nightly production suite
 runs on every push. **Add** puts a suggestion in the list with its environment, **Add all** every suggestion of that
 environment; **Save patterns** stores them. When there is nothing to suggest, the editor says why: every site already
 has a pattern, or no recent run recorded a `baseURL`, opened a full address or kept the network requests of a page it
-loaded. Editing the list takes the administrator role, like the rest of the project's settings.
+loaded. Editing the list takes the Project admin role on the project, like the rest of the project's settings.
 
 ### Which project applies
 
@@ -7086,7 +7101,7 @@ the editor, never a script running in a page.
 - [Browser extension](./extension): everything Piwi Picker does, with or without a connection
 - [API keys](/operate/api-keys): create, list and revoke keys, those Piwi Picker created included
 - [Tested elements](./tested-elements): what a connection shows on the page
-- [Project access](/operate/project-access): which projects, and so which patterns, a user sees
+- [Access, roles and groups](/operate/project-access): which projects, and so which patterns, a user sees
 
 <!-- https://piwitests.dev/features/tested-elements -->
 
@@ -7432,7 +7447,7 @@ With the extension [connected to the instance](./extension-connection), the fini
   failing test then reads them from environment variables.
 
 Nothing is sent before **Send**, and only to the instance the extension is connected to. The first time, the preview
-explains this. Any role can send a report to a project it has access to, so a tester's own key is enough.
+explains this. Anyone who can read a project can send a report to it, so a tester's own key is enough.
 
 The report keeps the language it was written in; the test Piwi writes from it is the same in every language.
 
@@ -7512,8 +7527,8 @@ the run.
 When the project is bound to Jira in its [issue tracking](./issue-tracking) settings, a report becomes a ticket in
 three ways, all through the same outbox, links and attachments:
 
-- **From the Send preview**: **Also create a Jira issue in SHOP** is offered to a sender whose role may create issues
-  (administrator or reporter).
+- **From the Send preview**: **Also create a Jira issue in SHOP** is offered to a sender who may create issues
+  there (Contributor or above, or an administrator).
 - **From the report's page**: **Create issue**, with the same modal as a failure cluster.
 - **For every report**: **File every bug report**, in the project's two-way sync settings, files each report as it
   arrives, whoever sends it; the preview then says so.
@@ -7716,7 +7731,7 @@ Four ways in, all producing the same kind of entry. The paste paths stop at a re
 - **Bring your own AI** — no instance AI, or you'd rather not use it? **Copy prompt for your own AI** copies the full extraction prompt (the rules, the JSON schema, and your pasted code) to paste into any AI chat (ChatGPT, Claude.ai, an IDE assistant). Paste the reply back and it is validated against the exact same schema — no Piwi AI credits spent either way.
 - **From a coding agent (MCP)** — an MCP-connected agent (Claude Code, Cursor, …) calls the `create_test_function` [MCP tool](/reference/mcp-tools#create_test_function) directly, reading the source with its own model. No AI call happens on the server side; the tool only validates and persists.
 
-Registered entries are edited in place from the same page — the pencil button reopens the form with everything filled in. Registering, editing, deleting and both paste paths need the reporter or administrator role; any project member can view the catalog.
+Registered entries are edited in place from the same page — the pencil button reopens the form with everything filled in. Registering, editing, deleting and both paste paths need the **Maintainer** role or above on the project, or an administrator; anyone who can read the project can view the catalog.
 
 ## Object parameters
 
@@ -8818,13 +8833,14 @@ The dashboard supports optional sign-in with role-based access control. Authenti
 
 ## Roles
 
-| Role | Description |
-|------|-------------|
-| **Administrator** | Full access to every project and feature — editing projects, managing users, and deleting runs. Never restricted by project access. |
-| **Reporter** | Submits results and can triage, but only for the **projects it's assigned to**. |
-| **User** | Read-only access to the **projects it's assigned to**. |
+Every account holds one **instance role**:
 
-Administrators always see everything. **Reporter** and **User** accounts are additionally scoped by [project access](./project-access): they only see and act on the projects assigned to them.
+| Instance role | What it can do |
+|------|-------------|
+| **Administrator** | Everything, on every project: users, groups, instance settings, AI providers, Jira connections, storage, tags, creating and deleting projects. Never restricted by project roles. |
+| **Member** | Signs in and manages their own profile, API keys, dashboards, notification channels and subscriptions. Everything else comes from their project roles. |
+
+What a Member can do inside a project comes from the **project roles** (Viewer, Contributor, Maintainer, Project admin, Uploader) granted to them or to one of their groups, on that project or on all projects: see [Access, roles and groups](./project-access). The Administrator role is granted to a user, never to a group.
 
 ## Enabling authentication
 
@@ -8904,7 +8920,7 @@ Users can sign in with Google or GitHub instead of a username and password.
 
 ### Restricting who can sign in (allowlists)
 
-By default any account at a configured provider can sign in (and a new **user**-role account is created). To restrict access:
+By default any account at a configured provider can sign in (and a new **Member** account with no access is created). To restrict access:
 
 - **`PIWI_OAUTH_ALLOWED_DOMAINS`** — comma-separated email domains (e.g. `example.com,acme.org`). Only **verified** provider emails in these domains may sign in. Applies to all providers — ideal for limiting Google Workspace sign-in to your company domain.
 - **`PIWI_OAUTH_GITHUB_ALLOWED_ORGS`** — comma-separated GitHub org logins. The user must be a member of at least one. Enabling this requests the `read:org` scope so membership (including private) can be checked.
@@ -8918,7 +8934,7 @@ A first sign-in with a provider either links an existing account or creates a ne
 - If a user with the same **verified** email exists (and isn't already linked to a *different* provider), the existing account is linked to the provider. Linking needs proof on both sides: the provider must assert the email is verified, **and** the local account must have verified it too (through the verification link, an accepted invite, or an earlier provider sign-in). This stops an attacker-controlled public email, or an address someone typed into their own profile, from capturing another person's sign-in.
 - If the matching account has **not** verified the address, the sign-in is refused with an explanatory message instead of being linked. The account's owner signs in with its password (or accepts their invite first) and connects the provider from **Settings → Account**.
 - If the matching account is **already linked to a different provider**, the sign-in is refused: one provider is linked per account, so sign in with the original method instead.
-- Otherwise, a new user is created with the **User** role and no password, so it always signs in through its provider. GitHub accounts with no verified primary email always get a new account.
+- Otherwise, a new user is created as a **Member** with no project role and no password, so it always signs in through its provider and sees nothing until it is [granted a role](./project-access#default-is-no-access). GitHub accounts with no verified primary email always get a new account.
 
 The dashboard does not keep the provider's tokens: the access token is used once to read the profile, then discarded. OAuth is not available in demo mode.
 
@@ -8932,13 +8948,14 @@ Signed-in users can link a provider explicitly from **Settings → Account → C
 ## User management
 
 Administrators manage accounts under **Settings → Users** (`/settings/users`). **Add user** creates one with a
-username, password, role and optional display name.
+username, password, instance role and optional display name. Each row shows the user's instance role and the
+[groups](./project-access#groups) they belong to.
 
 ### Changing a role
 
-Each row's **Role** column is an inline selector — pick a new role to reassign it immediately (the user's active sessions are revoked so the change takes effect at once). This is the only way to change an existing account's role, including accounts created through [OAuth](#oauth-google-github), which always start with the **User** role. The **last remaining administrator cannot be demoted**, so an instance can never be left without one.
+Each row's **Role** column is an inline selector for the instance role: pick **Administrator** or **Member** to change it immediately (the user's active sessions are revoked so the change takes effect at once). This is the only way to make an account an administrator, including accounts created through [OAuth](#oauth-google-github), which always start as a **Member** with no access. The **last remaining administrator cannot be demoted**, so an instance can never be left without one.
 
-Which projects a Reporter or User can open is [project access](./project-access), and the keys that let CI and scripts sign in are [API keys](./api-keys).
+What a Member can do in each project is set by [project roles](./project-access), and the keys that let CI and scripts sign in are [API keys](./api-keys).
 
 ## Disabling authentication
 
@@ -8947,81 +8964,155 @@ without authentication.
 
 ## Related
 
-- [Project access](./project-access): which projects each Reporter and User can open
+- [Access, roles and groups](./project-access): project roles, groups and the permission grid
 - [API keys](./api-keys): authenticating the reporter, CI and scripts
 - [Production checklist](./production-checklist): the secrets, TLS and proxy settings to go with it
 - [Configuration reference](/reference/configuration#authentication): every authentication and OAuth variable
 
 <!-- https://piwitests.dev/operate/project-access -->
 
-# Project access
+# Access, roles and groups
 
-Administrators see every project. **Reporter** and **User** accounts see only the projects they are **assigned** to,
-so you can give each team its own slice of the dashboard. Project access applies only with
-[authentication](./authentication) on; the [roles](./authentication#roles) say what each account can do inside the
-projects it opens.
+With [authentication](./authentication) on, what a signed-in user can do inside a project comes from the **project
+roles** they hold there. An Administrator can do everything on every project. A Member can do only what their project
+roles allow, granted to them directly or to one of their groups; a Member with no role sees an empty dashboard.
 
-An assignment is one of two kinds:
+## Project roles
 
-- **Global**: access to *all* projects, including ones created later. Good for a shared CI reporter or a team lead.
-- **Per-project**: access to a specific set of projects only.
+A project role is a fixed set of rights inside a project, granted to a user or a group, on one project or on all
+projects. The first four build on each other, each including everything the one before it can do. Uploader stands
+apart.
 
-What scoping affects for a non-admin user:
+| Role | Typical holder | What it is for |
+|---|---|---|
+| **Viewer** | stakeholder | Reads everything in the project. |
+| **Contributor** | product owner, manager | Files issues, pins links, edits bug reports, schedules reports, adds markers. |
+| **Maintainer** | QA engineer, developer | Triages failures, quarantines tests, runs AI diagnosis, uploads runs, creates share links. |
+| **Project admin** | QA lead, tech lead | Edits the project settings and members, deletes runs. |
+| **Uploader** | CI account | For CI: reads the project and uploads runs, nothing else. |
 
-- The project list, sidebar menu, home dashboard, recent runs, and search only include assigned projects.
-- Runs, test cases, and clusters that belong to an unassigned project return **403**.
-- A reporter can submit results to an assigned project. Creating a **new** project on first submission requires
-  **global** access: a per-project reporter can't invent projects.
+## What each role can do
 
-> **Default is no access.** A freshly created Reporter or User has no assignments and sees an empty dashboard until you
-> grant some, and so does an account whose last project you revoke. (Only the upgrade that adds project access to a
-> database gives its existing Reporter and User accounts global access, so upgrading from a version without project
-> access changes nothing for them.)
+Each row is one permission. The **Permission** column is how the [API docs](https://piwitests.dev/demo/docs) name
+each endpoint's requirement (`x-required-permission`), so a script author can tell which role a call needs. In the app,
+**Settings → Roles** shows the same table to every signed-in user.
 
-## Managing assignments
+| What you can do | Permission | Viewer | Contributor | Maintainer | Project admin | Uploader |
+|---|---|:-:|:-:|:-:|:-:|:-:|
+| Read runs, executions, clusters, analytics | `project:read` | ✓ | ✓ | ✓ | ✓ | ✓ |
+| File a Jira issue | `issue:create` | | ✓ | ✓ | ✓ | |
+| Pin, edit and remove links | `link:write` | | ✓ | ✓ | ✓ | |
+| Edit a bug report | `bug-report:write` | | ✓ | ✓ | ✓ | |
+| Save and schedule reports | `report:write` | | ✓ | ✓ | ✓ | |
+| Add and edit timeline markers | `marker:write` | | ✓ | ✓ | ✓ | |
+| Create share links, share a dashboard | `share:create` | | | ✓ | ✓ | |
+| Triage clusters and gaps | `triage:write` | | | ✓ | ✓ | |
+| Quarantine and release tests | `quarantine:write` | | | ✓ | ✓ | |
+| Run AI diagnosis (spends tokens) | `ai:run` | | | ✓ | ✓ | |
+| Re-run in CI, bisect, Flake Lab, fix attempts | `run:control` | | | ✓ | ✓ | |
+| Edit selections and test functions | `test-assets:write` | | | ✓ | ✓ | |
+| Upload runs | `run:submit` | | | ✓ | ✓ | ✓ |
+| Edit project settings and Jira binding | `project:manage` | | | | ✓ | |
+| Manage the project's members | `project:members` | | | | ✓ | |
+| Delete runs, release kept runs | `run:delete` | | | | ✓ | |
 
-Assignments are administrator-only and can be edited from three places:
+Only an Administrator holds the **instance permissions**: `users:manage`, `groups:manage`, `settings:manage`,
+`connections:manage`, `storage:manage`, `tags:manage`, `project:create` and `project:delete`. An endpoint any
+signed-in user may call (their profile, API keys, dashboards, channels, subscriptions) declares `signed-in`.
 
-- **All at once**: **Settings → Permissions**, the [permission grid](#permission-grid): every user against every project.
-- **Per user**: **Settings → Users → Project access** (the action next to a user). Choose global access or tick
-  specific projects.
-- **Per project**: the **Members** section of a project's **Settings** tab. Add or remove users for that one project.
+## All projects or one project
 
-All three edit the same underlying assignments, so use whichever is more convenient.
+A role is granted on one project, or on **All projects**, which also covers projects created later. A user's rights on
+a project are the **union** of every role they hold there, on that project and on All projects, directly and through
+each of their groups. Maintainer on All projects plus Project admin on `web-app` means Project admin on `web-app` and
+Maintainer everywhere else.
+
+Results sent under a new project name create the project only for an account that can upload on All projects.
+
+## Groups
+
+A group is a named set of users, such as *QA*, *Product owners* or *CI*. It receives project roles the way a user
+does, so a new hire gets their access by joining groups. Administrators create, rename and delete groups and edit
+their members in **Settings → Groups**.
+
+- **Rights add up.** A user in *Product owners* (Contributor on All projects) and *QA* (Maintainer on All projects)
+  can do what a Maintainer does everywhere.
+- **No deny rules.** To take a right away, remove the role that grants it.
+- **No nested groups.** A group holds users, never other groups.
+- **A group never makes anyone an Administrator.** That instance role is granted to a user, on their own row in
+  **Settings → Users**.
+
+## Who manages access
+
+**Administrators** manage everything: users, groups, and roles on every project and on All projects. A **Project
+admin** manages the members of their own projects and may grant any project role there, Project admin included, but
+cannot change roles on other projects or on All projects.
+
+Roles are granted from four places, which all edit the same grants:
+
+- **Settings → Permissions**, the [permission grid](#permission-grid): every group and user against every project.
+- **Settings → Users → Project roles**, the action next to a user: their role on All projects and on each project,
+  with the groups that add to them.
+- A project's **Settings → Members**: the users and groups with a role on that project. Project admins see it for
+  their own projects.
+- **Settings → Groups** for who belongs to each group; its roles are set on the grid or in a project's Members.
+
+Scripts read and change the same grants, called role bindings, through the API; see the
+[API docs](https://piwitests.dev/demo/docs).
 
 ## Permission grid
 
-**Settings → Permissions** lays every user against every project on one grid, so you can read and change access for
-the whole instance without opening accounts one at a time. Rows are users, grouped by role; columns are projects,
-after an **All projects** column. A tick grants that role in that project: a reporter can upload results and triage
-there, a user can read.
+**Settings → Permissions** lays every group and user against every project on one grid. Groups come first, above the
+users; columns are projects, after an **All projects** column. Each cell is a role selector: pick a role to grant it
+there, or none to remove it.
 
 <div class="doc-screenshot">
-  <img src="/screenshots/permission-grid.png" alt="Settings → Permissions: users grouped by role down the side, projects across the top, and the focused cell's row and column highlighted">
+  <img src="/screenshots/permission-grid.png" alt="Settings → Permissions: groups above users down the side, projects across the top, and a role selector in each cell">
 </div>
 
-- **Every click saves at once**; there is no Save button. A change the server refuses is rolled back and reported.
-- **All projects** also covers projects created later. While it is ticked, the user's project cells show a faint tick
-  and are locked; unticking it returns the user to exactly the projects ticked one by one.
-- **Administrators** open every project, so their row is ticked and locked.
-- **Hovering a cell highlights its row and column**, so a cell far from the headers still reads against its user and
-  its project. Keyboard focus does the same: Tab enters the grid as one stop, the arrow keys move between cells,
-  Space toggles.
+- **Every change saves at once.** A change the server refuses is rolled back and reported.
+- **Inherited roles show faint.** A role a user holds only through a group or All projects appears faint, and its
+  tooltip names its source.
+- **All projects** also covers projects created later. Removing a role there leaves the per-project roles as they were.
+- **Administrators** can do everything everywhere, so their row is locked.
+- **Hovering or focusing a cell highlights its row and column.** Tab enters the grid as one stop, the arrow keys move
+  between cells, and Space or Enter opens the role selector.
 - **Filter users** and **Filter projects** narrow the grid on a large instance.
 
-Scripts can read and change the same assignments through the API; see the
-[API docs](https://piwitests.dev/demo/docs).
+## Default is no access
 
-> **Try it in the demo:** the [live demo](https://piwitests.dev/demo/) ships with several pre-seeded identities: an
-> admin, a global CI reporter, and users scoped to one or two projects (plus one with none). Use the **Acting as**
-> picker in the demo banner to switch between them and watch the project list, sidebar, and search change to match
-> each user's access. Acting as the admin, change the assignments live and switch back to see the effect. See
-> [UI overview → Live demo](/features/ui-overview#live-demo).
+A new Member, added in **Settings → Users** or created by an [OAuth](./authentication#oauth-google-github) sign-in,
+holds no role and sees an empty dashboard until you grant one, as does an account whose last role you remove. A
+project the user has no role on is left out of the project list, sidebar, home dashboard, recent runs and search, and
+its runs, test cases and clusters return **403**.
+
+## CI accounts
+
+Run the reporter in CI as a Member with the **Uploader** role, through an [API key](./api-keys): it reads the project
+and uploads runs, nothing else. Grant it on All projects when CI should create projects from a new project name, else
+on the projects it reports to.
+
+## Upgrading from the three roles
+
+Earlier versions had three instance-wide roles (Administrator, Reporter, User) and assigned projects to each account.
+The upgrade converts them:
+
+- **Administrator** stays Administrator.
+- **Reporter** becomes a Member with the Maintainer role on the same projects.
+- **User** becomes a Member with the Viewer role on the same projects.
+
+Access to all projects becomes a role on All projects. A Maintainer can do exactly what a Reporter could, and a Viewer
+what a User could, so nobody gains or loses a right. To narrow a CI account that ran as a Reporter, give it Uploader in
+place of Maintainer.
+
+> **Try it in the demo:** the [live demo](https://piwitests.dev/demo/) ships with seeded identities, from an
+> administrator to a viewer. Switch between them with the **Acting as** picker in the demo banner and watch the
+> projects and actions change. See [UI overview → Live demo](/features/ui-overview#live-demo).
 
 ## Related
 
-- [Authentication](./authentication): turning sign-in on, roles and user management
-- [API keys](./api-keys): a key acts with its owner's role and project access
+- [Authentication](./authentication): turning sign-in on, instance roles and user management
+- [API keys](./api-keys): a key acts with its owner's instance role and project roles
 - [Production checklist](./production-checklist): what to set before anyone else can reach the instance
 
 <!-- https://piwitests.dev/operate/api-keys -->
@@ -9029,13 +9120,18 @@ Scripts can read and change the same assignments through the API; see the
 # API keys
 
 An API key is a long-lived token tied to one user account, and the recommended way to authenticate CI pipelines, the
-Playwright reporter and scripts once [authentication](./authentication) is on. A key acts with its owner's
-[role](./authentication#roles) and [project access](./project-access), so a key for a Reporter account assigned to one
-project can upload to that project and nothing else.
+Playwright reporter and scripts once [authentication](./authentication) is on. A key carries its owner's access: their
+[instance role](./authentication#roles) and the [project roles](./project-access) they hold, directly or through
+their groups. A key for a Member with the Uploader role on one project can read that project and upload to it, and
+nothing else.
 
-With authentication on, every endpoint needs a session cookie or an API key, with the role the endpoint declares
-(listed per endpoint in the [API docs](https://piwitests.dev/demo/docs)). The exceptions are the health and version
-endpoints, the sign-in flows themselves, and live-run streaming, which uses per-run stream tokens.
+For CI, create a dedicated account: a **Member** with the **Uploader** role on the projects CI reports to (on All
+projects if CI should create projects from a new project name), and a key for it. A leaked CI key then cannot triage,
+delete or change anything.
+
+With authentication on, every endpoint needs a session cookie or an API key whose owner holds the permission the
+endpoint declares (listed per endpoint in the [API docs](https://piwitests.dev/demo/docs)). The exceptions are the
+health and version endpoints, the sign-in flows themselves, and live-run streaming, which uses per-run stream tokens.
 
 ## Security properties
 
@@ -9114,7 +9210,7 @@ Invoke-RestMethod -Method Post -Uri https://your-dashboard.example.com/api/test-
 
 ## Using the reporter with a username and password
 
-As an alternative to API keys, give the reporter the credentials of a dedicated user with the **Reporter** role,
+As an alternative to API keys, give the reporter the credentials of a dedicated Member with the **Uploader** role,
 created in **Settings → Users**:
 
 ```typescript
@@ -9138,7 +9234,7 @@ round-trip, and each one can be revoked on its own.
 ## Related
 
 - [Authentication](./authentication): turning sign-in on, roles and user management
-- [Project access](./project-access): which projects a key's owner can reach
+- [Access, roles and groups](./project-access): the project roles a key's owner can hold
 - [Reporter](/guide/reporter): every reporter option
 - [Metrics and rollup export](./metrics): scraping with an API key
 
@@ -9323,14 +9419,6 @@ A connection base URL is supplied by an administrator, so Piwi trusts it: a priv
 Jira Cloud's REST v3 only. A URL a non-administrator supplies (a pinned link) goes through the SSRF guard that blocks
 private hosts. Moving a connection to another site drops its stored credentials.
 
-## What unfurl gives today
-
-With a connection in place, a pinned or refreshed Jira link carries:
-
-- the issue **summary** as its title;
-- a **status** badge whose color follows the issue's status category (to-do, in-progress, done);
-- a refresh that reads the ticket back through the connection rather than scraping the page.
-
 ## Creating issues from a failure
 
 Once a connection exists, Piwi can **file the ticket for you** — a Jira issue whose body is the failure's fix plan,
@@ -9340,6 +9428,12 @@ the fields, and how the key travels back into the inbox, notifications and pull-
 A connection carries a **default language** for the tickets filed against it (a French Atlassian site can default them
 to French); a project binding overrides it, and the create modal offers a per-issue choice — see
 [Language](/features/issue-tracking#language).
+
+## Who can do what
+
+With [authentication](./authentication) on, connections are administrator-only. Binding a project to Jira takes the
+Project admin role on that project (`project:manage`), or an administrator. Filing an issue takes the
+[Contributor role](./project-access#what-each-role-can-do) or above on the project (`issue:create`).
 
 ## Status sync
 
@@ -9572,7 +9666,7 @@ The **Settings › Storage** page (`/settings/storage`) provides administrators 
 - **Storage analysis** — total storage used and file count, the projects that consume the most space, a breakdown by file kind (traces, screenshots, videos, reports, attachments, visual diffs), storage growth over time, and the actual on-disk storage size (local only) — which also surfaces any untracked files lingering on disk.
 - **Cleanup** — permanently delete all test runs older than a configurable number of days (7, 14, 30, 60, 90, 180, or 365 days). [Kept runs](#keeping-runs-forever) are skipped, and so are each project's newest runs when `PIWI_RETENTION_MIN_RUNS` is set. A confirmation dialog is shown before any data is deleted, and the result says how many runs were skipped.
 
-You can also delete test runs by hand:
+Project admins can also delete runs by hand:
 
 - From the **test run detail page** — **Delete run** in the page's **⋮** menu.
 - From the **project detail page** — **Delete run** in a run's **⋮** menu, or tick several runs and choose
@@ -9613,7 +9707,7 @@ There are three ways to keep a run:
 
 A kept run shows a lock next to its number in the runs table and a **Kept** mark in its header; its **Details** say who kept it, when and why. The runs table's **Kept runs only** box lists every kept run of the project, however far back. **Settings › Storage** shows how many runs are kept and how much storage their own files hold.
 
-Only an administrator can **release** a run (**Release keep** in the same menus), which puts it back under retention. A kept run cannot be deleted until it is released. Scripts can keep and release runs through the API; see the [API docs](https://piwitests.dev/demo/docs).
+A Project admin can **release** a run (**Release keep** in the same menus), which puts it back under retention. A kept run cannot be deleted until it is released. Scripts can keep and release runs through the API; see the [API docs](https://piwitests.dev/demo/docs).
 
 ### Space reclamation
 
@@ -9742,8 +9836,8 @@ telemetry" promise.
 - Answers are cached for 60 seconds, so a scrape interval under a minute reads the same numbers.
 
 With [authentication](./authentication) on, the scraper sends an [API key](./api-keys), and the
-samples cover the projects that key's user can open; a browser session is refused. Create a key for a user
-assigned to the projects you want to chart. A Prometheus scrape job:
+samples cover the projects that key's user can open; a browser session is refused. Create a key for a Member
+with the Viewer role on the projects you want to chart. A Prometheus scrape job:
 
 ```yaml
 scrape_configs:
@@ -9805,16 +9899,19 @@ On boot, before any request can touch the database (requests that need it wait f
    separate migrate command and nothing to run by hand. Before migrating, Piwi compares the migrations
    the database has recorded with the ones this version ships (see
    [A database that ran another build](#a-database-that-ran-another-build)).
-2. **Project access is backfilled**, once: on the upgrade that adds project access to a database, existing Reporter
-   and User accounts get global access. It never runs again, so access you revoke stays revoked.
-3. **Failure clusters are re-fingerprinted** if the fingerprint algorithm changed in this release.
+2. **Failure clusters are re-fingerprinted** if the fingerprint algorithm changed in this release.
    This is non-destructive: existing clusters are updated in place, and clusters that now collide are
    merged rather than dropped, so your triage statuses and notes survive.
 
-Steps 2 and 3 log an error and continue if they fail. **Step 1 does not.** If a migration fails, the
+Step 2 logs an error and continues if it fails. **Step 1 does not.** If a migration fails, the
 process keeps running but every database call fails with the migration error and `GET /api/health`
 returns `503`, so the container reports unhealthy — nothing is served against a half-migrated schema.
 That's deliberate: a loud failure you can restore from beats silent corruption.
+
+On the upgrade that adds project roles, a migration turns each Reporter account into a Member with the Maintainer role
+on the projects it could open, and each User account into a Member with the Viewer role, so nobody gains or loses a
+right (see [Upgrading from the three roles](./project-access#upgrading-from-the-three-roles)). A database from before
+project access existed gets the same roles on all projects, as that upgrade granted.
 
 ## A database that ran another build
 
@@ -11162,7 +11259,7 @@ The dashboard's shortcuts, by where they work. The letter keys never fire while 
 ## Failure inbox
 
 On the [failure inbox](/features/failure-clusters#triage-from-the-row-or-the-keyboard), the keys act on the selected
-row. The triage actions need write access to the project.
+row. The triage actions need the Maintainer role or above on the project.
 
 | Keys | Action |
 |---|---|
@@ -11210,11 +11307,11 @@ When you [pick a replacement locator](/features/locator-healing) on a captured p
 ## Permission grid
 
 On the [permission grid](/operate/project-access#permission-grid), the arrow keys move between cells, and `Home` / `End`
-jump to the first / last project of the row.
+jump to the first / last column of the row. `Space` or `Enter` opens the focused cell's role menu, and `Esc` closes it.
 
 ## Related
 
 - [UI overview](/features/ui-overview): the pages these keys move between
 - [Test search](/reference/test-search): the language of the Tests tabs' search box
 - [Failure clusters & the inbox](/features/failure-clusters): the triage actions
-- [Project access](/operate/project-access#permission-grid): the permission grid
+- [Access, roles and groups](/operate/project-access#permission-grid): the permission grid

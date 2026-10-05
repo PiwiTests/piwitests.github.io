@@ -1765,6 +1765,84 @@ CREATE INDEX `idx_mcp_tool_calls_created` ON `mcp_tool_calls` (`created_at`);
 CREATE INDEX `idx_mcp_tool_calls_api_key` ON `mcp_tool_calls` (`api_key_id`);
 CREATE INDEX `idx_mcp_tool_calls_user` ON `mcp_tool_calls` (`user_id`);
 
+CREATE TABLE `group_members` (
+	`group_id` integer NOT NULL,
+	`user_id` integer NOT NULL,
+	`added_by` integer,
+	`created_at` integer NOT NULL,
+	PRIMARY KEY(`group_id`, `user_id`),
+	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`added_by`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE set null
+);
+
+CREATE INDEX `idx_group_members_user` ON `group_members` (`user_id`);
+CREATE INDEX `idx_group_members_added_by` ON `group_members` (`added_by`);
+CREATE TABLE `groups` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`name` text NOT NULL,
+	`description` text,
+	`created_by` integer,
+	`created_at` integer NOT NULL,
+	`updated_at` integer NOT NULL,
+	FOREIGN KEY (`created_by`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE set null
+);
+
+CREATE UNIQUE INDEX `groups_name_unique` ON `groups` (`name`);
+CREATE INDEX `idx_groups_created_by` ON `groups` (`created_by`);
+CREATE TABLE `role_bindings` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`user_id` integer,
+	`group_id` integer,
+	`project_id` integer,
+	`role` text NOT NULL,
+	`created_by` integer,
+	`created_at` integer NOT NULL,
+	FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`project_id`) REFERENCES `projects`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`created_by`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE set null,
+	CONSTRAINT "role_bindings_one_subject" CHECK(("role_bindings"."user_id" is not null and "role_bindings"."group_id" is null) or ("role_bindings"."user_id" is null and "role_bindings"."group_id" is not null))
+);
+
+CREATE UNIQUE INDEX `idx_role_bindings_user_all_projects` ON `role_bindings` (`user_id`) WHERE "role_bindings"."project_id" is null;
+CREATE UNIQUE INDEX `idx_role_bindings_user_project` ON `role_bindings` (`user_id`,`project_id`);
+CREATE UNIQUE INDEX `idx_role_bindings_group_all_projects` ON `role_bindings` (`group_id`) WHERE "role_bindings"."project_id" is null;
+CREATE UNIQUE INDEX `idx_role_bindings_group_project` ON `role_bindings` (`group_id`,`project_id`);
+CREATE INDEX `idx_role_bindings_project` ON `role_bindings` (`project_id`);
+CREATE INDEX `idx_role_bindings_created_by` ON `role_bindings` (`created_by`);
+
+-- Each project assignment of a reporter or a user becomes a role binding on the same scope (a null
+-- project is all projects): Maintainer for a reporter, Viewer for a user, the project roles granting
+-- exactly what those accounts could do. An administrator's assignments carry no right and are dropped.
+INSERT INTO `role_bindings` (`user_id`, `project_id`, `role`, `created_by`, `created_at`)
+SELECT `pa`.`user_id`, `pa`.`project_id`,
+  CASE `u`.`role` WHEN 'reporter' THEN 'maintainer' ELSE 'viewer' END,
+  `pa`.`created_by`, `pa`.`created_at`
+FROM `project_assignments` `pa`
+INNER JOIN `users` `u` ON `u`.`id` = `pa`.`user_id`
+WHERE `u`.`role` IN ('reporter', 'user')
+ON CONFLICT DO NOTHING;
+
+-- The one-time all-projects grant of the upgrade that introduced project access, when a database
+-- still owes it: its `project_assignments_backfilled` setting is not settled to true (absent, 'owed'
+-- or 'granting') and no assignment exists yet.
+INSERT INTO `role_bindings` (`user_id`, `role`, `created_at`)
+SELECT `id`, CASE `role` WHEN 'reporter' THEN 'maintainer' ELSE 'viewer' END,
+  CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)
+FROM `users`
+WHERE `role` IN ('reporter', 'user')
+  AND NOT EXISTS (SELECT 1 FROM `project_assignments`)
+  AND NOT EXISTS (SELECT 1 FROM `app_settings` WHERE `key` = 'project_assignments_backfilled' AND `value` = 'true')
+ON CONFLICT DO NOTHING;
+
+DELETE FROM `app_settings` WHERE `key` = 'project_assignments_backfilled';
+
+-- Everyone but an administrator is a member of the instance; their project roles are in role_bindings.
+UPDATE `users` SET `role` = 'member' WHERE `role` IN ('reporter', 'user');
+
+DROP TABLE `project_assignments`;
+
 BEGIN TRANSACTION;
 
 -- Tags
@@ -1782,16 +1860,25 @@ INSERT INTO projects (id, name, label, description, created_at, updated_at, defa
 
 -- Users (demo identities for the "act as" switcher)
 INSERT INTO users (id, username, password, role, name, email, email_verified, created_at, updated_at) VALUES (1, 'demo-admin', '', 'administrator', 'Avery (Admin)', 'avery@piwi.demo', 1, 1738368000, 1738368000);
-INSERT INTO users (id, username, password, role, name, email, email_verified, created_at, updated_at) VALUES (2, 'ci-reporter', '', 'reporter', 'Robin (CI Reporter)', 'robin@piwi.demo', 1, 1738368000, 1738368000);
-INSERT INTO users (id, username, password, role, name, email, email_verified, created_at, updated_at) VALUES (3, 'sam-checkout', '', 'user', 'Sam (Checkout team)', 'sam@piwi.demo', 1, 1738368000, 1738368000);
-INSERT INTO users (id, username, password, role, name, email, email_verified, created_at, updated_at) VALUES (4, 'priya-api', '', 'user', 'Priya (API & UI team)', 'priya@piwi.demo', 1, 1738368000, 1738368000);
-INSERT INTO users (id, username, password, role, name, email, email_verified, created_at, updated_at) VALUES (5, 'noah-newcomer', '', 'user', 'Noah (No projects yet)', 'noah@piwi.demo', 1, 1738368000, 1738368000);
+INSERT INTO users (id, username, password, role, name, email, email_verified, created_at, updated_at) VALUES (2, 'ci-uploader', '', 'member', 'CI bot', 'ci@piwi.demo', 1, 1738368000, 1738368000);
+INSERT INTO users (id, username, password, role, name, email, email_verified, created_at, updated_at) VALUES (3, 'sam-checkout', '', 'member', 'Sam (Stakeholder)', 'sam@piwi.demo', 1, 1738368000, 1738368000);
+INSERT INTO users (id, username, password, role, name, email, email_verified, created_at, updated_at) VALUES (4, 'priya-api', '', 'member', 'Priya (Product owner)', 'priya@piwi.demo', 1, 1738368000, 1738368000);
+INSERT INTO users (id, username, password, role, name, email, email_verified, created_at, updated_at) VALUES (5, 'noah-newcomer', '', 'member', 'Noah (No access yet)', 'noah@piwi.demo', 1, 1738368000, 1738368000);
+INSERT INTO users (id, username, password, role, name, email, email_verified, created_at, updated_at) VALUES (6, 'quinn-qa-lead', '', 'member', 'Quinn (QA lead)', 'quinn@piwi.demo', 1, 1738368000, 1738368000);
+INSERT INTO users (id, username, password, role, name, email, email_verified, created_at, updated_at) VALUES (7, 'jordan-qa', '', 'member', 'Jordan (QA engineer)', 'jordan@piwi.demo', 1, 1738368000, 1738368000);
 
--- Project assignments (affectations)
-INSERT INTO project_assignments (id, user_id, project_id, created_by, created_at) VALUES (1, 2, NULL, NULL, 1739145600000);
-INSERT INTO project_assignments (id, user_id, project_id, created_by, created_at) VALUES (2, 3, 1, NULL, 1739145600000);
-INSERT INTO project_assignments (id, user_id, project_id, created_by, created_at) VALUES (3, 4, 2, NULL, 1739145600000);
-INSERT INTO project_assignments (id, user_id, project_id, created_by, created_at) VALUES (4, 4, 3, NULL, 1739145600000);
+-- Groups and role bindings (who holds which project role)
+INSERT INTO groups (id, name, description, created_by, created_at, updated_at) VALUES (1, 'QA', 'The QA team, Maintainer of every project.', NULL, 1739145600000, 1739145600000);
+INSERT INTO groups (id, name, description, created_by, created_at, updated_at) VALUES (2, 'Product owners', 'Files and follows up issues on the API and UI projects.', NULL, 1739145600000, 1739145600000);
+INSERT INTO group_members (group_id, user_id, added_by, created_at) VALUES (1, 6, NULL, 1739145600000);
+INSERT INTO group_members (group_id, user_id, added_by, created_at) VALUES (1, 7, NULL, 1739145600000);
+INSERT INTO group_members (group_id, user_id, added_by, created_at) VALUES (2, 4, NULL, 1739145600000);
+INSERT INTO role_bindings (id, user_id, group_id, project_id, role, created_by, created_at) VALUES (1, NULL, 1, NULL, 'maintainer', NULL, 1739145600000);
+INSERT INTO role_bindings (id, user_id, group_id, project_id, role, created_by, created_at) VALUES (2, NULL, 2, 2, 'contributor', NULL, 1739145600000);
+INSERT INTO role_bindings (id, user_id, group_id, project_id, role, created_by, created_at) VALUES (3, NULL, 2, 3, 'contributor', NULL, 1739145600000);
+INSERT INTO role_bindings (id, user_id, group_id, project_id, role, created_by, created_at) VALUES (4, 6, NULL, 1, 'project_admin', NULL, 1739145600000);
+INSERT INTO role_bindings (id, user_id, group_id, project_id, role, created_by, created_at) VALUES (5, 2, NULL, NULL, 'uploader', NULL, 1739145600000);
+INSERT INTO role_bindings (id, user_id, group_id, project_id, role, created_by, created_at) VALUES (6, 3, NULL, 1, 'viewer', NULL, 1739145600000);
 
 -- App settings (the `ai` key marks the demo provider as configured)
 INSERT INTO app_settings (key, value, updated_at) VALUES ('ai', '{"autoDiagnose":false,"roles":{"diagnosis":{"provider":"demo","model":"demo-simulated","baseUrl":null,"apiKey":null}}}', 1745139600);
@@ -8839,7 +8926,9 @@ UPDATE cluster_merge_suggestions SET created_at = created_at + (SELECT delta_sec
 -- Millisecond timestamp columns
 UPDATE test_runs_cases SET started_at = started_at + (SELECT delta_sec FROM _rebase) * 1000, created_at = created_at + (SELECT delta_sec FROM _rebase) * 1000;
 UPDATE network_requests SET start_time = start_time + (SELECT delta_sec FROM _rebase) * 1000;
-UPDATE project_assignments SET created_at = created_at + (SELECT delta_sec FROM _rebase) * 1000;
+UPDATE groups SET created_at = created_at + (SELECT delta_sec FROM _rebase) * 1000, updated_at = updated_at + (SELECT delta_sec FROM _rebase) * 1000;
+UPDATE group_members SET created_at = created_at + (SELECT delta_sec FROM _rebase) * 1000;
+UPDATE role_bindings SET created_at = created_at + (SELECT delta_sec FROM _rebase) * 1000;
 UPDATE analytics_dashboards SET created_at = created_at + (SELECT delta_sec FROM _rebase) * 1000, updated_at = updated_at + (SELECT delta_sec FROM _rebase) * 1000, last_viewed_at = last_viewed_at + (SELECT delta_sec FROM _rebase) * 1000;
 UPDATE entity_links SET created_at = created_at + (SELECT delta_sec FROM _rebase) * 1000, updated_at = updated_at + (SELECT delta_sec FROM _rebase) * 1000;
 UPDATE locator_snapshots SET last_seen_at = last_seen_at + (SELECT delta_sec FROM _rebase) * 1000;

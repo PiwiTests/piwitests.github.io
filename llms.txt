@@ -79,8 +79,8 @@
 - [Deployment](https://piwitests.dev/operate/deployment): Run Piwi Dashboard with Docker, Docker Compose, Kubernetes, npx or a one-click host (Railway, Render, Fly.io, Koyeb, Coolify), then add health checks and HTTPS through a reverse proxy.
 - [One-click deploy](https://piwitests.dev/operate/one-click-deploy): Stand up a Piwi instance on Railway, Render, Fly.io, Koyeb, Coolify or Dokploy from a template, and what to check before you rely on it.
 - [Production checklist](https://piwitests.dev/operate/production-checklist): What to set before anyone else can reach a Piwi instance: authentication, secrets, TLS, proxy trust, persistent data and a pinned version.
-- [Authentication](https://piwitests.dev/operate/authentication): Turn on sign-in and roles, create the first administrator, configure Google and GitHub OAuth, and manage user accounts.
-- [Project access](https://piwitests.dev/operate/project-access): Scope Reporter and User accounts to the projects assigned to them, globally or per project, and edit every assignment on the permission grid.
+- [Authentication](https://piwitests.dev/operate/authentication): Turn on sign-in and instance roles, create the first administrator, configure Google and GitHub OAuth, and manage user accounts.
+- [Access, roles and groups](https://piwitests.dev/operate/project-access): Give each person the rights their job needs, project by project: the five project roles and what each can do, groups, who manages access, and the permission grid.
 - [API keys](https://piwitests.dev/operate/api-keys): Create, use and revoke the long-lived API keys that authenticate the reporter, CI pipelines, scripts and metric scrapers.
 - [Localization](https://piwitests.dev/operate/localization): Set the date and time format and the time zone: each viewer's own choice, and the instance default an administrator sets.
 - [Choose what you use](https://piwitests.dev/operate/capabilities): Pick the capabilities your instance and each project use from the Setup page, and decline the rest so the dashboard stops showing them.

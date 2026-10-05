@@ -1,0 +1,1 @@
+import{E as e}from"./CFXerZzr.js";var t=e(`/logo-wide.svg`);export{t};

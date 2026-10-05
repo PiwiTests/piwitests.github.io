@@ -1,1 +1,0 @@
-import{E as e}from"./5_Bp5WHL.js";var t=e(`/logo-wide.svg`);export{t};
