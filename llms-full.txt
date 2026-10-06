@@ -2134,7 +2134,7 @@ and a **Learn more** link into these docs, and every source path [opens in your 
 
 ## Home
 
-`/`: a health check across all projects. A **stat strip** whose every number but the average pass rate is a link, the **failure inbox** of open clusters, triaged from the row or the keyboard
+`/`: a health check across all projects. A **Filters** block (environment, full runs only), a **stat strip** whose every number but the average pass rate is a link, the **failure inbox** of open clusters, triaged from the row or the keyboard
 ([Failure clusters & the inbox](./failure-clusters#the-failure-inbox)), a **Project health** table with run-history
 bars and a tendency badge, and recent activity.
 
@@ -2158,12 +2158,14 @@ first result, or with **New project**.
 
 ## Project detail
 
-`/projects/:id`: one project's history. A **status line** gives the latest run, the pass rate over the last 20 runs and
-the open clusters, flaky and quarantined counts, and one **filter bar** (environment, branch,
-full runs only) scopes every list. The **More** menu holds Edit, [Test functions](./test-functions),
+`/projects/:id`: one project's history. The **header** names the project, its description and tags, and where it
+stands: the latest run and the pass rate of the last 20 runs, then the open clusters, flaky tests and quarantined
+tests, each a link. The **Filters** block under it (environment, branch, full runs only) scopes the header and every
+tab that reads run history; with no branch picked it reads the [default branch](./branches#the-default-branch), and a
+note counts the runs it hides. The **More** menu holds Edit, [Test functions](./test-functions),
 [Selections](./test-selection), [Import](/guide/importing-runs) and Delete. The tabs:
 
-- **Runs**: the run trend chart, with its [timeline markers](./timeline-markers), over every run, and the runs table,
+- **Runs**: the run trend chart, with its [timeline markers](./timeline-markers), over the filtered runs, and the runs table,
   50 runs to a page; select two runs and **Compare** to see [what changed](./run-changes) between them, or select any
   number, page by page (the header box selects the page's runs), and [delete them](/operate/storage#storage-management).
 - **Tests**: every test case with its pass rate and last run, in file order, with the
@@ -2294,9 +2296,9 @@ Each project has a **Default branch** setting in the **Source control** section 
 
 ## Filtering by branch
 
-On a project page, the filter bar carries a **branch** multi-select (the git-branch icon, "All branches") next to the environment filter. It appears once any of the project's runs carries a branch. It scopes the **runs list** to the branches you pick, and the **flaky leaderboard** when you pick exactly one. [Analytics](./analytics) has its own branch scope control, so a pass-rate trend or slow-endpoints table can be read for one branch at a time.
+On a project page, the **Filters** block carries a **branch** multi-select (the git-branch icon) next to the environment filter. It appears once any of the project's runs carries a branch. With no branch picked, the page reads the project's default branch and the runs that report no branch, like [Analytics](./analytics#branch-policy); **All branches** beside it reads every branch, and the branches you pick read exactly those. The header, the runs list, the test catalog, the failure clusters, the flaky leaderboard, the Flake Lab and the performance trends all follow it; a note under the filters counts the runs on other branches they hide.
 
-The branch is an indexed column, so the flaky leaderboard, Analytics and the MCP `list_runs` tool filter by it in the database; the project's runs list filters its latest 200 runs in the browser. Runs reported before the column existed fall back to the branch recorded in their metadata, so old history still filters.
+The branch is an indexed column, so every project tab, Analytics and the MCP `list_runs` tool filter by it in the database; the project's runs list filters its latest 200 runs in the browser. Runs reported before the column existed fall back to the branch recorded in their metadata, so old history still filters.
 
 ## Branch-aware baselines
 
@@ -2766,9 +2768,9 @@ Two filters change the answer, and both are worth setting deliberately:
 
 - **Runs window** — the last 20, 50 or 100 runs: recent behavior or a longer baseline. A test fixed last
   week still looks awful over the last 100.
-- **Environment** — select one environment and the analysis is scoped to its runs, so `staging` noise
-  doesn't inflate a test that's stable in `production`. Set it via the reporter's `environment` option
-  or `PIWI_ENVIRONMENT`.
+- **Environment** — pick an environment in the project's **Filters** block and the analysis reads only
+  its runs, so `staging` noise doesn't inflate a test that's stable in `production`. Set it via the
+  reporter's `environment` option or `PIWI_ENVIRONMENT`.
 
 ## 4. Quarantine the rest — with an exit
 
@@ -3374,7 +3376,7 @@ The **failure rate** is shown but not scored.
 
 The project's **Failures** tab has a **Flaky** view with a **configurable lookback window** so you can focus on recent behavior or a longer baseline. Each flaky test links to its history and carries a **Quarantine** action.
 
-**Per-environment scoping**: select one environment in the filter bar to score only its runs (the [reporter](/guide/reporter)'s `environment` option or `PIWI_ENVIRONMENT`).
+**Scoping**: only runs within the project's **Filters** count: environment (the [reporter](/guide/reporter)'s `environment` option), branch (the [default branch](./branches#the-default-branch) unless picked) and full runs only.
 
 <figure>
   <img src="/screenshots/flaky-detection.png" alt="Flaky tests tab listing tests with composite score, failure rate, retry passes, and flip counts">
@@ -5822,8 +5824,8 @@ it folds to a one-line summary.
   the comparison and any note (a project without the chosen selection, a deleted marker).
 - **Runs**: the projects (intersected with the ones you can see), environments and branches (optional
   multi-select, see [Environment](/guide/concepts#environment)), the branch policy (*Default branch* or
-  *All branches*, below) and *Full runs only*, which excludes partial runs. All but the projects and
-  the policy are the **filter bar** Home and project pages use.
+  *All branches*, below) and *Full runs only*, which excludes partial runs. All but the projects are the
+  **Filters** block a project page opens with, so a drill-down lands on the same runs.
 - **Tests**: optional; a selection, test tags or browsers (below).
 
 Probe runs (the fault-injected replays `piwi probe` produces) are never counted, whatever the filters.
@@ -5857,7 +5859,7 @@ By default only runs on each project's **default branch** count, so a broken fea
 move the trends. A run whose branch is unknown (a trace import, a run outside git) counts only in a
 project that never reported a branch. The default branch is the project's setting, else
 the one its latest run reported, else `main`. *All branches* counts every run; branches picked in the
-filter bar override both.
+Filters block override both.
 
 ### Test filter
 
