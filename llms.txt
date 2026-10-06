@@ -91,6 +91,7 @@
 - [Storage & retention](https://piwitests.dev/operate/storage): Local or S3-compatible storage for reports and traces, data retention, runs kept forever, cleanup, and what trace snapshots cost.
 - [Backup & restore](https://piwitests.dev/operate/backup-restore): What to back up for a Piwi instance, how to take a consistent copy of the database and storage, and how to restore it.
 - [Metrics and rollup export](https://piwitests.dev/operate/metrics): Serve the metric catalog as OpenMetrics for Prometheus and Grafana, and export the daily rollups as JSON or CSV for BI tools.
+- [Tracing with OpenTelemetry](https://piwitests.dev/operate/tracing): Send a trace of every request Piwi serves, with each SQL statement it ran, to an OpenTelemetry collector you run.
 - [Upgrading](https://piwitests.dev/operate/upgrading): What happens when a new Piwi version starts, how to upgrade safely, why there is no downgrade, and what to do when an upgrade goes wrong.
 
 ## Reference

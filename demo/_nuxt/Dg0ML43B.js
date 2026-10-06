@@ -1,0 +1,1 @@
+function e(e,t){return t.isHydrating?t.payload.data[e]:void 0}export{e as t};
