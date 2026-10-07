@@ -1,1 +1,0 @@
-var e=[`critical`,`high`,`medium`,`low`];new Set(e);function t(e){if(typeof e!=`string`)return!1;let t=e.trim().toLowerCase();return t.startsWith(`piwi:`)||t.startsWith(`piwi-`)}export{t as n,e as t};
