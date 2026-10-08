@@ -3225,9 +3225,9 @@ back** badge, when a new run fails it again.
 ## From an AI agent
 
 Over the [MCP server](/features/mcp), `list_open_clusters` takes the same `queue` argument, and the inbox's actions
-have tools: `triage_cluster` sets the status (with a note), assigns, snoozes, quarantines or releases one or more
-clusters at once, `decide_merge_suggestion` approves or rejects a merge suggestion, `rerun_cluster_in_ci` re-runs a
-cluster's tests in CI, and `link_issue` links an existing ticket. `set_cluster_status` triages one cluster.
+have tools: `triage_cluster` sets the status (with a note), assigns, snoozes, quarantines or releases clusters,
+`decide_merge_suggestion` decides a merge suggestion, `move_tests_to_new_cluster` moves tests out of a cluster,
+`rerun_cluster_in_ci` re-runs a cluster's tests in CI, and `link_issue` and `unlink_issue` manage tickets.
 
 ## Related
 
@@ -3455,7 +3455,7 @@ Detecting a flaky test doesn't stop it blocking merges. Quarantine does — with
 The usual approach is `--grep-invert @quarantine`: the test stops running, nothing ever proves it's fixed, and the
 list only grows.
 
-**A quarantined test in Piwi keeps running and keeps reporting.** It is excluded from the [CI gate](/guide/ci#blocking-a-merge)'s
+**A quarantined test in Piwi keeps running and reporting.** It is excluded from the [CI gate](/guide/ci#blocking-a-merge)'s
 `--max-failed`, `--max-new-regressions`, `--max-new-flaky`, `--require-tag` and `--require-selection` checks and the
 [commit status](./pr-feedback#what-gets-posted), nothing else. That makes the exit possible:
 
@@ -3472,7 +3472,8 @@ list only grows.
   been in, and how many still have no passing streak at all.
 
 **Dismiss** turns down either proposal, with an optional reason, and changes nothing else; a dismissed candidate
-returns after a newer run. Agents call [`dismiss_quarantine_proposal`](/reference/mcp-tools#dismiss_quarantine_proposal).
+returns after a newer run. Agents call [`dismiss_quarantine_proposal`](/reference/mcp-tools#dismiss_quarantine_proposal)
+and [`set_test_quarantine`](/reference/mcp-tools#set_test_quarantine).
 
 The gate always states how many failures quarantine excluded — a green gate that silently ignored failures would be
 worthless — and `--max-quarantined` sets a ceiling so the list can't grow unbounded.
@@ -4095,11 +4096,14 @@ deterministic locator edits rather than model output.
 
 ## Diagnoses written by an agent
 
-A coding agent can record its own diagnosis on a cluster with the MCP tool `record_diagnosis`, in the same JSON a
-model returns here. It needs no AI provider on this instance, its patch is validated against the source the cluster
-failed at when [source control](/guide/source-control) is connected, and the panel shows it as **written by an
-agent** with the model it named. It replaces the current diagnosis, which stays in the history. Declining the
-**Agent diagnoses** capability refuses them; declining AI diagnosis does not.
+A coding agent can record its own diagnosis on a cluster, or on one failure, with the MCP tool `record_diagnosis`, in
+the same JSON a model returns here. It needs no AI provider on this instance, its patch is validated against the
+source the failure happened at when [source control](/guide/source-control) is connected, and the panel shows it as
+**written by an agent** with the model it named. It replaces the current diagnosis, which stays in the history.
+Declining the **Agent diagnoses** capability refuses them; declining AI diagnosis does not.
+
+For one failure, `run_execution_diagnosis` runs the diagnosis of the failure page, and `get_execution_diagnosis` reads
+what is stored, whoever wrote it.
 
 ## Locator healing
 
@@ -11489,7 +11493,7 @@ one fires and what a webhook channel receives; channels, subscriptions and deliv
 | `cluster.regressed` | A cluster with a recorded fix fails again; `reopened` says whether a *resolved* cluster was set back to open |
 | `flakiness.spike` | A completed run contains flaky tests; the flakiness-threshold filter keeps only rates above N% |
 | `perf.regression` | A run is at least 20% slower than the median of the previous five completed runs on the same branch and environment; the regression-% filter raises the bar |
-| `diagnosis.completed` | An AI diagnosis finishes (requires an [AI provider](/guide/ai-provider)) |
+| `diagnosis.completed` | A diagnosis of a cluster, or of one of its failures, is stored: Piwi's (requires an [AI provider](/guide/ai-provider)) or one an agent records. A failure in no cluster sends none |
 | `auto_heal.pr_opened` | [Auto-heal](/features/auto-heal) opened a pull request; the payload carries `prNumber`, `prUrl`, `branch` and `editCount` |
 | `environment.incident` | A completed run is flagged as an [environment incident](/features/environment-incidents); it replaces the run's `run.failed`, `run.failed.default_branch`, `flakiness.spike`, `perf.regression`, `cluster.new` and `bug.looks_fixed` (`run.finished` still fires). The payload carries `rule`, `reason`, `host`, `otherProjects` and `incidentKey`, which is the same for every run of one outage across projects, so a channel receives one message. A subscription filtered on owners does not receive it |
 | `bug.looks_fixed` | A `test.fail()` test passed in a completed run, in every browser project that ran it, and did not already pass on the previous completed run of the same branch; the payload lists the `tests`, each with the bug report (`bugId`, from `piwi:bug`) and ticket (`link`) it names |
@@ -11550,7 +11554,8 @@ Every event that comes from a run carries that run's `branch` and `environment` 
   verdict; for a fix, the `commit` and `timeToResolutionMs`. With an [SCM token](/guide/source-control), a `fixAuthor`
   object (`{ name, email }`) names the author of the fixing commit (for a regression, of the fix that did not hold).
   A fix landed by an [auto-heal PR](/features/auto-heal#after-the-pr-opens) carries `healPr` (`{ number, url, actionId }`).
-- **`diagnosis.completed`**: the cluster, and the diagnosis's `summary`, `rootCause`, `category` and `confidence`.
+- **`diagnosis.completed`**: the cluster, and the diagnosis's `summary`, `rootCause`, `category` and `confidence`. A
+  diagnosis of one failure in the cluster adds its `executionId`, and the notification opens that failure.
 
 A `cluster.*` event also carries `knownIssue` (`{ key, url }`) when the cluster is linked to a tracker issue.
 
