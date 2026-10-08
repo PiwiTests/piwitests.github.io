@@ -46,6 +46,7 @@
 - [Fix plans, reproduce & bisect](https://piwitests.dev/features/fix-plans): The next step for a failure, the other ways to fix it, and the recipes to reproduce it locally and bisect to the commit that broke it.
 - [Auto-heal PRs](https://piwitests.dev/features/auto-heal): Piwi opens a pull request with a validated locator replacement or patch for a failure; you review and merge it, Piwi never does.
 - [Issue tracking (Jira)](https://piwitests.dev/features/issue-tracking): File a Jira issue from a failure with the fix plan as its body, keep it linked as the cluster's known issue, and keep its status in sync.
+- [Issue automation](https://piwitests.dev/features/issue-automation): Rules that file a Jira issue for a failure that keeps failing on the branches and environments you choose, and keep its comments and description current as the failure evolves.
 - [Pull-request feedback & re-run](https://piwitests.dev/features/pr-feedback): Piwi posts a run's result on the pull request, new failures apart from pre-existing ones, and re-runs a cluster's tests in CI from the dashboard.
 - [Test selections](https://piwitests.dev/features/test-selection): Run only the tests that matter: saved and built-in selections, balanced shards, impact from a diff, and the CI guard that keeps a selection honest.
 - [AI steps](https://piwitests.dev/features/ai-steps): Write test steps in plain English: an agent resolves each one once into a committed artifact, and CI replays it as ordinary Playwright with no model calls.
