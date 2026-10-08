@@ -1897,6 +1897,8 @@ DROP TABLE `__piwi_email_case_duplicates`;
 DROP INDEX `idx_users_email`;
 CREATE UNIQUE INDEX `idx_users_email` ON `users` (lower("email"));
 
+ALTER TABLE `account_tokens` ADD `email` text;
+
 BEGIN TRANSACTION;
 
 -- Tags
