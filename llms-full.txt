@@ -2370,7 +2370,7 @@ Two ways to compare against something else:
 - **Newly flaky / passed on retry** — passed here but needed a retry.
 - **Slower / faster** — the ten largest duration changes each way.
 - **Commits since the baseline** — the commit range, a copyable `git log` command and, when the SCM host is known, a link to the commits.
-- **Environment changes** — the fields that differ, in *This run* / *Baseline* columns.
+- **Environment changes** — the fields that differ (environment, branch, CI provider, browsers, and the [test order](#shuffled-runs) of a shuffled run), in *This run* / *Baseline* columns.
 
 <figure>
   <img src="/screenshots/run-changes.png" alt="Run Changes tab showing the baseline selector, the tests that newly started failing, the ones that got fixed, and the commits landed since the baseline">
@@ -2378,6 +2378,15 @@ Two ways to compare against something else:
 </figure>
 
 Comparing two runs is also how the [run comparison](./ui-overview#test-run-detail) works: select two runs on the project's Runs tab and the newer one opens on its Changes tab with the older as its baseline.
+
+## Shuffled runs
+
+A test that fails only after another one depends on the order, and a suite run in the same order every time shows the
+same neighbor every time, which leaves the flaky test's [**Before** suspect](./flaky-tests#suspects) nothing to
+compare. Playwright 1.64's `--shuffle` schedules test files, and the tests of files in parallel mode, in a random
+order, and the run keeps its seed: the run's **Details** shows it as **Order**, and clicking the seed copies
+`--shuffle <seed>`, which runs the same tests on the same workers in the same order again. Against a baseline that was
+not shuffled, or the other way round, the Changes tab lists the **Test order** under Environment changes.
 
 ## Related
 
@@ -5372,7 +5381,7 @@ Because replay is plain Playwright, there is nothing extra to install or start i
 
 An entry is **data, never code**: an allowlisted locator program plus, for a flow, an ordered list of steps and a postcondition oracle. Determinism and safety come from several guarantees:
 
-- **Deterministic bytes.** The model only ever *names* an element (its ARIA role + accessible name). The [`@piwitests/core`](/guide/concepts#locator-snapshot) scorer turns that into the committed locator, so model sampling never changes the file. Two runs that reach the same conclusion produce byte-identical JSON, and a no-op re-resolution leaves your working tree clean.
+- **Deterministic bytes.** The model only *names* an element (its ARIA role, accessible name and snapshot `ref`); the [`@piwitests/core`](/guide/concepts#locator-snapshot) scorer turns that into the committed locator, or Playwright's own locator for the `ref` when two elements share the name. Sampling never changes the file; a no-op re-resolution leaves the tree clean.
 - **No evaluation.** Every locator method and action is checked against an allowlist before it touches the page. A tampered or malformed artifact can never become arbitrary execution.
 - **Drift guard.** Each step records the element's role/name at author time. On replay, if the page positively shows that element has drifted (a rename), the flow **stops before acting** rather than clicking the wrong thing.
 - **Postcondition oracle.** Every flow ends with an assertion the agent chose (an element became visible/hidden, or the URL changed). Replay verifies it, so a subtly wrong flow fails loudly instead of passing.
