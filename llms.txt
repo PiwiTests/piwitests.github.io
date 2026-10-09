@@ -5,7 +5,7 @@
 ## Guide
 
 - [Getting started](https://piwitests.dev/guide/getting-started): Piwi Dashboard is a self-hosted server plus a Playwright reporter that keeps every test run. Run the dashboard, connect your suite with one command, and open your first run in three steps.
-- [Your first failure, explained](https://piwitests.dev/guide/first-failure): Read one failing test in the dashboard from top to bottom: the headline, the likely cause, the situation, the next step and the evidence.
+- [Your first failure, explained](https://piwitests.dev/guide/first-failure): Read one failing test in the dashboard from top to bottom: the headline, the likely cause, the next step, the cluster and the evidence.
 - [Core concepts](https://piwitests.dev/guide/concepts): The vocabulary the docs and the dashboard share: project, run, test case, execution, failure cluster, baseline, analytics dashboard, the Test Map and its gaps.
 - [Reporter](https://piwitests.dev/guide/reporter): Install and configure @piwitests/reporter: wrapConfig, options, live streaming, global setup, multiple reports, authentication and troubleshooting.
 - [Capture fixtures](https://piwitests.dev/guide/capture-fixtures): The optional fixtures file that records network timing, Web Vitals, console output, ARIA snapshots and locator snapshots from inside your tests.
