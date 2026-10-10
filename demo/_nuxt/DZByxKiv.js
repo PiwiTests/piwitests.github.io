@@ -1,0 +1,1 @@
+import{r as e}from"./BQp7SdwC.js";var t=e(`/logo-wide.svg`);export{t};

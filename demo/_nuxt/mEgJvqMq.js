@@ -1,1 +1,0 @@
-import{i as e}from"./CfR-uI93.js";var t=e(`/logo-wide.svg`);export{t};

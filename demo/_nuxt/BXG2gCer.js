@@ -1,0 +1,1 @@
+var e=`https://piwitests.dev`;function t(t){return`${e}/${t.replace(/^\//,``)}`}export{t as n,e as t};
