@@ -506,7 +506,8 @@ it, snooze it, dismiss it with a reason, or mark it covered by an existing test.
 How serious a gap is:
 
 - **blind-spot**: nothing reaches it.
-- **false-comfort**: a [probe](#probe) broke it and every test still passed.
+- **false-comfort**: the tests pass without checking it: a [probe](#probe) broke it and every test still passed, the
+  application reported an error during a passing test, or every check on a page is only that elements are there.
 - **fragile**: what reaches it could stop at any time: a single trusted test, a test whose every reached node
   disappeared, or a fix that did not hold.
 
@@ -543,6 +544,14 @@ is a *declared, never hit* gap.
 The controls (role and accessible name) and links the reporter records on each visited page of a passing run, so the
 Test Map knows what a page offers beyond what the tests clicked. Field values are never recorded. Off by default:
 turn it on with `capturePageInventory`.
+
+### Map health
+
+How complete a project's Test Map is, per input: the page inventory, the pages of locator calls, route handlers,
+probes, the declared surface, change history and the function catalog, each against what it could hold, with the
+detectors it wakes. A detector stays silent without its input, so a quiet Gaps tab can mean a map that cannot see; the
+panel under the gap list names the step behind each input that is short. See
+[Scenario gaps & the Test Map](/features/scenario-gaps#map-health).
 
 ### URL pattern
 
@@ -5625,7 +5634,7 @@ evidence. Each gap names its detector and its **[class](/guide/concepts#gap-clas
 | Class | Meaning | Example |
 |---|---|---|
 | **blind-spot** | nothing reaches it | `Observed 412 times over the last 30 runs, always 200` |
-| **false-comfort** | a [probe](/features/probes) broke it and every test still passed | `Tests pass when POST /api/orders breaks` |
+| **false-comfort** | the tests pass without checking it: a [probe](/features/probes) broke it, or the app logged an error, and they still passed | `Tests pass when POST /api/orders breaks` |
 | **fragile** | what reaches it could stop at any time | `Only checkout › coupon reaches this` |
 
 [Server probes](/features/probes#server-probes) add **findings** in two more classes, **unhandled** and **degraded**:
@@ -5649,8 +5658,7 @@ The tab opens on the **feature map**: one circle per feature (from the
 [`piwi:feature` tag](/reference/test-metadata)), sized by the routes, pages and controls it groups, colored by its
 worst open gap, and linked to the features it shares nodes with. A feature also groups what its tests miss nearby,
 such as the controls on its pages, and a **hub** most tests reach links no features
-([how features group](/reference/gap-detectors#features)). The ranked list beside it carries every feature, however
-many.
+([how features group](/reference/gap-detectors#features)).
 
 <figure>
   <img src="/screenshots/scenario-gaps-feature-map.png" alt="Feature map: four feature circles colored by worst gap, beside their counts">
@@ -5658,9 +5666,8 @@ many.
 </figure>
 
 A feature, or a gap's node, opens in the **feature graph**: the node in the middle, what leads into it on the left,
-what it leads to on the right, nodes colored by class and edges by kind. The picture shows the most severe few of each
-kind; the **neighbors** list under it has every neighbor, with its relation, worst gap and reaching tests. Click a
-node to recenter on it. Agents walk the same graph with the
+what it leads to on the right, nodes colored by class and edges by kind. The **neighbors** list under it has every
+neighbor; click a node to recenter on it. Agents walk the same graph with the
 [`get_feature_graph`](/reference/mcp-tools#get_feature_graph) MCP tool.
 
 <figure>
@@ -5683,13 +5690,11 @@ Every gap takes the same four verbs as an inbox item:
 - **Dismiss** with a reason: *not worth testing*, *covered elsewhere* (which records the covering test as reaching the
   node), or *wrong*.
 - **Covered by** names the test that covers it and closes the gap. A gap closed this way stays closed when its
-  detector raises it again. The covering test is recorded as reaching the node, but a test recorded by hand does not
-  count as observed reach of a control, so it never switches on *control nobody exercises* for the project.
+  detector raises it again, and the covering test is recorded as reaching the node.
 
 Gaps persist, so triage survives recomputation: a dismissed gap keeps its verdict, and a gap **closes itself** when
 the detector no longer finds it, for example once its node gains a trusted test, so "closed this month" is real. A
 closed gap that comes back reopens, unless it was closed with **Covered by**. Home lists the gaps accepted more than a week ago whose test was never written.
-The map is recomputed after every run and nightly.
 
 <figure>
   <img src="/diagrams/scenario-gaps-loop.svg" alt="Sources feed the Test Map, detectors, ranking and delivery; triage flows back">
@@ -5702,10 +5707,8 @@ rows leave the pull-request comment and the Gaps digest, its gaps sort last in t
 
 The top new gaps of each project are the **Gaps digest**
 [quality report](/features/quality-reports#what-a-report-contains); [schedule it](/features/quality-reports#report-schedules)
-to your channels. Agents list and draft gaps with
-[`list_scenario_gaps`](/reference/mcp-tools#list_scenario_gaps) and
-[`draft_scenario`](/reference/mcp-tools#draft_scenario), give a verdict with
-[`triage_gap`](/reference/mcp-tools#triage_gap), and the
+to your channels. Agents list, draft and triage gaps with the
+[MCP tools](/reference/mcp-tools#list_scenario_gaps), and the
 [write-the-missing-test](/features/agent-skills) skill drives the loop.
 
 ## What feeds the map
@@ -5735,19 +5738,27 @@ reaches is named a **declared, never hit** blind spot instead of staying invisib
   on a recompute and records each route's documented response codes, so a *success only* gap can name the error codes a
   route documents but never returned under test.
 
+### Map health
+
+Under the gap list, **map health** counts each input against what it could hold and names the detectors it wakes;
+an input that is short shows the step that fills it, so a quiet tab is not mistaken for a covered application.
+
+<figure>
+  <img src="/screenshots/scenario-gaps-map-health.png" alt="Map health: seven inputs of a Test Map, probes short at 7 of 16 routes">
+  <figcaption>Six inputs complete; probes reach 7 of 16 routes, with the step that adds the rest.</figcaption>
+</figure>
+
 ## What this is not
 
-- **Not coverage.** Every surface says *observed reach*.
 - **Not a test generator.** A gap proposes a scenario; the assertion is yours.
 - **Not a gate.** Uncovered changes can only warn; see [the gate flag](/features/uncovered-changes#the-gate-flag).
-- **Not a percentage.** Counts per class, ranked by exposure.
 
 The Test Map and its server probes are optional: [decline](/operate/capabilities#declining-a-capability) either per
 project or for the instance, and these surfaces disappear.
 
 ## Try it in the demo
 
-- [Web Dashboard › Gaps](https://piwitests.dev/demo/projects/5?tab=gaps): Ten tests against a whole admin console: routes never seen failing, pages linked and never visited, declared routes nothing requests, and the team’s verdicts on them.
+- [Web Dashboard › Gaps](https://piwitests.dev/demo/projects/5?tab=gaps): Ten tests against a whole admin console: routes never seen failing, pages linked and never visited, declared routes nothing requests, a save that passed while the backend logged an error, page-object methods no test calls, and the team’s verdicts on them. Under the list, map health shows probes short at 7 of 16 routes.
 
 ## Related
 
@@ -8007,6 +8018,7 @@ Extraction is deliberately conservative. A function that branches on its argumen
 - **While recording**, the extension live-ranks which catalog function the steps so far look like, and on **Copy as TypeScript** matched steps collapse into a call to your function; anything unmatched stays as plain locators. The matcher only ever *selects among* the functions you registered — it never invents one. See the [browser extension](./extension#what-it-does).
 - **While recording from your editor**, each run of steps a function performs is written as a call to it as soon as its last step is recorded, a page object taken from the test's fixtures when the file's tests take it there. See [Record tests from the editor](./editor-recording).
 - **Against the current page**, the popup's **Test functions** checklist scores every function in the active project's catalog: ready to use here, a partial match, or not found on this page.
+- **In the Test Map**, a method or helper on a page the suite reaches that no test runs is a *catalog method, no test calls* [scenario gap](./scenario-gaps): the cheapest test to add, since its steps exist. A step whose target comes from a parameter names no element, so a function whose every target does gets no verdict. See [Gap detectors](/reference/gap-detectors).
 
 ## Related
 
@@ -11650,8 +11662,22 @@ without it.
 | **Orphan test** | fragile | a test whose every reached node disappeared from the last 30 runs | nothing more | `All 3 node(s) it reaches disappeared from recent runs` |
 | **Fix did not hold** | fragile | a failure cluster whose fix later regressed | nothing more | `Fixed in a1b2c3d · regressed 6 days later` |
 | **Not noticed** | false-comfort | a route a probe broke while no test noticed | [probes](/features/probes) | `A probe (status-500) on POST /api/orders did not make checkout › pay fail` |
+| **Passed with errors** | false-comfort | a test whose newest execution in the default branch's last 30 runs passed while the application reported an error: a 5xx from one of its routes, a backend log at error level, or a console error from its own origin | nothing more; backend logs need the [instrumentation](/guide/backend-logs) | `Passed · run #73 · the backend logged an error on PATCH /api/orgs/current` |
+| **Assertion-light** | false-comfort | a page some test asserts on, every check there only that an element is visible, hidden, attached or in the viewport | the locator index | `2 tests assert on this page, only that elements are present` |
+| **Catalog method, no test calls** | blind-spot | a page-object method or helper on a reached page that no test runs | the [test functions catalog](/features/test-functions) | `./pages/UsersPage · goToNextPage · page reached by 3, called by 0` |
 | **Unprobed dependency** | false-comfort | a dependency a route's handler calls that no probe has failed | server spans | `Called by 4 route(s) · no probe has checked what happens when it fails` |
 | **Not handled** | unhandled, degraded | the application did not cope with a server probe's fault; a finding, not a gap | [server probes](/features/probes#server-probes) | `A server probe made POST /api/orders fail; the application did not handle it` |
+
+*Passed with errors* leaves out a console line from another origin's script and the browser's own *Failed to load
+resource* line. A response no server sent, such as one the test's route handler fulfilled, is no 5xx of the
+application, and a test that fulfills a failing response means to see the page fail, so its console errors do not
+count either.
+*Assertion-light* counts any other matcher (a text, a count, a value, an attribute) as a value check, and so is a read
+of an element the index cannot name, or a visible element found by a text holding a number
+(`getByText('Total: $42.00')`); an `expect` on no locator, such as a downloaded file's name, never reaches the index,
+so a page checked only that way reads as light. A test calls a catalog method when one of its default-branch
+locator uses does what one of the method's steps does, on the element that step names by test id or name, on a page
+its URL pattern matches. A method whose every target comes from a parameter gets no decision.
 
 A trusted test is one that is not flaky, not quarantined, and not skipped in its latest run. *Changed, unreached* is
 covered on [Uncovered changes in pull requests](/features/uncovered-changes). A finding never closes itself; triage it.
@@ -11694,8 +11720,10 @@ A feature groups the routes, pages and controls the tests tagged with it reach. 
 feature reaches, with a confidence below one: the controls on its pages (0.8), the pages they link to under the same
 first path segment (0.6) and those pages' controls (0.5), and the declared routes under the same resource path as a
 route it reaches, `/api/v1/orders` for `GET /api/v1/orders/:id` (0.6). A gap sits under one feature: the one whose
-tests reach its node, else the most confident inference. So the map shows what a feature misses, not only what its
-tests touch. Dependencies, links, and pages or declared routes under other paths stay ungrouped.
+tests reach its node, else the most confident inference. A gap on a test sits under the test's feature, and one on a
+catalog method under the feature owning most of the pages its URL pattern matches. So the map shows what a feature
+misses, not only what its tests touch. Dependencies, links, and pages or declared routes under other paths stay
+ungrouped.
 
 With three features or more, a node more than half the tests reach, or that more than half the features and three at
 least group, is a **hub**, such as the session route nearly every test calls. The feature graph still draws it, but
@@ -11710,6 +11738,7 @@ The graph stays proportional to the application's surface, not its data volume:
   project's configured route origins); analytics beacons and CDN assets never become nodes.
 - **Pages are path patterns.** `/orders/123` and `/orders/456` are one node, as is the same path from staging and
   production.
+- **Routes drop the query.** `GET /api/orders?page=2` and `GET /api/orders?status=open` are one node, `GET /api/orders`.
 - **Controls and links are templated.** Dates, ids and numbers in an accessible name become placeholders, and each
   page keeps at most 200 controls and 200 links.
 - **Branches stay separate.** A default-branch run writes the canonical graph; any other branch writes rows tagged
