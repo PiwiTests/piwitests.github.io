@@ -1968,6 +1968,8 @@ CREATE INDEX `idx_oauth_grants_refresh_expires` ON `oauth_grants` (`refresh_expi
 
 ALTER TABLE `network_requests` ADD `fulfilled` integer;
 
+ALTER TABLE `trace_blobs` ADD `stored_size` integer;
+
 BEGIN TRANSACTION;
 
 -- Tags
