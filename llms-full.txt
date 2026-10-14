@@ -4236,7 +4236,8 @@ API keys are encrypted at rest with [`PIWI_SECRET_KEY`](/reference/configuration
 The [live demo](https://piwitests.dev/demo/) needs no AI provider: some clusters carry a completed diagnosis with a validated patch, and the others run a simulated streaming diagnosis.
 
 - [Web Dashboard › Users table paginates 25 rows per page](https://piwitests.dev/demo/failure-clusters/10): A stored diagnosis traces the 50 user rows (51 with the header) to the API’s default page size and suggests a patch; the fix has since landed.
-- [UI Components › Modal opens and closes correctly](https://piwitests.dev/demo/failure-clusters/5): Of the two files changed in the range, the failing modal tests ran the modal controller and no passing test did: it heads the suspect lines on the What changed line, its card and the diagnosis context.
+- [Web Dashboard › Users table paginates 25 rows per page](https://piwitests.dev/demo/failure-clusters/10): The dashboard’s ASP.NET Core API records server coverage by line: of the 13 lines changed in the range, the failing test ran 3, the statements of UsersEndpoints.cs that size, fetch and return the page, which two passing tests ran too; the What changed line names them, the diff marks them, and the diagnosis context and the fix plan list them.
+- [UI Components › Modal opens and closes correctly](https://piwitests.dev/demo/failure-clusters/5): Browser coverage names files: of the two files changed in the range, the failing modal tests ran the modal controller and no passing test did, so its whole hunk heads the suspect lines on the What changed line, its card and the diagnosis context.
 - [E2E Checkout › should complete checkout with Apple Pay](https://piwitests.dev/demo/failure-clusters/2): No stored diagnosis: the Diagnose with AI button streams a simulated one, built from the cluster’s own data.
 
 ## Related
