@@ -146,6 +146,8 @@ The **Next** line names the one thing to do, chosen for you rather than offered 
 
 The **Cluster** line names the [failure cluster](/features/failure-clusters) the failure joins and how many other tests of the run share it, with its triage status, whether an earlier fix did not hold, and who owns the test. It ends with the cluster's [issue](/features/issue-tracking) and its status, or offers to create or link one.
 
+With [coverage](/features/code-reach#server-code), a **What changed** line counts the changed lines the test ran and names the first of its [suspect lines](/guide/concepts#suspect-lines).
+
 The block closes on a **facts** line, one size smaller: the failing file and line (open it in your IDE), browser and viewport, duration against its average, the attempts, the branch, and the CI build. A **Details** popover holds the rest, and **Raw error** shows the verbatim error with a **Copy failure** action.
 
 ## 5. The evidence: see it
@@ -463,9 +465,29 @@ no one feature, so it links none. See [how features group](/reference/gap-detect
 ### Code reach
 
 The application source files a test executed: those whose functions ran in the page, from Chromium's JavaScript
-coverage when [code reach](/features/code-reach) is on, and the handler files of the routes it called
+coverage when [code reach](/features/code-reach) is on, those it ran in an ASP.NET Core backend with
+[server coverage](/features/code-reach#server-code) on, and the handler files of the routes it called
 when the backend is instrumented. Observed reach at file level, never line coverage. It feeds
 [impact-from-diff](/features/test-selection#impact-from-diff) and [Uncovered changes](/features/uncovered-changes).
+
+### Coverage
+
+Which source code a test ran, per repository-relative file and **runtime** (`browser` or `server`), at a
+**granularity**: the files only, the functions that ran (their start and end lines), or the executed lines too, against
+the git blob of the file version. Code reach is its file-level view. A test's coverage is **incomplete** when part of it
+could not be collected.
+
+### Suspect lines
+
+The lines changed since a failing test's last passing run that the failing tests executed, read from their
+[coverage](#coverage) and the diff of the source control range: each changed hunk they executed, ranked by how many
+passing tests of the same run executed it too (the Ochiai score of spectrum-based fault localization, 1 when only
+failing tests did). Line coverage names the executed lines, function coverage the changed lines inside a function that
+ran, and file coverage the whole hunk. When the host names the file's version at the head (GitHub, or a local clone
+in the desktop app), coverage of another version counts as file coverage. The failure pages' **What changed** line names the first, the cluster's diff
+lists them and marks them ([cluster page](/features/failure-clusters#the-cluster-page)), the
+[AI diagnosis](/features/ai-diagnosis#scm-grounded-context) lists them and sends their files' patches first, and the
+[fix plan](/features/fix-plans) carries the top five.
 
 ### Locator index
 
@@ -989,7 +1011,7 @@ If that request fails, the set stays empty and **nothing is sampled**. Turn it o
 
 ## Try it
 
-A runnable example project exercising every capture path, a failing test included, lives in [`examples/playwright-fixtures`](https://github.com/PiwiTests/platform/tree/main/examples/playwright-fixtures).
+A runnable example project exercising every capture path, a failing test included, lives in [`examples/sample-app`](https://github.com/PiwiTests/platform/tree/main/examples/sample-app).
 
 ## Related
 
@@ -1492,7 +1514,7 @@ the custom instructions or the language can be told apart. Piwi never switches m
 
 A small package in your backend attaches to each HTTP response what the server did for that request, and the
 [capture fixtures](./capture-fixtures) read it from the response while your tests run. Nothing leaves your backend
-except in those response headers, and only outside production.
+except in those response headers, or from the coverage endpoints of a coverage build, and only outside production.
 
 | Use | What you get | ASP.NET Core | Nitro / Nuxt |
 |---|---|:---:|:---:|
@@ -1500,6 +1522,7 @@ except in those response headers, and only outside production.
 | [Server spans](#server-spans) | The server's time on a request, and the handler and dependencies it reached | | ✓ |
 | [Route manifest](#route-manifest) | The routes the server has, so the Test Map can name the ones no test reaches | ✓ | ✓ |
 | [Server probes](#server-probes) | A fault injected inside the server for one request (**Experimental**) | ✓ | ✓ |
+| [Server coverage](/features/code-reach#server-code) | The backend files, functions and lines each test ran, from a coverage build | ✓ | |
 
 **Active only in non-production environments by default.** The ASP.NET Core integration emits its headers in the Development and Test environments unless you [choose others](#choosing-the-environments); the Nitro/Nuxt integration whenever `NODE_ENV` is unset, `development` or `test`. Both honor `PIWI_TEST_LOGS_DISABLED`: set it to `true` to turn capture off anywhere, or to `false` to force capture on in a production-mode test deployment.
 
@@ -1526,6 +1549,8 @@ app.Run();
 ```
 
 `AddPiwiTestLogs()` registers a logger provider that collects Warning and Error entries per request; `UsePiwiTestLogs()` adds the middleware that writes them to the response, only in the active environments.
+
+An unhandled exception answered with a 5xx is recorded too, once, its type as the category. Outside Development, register `UseExceptionHandler()`: the server's bare 500 carries no header.
 
 The capture buffer is decoupled from the logging front-end, so it also works outside minimal hosting. Apps on the classic **Generic Host + `Startup`** model use the hosting-agnostic overloads: `services.AddPiwiTestLogs()` (or `ILoggingBuilder.AddPiwiTestLogs()`) in `ConfigureServices`, and `app.UsePiwiTestLogs(env)` on `IApplicationBuilder` in `Configure`.
 
@@ -1564,6 +1589,8 @@ Or, without touching code, set `PIWI_TEST_LOGS_ENVIRONMENTS=Development,Podman,I
 
 **Requirements:** .NET 8, 9, or 10.
 
+[`examples/sample-app`](https://github.com/PiwiTests/platform/tree/main/examples/sample-app) runs an ASP.NET Core app with this package wired in, and a Playwright suite that checks what it sends.
+
 ### Nitro / Nuxt (npm)
 
 ```bash
@@ -1582,7 +1609,7 @@ The plugin is auto-loaded by Nitro. It captures `consola` Warning/Error entries 
 
 **Requirements:** Nuxt 3+ / Nitro 2+ (peer deps `nitropack ≥2`, `h3 ≥1`, `consola ≥3` — all included in any Nuxt project).
 
-A runnable end-to-end demo lives in [`examples/playwright-fixtures`](https://github.com/PiwiTests/platform/tree/main/examples/playwright-fixtures) — a standalone Nitro app instrumented with this package, with a Playwright spec (`backend-logs.spec.ts`) showing the captured logs in the dashboard.
+[`examples/sample-app`](https://github.com/PiwiTests/platform/tree/main/examples/sample-app) runs a standalone Nitro app with this package wired in, and the same Playwright suite.
 
 ### Reporter setup
 
@@ -1634,8 +1661,8 @@ uploads it with the run, so a route or page nothing reaches becomes a
   file of its handler when the build has a PDB. Static files, fallbacks and endpoints marked `ExcludeFromDescription()` are left out. See
   the [package README](https://github.com/PiwiTests/platform/tree/main/integrations/aspnetcore#route-manifest) for
   every rule.
-- **Nitro** has no route table to read at runtime, so the plugin lists the routes the server has matched since it
-  started.
+- **Nitro** reads its route table at build time through the package's module
+  (`modules: ['@piwitests/instrumentation-nitro/module']`, under `nitro` in Nuxt); without it, only matched routes.
 
 ## Server probes
 
@@ -1667,6 +1694,7 @@ Cap entries at a reasonable limit (50 is the default in the provided integration
 - [Capture fixtures](./capture-fixtures): the fixtures that read these headers
 - [Failure evidence](/features/evidence): where backend logs appear on a failing execution
 - [Scenario gaps & the Test Map](/features/scenario-gaps): what spans, the manifest and probes feed
+- [Code reach](/features/code-reach#server-code): turning on server coverage per test
 - [Configuration reference](/reference/configuration#backend-logs): `PIWI_TEST_LOGS_DISABLED` and `PIWI_TEST_LOGS_ENVIRONMENTS`
 
 <!-- https://piwitests.dev/guide/importing-runs -->
@@ -1999,8 +2027,9 @@ Every outbound connection Piwi can make:
 | Your S3 endpoint | Only if you switch [storage](/operate/storage) to S3 | Trace files, HTML reports, attachments |
 | Google / GitHub | Only if you enable [OAuth sign-in](/operate/authentication#oauth-google-github) | The standard OAuth exchange |
 
-The reporter sends your own instance what its options switch on. [Code reach](/features/code-reach), off by
-default, sends repository-relative file paths only: never source code, coverage counts or line numbers.
+The reporter sends your instance what its options switch on. [Code reach and server coverage](/features/code-reach),
+off by default, send repository-relative file paths; line numbers and each file's git blob id only with
+`coverage.server: 'functions'` or `'lines'`; source code and hit counts never.
 
 Two rows need no setting: the anonymous git-host reads happen whenever runs report a public-host remote,
 and a link's title is fetched when someone attaches it. Both fail quietly without network access.
@@ -2101,8 +2130,7 @@ by anything else. See [Storage → Data retention](/operate/storage#data-retenti
 
 ## Verifying any of this
 
-You don't have to take the page's word for it. The source is public and the outbound surface is
-small enough to audit: watch the container's egress, or read
+The source is public and the outbound surface is small enough to audit: watch the container's egress, or read
 [`server/utils/`](https://github.com/PiwiTests/platform/tree/main/apps/application/server/utils) — the AI
 provider, SCM, SMTP, notification, OAuth, Jira and link-unfurl clients are the only things there that open
 a socket; the S3 client is in `server/storage/`.
@@ -3221,12 +3249,13 @@ Three lines are cluster-specific:
 - **The state line**, right above **Next**.
 - **The occurrence sparkline**: how often it failed across recent runs, *N occurrences in M tests over D · last X ago*;
   a single test is named, *quarantined* if it is.
-- **What changed**: the commits and files between the last passing run (or your baseline) and this failure, with
-  **See the changes** for the diff. When setup is missing (runs that record no commit or repository URL, a host Piwi
-  does not read, or an [SCM token](/guide/source-control) missing or refused), it shows the range, the host's error
-  and **Compare** page, and a help hint on what to set up; **More actions › Copy git log** lists the range in your
-  checkout. With no passing run yet, **Browse commits** picks a baseline. The same commit on both sides means the
-  change is not in the code.
+- **What changed**: the commits and files since the last passing run (or your baseline), with **See the changes**
+  for the diff and, with [coverage](./code-reach#server-code), the first
+  [suspect line](/guide/concepts#suspect-lines): a changed line the failing tests ran, marked in the diff. Missing
+  setup (no commit or repository URL, an unsupported host, a missing or refused [SCM token](/guide/source-control))
+  shows the range, the host's error, its **Compare** page and a hint on what to set up;
+  **More actions › Copy git log** lists the range in your checkout. With no passing run yet, **Browse commits** picks
+  a baseline. The same commit on both sides means the change is not in the code.
 
 With several tests, the **Affected tests** list picks the one the evidence shows; **Move to a new cluster**
 [splits tests off](./ai-diagnosis#split-a-cluster-by-hand). The fix section **Next** points at leads under the block;
@@ -4054,8 +4083,7 @@ The [live demo](https://piwitests.dev/demo/) holds a leaky run whose machine run
 # AI diagnosis
 
 When a run finishes, Piwi groups related failures into [failure clusters](./failure-clusters) and, optionally, asks an
-LLM to explain them. Clustering decides *what* to diagnose; AI diagnosis explains *why* it broke, against the code that
-changed.
+LLM to explain why each broke, against the code that changed.
 
 ## Semantic merging (optional)
 
@@ -4074,9 +4102,8 @@ project's Failure clusters tab, for a Maintainer or above to approve or dismiss,
 past five model calls in a run, the pair becomes a suggestion directly. This runs after every finished run
 whenever an embedding role is configured, independently of auto-diagnose.
 
-Each pair is judged once: the model's no is kept, so the same pair is not sent to the model again. A pair that
-someone dismissed, or that came from [moving tests to a new cluster](#split-a-cluster-by-hand), is never merged
-automatically, however close the two clusters score.
+Each pair is judged once: the model's no is kept. A pair that someone dismissed, or that came from [moving tests to a
+new cluster](#split-a-cluster-by-hand), is never merged automatically, however close the two clusters score.
 
 <figure>
   <img src="/diagrams/failure-clustering-semantic-merge.svg" alt="Diagram of the semantic merging flow: clusters are embedded, compared by cosine similarity, and kept apart, adjudicated by a model, or merged depending on the score">
@@ -4105,7 +4132,7 @@ A diagnosis comes back in the [response language](/guide/ai-provider#response-la
 
 ## What a diagnosis contains
 
-A diagnosis is grounded in your actual run, not a generic "ask AI" button. Each result includes:
+Each result includes:
 
 - **Category** and **confidence**
 - **Root cause**: the most likely explanation
@@ -4143,6 +4170,10 @@ run where this test passed; the context preview names which one it used. With th
 helpers, fixtures), capped by `PIWI_AI_MAX_SOURCE_FILES` (default 4) and `PIWI_AI_MAX_SOURCE_FILE_CHARS`. The
 repository connection is set up on [Source control](/guide/source-control).
 
+When the failing tests recorded [coverage](./code-reach#server-code), the context lists their
+[suspect lines](/guide/concepts#suspect-lines): the changed lines they executed, ranked by how many passing tests of the same run executed them too. Their files' patches
+come first within the patch budget.
+
 ### Validated patches
 
 Every suggested patch is dry-run, hunk by hunk, against the source files the model was shown. The patch carries one
@@ -4171,8 +4202,8 @@ When the failure is a broken locator, the context includes the ranked replacemen
 
 ## Fix plans
 
-The diagnosis, its patch, the locator fix and the verify command come together in a fix plan: see
-[Fix plans, reproduce & bisect](./fix-plans).
+The diagnosis, its patch, the locator fix, the top five suspect lines and the verify command come together in a fix
+plan: see [Fix plans, reproduce & bisect](./fix-plans).
 
 ## Diagnosis history
 
@@ -4198,13 +4229,14 @@ Each input sent to the model is capped to keep diagnoses fast and affordable; th
 
 ## Privacy
 
-API keys are encrypted at rest with [`PIWI_SECRET_KEY`](/reference/configuration#general). When you run a diagnosis, the bounded context above is sent to your configured provider, so for fully local analysis, use Ollama or another self-hosted OpenAI-compatible model and keep everything on your own infrastructure.
+API keys are encrypted at rest with [`PIWI_SECRET_KEY`](/reference/configuration#general). When you run a diagnosis, the bounded context above is sent to your configured provider; for fully local analysis, use Ollama or another self-hosted OpenAI-compatible model.
 
 ## Try it in the demo
 
 The [live demo](https://piwitests.dev/demo/) needs no AI provider: some clusters carry a completed diagnosis with a validated patch, and the others run a simulated streaming diagnosis.
 
 - [Web Dashboard › Users table paginates 25 rows per page](https://piwitests.dev/demo/failure-clusters/10): A stored diagnosis traces the 50 user rows (51 with the header) to the API’s default page size and suggests a patch; the fix has since landed.
+- [UI Components › Modal opens and closes correctly](https://piwitests.dev/demo/failure-clusters/5): Of the two files changed in the range, the failing modal tests ran the modal controller and no passing test did: it heads the suspect lines on the What changed line, its card and the diagnosis context.
 - [E2E Checkout › should complete checkout with Apple Pay](https://piwitests.dev/demo/failure-clusters/2): No stored diagnosis: the Diagnose with AI button streams a simulated one, built from the cluster’s own data.
 
 ## Related
@@ -5863,13 +5895,14 @@ because observed reach is evidence, not proof. Without the flag, the gate ignore
 # Code reach
 
 "Which tests reach this file?" has an answer for test code from the locators a test calls. Code reach answers it for
-application code: an opt-in capture records the source files whose functions ran during each test, so a change to a
-component or a module maps to the tests that execute it.
+application code: an opt-in capture records the source files whose functions ran during each test, in the browser and,
+with an instrumented ASP.NET Core backend, on the [server](#server-code), so a change to a component or a module maps
+to the tests that execute it.
 
 ## Turn it on
 
 Set `captureCodeReach: true` in the reporter options, or `PIWI_CAPTURE_CODE_REACH=true`, with the
-[capture fixtures](/guide/capture-fixtures) in place. Coverage slows the page's JavaScript and reach changes slowly, so
+[capture fixtures](/guide/capture-fixtures) in place. Coverage adds time to every test and reach changes slowly, so
 turn it on in one scheduled job, a nightly run, rather than on every run. A run without it keeps the reach the last one
 recorded.
 
@@ -5924,36 +5957,89 @@ nothing.
 
 ## Cost
 
-Chromium's block coverage slows the page's JavaScript, so the option stays off by default. Measured on a 4-core
-sandbox with headless Chromium:
+Code reach reads V8's function coverage, which records only whether each function ran, so the page's own JavaScript
+runs at nearly its usual speed. Each test pays for a CDP session with the debugger on, which reports every script's
+version, and for one coverage read at the end. A script's source is read once per worker, the first time a test loads
+that version of it. Measured on a 4-core sandbox (Xeon at 2.10 GHz, Ubuntu 24.04, Node 22, Playwright 1.63, headless
+Chromium), each configuration run in turn, round after round, medians:
 
+- **A script-heavy page** (Vue's development build rendering a 1,000-row table of components 30 times, plus 400 small
+  ES modules; a new browser context per test, 15 rounds): a test goes from 1,128 ms to 1,220 ms, 8% more, and 16% more
+  for a worker's first test, which reads all 403 sources. With two documents per test, 17% more. Playwright's
+  `page.coverage`, which records block coverage and reads every script's source in every test, adds 50% and 54% on the
+  same page, and reaches the same 137 files. Over three runs on a machine shared with other work, code reach added 5% to
+  23% to a test, `page.coverage` 44% to 55%.
 - **A light page** (the reporter's capture benchmark, `npm run reporter:bench`, 12 tests of 20 actions and
-  assertions): 122 ms more per test on top of the default capture, 887 ms to 1,009 ms (median over three rounds).
-- **A script-heavy app** (40 tests of Piwi's own suite against its Nuxt dev server, about 940 scripts per page, run
-  alternately with the option off and on): 1.8 seconds more per test on average, a median test going from 10.1 to 12.3
-  seconds, about 20% more for the run.
+  assertions): 61 ms and 103 ms more per test on top of the default capture in two runs, a median test going from 1,215
+  to 1,276 ms in one and from 1,140 to 1,242 ms in the other; `page.coverage` added 209 ms and 176 ms.
 
-The extra time is spent in the browser, and it grows with the amount of JavaScript the page runs.
+The extra time grows with the number of scripts the page loads and the number of documents a test opens.
+
+## Server code
+
+With an ASP.NET Core backend built for coverage, each test also records the backend code it ran:
+
+1. Add the `PiwiTests.Instrumentation.Coverage` package to every project whose code you want covered, as its
+   [README](https://github.com/PiwiTests/platform/tree/main/integrations/aspnetcore/PiwiTests.Instrumentation.Coverage#readme)
+   shows, serve it with `app.UsePiwiTestLogs()` ([backend logs](/guide/backend-logs)), and build the test environment
+   with `-p:PiwiCoverage=true`. Never ship that build to production.
+2. Set the reporter's `coverage.server` option, or `PIWI_COVERAGE_SERVER`, with the capture fixtures in place.
+
+```ts
+reporter: [['@piwitests/reporter', { coverage: { server: 'lines' } }]],
+```
+
+The backend names each request's coverage on its response. The fixtures keep the names a test's pages received; once
+the test ends, the reporter asks the backend for their coverage, several tests per call, outside the test's time, and
+the test's result reaches the dashboard with it.
+
+| `coverage.server` | Records per test |
+| --- | --- |
+| `files` | the backend files that ran, paths only |
+| `functions` | also the start and end line of each function that ran |
+| `lines` | also the executed lines |
+
+With `functions` and `lines`, each file names its git blob, as `git hash-object` gives it, which its line numbers
+refer to. At the end of the run the reporter also sends the run's coverage of the backend, attributed to no test, with each
+file's executable lines at `lines` granularity. A test whose coverage the backend no longer held, or that could not be collected, is marked incomplete.
+`coverage.browser: 'files'` is the same as `captureCodeReach: true`.
+
+- **Run level only:** lambdas created at startup (inline minimal API handlers, inline middleware, DI factory lambdas)
+  and work outside a request (hosted services, timers). The methods they call count normally.
+- **Pages only:** API tests through Playwright's `request` fixture record no server coverage.
+- C# and Visual Basic only.
+
+Measured on a prototype, per-test server coverage added under 2% to test duration on Microsoft's eShopOnWeb, whose
+CPU goes to the framework, and up to 26% more server CPU on an application that spends its CPU in business logic.
+Functions cost about what lines cost.
 
 ## Where it is used
 
 - **[Impact-from-diff](./test-selection#impact-from-diff)** maps a changed file to the tests that executed it. Code
   reach only adds tests: a changed source file that no test reached still widens the run to the whole suite, since
-  code reach does not see module top-level code, server code or type-only modules.
+  code reach does not see module top-level code, server code without [server coverage](#server-code), or type-only
+  modules.
 - **[Uncovered changes](./uncovered-changes)** counts a changed file as reached when a test executed it.
 - **[Locator preflight](./preflight)** calls a break *likely* only when one of its tests reaches the changed file.
+- **[Suspect lines](/guide/concepts#suspect-lines)**: the changed lines a failure's tests executed, ranked against the
+  passing tests, on the failure pages' [What changed](./failure-clusters#the-cluster-page) line and diff, in the
+  [AI diagnosis](./ai-diagnosis#scm-grounded-context) and the [fix plan](./fix-plans).
 
 The dashboard's API serves the tests reaching one file and the whole map of a branch; see the
 [API docs](https://piwitests.dev/demo/docs) (`/docs` on your instance).
 
 ## Limits
 
-- **Chromium only.** Other browsers have no JavaScript coverage and record nothing.
+- **Chromium only** in the browser: other browsers have no JavaScript coverage and record no browser files. Server
+  coverage works with every browser.
 - **Observed reach, not coverage.** A reached file may hide an untested branch: the unit is the file, never the line.
 - A build with neither per-module URLs nor source maps yields nothing, and so does code rendered on the server only,
   React server components included.
 - A module whose top-level code calls its own functions, a table built on import, counts for every test that loads it.
 - A function a minifier inlines into another as plain statements counts for the file it was inlined into.
+- A test that loads a new document in its page reaches the files of the last document only: Chromium keeps no
+  coverage of a document the page has left. Client-side navigation stays in one document, and an iframe's earlier
+  documents stay covered.
 - Reach is per branch: a branch's own runs replace its tests' reach, and the default branch's stands in for the rest.
 
 ## Related
