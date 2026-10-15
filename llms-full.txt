@@ -388,7 +388,7 @@ they disagree the state line offers the one action that closes the gap, unless t
 
 A test case's **composite score** from two signals — retry passes (weighted 60%) and status alternation
 across runs (40%), shown next to its overall failure rate — plus a **root-cause class** (timing, network, assertion,
-environment, other) and an **impact ranking** in wasted CI minutes. It's a property of the test case,
+environment, order, other) and an **impact ranking** in wasted CI minutes. It's a property of the test case,
 computed over its execution history, which is why a test needs a few runs of history before it can be
 called flaky. See [Flaky tests](/features/flaky-tests).
 
@@ -902,7 +902,7 @@ That's the entire setup: nothing to start, wrap, or await inside your tests.
 
 | Data | Captured | Powers |
 |------|----------|--------|
-| **Network requests**: method, URL, status, duration, start time, content type, for fetch, XHR, document and `other` traffic only (static assets are skipped); one that failed without a response keeps the browser's error (`net::ERR_CONNECTION_RESET`) | per request | [Slow endpoints](/features/slow-tests); [backend log correlation](./backend-logs) via the `X-Piwi-Logs` response header; the [failure timeline](/features/evidence#one-execution-diagnosis-first) |
+| **Network requests**: method, URL, status, duration, start time, content type, for fetch, XHR, document and `other` traffic only (static assets are skipped), and API calls; one that failed without a response keeps its error (`net::ERR_CONNECTION_RESET`) | per request | [Slow endpoints](/features/slow-tests); [backend log correlation](./backend-logs) via the `X-Piwi-Logs` response header; the [failure timeline](/features/evidence#one-execution-diagnosis-first) |
 | **Console entries**: `warning`, `error` and `assert` messages with source location and a timestamp (not `console.log`) | as they happen | The console card and the failure timeline on the [execution page](/features/evidence#one-execution-diagnosis-first); [AI diagnosis](/features/ai-diagnosis) evidence |
 | **Web Vitals**: TTFB, DOM Interactive, DOMContentLoaded, Load Complete, First Paint, First Contentful Paint, plus LCP, CLS and INP (Chromium-only) | at test teardown | Web vitals card with color-coded thresholds; [performance trends](/features/slow-tests) |
 | **ARIA snapshot** of the final page state: the YAML dump, plus the JSON aria tree on Playwright 1.63 or later; its **screenshot** when Playwright keeps failure screenshots | on failure | Failure evidence on the [execution](/features/evidence#one-execution-diagnosis-first) and cluster pages; [AI diagnosis](/features/ai-diagnosis) context; the JSON tree feeds [locator healing](/features/locator-healing)'s rename matching and the page diff |
@@ -936,17 +936,19 @@ Nothing breaks without the fixtures. This is what you give up:
 
 ## Where capture works
 
-The fixtures wire capture at the **browser** level, so it works however your tests create pages:
+Capture works however your tests create pages or call an API:
 
 - the standard `page` fixture,
-- `browser.newPage()` and `browser.newContext().newPage()` — including inside your own custom fixtures,
-- popups (`window.open`) and pages a context opens on its own.
+- `browser.newPage()` and `browser.newContext().newPage()`, in your own fixtures too,
+- popups (`window.open`) and pages a context opens on its own,
+- the `request` fixture, `page.request` and `playwright.request.newContext()`, each call with its
+  [backend logs](./backend-logs) and [server coverage](/features/code-reach#server-code).
 
 Semantics worth knowing:
 
 - **`beforeAll` / `afterAll` activity is not captured**: only a test's own activity is attributed to it.
 - **Multi-page tests** attribute Web Vitals, the failure ARIA snapshot and screenshot to the most recently active page.
-- **Repeated call sites** (actions in a loop, a page-object method called several times) probe the element once per call site per test. If a probe fails, the next run of that line tries again.
+- **Repeated call sites** (actions in a loop, a page-object method called several times) probe the element once per test; a failed probe is retried on the line's next run.
 - **Assertion capture is positive-presence only** — negated (`.not.…`), absence (`toBeHidden`), multi-element (`toHaveCount`) and page-level (`toHaveURL`) assertions never probe.
 
 ## Composing with your own fixtures
@@ -1000,7 +1002,7 @@ To power the [page diff](/features/evidence#page-diff), the fixtures also sample
 - A passing test is sampled only when it is in that set, so in steady state nothing is captured.
 - The server keeps at most one green snapshot per test per day.
 
-If that request fails, the set stays empty and **nothing is sampled**. Turn it off with `sampleAriaOnPass: false` (or `PIWI_SAMPLE_ARIA_ON_PASS=false`). With the fixtures off, no snapshot is taken regardless.
+If that request fails, the set stays empty and **nothing is sampled**. Turn it off with `sampleAriaOnPass: false` (or `PIWI_SAMPLE_ARIA_ON_PASS=false`).
 
 ## Troubleshooting
 
@@ -1614,7 +1616,8 @@ The plugin is auto-loaded by Nitro. It captures `consola` Warning/Error entries 
 ### Reporter setup
 
 On the Playwright side there is nothing to configure: the reporter reads the headers from every request the
-[capture fixtures](./capture-fixtures) record, so every spec must import `test` from your fixtures file.
+[capture fixtures](./capture-fixtures) record, the `request` fixture's API calls included, so every spec must import
+`test` from your fixtures file.
 
 ## Backend logs
 
@@ -2841,8 +2844,8 @@ account for most of the total.
 
 ## 2. Filter by root cause and fix a class at once
 
-Every flaky test carries one of five root-cause categories, `timing`, `network`, `assertion`, `environment` or
-`other`; [Flaky tests](/features/flaky-tests#root-cause-classification) explains the signals behind each.
+Every flaky test carries one of six root-cause categories, `timing`, `network`, `assertion`, `environment`,
+`order` or `other`; [Flaky tests](/features/flaky-tests#root-cause-classification) explains the signals behind each.
 
 Filtering by category is the trick that makes an afternoon enough, because a class usually shares one fix: eight
 `timing` flakes usually share one bad wait helper to replace with a real wait condition, a `network` class wants a
@@ -3055,9 +3058,10 @@ else on the cited tab, else on **Screen** when a screenshot or video exists, els
   the focus. **Open in picker** finds a
   locator on that DOM.
 - **Source**: the test source as a call stack (the line that threw plus its callers), deepened
-  [with a trace](#trace-powered-deep-views).
-- **Network**: the requests with inline [backend logs](/guide/backend-logs); one with no response shows the browser's
-  error (`net::ERR_CONNECTION_RESET`). **Console**: the console output.
+  [with a trace](#trace-powered-deep-views), then, with [coverage](./code-reach#on-the-execution-page), what the test
+  ran.
+- **Network**: the requests, API calls through Playwright's `request` fixture included, with inline
+  [backend logs](/guide/backend-logs); one with no response shows the browser's error (`net::ERR_CONNECTION_RESET`). **Console**: the console output.
   **State**: the app state at test end and the environment diff against the last green run. **Performance**:
   performance hints and Web Vitals.
 
@@ -3156,8 +3160,8 @@ and last run, a duration trend, a status-history strip, and the recent execution
 A flaky test adds a **Flakiness** tab with its [suspects](./flaky-tests#suspects).
 
 <figure>
-  <img src="/screenshots/test-case-detail.png" alt="Test case page with run stats above a duration trend chart, a status history strip, and a table of recent executions">
-  <figcaption>The test case page: pass rate and duration stats, a duration trend, and every recent execution of this test.</figcaption>
+  <img src="/screenshots/test-case-detail.png" alt="Test case page: run stats, a duration trend, a status strip and recent executions">
+  <figcaption>The test case page: stats, a duration trend and every recent execution.</figcaption>
 </figure>
 
 ## Related
@@ -3450,7 +3454,7 @@ owner may make the same change in the dashboard and is kept in the [write log](.
 # Flaky tests & quarantine
 
 A single run tells you what failed; a few dozen tell you what's *unreliable*. This page covers what Piwi computes
-for one project once it has history: flaky scoring, suspects, regression signals and spec health.
+for one project from its history.
 
 For the same signals aggregated across every project, see [Analytics](./analytics).
 
@@ -3463,18 +3467,18 @@ A test is flaky when its result isn't deterministic. Piwi computes a **flakiness
 
 The **failure rate** is shown but not scored.
 
-The project's **Failures** tab has a **Flaky** view with a **configurable lookback window** so you can focus on recent behavior or a longer baseline. Each flaky test links to its history and carries a **Quarantine** action.
+The project's **Failures** tab has a **Flaky** view with a **configurable lookback window**. Each flaky test links to its history and carries a **Quarantine** action.
 
 **Scoping**: only runs within the project's **Filters** count: environment (the [reporter](/guide/reporter)'s `environment` option), branch (the [default branch](./branches#the-default-branch) unless picked) and full runs only.
 
 <figure>
   <img src="/screenshots/flaky-detection.png" alt="Flaky tests tab listing tests with composite score, failure rate, retry passes, and flip counts">
-  <figcaption>The Flaky view of a project's Failures tab — each intermittent test scored by retry passes and status flips (failure rate alongside), ranked by impact, filterable by root-cause category, each with its top suspect.</figcaption>
+  <figcaption>The Flaky view of a project's Failures tab — each intermittent test scored, ranked by impact, filterable by root-cause category, with its top suspect.</figcaption>
 </figure>
 
 ### Root-cause classification
 
-Every flaky test is automatically tagged with one of five categories, using keyword and distribution heuristics over its errors, steps, and browser spread, sharpened by the failed requests actually captured and by the [attempt diff](./evidence#attempts). It reads the test's last 100 failed attempts and its last 100 passes from any run, green or red, so the failed attempt of a test that passed on retry counts, and a rare flake keeps its failures however many passes came since:
+Every flaky test is automatically tagged with one of six categories, using keyword and distribution heuristics over its errors, steps, and browser spread, sharpened by the failed requests actually captured and by the [attempt diff](./evidence#attempts). It reads the test's last 100 failed attempts and its last 100 passes from any run, green or red, so the failed attempt of a test that passed on retry counts, and a rare flake keeps its failures however many passes came since:
 
 | Category | Typical signals |
 |----------|-----------------|
@@ -3482,6 +3486,7 @@ Every flaky test is automatically tagged with one of five categories, using keyw
 | `network` | `net::` / `ERR_` errors, 5xx responses, `ECONNREFUSED`, `waitForResponse` — plus the count of failed and 5xx requests captured on the failing attempts, and any request that failed on the failing attempt but not the passing one |
 | `assertion` | `expect(...)`, "Expected:", snapshot/screenshot comparison — with no timing/network noise |
 | `environment` | Fails at least 3 times on exactly one browser while another browser passed at least 3 times without failing |
+| `order` | Its code path changes with whether another test ran before it in the run, and its failures follow that change ([coverage insights](./coverage-insights#a-path-that-depends-on-the-tests-before-it)) |
 | `other` | No clear signal |
 
 A test is classified when it passes on retry in a finished run, and a listed test still without a category when the
@@ -5904,8 +5909,7 @@ to the tests that execute it.
 
 Set `captureCodeReach: true` in the reporter options, or `PIWI_CAPTURE_CODE_REACH=true`, with the
 [capture fixtures](/guide/capture-fixtures) in place. Coverage adds time to every test and reach changes slowly, so
-turn it on in one scheduled job, a nightly run, rather than on every run. A run without it keeps the reach the last one
-recorded.
+turn it on in one scheduled job, a nightly run. A run without it keeps the reach the last one recorded.
 
 ```ts
 // playwright.config.ts, in the nightly job
@@ -5932,8 +5936,7 @@ server's root when it is elsewhere; for Nuxt that is `app/`:
 reporter: [['@piwitests/reporter', { captureCodeReach: true, codeReachRoots: ['app'] }]],
 ```
 
-Code a bundler or dev server adds (module wrappers, preload helpers, hot-reload hooks) maps to no source of its own and
-counts for no file.
+Code a bundler or dev server adds (module wrappers, hot-reload hooks) counts for no file.
 
 When the backend is instrumented (the [Nitro or ASP.NET Core packages](/guide/backend-logs)), the handler file of each
 route a test called also counts as reached, with no capture of its own.
@@ -5951,30 +5954,22 @@ route a test called also counts as reached, with no capture of its own.
 The map must be linked from the bundle: `sourcemap: 'hidden'` and webpack's `hidden-source-map` write the map but
 not the comment that names it, so they record nothing.
 
-Each was checked on a React app with four components, a lazy-loaded one, a shared utility and a module imported on
-start but never called, with Vite 8, webpack 5.111 and Next.js 16.3: every test recorded exactly the files it ran,
-none missed and none extra. Nuxt dev was checked on Piwi's own suite. The same builds without source maps record
-nothing.
+Each was checked on a React app (Vite 8, webpack 5.111, Next.js 16.3) and on Piwi's own suite in Nuxt dev: every
+test recorded exactly the files it ran.
 
 ## Cost
 
-Code reach reads V8's function coverage, which records only whether each function ran, so the page's own JavaScript
-runs at nearly its usual speed. Each test pays for a CDP session with the debugger on, which reports every script's
-version, and for one coverage read at the end. A script's source is read once per worker, the first time a test loads
-that version of it. Measured on a 4-core sandbox (Xeon at 2.10 GHz, Ubuntu 24.04, Node 22, Playwright 1.63, headless
-Chromium), each configuration run in turn, round after round, medians:
+Code reach reads V8's function coverage, which records only whether each function ran, so the page's JavaScript runs
+at nearly its usual speed: each test pays for a CDP session and one coverage read, and a script's source is read once
+per worker. Medians on a 4-core sandbox, headless Chromium:
 
-- **A script-heavy page** (Vue's development build rendering a 1,000-row table of components 30 times, plus 400 small
-  ES modules; a new browser context per test, 15 rounds): a test goes from 1,128 ms to 1,220 ms, 8% more, and 16% more
-  for a worker's first test, which reads all 403 sources. With two documents per test, 17% more. Playwright's
-  `page.coverage`, which records block coverage and reads every script's source in every test, adds 50% and 54% on the
-  same page, and reaches the same 137 files. Over three runs on a machine shared with other work, code reach added 5% to
-  23% to a test, `page.coverage` 44% to 55%.
-- **A light page** (the reporter's capture benchmark, `npm run reporter:bench`, 12 tests of 20 actions and
-  assertions): 61 ms and 103 ms more per test on top of the default capture in two runs, a median test going from 1,215
-  to 1,276 ms in one and from 1,140 to 1,242 ms in the other; `page.coverage` added 209 ms and 176 ms.
+- **A script-heavy page** (Vue's development build rendering a 1,000-row table 30 times, plus 400 small ES modules): a
+  test goes from 1,128 ms to 1,220 ms, 8% more, and 16% more for a worker's first test. Playwright's `page.coverage`
+  adds 50%.
+- **A light page** (the reporter's capture benchmark, `npm run reporter:bench`): 61 ms and 103 ms more per test in two
+  runs, where `page.coverage` added 209 ms and 176 ms.
 
-The extra time grows with the number of scripts the page loads and the number of documents a test opens.
+The extra time grows with the scripts a page loads and the documents a test opens.
 
 ## Server code
 
@@ -5990,9 +5985,8 @@ With an ASP.NET Core backend built for coverage, each test also records the back
 reporter: [['@piwitests/reporter', { coverage: { server: 'lines' } }]],
 ```
 
-The backend names each request's coverage on its response. The fixtures keep the names a test's pages received; once
-the test ends, the reporter asks the backend for their coverage, several tests per call, outside the test's time, and
-the test's result reaches the dashboard with it.
+The backend names each request's coverage on its response; once the test ends, the reporter asks the backend for the
+coverage its pages' and API calls' responses named, several tests per call, outside the test's time.
 
 | `coverage.server` | Records per test |
 | --- | --- |
@@ -6000,54 +5994,235 @@ the test's result reaches the dashboard with it.
 | `functions` | also the start and end line of each function that ran |
 | `lines` | also the executed lines |
 
-With `functions` and `lines`, each file names its git blob, as `git hash-object` gives it, which its line numbers
-refer to. At the end of the run the reporter also sends the run's coverage of the backend, attributed to no test, with each
-file's executable lines at `lines` granularity. A test whose coverage the backend no longer held, or that could not be collected, is marked incomplete.
+With `functions` and `lines`, each file names the git blob its line numbers refer to. At the end of the run the
+reporter also sends the run's coverage of the backend, attributed to no test, with each file's executable lines at `lines` granularity. A test whose coverage the backend no longer held, or that could not be collected, is marked incomplete.
 `coverage.browser: 'files'` is the same as `captureCodeReach: true`.
 
 - **Run level only:** lambdas created at startup (inline minimal API handlers, inline middleware, DI factory lambdas)
   and work outside a request (hosted services, timers). The methods they call count normally.
-- **Pages only:** API tests through Playwright's `request` fixture record no server coverage.
+- **API calls** through Playwright's `request` fixture keep their last response's coverage only: a redirect's earlier
+  responses, and a response `failOnStatusCode` turns into an error, name none.
 - C# and Visual Basic only.
 
 Measured on a prototype, per-test server coverage added under 2% to test duration on Microsoft's eShopOnWeb, whose
 CPU goes to the framework, and up to 26% more server CPU on an application that spends its CPU in business logic.
 Functions cost about what lines cost.
 
+## On the execution page
+
+Where its project records coverage, an execution's **Source** tab lists what the test ran: server files by executed
+lines, then browser files. A file the failure's [suspect lines](/guide/concepts#suspect-lines) name, or that changed
+since the last pass, is marked. A server file unfolds to its source at the version the test ran, marking the lines it
+ran and, from the run's own coverage, the executable lines it did not.
+
+<figure>
+  <img src="/screenshots/execution-coverage.png" alt="The Coverage section of an execution's Source tab">
+  <figcaption>What a failing test ran.</figcaption>
+</figure>
+
+## Which tests run a file
+
+A file's **tests** link, on an execution or a cluster's suspect lines, and a file of the [Test Map](./scenario-gaps)
+open its coverage page: its source at the version most tests ran, each line with how many tests ran it, the executable
+lines none runs marked. Select a line, or Shift-click a range, for its tests and their latest outcome; on a line no
+test runs, the nearest test to copy.
+
+<figure>
+  <img src="/screenshots/coverage-file.png" alt="A file's coverage page">
+  <figcaption>Which tests run each line.</figcaption>
+</figure>
+
 ## Where it is used
 
 - **[Impact-from-diff](./test-selection#impact-from-diff)** maps a changed file to the tests that executed it. Code
-  reach only adds tests: a changed source file that no test reached still widens the run to the whole suite, since
-  code reach does not see module top-level code, server code without [server coverage](#server-code), or type-only
-  modules.
+  reach only adds tests: a changed source file no test reached still widens the run to the whole suite, since code
+  reach misses top-level code, server code without [server coverage](#server-code) and type-only modules.
 - **[Uncovered changes](./uncovered-changes)** counts a changed file as reached when a test executed it.
 - **[Locator preflight](./preflight)** calls a break *likely* only when one of its tests reaches the changed file.
+- **[Coverage in the editor](./editor-coverage)** marks the lines tests ran and the executable lines none runs, with
+  the tests behind each line, in VS Code and the JetBrains IDEs.
 - **[Suspect lines](/guide/concepts#suspect-lines)**: the changed lines a failure's tests executed, ranked against the
   passing tests, on the failure pages' [What changed](./failure-clusters#the-cluster-page) line and diff, in the
   [AI diagnosis](./ai-diagnosis#scm-grounded-context) and the [fix plan](./fix-plans).
 
-The dashboard's API serves the tests reaching one file and the whole map of a branch; see the
+The API serves the tests reaching one file and the whole map of a branch: see the
 [API docs](https://piwitests.dev/demo/docs) (`/docs` on your instance).
 
 ## Limits
 
 - **Chromium only** in the browser: other browsers have no JavaScript coverage and record no browser files. Server
   coverage works with every browser.
-- **Observed reach, not coverage.** A reached file may hide an untested branch: the unit is the file, never the line.
+- **Browser files are reached, not covered:** a reached file may hide an untested branch.
 - A build with neither per-module URLs nor source maps yields nothing, and so does code rendered on the server only,
   React server components included.
 - A module whose top-level code calls its own functions, a table built on import, counts for every test that loads it.
 - A function a minifier inlines into another as plain statements counts for the file it was inlined into.
 - A test that loads a new document in its page reaches the files of the last document only: Chromium keeps no
-  coverage of a document the page has left. Client-side navigation stays in one document, and an iframe's earlier
-  documents stay covered.
+  coverage of a document the page has left. Client-side navigation and an iframe's earlier documents stay covered.
 - Reach is per branch: a branch's own runs replace its tests' reach, and the default branch's stands in for the rest.
+
+## Try it in the demo
+
+- [Web Dashboard › Users table paginates 25 rows per page: the server lines this test ran](https://piwitests.dev/demo/test-run-cases/711?evidence=source): The Source tab’s Coverage section lists the five files of the ASP.NET Core API the test ran, 20 lines, the users endpoints first with the suspect lines it ran, then the three browser files of the users page; open a server file to read its source with the lines the test ran marked, and the executable lines it did not run in a lighter mark.
+- [Web Dashboard › UsersEndpoints.cs: which tests run each line](https://piwitests.dev/demo/projects/5/coverage?file=api/Users/UsersEndpoints.cs): The users endpoints of the ASP.NET Core API at the version its tests ran, each line marked with how many of the three users tests ran it and the executable lines none runs; select a line to list the tests that ran it, with their latest outcome.
 
 ## Related
 
 - [Capture fixtures](/guide/capture-fixtures): what else the fixtures record
 - [Test selection](./test-selection): impact-from-diff
 - [Privacy & data flow](/guide/privacy): what the reporter sends
+
+<!-- https://piwitests.dev/features/coverage-insights -->
+
+# Coverage insights
+
+Once tests record [coverage](/guide/concepts#coverage), Piwi compares it in four ways: a failing execution against
+the test's last passing one, a test's recent runs against each other, a set of tests against every other test, and a
+test against the lines it was written to reach. Each answer is in the dashboard, the API, an MCP tool for coding
+agents and, for a failure, the AI diagnosis.
+
+## Turn it on
+
+The insights read the coverage your runs already record: set up [server coverage](./code-reach#server-code) with
+`coverage: { server: 'lines' }` in the reporter options, or `PIWI_COVERAGE_SERVER=lines`. Line answers need the
+`lines` granularity; `functions` gives function answers, and browser coverage, files only, gives file answers. A run
+without coverage changes nothing, so a nightly job with coverage on is enough for the comparisons across runs.
+
+Two rules hold in every answer:
+
+- **Line numbers are compared only within one version of a file**, the git blob each covered file names. A file whose
+  version differs between the sides is named as changed, never compared line by line;
+  [suspect lines](/guide/concepts#suspect-lines) cover changes.
+- **An incomplete capture never says that something did not run.** When the backend no longer held part of a test's
+  coverage, or its collection failed, the claims that would need it are left out, and the answer says which side was
+  incomplete.
+
+## A failure's path against its last pass
+
+For a failed or timed-out execution, Piwi takes the test's latest passing execution with coverage that started
+before it: in the same Playwright project on the same branch first, then the same project on the default branch, then
+another project on the same branch, then on the default branch, and among the newest three of that choice, a complete
+capture first. The answer names that baseline (execution, run, start, branch, commit, project) and lists, per runtime
+and file:
+
+| Status | Meaning |
+|---|---|
+| `only-here` | Only the failing execution ran the file |
+| `diverged` | Both ran the same version, not the same lines or functions: the lines and functions only each side ran |
+| `only-baseline` | Only the passing execution ran the file |
+| `changed` | They ran different versions of the file, not compared |
+
+The failing side comes first: "the code this run took that the last passing run did not" is where an error path, a
+fallback or a retry branch shows. A failed execution's **Source** tab shows it in its Coverage section, under
+*Compared with the last passing run*; a file both ran at one version opens on the lines each ran. The
+[AI diagnosis](./ai-diagnosis) carries it as its **Code paths vs last pass** section, at most twelve files each way.
+
+<figure>
+  <img src="/screenshots/coverage-divergence.png" alt="A failed execution compared with its last passing run">
+  <figcaption>The lines only the failure ran, and only the pass.</figcaption>
+</figure>
+
+## A path that depends on the tests before it
+
+For a test, Piwi reads its last 30 executions with coverage outside lab runs, in the Playwright project that has most
+of its recent executions, leaves out the incomplete ones, and compares them on the files every execution that ran
+them ran at the same version. The code that ran in some executions only is grouped by the executions that ran it,
+the most evenly split first, with how many ran it and how many of those failed.
+
+It then looks for a test whose having run before predicts that split. The backend is shared by every worker, so the
+first relation is **earlier in the run**: the other test finished before the execution started, in the same run. The
+second is **earlier on the worker**, the same on the execution's worker and shard, reported when it predicts the split
+better. A test is named only when:
+
+- the group and the test each split the compared executions with at least **3 executions on each side**;
+- it predicts at least **90%** of the executions that have a start time, either way: the code runs after it, or only
+  when it has not run.
+
+When at least two executions failed and 90% of them fall on one side of a group, the answer says the failures follow
+that code. When they follow the code the earlier test predicts, the test is marked **order-dependent**: it depends on
+state another test leaves behind, and the [flaky root-cause classification](./flaky-tests#root-cause-classification)
+names it `order`, ahead of every other category. That check runs only for a test with at least two recent failures
+that recorded coverage. A test's page shows the answer in its **Path variation** card.
+
+<figure>
+  <img src="/screenshots/path-variation.png" alt="The Path variation card of an order-dependent test">
+  <figcaption>The earlier test that predicts the path, and the failures that follow it.</figcaption>
+</figure>
+
+## What quarantining or deleting tests leaves uncovered
+
+For up to 50 tests of a project, Piwi reads their latest coverage on the default branch and every other test's, and
+lists per file and version the lines and functions no other **trusted** test runs. Trusted means not quarantined; the
+tests asked about are left out of the others.
+
+| Status | Meaning |
+|---|---|
+| `only-these` | No other trusted test runs the file |
+| `only-flaky` | The only other trusted tests running it are flaky: they carry a flaky root cause |
+| `partial` | Other tests run the file, not every line: the lines no other trusted test runs, and the lines only flaky ones run |
+| `uncertain` | The other tests recorded the file only at another version, or without lines, so no line is claimed |
+
+Where the project records coverage, the dashboard's quarantine actions preview it: beside the Quarantine and Release
+buttons, in the More menus and in the confirmations. The MCP tools that quarantine or release tests add the same
+summary to their answer.
+
+<figure>
+  <img src="/screenshots/quarantine-coverage-loss.png" alt="A Quarantine button with the code quarantining the test leaves uncovered">
+  <figcaption>What quarantining a flaky test leaves to no other trusted test.</figcaption>
+</figure>
+
+## Did a new test reach its target lines
+
+Given a test, a file and target lines, Piwi reads the test's latest execution with coverage, or the execution you
+name, and splits the target lines into those that **ran**, those that **did not run** (from a complete capture
+only) and those it **cannot tell** (file granularity, or an incomplete capture). At function granularity a line ran
+when a function around it ran. When a run recorded the file's executable lines for that version, target lines that
+cannot run (blank lines, comments) are set apart.
+
+When a target line did not run, the answer names the **nearest test**: the one running most of the function around
+the first target line at that version, else of the target lines, else, at another version, of the file. It is the
+test to copy. The `write-the-missing-test` [agent skill](./agent-skills) runs a new test with server coverage on and
+checks its target lines this way until they run.
+
+## For agents
+
+Three read-only MCP tools, listed with the rest on [MCP tools](/reference/mcp-tools), carry these answers. They
+belong to the `core` module and depend on the **Coverage** capability: declining it for the instance on the Setup page
+drops them.
+For a project with no coverage, each answers one sentence saying how to turn it on.
+
+- `get_coverage`: a file's executed ranges grouped by the tests that ran them and its executable lines, with the
+  nearest test for target lines; or an execution's files, one file's ranges, or which target lines a test ran. A test
+  can be named by its spec file and title.
+- `compare_coverage`: a failure against its last pass, or a test's recent runs against each other and the earlier test
+  that explains them.
+- `get_coverage_loss`: what quarantining, skipping or deleting tests would leave uncovered.
+
+The same answers are in the dashboard's API; see the [API docs](https://piwitests.dev/demo/docs) (`/docs` on your
+instance).
+
+## Limits
+
+- **As fresh as the last run with coverage.** A test's latest coverage can be a nightly job old; every answer names
+  the executions it read.
+- **Executed is not checked.** A line that ran may still be wrong with every test green.
+- **Order needs times and variety.** An execution without a start time from the reporter takes no part in finding the
+  earlier test, and a suite whose order never changes gives no split to explain.
+- **Coverage loss reads each test's latest coverage as stored**: another test whose own capture was incomplete can
+  make a line look run by these tests only.
+- **What the capture cannot see** stays unseen: see the limits of [code reach](./code-reach#limits).
+
+## Try it in the demo
+
+- [Web Dashboard › toggles dark mode: a failed attempt against its last pass](https://piwitests.dev/demo/test-run-cases/830?evidence=source): The Source tab compares the failed first attempt with the test’s last passing run: in the preferences endpoints, only the failure ran the conflict handler that keeps the stored theme, and only the pass published the change; open the file to see both marked.
+- [Web Dashboard › toggles dark mode: a path that depends on the tests before it](https://piwitests.dev/demo/test-cases/53): Its Path variation card: in the 3 executions that started before updates the organization name finished, it ran the conflict handler, and only those failed, so its flaky root cause is order.
+
+## Related
+
+- [Code reach](./code-reach): recording coverage, browser and server
+- [Flaky tests & quarantine](./flaky-tests): root causes and the quarantine these answers inform
+- [AI diagnosis](./ai-diagnosis): the evidence a diagnosis reads
+- [MCP server](./mcp): connecting an agent
 
 <!-- https://piwitests.dev/features/probes -->
 
@@ -6798,7 +6973,9 @@ guide for this instance.
 The server exposes tools, mostly read-only, from listing projects to one failure's full evidence and a cluster's
 fix plan; [MCP tools](/reference/mcp-tools) lists every one. Two answer questions about Piwi itself:
 `describe_piwi` reads the documentation bundled with the server, and `get_release_notes` the changelog up to the
-running version. They return compact JSON, list tools page with `{ items, nextCursor }` (`get_project_test_catalog`
+running version. Three read the [coverage](/features/coverage-insights) tests record: `get_coverage` (a file's lines
+and the tests behind them, or which target lines a test ran), `compare_coverage` (a failure against its last pass, or a
+test's runs against each other) and `get_coverage_loss` (what quarantining or deleting tests leaves uncovered). They return compact JSON, list tools page with `{ items, nextCursor }` (`get_project_test_catalog`
 with `offset`/`nextOffset`), and a tool that fails returns a normal result with `isError: true` and a readable
 message (one whose SCM or AI provider is not configured returns `{ error }`).
 
@@ -8327,7 +8504,7 @@ your files locally.
 The failures of the latest complete [CI run](/reference/test-metadata#run-origin) on the checked-out branch, else the
 default branch, are errors in the Problems panel, at the line that failed: the call in the error's stack when that file
 is in your workspace (often a page object), else the `test(…)` line, with the failure's headline. Your local runs
-since are laid over it, and the editor reads it again as soon as a run ends: [Runs from the editor](./editor-runs)
+since are laid over it, read again as soon as a run ends: [Runs from the editor](./editor-runs)
 covers running tests, the failures view, the status bar, and what a run changes. Each failure follows your edits until a run covers its
 test again: [Failures follow your edits](./editor-runs#failures-follow-your-edits).
 
@@ -8336,7 +8513,7 @@ On a failure, the quick fixes are:
 - **Heal: use …** — when [locator healing](/features/locator-healing) has a recommendation for the failing locator,
   the same edit an [auto-heal pull request](/features/auto-heal) would make, applied in place.
 - **Run this test** — runs the failing test from the editor; first once you rewrote the line it failed at.
-- **Open the trace** — opens it with `npx playwright show-trace`.
+- **Open the trace** — in `npx playwright show-trace`.
 - **Reproduce in the desktop app**, **Find the breaking commit in the desktop app**, and **Run Flake Lab on its
   untested suspects in the desktop app** for a test with an untested [flake suspect](./flake-lab) — on a team
   instance's failure while the [desktop app](/features/desktop#jobs-from-your-editor) runs; **Share on …** records
@@ -8344,11 +8521,11 @@ On a failure, the quick fixes are:
 - **Apply the fix plan, then run its verification** — when the failure's [cluster](/features/failure-clusters) has a
   [fix plan](/features/fix-plans) whose patch applies to your files: VS Code previews the edit, then runs the plan's
   verify command in a terminal.
-- **Copy context for agent** — the failure, its healing and fix plan, for a coding agent.
+- **Copy context for agent** — the failure, its healing and fix plan.
 - **Open the failure in the dashboard** — the execution page, with its [evidence](/features/evidence).
 
-Hover for the error message, its call chain, the failure screenshot, and the tickets linked to the failure's
-cluster or test. Without one, **File an issue** opens the cluster in the dashboard.
+Hover for the error message, its call chain, the failure screenshot, and the tickets linked to its cluster or
+test. Without one, **File an issue** opens the cluster in the dashboard.
 
 ## The tests behind each line
 
@@ -8358,7 +8535,7 @@ Lines above the code (CodeLens):
 |---|---|---|
 | A spec | the tests Piwi knows in it; beside each `test(…)`, its latest result in the gutter, a failing test's body tinted, and on hover how often it passed, its [flaky](/features/flaky-tests) score and root cause, its quarantine, and its selections | opens the test in the dashboard |
 | A page object or spec | above each locator line, the tests using it, their actions, and how many fail or are flaky | runs those tests |
-| An application file | the tests that reach it, from [code reach](/features/code-reach) | runs those tests |
+| An application file | the tests that reach it, from [code reach](/features/code-reach); with [coverage](./editor-coverage), each function's too | runs those tests |
 | A page file (Nuxt `pages/**`) | the tests acting on that page, its locators and how many are brittle | runs those tests |
 
 In a failing test, the line it failed at (in the spec, the line that calls the page object) is tinted darker, with the
@@ -8407,7 +8584,7 @@ clipboard. It holds your API key: paste it into your user settings, not into the
 |---|---|
 | Piwi: Connect, Disconnect | See [Editor connection](./editor-connection) |
 | Piwi: Refresh | Fetch the indexes and the latest run again |
-| Piwi: Refresh the latest run | Read the latest run and its failures again, as a click on the status bar does |
+| Piwi: Refresh the latest run | Read the latest run again, as a click on the status bar does |
 | Piwi: Run the tests that reach this file | Run them in a terminal, with the arguments `piwi run` would use |
 | Piwi: Open in dashboard | Open this file's test, or the latest run |
 | Piwi: Run selection… | Run one of the project's saved [selections](/features/test-selection) |
@@ -8416,6 +8593,7 @@ clipboard. It holds your API key: paste it into your user settings, not into the
 | Piwi: Pair with Piwi Picker | Copy the address [Piwi Picker sends to](./editor-recording#send-from-piwi-picker) |
 | Piwi: Record here, Record a new test file | Record in a browser opened through your project's own Playwright, at the cursor or into a new spec: [Record tests from the editor](./editor-recording) |
 | Piwi: Stop recording, Pause recording, Resume recording | Control the recording in progress |
+| Piwi: Toggle the coverage marks | Show or hide the [coverage marks](./editor-coverage) |
 
 ## JetBrains IDEs
 
@@ -8430,16 +8608,16 @@ native:
   highlights open files only: [the failures view](./editor-runs#the-failures-view).
 - **Code Vision** shows the lines above files, locators and failing lines; each test's result is in the gutter.
 - **The status bar** shows the latest run, or the run in progress, and reads it again on a click
-  ([the status bar](./editor-runs#the-status-bar)); the actions are under **Tools → Piwi**, and **Run the tests that
-  reach this file** is also in the editor's context menu.
-- **MCP**: **Copy the MCP server configuration** puts an `mcpServers` entry on the clipboard for **Settings → Tools → AI
-  Assistant → Model Context Protocol**. It runs `mcp-remote` with the key in its environment.
+  ([the status bar](./editor-runs#the-status-bar)); the actions are under **Tools → Piwi** and, for **Run the tests that
+  reach this file**, the editor's context menu.
+- **MCP**: **Copy the MCP server configuration** puts an `mcpServers` entry, which runs `mcp-remote` with the key, on
+  the clipboard for **Settings → Tools → AI Assistant → Model Context Protocol**.
 - **[Open in IDE](./ide-integration)**: a path clicked in the dashboard of the connected instance, or in the desktop app,
   opens at its line.
 - **[Recording](./editor-recording)**: **Tools → Piwi → Record Here**, Alt+Enter or Alt+Insert, and **File → New →
   Record a New Test File…**; the controls are in a banner above the editor.
 
-IntelliJ IDEA Community Edition and Android Studio do not have the LSP API the plugin needs.
+IntelliJ IDEA Community Edition and Android Studio lack the LSP API the plugin needs.
 
 <!-- https://piwitests.dev/features/editor-runs -->
 
@@ -8451,9 +8629,10 @@ in the status bar while it executes, and its results over the latest CI run's fa
 ## Run tests
 
 - The lines above a locator line, an application file or a page file (CodeLens in VS Code, Code Vision in a JetBrains
-  IDE) run the tests they name when clicked.
-- **Piwi: Run the tests that reach this file** runs every test that reaches the active file through
-  [code reach](/features/code-reach); it is also in the editor's context menu.
+  IDE) run the tests they name when clicked; those of a server file record its
+  [coverage](./editor-coverage#refresh-the-marks-with-a-local-run).
+- **Piwi: Run the tests that reach this file** runs every test reaching the active file through
+  [code reach](/features/code-reach); also in the editor's context menu.
 - **Piwi: Run selection…** runs one of the project's saved [selections](/features/test-selection).
 
 The command is the one `piwi run` would build, run from the Playwright config's folder: in a terminal in VS Code, in
@@ -8473,13 +8652,12 @@ started it.
 ## After a run
 
 The editor listens to the instance's event stream: within a second of a run of the project ending, it reads the
-branch's latest run and its failures again. It also reads them every five minutes with the stream, every minute
-without.
+branch's latest run and its failures again, and every five minutes with the stream, every minute without.
 
 A run started from the editor is its own wherever it runs: the status bar follows it as it runs, and its failures
 read *your run #124* once it ends. When the command ends and no run on the instance carries its ref, the editor says
 so: `The run ended (exit code 1) but did not reach https://piwi.example.com: is the Piwi reporter in the Playwright
-config?` VS Code learns that a command ended through shell integration (1.93 and later), and gives each run a terminal
+config?` VS Code learns a command ended through shell integration (1.93 and later), and gives each run a terminal
 of its own; without it, a folder's runs share one terminal, and a run that never arrived goes unmentioned.
 
 ## When your run ends
@@ -8569,6 +8747,120 @@ extension is not connected, the item says why, and a click runs **Piwi: Connect*
 - [Editor extensions](./editors): what the editor shows from your suite.
 - [Editor connection](./editor-connection): the instance the editor reads, and its key.
 - [Test selection](/features/test-selection): the saved selections **Run selection…** runs.
+
+<!-- https://piwitests.dev/features/editor-coverage -->
+
+# Coverage in the editor
+
+With [coverage](/guide/concepts#coverage) recorded, the [editor extensions](./editors) mark the lines of an
+application file your tests ran, the executable lines no test runs, and the lines you changed since, in VS Code and in
+the JetBrains IDEs, Rider included. A lens above each function names the tests that ran it and runs them; the hover on
+a line lists them.
+
+## Turn it on
+
+The marks show what the reporter records, per test:
+
+- **Server code**: an ASP.NET Core backend built for coverage, with the reporter's `coverage.server` set to `lines`, or
+  `PIWI_COVERAGE_SERVER=lines`: [Code reach → Server code](./code-reach#server-code) has the steps. With `functions`,
+  the lenses show and no line is marked.
+- **Browser code**: recorded per file ([code reach](./code-reach#turn-it-on)), so such a file lists its tests in its
+  top lens, with no line marks.
+
+Nothing else is needed in the editor. A test file, a file no recorded coverage names lines of, and a project without
+coverage show nothing of it: no mark, no lens line, no command, no hover text.
+
+The editor asks the instance for a file's coverage when you open it, and, when the project's code reach can tell, only
+for a file it says coverage recorded. It asks again on a refresh and when a run ends, naming the answer it holds, which
+the instance confirms unchanged without sending it again. Typing asks nothing: the marks are placed on your edits
+locally.
+
+## The marks
+
+| Mark | Meaning |
+|---|---|
+| Solid, green | A test ran the line. The hover names the tests. |
+| Solid, red | The line is executable and no test runs it. Shown when the run recorded the file's executable lines, which `lines` does. |
+| Dashed, amber | The line changed since the coverage run: what runs it is not known until a run records it again. |
+
+In VS Code the marks are a bar at the left edge of each line, drawn in the theme's own testing colors
+(`testing.coveredGutterBackground`, `testing.uncoveredGutterBackground`) and in `piwi.coverageChangedBorder`, which a
+theme or `workbench.colorCustomizations` can restyle; the lines no test runs and the changed lines also show in the
+overview ruler. In a JetBrains IDE they are at the left of the gutter and in the scroll bar, with their meaning as the
+scroll bar mark's tooltip; restyle them under **Settings → Editor → Color Scheme → Piwi → Coverage**, where the error
+stripe color is the mark's, and a background, none by default, tints the lines too.
+
+## Changed since the coverage run
+
+Coverage names the lines of one version of a file, by its git blob id, the id `git hash-object` gives the file as the
+test ran it. Your file may be another version: edited since, or the coverage may come from a CI run on an older commit.
+The marks come from, in order:
+
+1. **The version that is your file as it stands**, saved or not, whatever its line endings and byte order mark: its
+   marks are exact.
+2. **The version your file was saved as**, when you edited it since.
+3. **The version the most tests recorded that your repository holds** (`git cat-file`).
+
+From the second and the third, the lines are placed on your file through the diff between the two, as
+[failures follow your edits](./editor-runs#failures-follow-your-edits): a line moved by the edits above it keeps its
+mark on its new line; a line the diff adds or rewrites is marked changed since the coverage run, not guessed; a line it
+removes loses its mark. Blank lines are never marked changed.
+
+When your repository holds none of the versions, such as a commit you have not fetched, no line is marked and the
+file's lens says `coverage recorded on another version`. Fetching it brings the marks back on the next refresh.
+
+## Lenses and hover
+
+- **Top of the file**: `Reached by 6 tests · 1 failing · 41 of 63 lines run · 3 lines changed since the coverage run`.
+  The tests are those code reach and the coverage name; the line counts show when the run recorded the executable
+  lines. A click runs those tests.
+- **Above each function a test ran**: `Reached by 2 tests · 1 failing`, the tests that ran it. A click runs them,
+  as [Runs from the editor](./editor-runs#run-tests) describes.
+- **Hover**: on a line tests ran, each test with its latest result and a link to its page in the dashboard; on a line
+  no test runs, `no test runs this line`; on a changed line, that it changed since the coverage run.
+
+## Refresh the marks with a local run
+
+A run started from a lens of a server file records the backend's coverage by line: the editor adds
+`PIWI_COVERAGE_SERVER=lines` to the run's environment, which the reporter reads when your Playwright config leaves
+`coverage.server` unset. The backend the run calls must be the coverage build, as for any run that records server
+coverage. When the run ends, the editor reads the file's coverage again, and the marks show what your run recorded:
+exactly, as long as the file is as you saved it for the run, since the reporter takes blob ids from the files on disk.
+
+A run started anywhere else (a test's lens, the failures view, a selection) changes nothing of your config's coverage
+options.
+
+## Show or hide the marks
+
+| Editor | Command |
+|---|---|
+| VS Code | **Piwi: Toggle the coverage marks** |
+| JetBrains IDE | **Tools → Piwi → Show Coverage Marks** |
+
+The command shows up once a file showed marks. The marks are shown by default; the choice is kept for the workspace in
+VS Code and in `.idea/workspace.xml` in a JetBrains IDE, on your machine only. The lenses and the hover stay.
+
+## C# and Razor files
+
+Both extensions read `.cs`, `.cshtml` and `.razor` files, so an ASP.NET Core project's services, controllers and views
+show their marks and lenses as any application file does. The JetBrains plugin is checked on Rider; it starts once it
+finds a Playwright config in the solution's folder or its Git repository.
+
+## Limits
+
+- **Lines for server code only.** Browser code is recorded per file, so a browser file lists its tests without line
+  marks.
+- **The latest coverage of each test**: on your branch where its tests ran with coverage, else on the default branch.
+- **Pages only**: an API test through Playwright's `request` fixture records no server coverage
+  ([Code reach](./code-reach#server-code)).
+- An instance without coverage shows nothing, and is asked again only on a refresh.
+
+## Related
+
+- [Code reach](./code-reach): turning coverage on, and what it records
+- [Editor extensions](./editors): what else the editors show
+- [Runs from the editor](./editor-runs): running the tests a lens names
+- [Uncovered changes](./uncovered-changes): the changed files no test reaches, on a pull request
 
 <!-- https://piwitests.dev/features/editor-breakpoints -->
 
