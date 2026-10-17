@@ -477,6 +477,14 @@ Which source code a test ran, per repository-relative file and **runtime** (`bro
 the git blob of the file version. Code reach is its file-level view. A test's coverage is **incomplete** when part of it
 could not be collected.
 
+### Coverage report and suite
+
+A **coverage report** is one tool's coverage of one suite's whole run at one commit, uploaded with
+[`piwi coverage upload`](/features/combined-coverage): per file, its **executable lines** (the lines that tool can mark
+as run), the lines that ran and the functions it knows, attributed to no test. A **suite** is the tests a report comes
+from, named when uploading (`unit-back`), of kind `unit` or `e2e`; not Playwright's `describe` block. The **coverage
+scope** is the include and exclude patterns that decide which files a project's coverage counts.
+
 ### Suspect lines
 
 The lines changed since a failing test's last passing run that the failing tests executed, read from their
@@ -2031,13 +2039,12 @@ Every outbound connection Piwi can make:
 | Google / GitHub | Only if you enable [OAuth sign-in](/operate/authentication#oauth-google-github) | The standard OAuth exchange |
 
 The reporter sends your instance what its options switch on. [Code reach](/features/code-reach) and
-[server coverage](/features/server-coverage), off by default, send repository-relative file paths; line numbers and
-each file's git blob id only with `coverage.browser: 'functions'`, or `coverage.server: 'functions'` or `'lines'`;
-source code and hit counts never.
+[server coverage](/features/server-coverage), off by default, send repository-relative paths; line numbers and
+blob ids only with `coverage.browser: 'functions'` or `coverage.server: 'functions'` or `'lines'`. `piwi coverage
+upload` adds the commit's tracked paths. Source code and hit counts never leave.
 
-Two rows need no setting: the anonymous git-host reads happen whenever runs report a public-host remote,
-and a link's title is fetched when someone attaches it. Both fail quietly without network access.
-Everything else is off until you configure it.
+Two rows need no setting: anonymous git-host reads for runs that report a public-host remote, and a
+link's title when someone attaches it. Both fail quietly offline; the rest is off until configured.
 
 The **AI provider** is the one worth pausing on, because it's the only destination that receives your
 source code and the full failure context. It's opt-in, it goes only to the endpoint *you* set — including a local
@@ -5841,7 +5848,9 @@ A changed file counts as reached when a test that ran recently touches it:
   `pages/**`), that a test requested or visited;
 - a test step whose locator is written in the file (a page object, a helper), or the file is the spec that defines
   the test.
-- with [code reach](/features/code-reach) on, a test executed one of the file's functions.
+- with [code reach](/features/code-reach) on, a test executed one of the file's functions;
+- with [combined coverage](/features/combined-coverage) uploaded for the head commit, a suite (a unit suite or the
+  Playwright suite) ran one of the lines the change added or modified.
 
 "No test in this run" is always paired with the count from the last 30 runs, so a run narrowed by a
 [selection](/features/test-selection) is never mistaken for a gap. A skipped test reaches nothing. A file that no route,
@@ -5864,8 +5873,23 @@ Observed reach, not instrumented coverage. This run and the last 30 on `main`.
   → *a scenario that exercises [id].patch.ts* · draft
 ```
 
+When the head commit has [combined coverage](/features/combined-coverage), the section opens with the change's patch
+coverage, counted on the lines that can run:
+
+```md
+**Patch coverage 82.9%**: 34 of the 41 changed lines ran (unit 28, end to end 19), at `a1b2c3d`.
+```
+
+<figure>
+  <img src="/screenshots/uncovered-changes.png" alt="The Uncovered changes section of a pull-request comment">
+  <figcaption>Patch coverage, then the changed files no test reaches.</figcaption>
+</figure>
+
+A coverage report uploaded for the commit after the comment, or the run's own coverage arriving after it, posts the
+comment again a few seconds later; a later push's comment is never overwritten by an earlier commit's.
+
 When commit statuses are on too, a second status joins the run's own: `piwi/tests/change-coverage` with the default
-status context, described as *3 of 7 changed files have no observed reach*. It is always **success**, so it informs a
+status context, described as *3 of 7 changed files have no observed reach*, with the patch coverage when there is one. It is always **success**, so it informs a
 reviewer without blocking the merge. The section and the status are left out while the *changed, unreached*
 detector is [muted](/features/scenario-gaps#triage) on the project, or where the Test Map is declined.
 
@@ -5881,6 +5905,9 @@ an explicit base and head commit, grouped by ticket, without recording anything.
 `piwi gate --max-uncovered-changes <n>` adds a warning to the [gate](/guide/ci#blocking-a-merge) result when more
 than `n` changed files have no observed reach. It is **warn-only**: it never changes the verdict or the exit code,
 because observed reach is evidence, not proof. Without the flag, the gate ignores uncovered changes.
+
+`piwi gate --min-patch-coverage <percent>` warns, the same way, when fewer of the changed lines ran, or when the head
+commit's coverage names none of them. Run it after the unit-test jobs uploaded their reports.
 
 ## Limits
 
@@ -5931,7 +5958,9 @@ files under `node_modules` or outside the repository are dropped, and at most 2,
 paths leave the machine, never code, counts or line numbers.
 
 `coverage.browser: 'files'` is the same as `captureCodeReach: true`; `'functions'` adds each function's start and end
-line, through the source map, and the file's git blob: line numbers then leave the machine.
+line, through the source map, and the file's git blob: line numbers then leave the machine. With `'functions'`, the
+run also records every function the pages' scripts declare, run or not, so the run's coverage can say how many of a
+file's functions ran. A function declared inside a function that never ran is not listed: V8 has not seen it.
 
 Paths resolve against the Playwright config's directory, then the repository root. Set `codeReachRoots` to the dev
 server's root when it is elsewhere; for Nuxt that is `app/`:
@@ -6088,8 +6117,17 @@ the option costs nothing: it can stay on, and the build decides.
 
 With `functions` and `lines`, each file names the git blob its line numbers refer to. At the end of the run the
 reporter also sends each backend's run-level coverage, attributed to no test, with each file's executable lines at
-`lines`: the lines no test runs. A test whose coverage the backend no longer held, or that could not be collected,
-is marked incomplete.
+`lines`: the lines no test runs, in every assembly built with coverage, including those whose code never ran. A test
+whose coverage the backend no longer held, or that could not be collected, is marked incomplete.
+
+<figure>
+  <img src="/screenshots/server-coverage.png" alt="The backend files one test ran, recorded by line">
+  <figcaption>One test's backend files, with the lines it ran.</figcaption>
+</figure>
+
+The backend names the checksum of the source each file was compiled from. When the file in the reporter's checkout
+differs (the backend was built from another commit), the reporter keeps the file's path but drops its line numbers,
+which would point at the wrong lines, and marks the test incomplete; the run-level coverage drops them the same way.
 
 ## How it is collected
 
@@ -6120,6 +6158,207 @@ mode, how it was measured, and the prototype figures.
 - [Coverage in the editor](./editor-coverage): the lines tests ran, in VS Code and the JetBrains IDEs
 - [Backend instrumentation](/guide/backend-logs): the middleware that serves the coverage
 - [Coverage cost](/reference/coverage-cost): what each mode costs
+
+<!-- https://piwitests.dev/features/combined-coverage -->
+
+# Combined coverage
+
+The unit tests of the front end and the back end run your code too. `piwi coverage upload` sends their coverage
+reports to the dashboard, keyed by the commit they ran on and a suite name you choose (`unit-front`, `unit-back`), to
+sit beside the coverage Piwi records from [code reach](./code-reach) and [server coverage](./server-coverage) for the
+same commit.
+
+## Upload a report
+
+Run the unit tests with coverage in Cobertura or LCOV, then upload the report from the same checkout:
+
+```bash
+npx vitest run --coverage --coverage.reporter=cobertura
+npx @piwitests/reporter coverage upload coverage/cobertura-coverage.xml --suite unit-front
+```
+
+```bash
+dotnet test --collect "XPlat Code Coverage"
+npx @piwitests/reporter coverage upload "**/TestResults/*/coverage.cobertura.xml" --suite unit-back
+```
+
+The command reads the project, the dashboard URL and the API key as the reporter does (`PIWI_PROJECT_NAME`,
+`PIWI_DASHBOARD_URL`, `PIWI_API_KEY`), the commit from git and the branch from the CI or `PIWI_BRANCH`. The API key
+needs the Uploader role, as a reporter's does. A path naming no file of the checkout is dropped and
+counted (`--root` sets where paths start). Every flag is on the
+[CLI reference](/reference/cli#coverage).
+
+| Tool | Format | Command |
+|---|---|---|
+| Vitest (`@vitest/coverage-v8`) | Cobertura or LCOV | `vitest run --coverage --coverage.reporter=cobertura` |
+| coverlet | Cobertura | `dotnet test --collect "XPlat Code Coverage"` |
+| Microsoft code coverage | Cobertura | `dotnet test --collect "Code Coverage;Format=cobertura"` |
+| Piwi's .NET recorder | Piwi | `PIWI_COVERAGE_OUTPUT=TestResults/piwi/ dotnet test -p:PiwiCoverage=true` |
+
+On .NET, run the unit tests on the [server coverage](./server-coverage) build: each test host writes a report at exit
+with the span table's lines, at a fraction of coverlet's cost. Upload `"TestResults/piwi/*.json"` and set
+`VSTEST_TESTHOST_SHUTDOWN_TIMEOUT=30000`: VSTest otherwise stops a host 100 ms after its tests.
+
+Upload from the full unit-test run: Vitest lists the files nothing ran only when every test ran and `coverage.include`
+names them.
+
+## In CI
+
+The unit tests and the Playwright suite usually run in separate jobs, tied by the commit: each uploads its own report,
+and a suite uploaded in parts (shards, portals) is merged on the dashboard.
+
+::: code-group
+
+```yaml [GitHub Actions]
+- run: npx vitest run --coverage --coverage.reporter=cobertura
+  working-directory: apps/web
+- run: npx @piwitests/reporter coverage upload apps/web/coverage/cobertura-coverage.xml --suite unit-front
+  env:
+    PIWI_DASHBOARD_URL: https://piwi.example.com
+    PIWI_PROJECT_NAME: shop
+    PIWI_API_KEY: ${{ secrets.PIWI_API_KEY }}
+```
+
+```yaml [Bitbucket Pipelines]
+- step:
+    name: Unit tests
+    script:
+      - dotnet test --collect "XPlat Code Coverage"
+      - npx @piwitests/reporter coverage upload "**/TestResults/*/coverage.cobertura.xml" --suite unit-back
+```
+
+```yaml [Azure DevOps]
+- script: dotnet test --collect "Code Coverage;Format=cobertura" --results-directory $(Agent.TempDirectory)/coverage
+- script: npx @piwitests/reporter coverage upload "$(Agent.TempDirectory)/coverage/**/*.cobertura.xml" --suite unit-back
+  env:
+    PIWI_API_KEY: $(PIWI_API_KEY)
+```
+
+:::
+
+On Bitbucket and Azure DevOps, set the three `PIWI_` variables as repository or pipeline variables. The first
+Playwright run creates the project.
+
+## One ratio per commit
+
+For each commit, the dashboard counts every suite that ran the code: the reports uploaded for it, and `e2e`, the run
+coverage of the commit's complete Playwright runs (never a partial, probe or flake-lab run). The
+totals are recomputed seconds after each upload or run; read them with the
+[API](https://piwitests.dev/demo/docs) or the MCP `get_coverage_summary` tool.
+
+- **One set of executable lines per file version.** Tools disagree on which lines can run, so every suite counts on
+  the same lines: the span table's, from [server coverage](./server-coverage), when a run recorded them for that
+  version of the file; otherwise the reports' own. A line a tool marks outside them is ignored.
+- **Undetermined lines.** The browser suite records functions, not lines. An unrun line inside a function it ran,
+  outside a function nested in it that did not run, is undetermined: shown beside the ratio, never counted as run.
+- **Functions** count across suites by start line: one ran when any suite ran a function starting there.
+- **Classes of lines.** Each executable line is unit only, end to end only, both, none, or undetermined. "End to end
+  only" is what the Playwright suite alone protects; "unit only" is code no user path reaches in the tests.
+- **Files without coverage data** are tracked files in scope no suite names, counted apart from the percentage.
+- **Carried forward.** A suite the commit lacks comes from the newest commit whose coverage arrived before it, on
+  the commit's branch then on the default branch, file by file where the file's version is unchanged.
+
+The project's **Coverage** page shows the commit whose coverage arrived last, and a run's header links its commit's.
+
+<figure>
+  <img src="/screenshots/combined-coverage.png" alt="A project's combined coverage page">
+  <figcaption>Three suites of one commit, counted on the same lines.</figcaption>
+</figure>
+
+## What the numbers leave out
+
+On a branch, each suite keeps only the report of the commit whose coverage arrived last; an earlier push keeps only
+its totals, never recounted ("totals only" on its run). The default branch keeps its newest commit and each day's last
+for 90 days, and totals for a year. Notes above the numbers say when a commit has only totals, a suite is
+carried, a report was cut, a known suite is missing, no inventory was sent, the scope changed since, or runs did not
+count.
+
+<figure>
+  <img src="/screenshots/coverage-notes.png" alt="A note above a branch's coverage">
+  <figcaption>A suite carried from the push before.</figcaption>
+</figure>
+
+## Find what is not covered
+
+Every bar on the coverage page splits lines as a file's marks do: both kinds of suite, unit only, end to end only,
+undetermined, and the empty track for none. **Files** is a foldable tree of the repository, each folder and file with
+its bar, sorted by name or lines not run, files without data greyed. Beside it, the selected
+folder's suites and least-covered files. A file opens on its source, through the
+[source control](/guide/source-control) connection, each line marked by the suites that ran it; **Next gap** jumps to
+the next lines none ran.
+
+<figure>
+  <img src="/screenshots/combined-coverage-file.png" alt="A file's lines marked by suite">
+  <figcaption>Line 40 ran in e2e and unit-back.</figcaption>
+</figure>
+
+## In pull requests
+
+The [Uncovered changes](./uncovered-changes) section of the pull-request comment opens with the change's patch
+coverage, the share of its changed lines any suite ran; a changed file any suite ran a changed line of counts as
+reached. `piwi gate --min-patch-coverage <percent>` warns under a minimum, and never fails the build.
+
+## Over time
+
+The **Coverage trend** [Analytics widget](./analytics) charts the combined line coverage per day, summed over the
+projects in scope, with each suite's share as a dashed line and the change against the comparison period; the engineering
+[quality report](./quality-reports) gives it as one line. Each project counts
+once a day, at its last commit with coverage, on the default branch or the scope's first branch with one.
+Kept per day, it outlives the reports; a day without new coverage names the day it carries.
+
+<figure>
+  <img src="/screenshots/combined-coverage-trend.png" alt="The Coverage trend widget">
+  <figcaption>A month of coverage, each suite dashed.</figcaption>
+</figure>
+
+## Export
+
+The coverage page's card menu downloads the commit's combined coverage as LCOV or Cobertura, for Sonar, Codecov or an
+IDE (`coverage-export?format=` in the API). A line any suite ran has 1 hit, else 0: Piwi keeps no hit counts and no
+branches.
+
+## The coverage scope
+
+A project's coverage scope decides which files count: include and exclude patterns over repository-relative paths, in
+the syntax CODEOWNERS uses. With no include pattern every file counts; an exclude wins. The defaults leave out tests,
+build output and generated sources. Set it in the project's **Settings › Coverage**, or with the
+[API](https://piwitests.dev/demo/docs) (`coverageScope`). The upload sends only the files in scope, and the commit's
+inventory: its tracked files in scope and their blob ids.
+
+## Areas
+
+Name the parts of the code in the same settings (`coverageAreas` in the API): `front: apps/web/`, `back: src/Api/`. A
+file belongs to the first area whose patterns match it, and every suite splits the same way: the coverage page gives
+each area its totals and each suite's share; the coverage trend
+draws one line per area (its *Lines beside every suite* option); the pull-request comment counts the changed lines per
+area. A change recounts the commits that keep their reports; a removed area
+leaves the trend.
+
+## What is sent
+
+Paths, line numbers and blob ids: for each file, its executable lines, the lines and functions that ran, and every
+function the tool knows. No source code, no test names, no hit counts.
+
+## Limits
+
+- **Formats:** Cobertura, LCOV and Piwi's own. Istanbul JSON, OpenCover and JaCoCo are not read.
+- **A tool can leave code out without failing.** coverlet does not instrument an assembly whose dependencies it
+  cannot resolve, and says so only in its diagnostic log.
+- **One commit, one checkout.** Upload from the checkout the tests ran in: the blob ids and the inventory come from it.
+- **Functions match by start line.** coverlet starts a method at its opening brace, the compiler's span table at its
+  declaration, so a .NET function both report can count twice.
+
+## Try it in the demo
+
+- [Web Dashboard › every suite’s coverage of one commit](https://piwitests.dev/demo/projects/5/coverage): The back end’s and the front end’s unit tests and the Playwright run of one commit, counted on the span table’s lines: the share each suite ran, a folder’s files, and the two tracked files no suite names.
+- [Web Dashboard › a branch’s coverage, carried and superseded](https://piwitests.dev/demo/projects/5/coverage?branch=develop): The newest push of develop uploaded the front end’s unit tests only: the notes above its numbers say the back end’s suite is carried from the push before, and link to it, whose file detail went when this push arrived: it keeps only its totals.
+
+## Related
+
+- [Code reach](./code-reach) and [Server coverage](./server-coverage): the coverage the Playwright suite records
+- [Coverage cost](/reference/coverage-cost)
+- [Piwi CLI](/reference/cli#coverage)
+- [Privacy](/guide/privacy)
 
 <!-- https://piwitests.dev/features/coverage-insights -->
 
@@ -6462,7 +6701,8 @@ The pass rates, run counts, durations, CI time, wasted time and regression count
 ingest and checked nightly against the stored runs. When [retention](/operate/storage#data-retention)
 deletes old runs, their numbers stay in the rollups, so a one-year pass-rate line survives a 30-day
 retention window. Lists of tests and clusters, and anything under a test filter, read the stored runs.
-The rollups also [export](/operate/metrics) to a BI tool or a Prometheus scraper.
+The rollups also [export](/operate/metrics) to a BI tool or a Prometheus scraper. The coverage trend reads the
+[combined coverage](./combined-coverage) kept per project and day, which outlives the reports it came from.
 
 ## Widgets and metrics
 
@@ -6692,7 +6932,8 @@ reports:
   ticketed, tests released from quarantine) and the risks (metrics moving the wrong way, projects
   failing run after run, the oldest open causes).
 - **Engineering**, for the team that owns the suite: the executive report, then the flakiest tests,
-  the failure clusters, wasted CI time, regressions, CI time, the browser matrix and slow endpoints.
+  the failure clusters, wasted CI time, regressions, CI time, the [combined coverage](./combined-coverage) trend
+  (left out when no project in scope has coverage), the browser matrix and slow endpoints.
 
 - **Team**, the engineering report for the tests one owner holds (`piwi:owner` or CODEOWNERS), offered
   when a test in scope has an owner.
@@ -11699,6 +11940,7 @@ npx @piwitests/reporter gate --max-new-regressions 0 --fail-on-flaky
 | `--max-leaks <n>` | Fail when the run left more than *n* browsers, contexts or pages open, counted per opening line |
 | `--max-new-leaks <n>` | Fail when more than *n* of those were never seen on the base branch |
 | `--max-uncovered-changes <n>` | Warn when more than *n* changed files have no observed test reach (warn-only — never fails the gate) |
+| `--min-patch-coverage <percent>` | Warn when fewer of the change's added and modified lines ran, in the head commit's [combined coverage](/features/combined-coverage) (warn-only — never fails the gate) |
 | `--json` | Print the raw result as JSON instead of a summary |
 | `-h`, `--help` | Show help |
 
@@ -11731,6 +11973,45 @@ npx @piwitests/reporter report --project checkout --period 7d --format md
 | `--output <file>` | Write to a file instead of stdout (required for `pdf`) |
 | `--fail-on <tone>` | `bad`: exit 1 on a bad verdict; `mixed`: on a mixed or bad one |
 | `-h`, `--help` | Show help |
+
+## `coverage`
+
+Upload another tool's coverage report of a commit to the dashboard, for [combined coverage](/features/combined-coverage):
+the unit tests of a front end or a back end, from Cobertura or LCOV. The command reads each report as a stream,
+resolves its paths against the checkout, keeps the files in the project's coverage scope and sends paths, line numbers
+and git blob ids, with the commit's tracked files in scope. Uploads of one commit and suite merge, so shards upload
+separately. When a newer commit has superseded this one on its branch (a CI job run again), the upload
+still exits `0`, the summary says so in one line, and the dashboard keeps the commit's totals as they were.
+
+```bash
+npx @piwitests/reporter coverage upload "**/coverage.cobertura.xml" --suite unit-back
+```
+
+**Exit codes:** `0` uploaded · `1` nothing to upload (no report, or no file of the reports in the checkout) · `2` the upload could not be made.
+
+| Flag | Description |
+|---|---|
+| `--suite <name>` | The suite the report covers, e.g. `unit-back` |
+| `--kind <kind>` | `unit` (default) or `e2e`, for a backend's own run-level report |
+| `--format <format>` | `cobertura`, `lcov` or `piwi` (a .NET test host's report, written at exit with `PIWI_COVERAGE_OUTPUT`); detected from the content when absent |
+| `--root <dir>` | The directory the reports' relative paths start from |
+| `--project <name\|id>` | Project (env `PIWI_PROJECT_NAME`) |
+| `--server-url <url>` | Dashboard URL (env `PIWI_DASHBOARD_URL`) |
+| `--api-key <key>` | API key (env `PIWI_API_KEY`) |
+| `--branch <name>` | The branch (env `PIWI_BRANCH`, the CI's, else git's) |
+| `--dry-run` | Read and resolve the reports, print the summary, send nothing |
+| `--json` | Print the summary as JSON |
+| `-h`, `--help` | Show help |
+
+Patterns are expanded by the command, so a quoted `**` works the same in every shell. Without `--root`, a relative path
+is tried against the report's `<source>`, the current directory, the report's directory and its parent (Vitest writes
+`coverage/` under its root), and the repository root; the first that names a file of the checkout wins, and the
+summary counts the paths none did. An absolute path is taken under the repository root, and the `/_/` of a .NET build
+with `ContinuousIntegrationBuild` is read as the repository root, in a path or in the `<source>` it is joined to.
+
+Each file is named by the git blob of its content in the checkout. When `git hash-object` fails on a file, the command
+says so on stderr and goes on: a changed tracked file is left out of the commit's inventory, a file git does not track
+is sent without its blob.
 
 ## `select` / `run` {#select-run}
 
