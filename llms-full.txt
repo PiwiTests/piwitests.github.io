@@ -236,8 +236,8 @@ Two things commonly surprise people:
 
 ### Test case
 
-The **identity of a test across time**, keyed by project + file path + `describe` path + title. It is
-not a row you submit — it's created and reused as results arrive, so renaming a test creates a new one
+The **identity of a test across time**, keyed by project + file path (relative to the folder holding your
+Playwright config, whatever directory Playwright runs from) + `describe` path + title. It is not a row you submit — it's created and reused as results arrive, so renaming a test creates a new one
 and moving a spec file does too.
 
 A test case is browser-independent: `login.spec.ts › signs in` is one test case whether it ran on
@@ -854,9 +854,9 @@ through [`wrapConfig`](#installing-via-wrapconfig).
 [Capture fixtures → Troubleshooting](./capture-fixtures#troubleshooting).
 
 **Connection errors.** Check that `serverUrl` answers from where the tests run; `PIWI_VERBOSE=true` logs every
-request. A run the reporter could not deliver (dashboard down, or a 401 with no credential set) is saved locally and
-submitted on the project's next run, without traces or attachments; it never fails the Playwright run. An interrupted
-stream is retried, then sent as a batch.
+request. A run the reporter could not deliver (dashboard down, no credential) is saved locally, owner-only, and sent
+to the same `serverUrl` on the project's next run, without traces or attachments; it never fails the Playwright run.
+An interrupted stream is retried, then sent as a batch.
 [`submitTimeout`](/reference/reporter-options#submittimeout) (15 minutes by default) bounds that end-of-run work, so
 an unresponsive dashboard does not hold the CI job.
 
@@ -1483,7 +1483,7 @@ PIWI_AI_API_KEY=ollama   # optional: sent only when set, for servers that check 
 
 A local model keeps every diagnosis on your own infrastructure; see [Privacy & data flow](./privacy).
 
-**Claude Code CLI (local, no API key)**: in the [desktop app](/features/desktop), pick **Claude Code (local)**. It runs the local `claude` CLI with your Claude Code sign-in, so **Settings → AI** manages sign-in and shows a live usage tally. Every role but embeddings can use it; `PIWI_CLAUDE_CLI_PATH` overrides the path. Each call runs with every tool and MCP server off, for one turn, and with none of the server's own environment variables, so an error message in a prompt cannot make the CLI run a command; a Claude Code version too old to turn its tools off is refused until you update it.
+**Claude Code CLI (local, no API key)**: in the [desktop app](/features/desktop), pick **Claude Code (local)**. It runs the local `claude` CLI with your Claude Code sign-in, so **Settings → AI** manages sign-in and shows a live usage tally. Every role but embeddings can use it; `PIWI_CLAUDE_CLI_PATH` overrides the path. Each call runs with every tool and MCP server off, for one turn, and with none of the server's own environment variables, so an error message in a prompt cannot make the CLI run a command; a Claude Code version too old to turn its tools off is refused until you update it. The CLI reads the prompt as text, so a diagnosis it writes gets no screenshot.
 
 Each role's form in **Settings → AI** has a **Test connection** button that checks its provider. The dashboard shows its AI actions only once a provider is configured.
 
@@ -1844,8 +1844,8 @@ Spec files recorded as (these must match the paths your live runs report for his
   tests/checkout.spec.ts
 ```
 
-If those look different from the paths on your existing test cases, the archive was produced from a different working
-directory, and the imported executions will land on separate test cases.
+If those differ from your existing test cases' paths (another config, or live runs from a reporter that named files
+from the directory Playwright ran in), the imported executions land on separate test cases.
 
 A trace records only the path Playwright displays (`checkout.spec.ts`), with no way to recover the directory it sits in.
 Piwi therefore matches it against the paths the project already knows: a stored `tests/checkout.spec.ts` claims an
@@ -3237,7 +3237,7 @@ The inbox is split into queues, each with a live count, shareable in the URL as 
 | Queue | What it holds |
 |---|---|
 | **All open** | Every open, non-snoozed cluster. |
-| **New** | Clusters first seen, or seen again, since you last opened the inbox (kept per browser). |
+| **New** | Clusters first seen, or seen again, since your previous browser session (kept per browser). |
 | **Mine** | Clusters whose assignee, or `piwi:owner` annotation, is you. |
 | **Needs ticket** | Untracked default-branch clusters older than 2 days, by default; see [issue tracking](./issue-tracking). |
 | **Regressions** | Clusters that regressed on the default branch and are still failing there. |
@@ -4125,7 +4125,7 @@ not merged automatically. When AI is configured, a model judges the pair from it
 tests and overlap: it merges on a confident yes, turns a less confident yes into a **merge suggestion** on the
 project's Failure clusters tab, for a Maintainer or above to approve or dismiss, and leaves a no apart. Without AI, or
 past five model calls in a run, the pair becomes a suggestion directly. This runs after every finished run
-whenever an embedding role is configured, independently of auto-diagnose.
+with an embedding role, independently of auto-diagnose.
 
 Each pair is judged once: the model's no is kept. A pair that someone dismissed, or that came from [moving tests to a
 new cluster](#split-a-cluster-by-hand), is never merged automatically, however close the two clusters score.
@@ -4179,7 +4179,7 @@ diagnoses are stored separately, and running one never overwrites the other.
 
 A stored diagnosis stays on screen even with no provider configured. With no result and no provider, **Copy prompt**
 copies the exact request the model would receive, trimmed to the
-[context limits](/guide/ai-provider#context-limits-and-token-cost), so you can paste it into your own AI tool.
+[context limits](/guide/ai-provider#context-limits-and-token-cost), to paste into your own AI tool.
 
 ## SCM-grounded context
 
@@ -4212,10 +4212,11 @@ deterministic locator edits.
 ## Diagnoses written by an agent
 
 A coding agent can record its own diagnosis on a cluster, or on one failure, with the MCP tool `record_diagnosis`, in
-the same JSON a model returns here. It needs no AI provider on this instance, its patch is validated against the
-source the failure happened at when [source control](/guide/source-control) is connected, and the panel shows it as
-**written by an agent** with the model it named. It replaces the current diagnosis, which stays in the history.
-Declining the **Agent diagnoses** capability refuses them; declining AI diagnosis does not.
+the same JSON a model returns here. On one failure, the [REST API](https://piwitests.dev/demo/docs) records it too.
+It needs no AI provider, its patch is validated against the failing commit's source when
+[source control](/guide/source-control) is connected, and the panel shows it as **written by an agent** with the
+model it named. It replaces the current diagnosis, which stays in the history. Declining the **Agent diagnoses**
+capability refuses them; declining AI diagnosis does not.
 
 For one failure, `run_execution_diagnosis` runs the diagnosis of the failure page, and `get_execution_diagnosis` reads
 what is stored, whoever wrote it.
@@ -4889,8 +4890,6 @@ Settings → Auto-heal (administrator only):
   stops counting.
 - **Branch prefix** / **commit message** — the branch namespace (default `piwi/heal/`) and the commit subject
   (default `test: heal broken locators`, a conventional-commit subject so your commit lint accepts it).
-
-The heal actions Piwi opened for a project are listed on the REST API; see the [API docs](https://piwitests.dev/demo/docs).
 
 ## Limits
 
@@ -6153,8 +6152,9 @@ run-level coverage is read as the run's last test ends, while a Playwright `webS
 
 ## Limits
 
-- **Run level only:** lambdas created at startup (inline minimal API handlers, inline middleware, DI factory lambdas)
-  and work outside a request (hosted services, timers). The methods they call count normally.
+- **Run level only:** lambdas created at startup (inline minimal API handlers, inline middleware, DI factory lambdas),
+  work outside a request (hosted services, timers), and work a request started that still runs once the reporter
+  collected its coverage. The methods they call count normally.
 - **API calls** through Playwright's `request` fixture keep their last response's coverage only: a redirect's earlier
   responses, and a response `failOnStatusCode` turns into an error, name none.
 - **One backend per request:** a call the backend makes to another counts there only if it forwards the
@@ -7048,8 +7048,9 @@ quality report; unset, only minutes show. The cost is one instance-wide value.
   `--fail-on bad` makes it exit 1 on a bad verdict.
 - The [MCP server](./mcp) offers `get_quality_report` (the bundle), `get_metric_trend` (one metric over
   time) and `compare_periods` (the headline numbers over two periods).
-- The REST API renders a report for a dashboard, format, language and analytics scope, manages schedules and
-  reads snapshots. See the [API docs](https://piwitests.dev/demo/docs), or `/docs` on your instance.
+- The REST API renders a report for a dashboard, format, language and analytics scope, keeps one as a snapshot,
+  manages schedules and reads snapshots. See the [API docs](https://piwitests.dev/demo/docs), or `/docs` on your
+  instance.
 
 ## Turning reports off
 
@@ -7141,8 +7142,9 @@ dashboard.
 **Settings → Notifications** manages channels and subscriptions, and the **bell** on a project page subscribes to that
 project. The new-channel form shows where to get each destination, flags a URL that belongs to another type (a Slack
 URL pasted under Teams offers to switch), and can **send a test** before saving: a channel whose test went through is
-saved as verified. Notifications need no authentication: with it off, the instance is single-tenant and every channel and
-subscription is **global**. With `PIWI_AUTH_ENABLED=true` ([authentication](/operate/authentication)), each user keeps
+saved as verified. Email goes only to a verified address: an email channel once a test reached it, the account email
+once its owner verified it. Notifications need no authentication: with it off, the instance is single-tenant and every
+channel and subscription is **global**. With `PIWI_AUTH_ENABLED=true` ([authentication](/operate/authentication)), each user keeps
 their own, and administrators can add global ones shared by everyone.
 
 ## Events
@@ -7205,7 +7207,7 @@ When the lookup fails (a private repository without a token, a host that exposes
 
 ### Global channels & subscriptions
 
-Admins can mark a channel **global** so it is available to all users, and mark a subscription **instance-wide** (from the project bell) so it delivers whoever is signed in: the way to route every failure to one team Slack channel. Global subscriptions must target a global channel. With authentication disabled, every channel and subscription is global.
+Admins can mark a channel **global** so it is available to all users, and mark a subscription **instance-wide** (from the project bell) so it delivers whoever is signed in: the way to route every failure to one team Slack channel. Global subscriptions must target a global channel. Other users see where a global webhook points, never its full URL. With authentication disabled, every channel and subscription is global.
 
 ## Subscriptions
 
@@ -7644,8 +7646,8 @@ linked folder, **without touching your checkout**:
   the worktree. The first bad commit is linked to your SCM host and recorded on the failure cluster.
 
 It needs `git` and your package manager on this machine, and bisects one repository. The application under test has
-to build from the same checkout: a Playwright `webServer` starts it at each commit, or set a **start command** and a
-readiness URL under **Reproduce and bisect**.
+to build from the same checkout, started at each commit by a Playwright `webServer`; without one, a reproduction or
+bisect exercises test changes only.
 
 ### Jobs from your editor
 
@@ -8409,8 +8411,9 @@ reopens as its ticket moves into and out of Done.
 
 For the exact verdict and a trace, the [desktop app](./desktop) runs a report's steps with Playwright in your project.
 Pair it once: in the extension's settings, under **Desktop app**, click **Pair**, then **Allow** in the app's window,
-which shows the same code. The address is the one on the app's **Setup** page, under **Connect Piwi Picker**
-(`http://127.0.0.1:3000` unless another program holds that port); **Pair by hand** takes the token shown there instead.
+which shows the same code. The address is on the app's **Setup** page, under **Connect Piwi Picker**
+(`http://127.0.0.1:3000` unless another program holds that port); **Pair by hand** takes the token shown there.
+The token goes only to an app that proves it holds it.
 
 **Run with Playwright…**, in Replay's chooser or on a finished replay, shows what it sends (the title and the steps,
 with the values typed in them) and sends it on **Send**. The request holds steps, never code. The app's window shows
@@ -9547,7 +9550,7 @@ migrations are forward-only. Browse the published tags on
 
 | Property | Value |
 |----------|-------|
-| Base image | `node:24-alpine` |
+| Base image | `node:24-alpine`, pinned by digest |
 | Image size | ~400 MB |
 | Platforms | `linux/amd64`, `linux/arm64` |
 
@@ -10008,6 +10011,8 @@ The defaults are conservative, so the checklist above is short. Without any extr
 - The container runs as a **non-root** user (`nodejs`, UID 1001).
 - Passwords are hashed with **scrypt** and per-password salts; login, initial-setup and password-reset endpoints are **rate-limited** per client address (and failed logins per account), returning `429` with `Retry-After`.
 - **API keys** are stored only as SHA-256 hashes and shown once, at creation — a leaked database yields no usable key.
+- No other site can frame the dashboard: every response carries `X-Frame-Options: SAMEORIGIN` and
+  `frame-ancestors 'self'`. Status badges and report charts are images, so a README or a wiki still shows them.
 - Secrets supplied by **environment variable** are never written to the database and never returned by the API; the settings UI shows them read-only with a lock badge.
 - Stored credentials are encrypted with **AES-256-GCM** once `PIWI_SECRET_KEY` is set.
 - Database **migrations are forward-only** and run on startup, before any request reaches the database; if one fails, every database call fails and `/api/health` returns `503` rather than serving a half-migrated schema.
@@ -10089,7 +10094,7 @@ administrator first. The [one-click deploy templates](./one-click-deploy) genera
 
 ## Logging in
 
-Sign in at `/login`. Sessions are stored in encrypted cookies and last for 7 days. The session cookie is marked `Secure`, so browser sign-in needs HTTPS — over plain `http://` it only works on `localhost`.
+Sign in at `/login`. A session is an encrypted cookie that lasts 7 days. It is marked `Secure`, so browser sign-in needs HTTPS, except on `localhost`. Signing out ends every session of the account, in every browser.
 
 ## OAuth (Google, GitHub)
 
@@ -10662,7 +10667,7 @@ closed ticket stops showing as open in the dashboard. It runs **every 15 minutes
 rounded to whole hours. Each sweep refreshes up to 100 links. Links on an open cluster refresh every sweep; links on
 a resolved or ignored cluster refresh at most once a day. A connection that fails to
 answer records the error on the connection card and does not stop the sweep. An administrator can run one sweep on
-demand through the REST API (see the [API docs](https://piwitests.dev/demo/docs)); the response counts the links it refreshed, failed and skipped.
+demand with **Sync now** on the Jira card, which says how many links it refreshed and how many it could not read.
 
 The two-way **policies** (comment on fix / regression, transition, resolve on close, reopen) are configured per project
 on the binding — see [Keep the ticket honest](/features/issue-tracking#keep-the-ticket-honest).
@@ -10673,15 +10678,15 @@ Polling is the baseline because Atlassian Cloud usually cannot reach a self-host
 register a webhook so a close or reopen reflects immediately instead of within the sync interval:
 
 1. In **Settings → Integrations**, on the Jira connection, choose **Enable webhook**. Piwi generates a per-connection
-   secret and shows the full URL **once**, with a link to the site's webhooks page. Set `PIWI_SITE_URL` when Piwi
-   sits behind another address than the one in your browser.
+   secret, keeps only its digest, and shows the full URL **once**, with a link to the site's webhooks page. Set
+   `PIWI_SITE_URL` when Piwi sits behind another address than the one in your browser.
 2. In Jira, go to **Settings → System → Webhooks → Create a webhook**, paste the URL, and subscribe it to
    **issue updated** events (optionally scoped by a JQL filter to the bound projects).
 3. Piwi looks the issue up by its id in its links and refreshes just that one, applying the resolve/reopen policies.
 
 The webhook is **public but secret-in-path** and rate-limited, and it can only ever *refresh a link* — it can never
-create or transition anything. **Regenerate webhook** invalidates the old URL; turning the webhook off is an
-administrator call in the REST API (see the [API docs](https://piwitests.dev/demo/docs)).
+create or transition anything. **Regenerate webhook** invalidates the old URL, and **Disable webhook** turns the
+webhook off.
 
 ## Related
 
@@ -11427,7 +11432,8 @@ When `collectScmInfo` is enabled (default), the reporter collects:
 - Commit hash and message
 - Branch name
 - Author name
-- Remote URL, which [Source control](/guide/source-control#which-repository) uses to find the repository
+- Remote URL, without the user name or token a URL can carry (`https://gitlab-ci-token:…@host/…`), which
+  [Source control](/guide/source-control#which-repository) uses to find the repository
 - The pull-request number and the pull request's target branch, on a pull-request build
 
 The branch is resolved through a fallback chain so a CI pull-request build never records the literal
