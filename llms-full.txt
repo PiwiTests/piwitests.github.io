@@ -849,10 +849,10 @@ through [`wrapConfig`](#installing-via-wrapconfig).
 `@playwright/test`, and `collectPerformanceMetrics` must not be `false`. See
 [Capture fixtures → Troubleshooting](./capture-fixtures#troubleshooting).
 
-**Connection errors.** Check that `serverUrl` answers from where the tests run, and run with `PIWI_VERBOSE=true` for
-the full request trace. A run the reporter could not deliver (dashboard down, or a 401 because no credential was set)
-is saved locally and submitted on the project's next run, without traces or attachments. An interrupted stream is
-retried, then sent as a batch.
+**Connection errors.** Check that `serverUrl` answers from where the tests run; `PIWI_VERBOSE=true` logs every
+request. A run the reporter could not deliver (dashboard down, or a 401 with no credential set) is saved locally and
+submitted on the project's next run, without traces or attachments; it never fails the Playwright run. An interrupted
+stream is retried, then sent as a batch.
 [`submitTimeout`](/reference/reporter-options#submittimeout) (15 minutes by default) bounds that end-of-run work, so
 an unresponsive dashboard does not hold the CI job.
 
@@ -1125,10 +1125,10 @@ How the merge works:
 1. Each shard derives a **run label**, a stable identifier for the CI pipeline, from the provider's build id
    (`GITHUB_RUN_ID` with `GITHUB_RUN_ATTEMPT`, `CI_PIPELINE_ID`, `CIRCLE_WORKFLOW_ID` and their equivalents on the
    systems listed above). A re-run of a GitHub Actions workflow is a new attempt, so it starts a new run.
-2. Shards sharing a run label **and** a `projectName` resolve to the same run when streaming.
-3. Each shard streams independently; the run stays `running` until the **last** shard calls finish.
+2. Shards sharing a run label **and** a `projectName` resolve to the same run, streamed or batched.
+3. The run stays `running` until the **last** shard reports; batched shards may arrive an hour apart.
 4. Counters accumulate across shards. The run is `failed` if any shard reported a failure, and the run page shows a
-   shard progress badge (`2/3`) while shards are still arriving.
+   shard progress badge (`2/3`) while shards are arriving.
 
 **All shards must use the same `projectName`.** That's the one requirement.
 
@@ -10879,13 +10879,14 @@ A kept run cannot be deleted until it is released; a selection skips kept runs.
 
 A nightly sweep (03:17 server time) handles recurring cleanup:
 
-- **Test-run pruning** — deletes runs older than `PIWI_RETENTION_DAYS` days, including their files, traces, and reports. **Off by default**: deleting history is opt-in, so nothing is pruned until you set the variable. [Kept runs](#keeping-runs-forever) are never pruned, and `PIWI_RETENTION_MIN_RUNS` keeps each project's newest runs whatever their age, so a project that stops reporting keeps its last runs instead of emptying.
+- **Test-run pruning** — deletes runs older than `PIWI_RETENTION_DAYS` days, including their files, traces, and reports. **Off by default**: nothing is pruned until you set it. [Kept runs](#keeping-runs-forever) are never pruned, and `PIWI_RETENTION_MIN_RUNS` keeps each project's newest runs whatever their age, so a project that stops reporting keeps its last runs instead of emptying.
 - **Analytics rollups** — pruned runs' numbers are moved into the [daily rollups](/features/analytics#where-the-numbers-come-from) in the transaction that deletes them, so the analytics trends keep the days that retention empties; deleting a single run by hand removes its numbers instead. Hand-back outcomes are counted the same way.
 - **Notification outbox pruning** — removes sent/failed delivery rows older than `PIWI_RETENTION_NOTIFICATION_DAYS` days (default 30).
-- **Report snapshot pruning** — removes the stored [quality reports](/features/quality-reports#report-schedules) older than `PIWI_RETENTION_REPORT_DAYS` days (default 365; 0 keeps them).
+- **Report snapshot pruning** — removes [quality reports](/features/quality-reports#report-schedules) older than `PIWI_RETENTION_REPORT_DAYS` days (default 365; 0 keeps them).
 - **Diagnosis history capping** — keeps the newest `PIWI_RETENTION_DIAGNOSIS_VERSIONS` versions per AI diagnosis (default 20).
+- **Unlinked traces** — deletes traces no execution has used for a day.
 
-The manual **Settings › Storage** cleanup remains available for one-off bulk deletes and uses the same deletion logic.
+**Settings › Storage** runs the same deletion by hand, for one-off bulk deletes.
 
 ### Keeping runs forever
 
@@ -12597,7 +12598,7 @@ one fires and what a webhook channel receives; channels, subscriptions and deliv
 | `run.finished` | A run completes (any status) |
 | `run.failed` | A run completes with failures |
 | `run.failed.default_branch` | A run fails on the repository's default branch |
-| `run.interrupted` | A run stops reporting before its end and the stale-run sweep marks it interrupted (two minutes without activity). The payload is a run event's, with `status: "interrupted"` and the results stored so far; Flake Lab and probe runs send none |
+| `run.interrupted` | A run stops reporting before its end and the stale-run sweep marks it interrupted (two minutes without activity, an hour for a sharded run whose shards send their results in one batch). The payload is a run event's, with `status: "interrupted"` and the results stored so far; Flake Lab and probe runs send none |
 | `cluster.new` | A new failure cluster appears |
 | `cluster.fixed` | A run passes every test a cluster covers: the fix landed (a filtered re-run of just those tests counts). The payload's `verification` says whether the diagnosis was corroborated (`diagnosis-verified`) or the tests merely stopped failing, and `resolved` whether the triage status was closed automatically |
 | `cluster.regressed` | A cluster with a recorded fix fails again; `reopened` says whether a *resolved* cluster was set back to open |
