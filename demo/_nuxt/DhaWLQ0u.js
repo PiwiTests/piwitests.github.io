@@ -1,1 +1,0 @@
-import"./Ca7H0CBZ.js";var e=e=>e.replace(/\\/g,`/`).replace(/^\.\//,``);function t(t,n){let r=e(t),i=e(n);return r===i||r.endsWith(`/`+i)||i.endsWith(`/`+r)}export{t};

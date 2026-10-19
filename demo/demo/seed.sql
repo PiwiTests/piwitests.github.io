@@ -2203,6 +2203,63 @@ SET commit_seen_at = coalesce(
 ALTER TABLE `coverage_totals` ADD `detail_removed_at` integer;
 ALTER TABLE `coverage_totals` ADD `superseded_by` text;
 
+ALTER TABLE `projects` ADD `repository_url` text;
+
+-- Custom SQL migration file, put your code below! --
+
+-- Pin each project to the repository its latest run with a remote URL names.
+UPDATE projects
+SET repository_url = (
+	SELECT trim(json_extract(t.metadata, '$.scm.remoteUrl')) FROM test_runs t
+	WHERE t.project_id = projects.id
+		AND json_valid(t.metadata)
+		AND json_type(t.metadata, '$.scm.remoteUrl') = 'text'
+		AND trim(json_extract(t.metadata, '$.scm.remoteUrl')) <> ''
+	ORDER BY t.start_time DESC, t.id DESC
+	LIMIT 1
+)
+WHERE repository_url IS NULL;
+
+-- `git@host:owner/repo` reads as `https://host/owner/repo`.
+UPDATE projects
+SET repository_url = 'https://' || substr(repository_url, 5, instr(repository_url, ':') - 5)
+	|| '/' || substr(repository_url, instr(repository_url, ':') + 1)
+WHERE repository_url LIKE 'git@%:%';
+
+-- `ssh://` and `git://` remotes read over https.
+UPDATE projects
+SET repository_url = 'https://' || substr(repository_url, 7)
+WHERE repository_url LIKE 'ssh://%' OR repository_url LIKE 'git://%';
+
+-- Credentials never stay in the URL: drop what precedes the `@` of the authority.
+UPDATE projects
+SET repository_url = substr(repository_url, 1, instr(repository_url, '://') + 2)
+	|| substr(repository_url, instr(repository_url, '@') + 1)
+WHERE (repository_url LIKE 'https://%' OR repository_url LIKE 'http://%')
+	AND instr(repository_url, '@') > 0
+	AND instr(repository_url, '@') < instr(repository_url, '://') + 2
+		+ instr(substr(repository_url, instr(repository_url, '://') + 3) || '/', '/');
+
+-- No trailing slash, no `.git` suffix.
+UPDATE projects
+SET repository_url = rtrim(repository_url, '/')
+WHERE repository_url IS NOT NULL;
+
+UPDATE projects
+SET repository_url = rtrim(substr(repository_url, 1, length(repository_url) - 4), '/')
+WHERE repository_url LIKE '%.git';
+
+-- Anything else that is not a web URL with an owner and a repository, or that
+-- still carries an `@` before its path, pins nothing.
+UPDATE projects
+SET repository_url = NULL
+WHERE repository_url IS NOT NULL
+	AND (
+		NOT (repository_url LIKE 'https://%/%' OR repository_url LIKE 'http://%/%')
+		OR instr(substr(repository_url, instr(repository_url, '://') + 3), '@') BETWEEN 1 AND
+			instr(substr(repository_url, instr(repository_url, '://') + 3) || '/', '/')
+	);
+
 BEGIN TRANSACTION;
 
 -- Tags
@@ -2212,11 +2269,11 @@ INSERT INTO tags (id, text, color, created_at, updated_at) VALUES (3, 'critical'
 INSERT INTO tags (id, text, color, created_at, updated_at) VALUES (4, 'performance', '#f59e0b', 1743465600, 1743465600);
 
 -- Projects
-INSERT INTO projects (id, name, label, description, created_at, updated_at, targets, default_branch) VALUES (1, 'e2e-checkout', 'E2E Checkout', 'End-to-end tests for the checkout flow', 1740787200, 1745569800, '{"testPassRate":99,"maxFlakyTests":2,"maxMedianTimeToFixDays":3}', 'main');
-INSERT INTO projects (id, name, label, description, created_at, updated_at, default_branch) VALUES (2, 'api-integration', 'API Integration', 'Integration tests for REST API endpoints', 1739577600, 1745565300, 'main');
-INSERT INTO projects (id, name, label, description, created_at, updated_at, targets, default_branch) VALUES (3, 'ui-components', 'UI Components', 'Visual regression tests for UI components', 1736467200, 1745513100, '{"testPassRate":60,"maxOpenClusterAgeDays":400}', 'main');
-INSERT INTO projects (id, name, label, description, created_at, updated_at, capabilities, default_branch) VALUES (4, 'mobile-safari', 'Mobile Safari', 'Mobile Safari browser compatibility tests', 1743465600, 1745150400, '{"markers":"declined","test-map":"declined"}', 'main');
-INSERT INTO projects (id, name, label, description, created_at, updated_at, default_branch, coverage_areas) VALUES (5, 'web-dashboard', 'Web Dashboard', 'Cross-browser tests for the SaaS admin dashboard', 1740009600, 1745572200, 'main', '[{"name":"front","include":["src/"]},{"name":"back","include":["api/"]}]');
+INSERT INTO projects (id, name, label, description, created_at, updated_at, targets, default_branch, repository_url) VALUES (1, 'e2e-checkout', 'E2E Checkout', 'End-to-end tests for the checkout flow', 1740787200, 1745569800, '{"testPassRate":99,"maxFlakyTests":2,"maxMedianTimeToFixDays":3}', 'main', 'https://github.com/example/shop-web');
+INSERT INTO projects (id, name, label, description, created_at, updated_at, default_branch, repository_url) VALUES (2, 'api-integration', 'API Integration', 'Integration tests for REST API endpoints', 1739577600, 1745565300, 'main', 'https://github.com/example/shop-api');
+INSERT INTO projects (id, name, label, description, created_at, updated_at, targets, default_branch, repository_url) VALUES (3, 'ui-components', 'UI Components', 'Visual regression tests for UI components', 1736467200, 1745513100, '{"testPassRate":60,"maxOpenClusterAgeDays":400}', 'main', 'https://github.com/example/design-system');
+INSERT INTO projects (id, name, label, description, created_at, updated_at, capabilities, default_branch, repository_url) VALUES (4, 'mobile-safari', 'Mobile Safari', 'Mobile Safari browser compatibility tests', 1743465600, 1745150400, '{"markers":"declined","test-map":"declined"}', 'main', 'https://github.com/example/mobile-web');
+INSERT INTO projects (id, name, label, description, created_at, updated_at, default_branch, repository_url, coverage_areas) VALUES (5, 'web-dashboard', 'Web Dashboard', 'Cross-browser tests for the SaaS admin dashboard', 1740009600, 1745572200, 'main', 'https://github.com/example/admin-dashboard', '[{"name":"front","include":["src/"]},{"name":"back","include":["api/"]}]');
 
 -- Users (demo identities for the "act as" switcher)
 INSERT INTO users (id, username, password, role, name, email, email_verified, created_at, updated_at) VALUES (1, 'demo-admin', '', 'administrator', 'Avery (Admin)', 'avery@piwi.demo', 1, 1738368000, 1738368000);
