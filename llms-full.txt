@@ -29,12 +29,16 @@ With Docker:
 ```sh [Linux / macOS]
 docker pull phenx/piwitests-server:latest
 mkdir -p .data && sudo chown -R 1001:1001 .data # the container runs as non-root UID 1001
-docker run -p 3000:3000 -v $(pwd)/.data:/app/.data phenx/piwitests-server:latest
+# Reachable from this machine only: with authentication off, anyone who reaches the port is an administrator.
+# Publish it on every interface (-p 3000:3000) only once authentication is on.
+docker run -p 127.0.0.1:3000:3000 -v $(pwd)/.data:/app/.data phenx/piwitests-server:latest
 ```
 
 ```ps1 [Windows (PowerShell)]
 docker pull phenx/piwitests-server:latest
-docker run -p 3000:3000 -v ${PWD}/.data:/app/.data phenx/piwitests-server:latest
+# Reachable from this machine only: with authentication off, anyone who reaches the port is an administrator.
+# Publish it on every interface (-p 3000:3000) only once authentication is on.
+docker run -p 127.0.0.1:3000:3000 -v ${PWD}/.data:/app/.data phenx/piwitests-server:latest
 ```
 
 :::
@@ -1261,10 +1265,10 @@ Four behaviors worth knowing:
 - **A quarantined test does not count** toward `--max-failed`, `--max-new-regressions`, `--max-new-flaky`,
   `--require-tag` or `--require-selection`, and the gate reports how many failures it excluded.
 
-- **A test that failed and then passed on retry satisfies `--require-tag`.** Flakiness is what `--max-new-flaky` is
-  for.
-- **A required tag that matches no test in the run is a violation**, so a misspelled tag cannot pass silently.
-- **Every evaluation is stored**: [merges overriding a failed gate](/features/pr-feedback#the-gate-verdict) are counted.
+- **A test that passed on retry satisfies `--require-tag`.** `--max-new-flaky` covers flakiness.
+- **A required tag that matches no test is a violation**, so a typo cannot pass.
+- **The CI key's evaluations are stored**, so [merges overriding a failed gate](/features/pr-feedback#the-gate-verdict)
+  are counted; a read-only key gets the verdict only.
 
 `npx @piwitests/reporter gate --help` lists every option; `--json` prints the raw result for a pipeline to parse.
 
@@ -1479,7 +1483,7 @@ PIWI_AI_API_KEY=ollama   # optional: sent only when set, for servers that check 
 
 A local model keeps every diagnosis on your own infrastructure; see [Privacy & data flow](./privacy).
 
-**Claude Code CLI (local, no API key)**: in the [desktop app](/features/desktop), pick **Claude Code (local)**. It runs the local `claude` CLI with your Claude Code sign-in, so **Settings → AI** manages sign-in and shows a live usage tally. Every role but embeddings can use it; `PIWI_CLAUDE_CLI_PATH` overrides the path.
+**Claude Code CLI (local, no API key)**: in the [desktop app](/features/desktop), pick **Claude Code (local)**. It runs the local `claude` CLI with your Claude Code sign-in, so **Settings → AI** manages sign-in and shows a live usage tally. Every role but embeddings can use it; `PIWI_CLAUDE_CLI_PATH` overrides the path. Each call runs with every tool and MCP server off, for one turn, and with none of the server's own environment variables, so an error message in a prompt cannot make the CLI run a command; a Claude Code version too old to turn its tools off is refused until you update it.
 
 Each role's form in **Settings → AI** has a **Test connection** button that checks its provider. The dashboard shows its AI actions only once a provider is configured.
 
@@ -1621,11 +1625,11 @@ Create a file in your project's server plugins directory:
 export { default } from '@piwitests/instrumentation-nitro'
 ```
 
-The plugin is auto-loaded by Nitro. It captures `consola` Warning/Error entries (bare `console.*` calls are not captured) and unhandled H3 errors, then writes the header just before each response goes out — including error responses. Capture is on outside production; override either way with `PIWI_TEST_LOGS_DISABLED` (`true` = always off, `false` = on even in production).
+Nitro loads the plugin itself. It captures `consola` Warning/Error entries (not bare `console.*` calls) and unhandled H3 errors, a server-side render's own `$fetch` calls included, and writes the header as each response, error responses too, goes out. Capture is on outside production; override either way with `PIWI_TEST_LOGS_DISABLED` (`true` = always off, `false` = on even in production).
 
 **Requirements:** Nuxt 3+ / Nitro 2+ (peer deps `nitropack ≥2`, `h3 ≥1`, `consola ≥3` — all included in any Nuxt project).
 
-[`examples/sample-app`](https://github.com/PiwiTests/platform/tree/main/examples/sample-app) runs a standalone Nitro app with this package wired in, and the same Playwright suite.
+[`examples/sample-app`](https://github.com/PiwiTests/platform/tree/main/examples/sample-app) runs a standalone Nitro app with this package and the same Playwright suite.
 
 ### Reporter setup
 
@@ -2104,14 +2108,15 @@ Some data is skipped at the source, so it never exists to leak:
   (`capturePageInventory`, **off by default**) records the names of a page's controls and links so the
   dashboard can tell which the suite never exercises. The name of a control that holds user input — a
   textbox, `select`, `textarea` or contenteditable editor — is never read from its content, so a
-  recovery code, a draft, or a set of options never leaves the browser; link hrefs are stripped of their
-  query and hash, which can carry signed tokens.
+  recovery code or a draft never leaves the browser; link hrefs are stripped of their query and hash,
+  which can carry signed tokens.
 - **Storage and cookie values.** Page state records the *names* of `localStorage` /`sessionStorage`
   keys and their value lengths, and cookie names with their flags. Never the values. Focus, mouse and
-  selection name elements, never values or selected text.
+  selection name elements, never values or selected text. A URL fragment's credentials are masked
+  (`#access_token=[masked]`).
 - **Sensitive headers.** `Authorization`, `Cookie` and friends are masked server-side in Piwi's trace
-  network view, and token-shaped strings in URLs and bodies are masked too. The trace file itself is
-  stored as uploaded, so the bundled trace viewer and a downloaded trace still show them.
+  network view, and token-shaped strings in URLs and bodies are masked too. The trace file is stored
+  as uploaded, so the trace viewer and a downloaded trace still show them.
 - **Backend logs, in production.** The [backend-log integrations](./backend-logs) emit their header only
   in development and test environments by default.
 
@@ -3429,7 +3434,8 @@ leave it off when that setup is what starts the app.
 
 ## Marking and clearing by hand
 
-The rules can miss an outage or flag a real regression. Anyone who can edit the run can decide instead:
+The rules can miss an outage or flag a real regression. Anyone who can upload or control the project's runs
+(Uploader, Maintainer and above) can decide instead:
 
 - **Mark as an environment incident**, in the run header's **Details**, for a run the rules did not flag (the payment
   sandbox was down, a shared account was locked). The run is left out of the same verdicts and gets its marker.
@@ -4900,9 +4906,9 @@ The heal actions Piwi opened for a project are listed on the REST API; see the [
 
 # Issue tracking (Jira)
 
-Piwi already ends an investigation with everything a ticket needs: a headline, the affected tests and owners, the
-diagnosis, a validated patch, the verify command. **Create issue** turns that into a Jira issue in one click: the body is the fix plan, the issue is linked back as the cluster's *known issue*, and from then on
-the key travels wherever the failure appears.
+An investigation ends with what a ticket needs: a headline, the affected tests and owners, the diagnosis, a
+validated patch, the verify command. **Create issue** makes it a Jira issue: the body is the fix plan, the issue
+is linked back as the cluster's *known issue*, and the key travels wherever the failure appears.
 
 It is **off until an [administrator connects Jira](/operate/integrations#connecting-jira-cloud)**.
 
@@ -4919,8 +4925,8 @@ It is **off until an [administrator connects Jira](/operate/integrations#connect
 - The issue **body is the fix plan**, rendered to Atlassian Document Format: *What happened*, *Most likely*, *Evidence*,
   *What to do* (patch, locator replacement, verify command, reproduce steps), *Related issues* fixed before and *Links*
   back to Piwi. Every section degrades independently.
-- Each issue carries the labels `piwi`, `piwi-cluster-<id>` and `piwi-fp-<hash>` and a `Piwi-Cluster: <id>` trailer, so
-  a JQL filter finds every Piwi-filed issue.
+- Each issue carries the labels `piwi`, `piwi-cluster-<id>` and `piwi-fp-<hash>` and a `Piwi-Cluster: <id>` trailer
+  for JQL.
 - **Filing is deduped by cluster** — a second click, a duplicate event, a [rule](./issue-automation) or a create from
   another of its executions names the issue already filed; once that link is removed or the issue is Done, the next create files a new one, and a
   Done issue stays linked. Before creating, the modal surfaces any issue that already tracks the failure (a pinned
@@ -5013,6 +5019,7 @@ refusal naming the field.
 
 The modal prefills its fields from the [project binding](#the-project-binding), else offers pickers over the
 connected site; toggles choose what the body carries (diagnosis and patch on, [share link](/features/share-links) off).
+A share link needs the **Maintainer** role and is created when the issue is filed.
 From an AI agent, the [`create_issue` MCP tool](/reference/mcp-tools#create_issue) files the same ticket once the
 binding names a Jira project and issue type.
 
@@ -5217,8 +5224,9 @@ rewritten locator.
 
 ## The gate verdict
 
-Each [merge gate](/guide/ci#blocking-a-merge) evaluation is stored with its policy, its verdict, its violations and
-the pull request it judged.
+Each [merge gate](/guide/ci#blocking-a-merge) evaluation made with a key that can upload or control the project's runs
+(the CI key `piwi gate` uses) is stored with its policy, its verdict, its violations and the pull request it judged. A
+reader of the project gets the verdict only: nothing is stored or posted.
 
 - **A commit status of its own.** Turn on **Gate status** under the project's **Settings → Source control** and each
   verdict is also posted as your status context plus `/gate` (`piwi/tests/gate`), so a branch rule can require the
@@ -5612,7 +5620,7 @@ piwi AI: no committed entry for "sign in as {email}" in test "checkout".
 
 That means an environment with no model access (a locked-down CI runner, an air-gapped box) can never accidentally author — it either replays a committed artifact or fails. If you would rather a missing entry mark the test **fixme** (yellow) instead of failing red, set `ai.onMiss: 'fixme'` (`PIWI_AI_ON_MISS=fixme`).
 
-Because replay is plain Playwright, there is nothing extra to install or start in CI. Commit the artifacts and your existing test job replays them.
+Replay is plain Playwright: commit the artifacts and your existing CI job replays them.
 
 ## What's inside an artifact — and why it's safe
 
@@ -5631,7 +5639,7 @@ Each test's replayed AI steps are reported to the dashboard as a small usage man
 - **Locator healing**: when the failing locator was compiled from a prompt, the healing panel shows it — *"Compiled from prompt: 'the email address field'"* — so you fix the intent, not just the selector.
 - **AI diagnosis**: the diagnosis context includes an *AI Steps* section listing the prompts behind the test's locators, so a root cause can be phrased in intent terms ("the element the test calls *the email address field* was renamed"). Capped by `PIWI_AI_MAX_STEP_INTENTS` (default 20, `0` disables).
 
-Intent mappings are as private as everything else here: templates keep their `{param}` placeholders and locators their `{{param}}` markers — parameter values never appear.
+Intent mappings keep `{param}` placeholders and `{{param}}` markers: parameter values never appear.
 
 ## Privacy
 
@@ -5660,6 +5668,8 @@ On the **server** side, two limits bound each authoring iteration (see the
 - `PIWI_AI_STEP_MAX_SNAPSHOT_CHARS`: snapshot characters the model receives.
 - `PIWI_AI_STEP_MAX_OUTPUT_TOKENS`: output tokens the model may return. **Reasoning models** spend tokens on hidden
   chain-of-thought, so raise this (up to `8192`) when authoring with one, or the JSON decision can be truncated.
+
+A key makes at most 300 authoring calls in five minutes (a 20-step flow takes about 40), then gets a 429.
 
 ## Related
 
@@ -8787,7 +8797,7 @@ differently.
 
 Install **Piwi** from the extensions view (`piwitests.piwi`) or, in a JetBrains IDE, from the
 **[JetBrains Marketplace ↗](https://plugins.jetbrains.com/plugin/34674-piwi)** (**Settings → Plugins**). It
-starts on a workspace that holds a Playwright config, and reads the connection the reporter already uses: the
+starts on a trusted workspace that holds a Playwright config, and reads the connection the reporter already uses: the
 `PIWI_*` variables in the environment or the workspace `.env`, or the [desktop app](/features/desktop). Otherwise,
 run **Piwi: Connect** (**Settings → Tools → Piwi** in a JetBrains IDE) and sign in with the browser:
 [Editor connection](./editor-connection) has the steps.
@@ -8932,11 +8942,11 @@ in the status bar while it executes, and its results over the latest CI run's fa
   [code reach](/features/code-reach); also in the editor's context menu.
 - **Piwi: Run selection…** runs one of the project's saved [selections](/features/test-selection).
 
-The command is the one `piwi run` would build, run from the Playwright config's folder: in a terminal in VS Code, in
-the Run tool window in a JetBrains IDE, whose **Rerun** starts it again, or in the IDE's Playwright runner (test tree,
-Debug, **Rerun Failed Tests**), a choice of **Settings → Tools → Piwi**. It sets `PIWI_ORIGIN=editor` and a
-`PIWI_ORIGIN_REF` of its own ([run origin](/reference/test-metadata#run-origin)), by which the editor finds its run on
-the instance. The editor's breakpoints pause it in the browser, with Piwi's picker one click away:
+The command, `npx playwright test` with the arguments `piwi run` would pass, is built by the editor and runs from the
+Playwright config's folder: in a terminal in VS Code, in the Run tool window in a JetBrains IDE, whose **Rerun** starts
+it again, or in the IDE's Playwright runner (test tree, Debug, **Rerun Failed Tests**), a choice of **Settings → Tools →
+Piwi**. It sets `PIWI_ORIGIN=editor` and its own `PIWI_ORIGIN_REF` ([run origin](/reference/test-metadata#run-origin)),
+by which the editor finds its run. Breakpoints pause it in the browser, with Piwi's picker one click away:
 [Breakpoints in the browser](./editor-breakpoints).
 
 ## Your local runs
@@ -8965,7 +8975,7 @@ checkout.spec.ts › pays)`, then the tests it failed that were not failing befo
 **Open in dashboard** and, when something fails, **Re-run failing**. The `piwi.runNotifications` setting (**Settings →
 Tools → Piwi** in a JetBrains IDE) shows it always, only when something fails, or never.
 
-While the run executes, the gutter follows it: a test shows as running when it begins, then its result once it ends.
+While the run executes, the gutter shows each test as running, then its result.
 
 ## Failures follow your edits
 
@@ -9481,12 +9491,16 @@ Piwi is one Node.js server with its data in one directory. Run it as a Docker co
 ```sh [Linux / macOS]
 docker pull phenx/piwitests-server:latest
 mkdir -p .data && sudo chown -R 1001:1001 .data # the container runs as non-root UID 1001
-docker run -p 3000:3000 -v $(pwd)/.data:/app/.data phenx/piwitests-server:latest
+# Reachable from this machine only: with authentication off, anyone who reaches the port is an administrator.
+# Publish it on every interface (-p 3000:3000) only once authentication is on.
+docker run -p 127.0.0.1:3000:3000 -v $(pwd)/.data:/app/.data phenx/piwitests-server:latest
 ```
 
 ```ps1 [Windows (PowerShell)]
 docker pull phenx/piwitests-server:latest
-docker run -p 3000:3000 -v ${PWD}/.data:/app/.data phenx/piwitests-server:latest
+# Reachable from this machine only: with authentication off, anyone who reaches the port is an administrator.
+# Publish it on every interface (-p 3000:3000) only once authentication is on.
+docker run -p 127.0.0.1:3000:3000 -v ${PWD}/.data:/app/.data phenx/piwitests-server:latest
 ```
 
 :::
@@ -9570,7 +9584,7 @@ services:
   piwi-dashboard:
     image: phenx/piwitests-server:latest
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000" # "3000:3000" once authentication is on
     volumes:
       - ./.data:/app/.data
     restart: unless-stopped
@@ -9601,7 +9615,7 @@ services:
   piwi-dashboard:
     image: phenx/piwitests-server:latest
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000" # "3000:3000" once authentication is on
     volumes:
       - ./.data:/app/.data   # still used for report/trace file storage
     environment:
@@ -9793,7 +9807,7 @@ On **Linux hosts**, the bind-mounted directory must be writable by the container
 ```bash
 mkdir -p .data
 sudo chown -R 1001:1001 .data   # match the container's non-root UID 1001
-docker run -p 3000:3000 -v $(pwd)/.data:/app/.data phenx/piwitests-server:latest
+docker run -p 127.0.0.1:3000:3000 -v $(pwd)/.data:/app/.data phenx/piwitests-server:latest
 ```
 
 > On Windows and macOS, Docker Desktop manages volume permissions automatically — no `chown` is needed. Just run the container with `-v ${PWD}/.data:/app/.data` (PowerShell).
@@ -9833,8 +9847,8 @@ The dashboard will be available at `http://localhost:8080`.
 
 If you don't have a server to run Docker on, these templates stand up an instance on a hosting provider
 instead. They all provision the same thing: **one container, one persistent volume mounted at
-`/app/.data`, and authentication on**. Railway, Render and Coolify also generate `PIWI_SECRET_KEY` and
-`PIWI_AUTH_SECRET`; on Fly.io and Koyeb you set them yourself. Beyond that, the difference is the provider's
+`/app/.data`, and authentication on**. Railway, Render and Coolify also generate `PIWI_SECRET_KEY`,
+`PIWI_AUTH_SECRET` and `PIWI_SETUP_TOKEN`; on Fly.io and Koyeb you set them yourself. Beyond that, the difference is the provider's
 own volume and pricing model.
 
 The manifests are generated from the same variable registry as the
@@ -9891,22 +9905,25 @@ it one command plus the secrets:
 
 ```bash [Linux / macOS]
 fly launch --no-deploy   # accepts the committed fly.toml
-fly secrets set PIWI_SECRET_KEY=$(openssl rand -hex 32) PIWI_AUTH_SECRET=$(openssl rand -hex 32)
+fly secrets set PIWI_SECRET_KEY=$(openssl rand -hex 32) PIWI_AUTH_SECRET=$(openssl rand -hex 32) PIWI_SETUP_TOKEN=$(openssl rand -hex 32)
 fly deploy
+fly ssh console -C "printenv PIWI_SETUP_TOKEN"   # the first-admin form asks for it
 ```
 
 ```powershell [Windows (PowerShell)]
 fly launch --no-deploy   # accepts the committed fly.toml
 $key = node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
 $auth = node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
-fly secrets set PIWI_SECRET_KEY=$key PIWI_AUTH_SECRET=$auth
+$setup = node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
+fly secrets set PIWI_SECRET_KEY=$key PIWI_AUTH_SECRET=$auth PIWI_SETUP_TOKEN=$setup
 fly deploy
+$setup   # the first-admin form asks for it
 ```
 
 :::
 
-If `fly launch` picks a different app name because yours is taken, update `PIWI_SITE_URL` in `fly.toml` to
-match. Autoscaling is deliberately off (`auto_stop_machines = false`, `min_machines_running = 1`): the
+`PIWI_SITE_URL` follows the app name `fly launch` picks (`https://<app>.fly.dev`); set it for a custom
+domain. Autoscaling is deliberately off (`auto_stop_machines = false`, `min_machines_running = 1`): the
 notification and retention sweeps run in-process, so a suspended machine silently stops doing scheduled work.
 
 ## Koyeb
@@ -9925,7 +9942,7 @@ Koyeb carries the whole service definition in the URL, so nothing needs to be in
 > koyeb service update piwi/piwi --checks 3000:http:/api/health
 > ```
 
-Set `PIWI_SECRET_KEY`, `PIWI_AUTH_SECRET` and `PIWI_SITE_URL` in the Koyeb console after the first deploy,
+Set `PIWI_SECRET_KEY`, `PIWI_AUTH_SECRET`, `PIWI_SETUP_TOKEN` and `PIWI_SITE_URL` in the Koyeb console after the first deploy,
 because the URL can't generate secrets. With authentication on, the service refuses to start until
 `PIWI_AUTH_SECRET` is set. The full command list is kept in
 [`deploy/koyeb-deploy-url.txt`](https://github.com/PiwiTests/platform/blob/main/deploy/koyeb-deploy-url.txt).
@@ -9934,7 +9951,7 @@ because the URL can't generate secrets. With authentication on, the service refu
 
 Both consume a Compose file, so one stack covers them. In Coolify: **Add a new resource → Service →**
 paste [`deploy/coolify/docker-compose.yml`](https://github.com/PiwiTests/platform/blob/main/deploy/coolify/docker-compose.yml).
-It uses Coolify's magic variables, so the domain and both secrets are generated for you and Traefik routing
+It uses Coolify's magic variables, so the domain and the secrets are generated for you and Traefik routing
 and TLS are wired up automatically.
 
 ## Before you rely on any of them
@@ -9947,10 +9964,12 @@ and TLS are wired up automatically.
   hundreds of MB, and live runs use long-lived `text/event-stream` responses; see
   [Reverse proxy (HTTPS)](./deployment#reverse-proxy-https) for what a proxy must allow.
 - **Finish the auth setup.** These templates set `PIWI_AUTH_ENABLED=true`, so the first visit shows a
-  **Create the first admin account** form. Complete it before sharing the URL, or provision the admin from
-  a script as [Authentication → Initial setup](./authentication#initial-setup) shows.
+  **Create the first admin account** form. It asks for `PIWI_SETUP_TOKEN`, which the templates generate (read it in
+  the platform's environment settings; on Fly.io and Koyeb you set it yourself), so nobody else can create the
+  administrator. Complete it before sharing the URL, or provision the admin from a script as
+  [Authentication → Initial setup](./authentication#initial-setup) shows.
 - **Work down the [production checklist](./production-checklist).** The templates already turn
-  authentication on (and, except on Fly.io and Koyeb, generate both secrets); pinning a version and backups
+  authentication on (and, except on Fly.io and Koyeb, generate the secrets); pinning a version and backups
   are still yours to do.
 
 ## Related
@@ -10046,9 +10065,9 @@ What a Member can do inside a project comes from the **project roles** (Viewer, 
 
 ## Initial setup
 
-When authentication is enabled and no users exist yet, opening the dashboard lands on the login page, which shows a **Create the first admin account** form in place of the sign-in form. Fill it in and you are signed in as the administrator, with no API call needed.
-
-For provisioning an instance from a script, the same step is available as an API call:
+While authentication is on and no administrator exists (even after members signed in through OAuth), the login page
+shows a **Create the first admin account** form instead of the sign-in form, which signs you in as the administrator.
+A script can make the same call:
 
 ::: code-group
 
@@ -10064,7 +10083,9 @@ Invoke-RestMethod -Method Post -Uri http://localhost:3000/api/auth/setup `
 
 :::
 
-Both routes go through the same setup endpoint, which is only available while the users table is empty and is rate-limited per client address.
+The endpoint is rate-limited per client address. On an instance reachable from the internet, set `PIWI_SETUP_TOKEN` to
+a random value: the form asks for it, and the API call carries it as `"setupToken"`, so a stranger cannot create the
+administrator first. The [one-click deploy templates](./one-click-deploy) generate it.
 
 ## Logging in
 
@@ -10697,7 +10718,7 @@ itself only when `PIWI_DATABASE_PATH` is unset:
 ::: code-group
 
 ```bash [Docker]
-docker run -p 3000:3000 -v $(pwd)/.data:/app/.data -e PIWI_DATABASE_PATH=/app/.data/custom.db phenx/piwitests-server:latest
+docker run -p 127.0.0.1:3000:3000 -v $(pwd)/.data:/app/.data -e PIWI_DATABASE_PATH=/app/.data/custom.db phenx/piwitests-server:latest
 ```
 
 ```bash [.env]
