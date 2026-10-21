@@ -1,1 +1,0 @@
-import{R as e}from"./CKFnGvyl.js";function t(){let t=e();return String(t.public.desktop)===`true`}export{t};

@@ -1,0 +1,1 @@
+import{R as e}from"./BYWV-2Ux.js";function t(){let t=e();return String(t.public.desktop)===`true`}export{t};

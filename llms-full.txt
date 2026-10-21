@@ -1,6 +1,6 @@
 # Piwi Dashboard
 
-> CI throws away every report it makes. Piwi keeps them — then groups the failures by root cause, scores the flaky tests, and finds the locator you should have used. Self-hosted, zero telemetry.
+> CI throws away every report it makes. Piwi keeps them, then groups the failures by root cause, scores the flaky tests, and finds the locator you should have used. Self-hosted, zero telemetry.
 
 <!-- https://piwitests.dev/guide/getting-started -->
 
@@ -7777,10 +7777,15 @@ key; a dev build without it says so.
 
 # Browser extension
 
-Piwi Picker is a Chrome, Edge and Firefox extension (Manifest V3) that picks ranked, stable Playwright locators from
-the page you are looking at, scored by the same engine the dashboard uses, and records a multi-page flow into a
-runnable TypeScript spec. It works standalone and sends nothing by default; connecting it to a Piwi instance adds what
-needs your project's history.
+Piwi Picker is a Chrome, Edge and Firefox extension that picks ranked, stable Playwright locators from the page you
+are looking at, scored by the same engine the dashboard uses, and records a multi-page flow into a runnable TypeScript
+spec. It works standalone and sends nothing by default; connecting it to a Piwi instance adds what needs your
+project's history.
+
+<figure>
+  <img src="/screenshots/picker-pick.png" alt="The ranked locators of a Checkout button, the unique one first">
+  <figcaption>Pick an element: the locator that finds exactly one element comes first.</figcaption>
+</figure>
 
 ## What it does
 
@@ -7809,31 +7814,35 @@ Chrome or Edge 118 or later (in Edge, click **Allow** on the *Allow extensions f
 **Get**), or from **[Firefox Add-ons ↗](https://addons.mozilla.org/firefox/addon/piwi-picker/)** for Firefox 140 or
 later.
 
-Every tool in the popup has a key shown on its tile (`1` records, `2` picks, `T` opens Tested elements, `B`
-reports a bug). One tool runs at a time and **Esc** cancels it; recording runs until its own **Stop**. The developer
-tools that need no pick on the page are in the browser's DevTools: see [Developer tools](./devtools).
+Every tool in the popup has a key on its tile (`1` records, `2` picks, `B` reports a bug). One tool runs at a time and
+**Esc** cancels it; recording runs until its own **Stop**. The tools that need no pick on the page are in the browser's
+DevTools: [Developer tools](./devtools).
 
-Picking also has a shortcut, suggested as `Ctrl+Shift+E` (`Cmd+Shift+E` on macOS); the popup footer shows the key
-actually bound.
+<figure>
+  <img src="/screenshots/picker-popup.png" alt="The Piwi Picker popup over a shop page, one tile per tool">
+  <figcaption>The popup: one tile per tool, with its key.</figcaption>
+</figure>
+
+Picking also has a shortcut, `Ctrl+Shift+E` by default (`Cmd+Shift+E` on macOS); the popup footer shows the key
+bound.
 
 ## Pick an element
 
 Hover highlights, a click picks. The pick snaps to the nearest actionable ancestor (the text inside a button picks
-the button), and ↑/↓ walk the DOM tree first, showing the locator each step would produce. For an element with a role,
-an **anchors** step lets you pick stable parents to scope the locator to, with a live match count.
+the button), and ↑/↓ walk the DOM tree, showing the locator each step would produce. For an element with a role, an
+**anchors** step offers stable parents to scope the locator to, with a live match count.
 
-Every candidate uses the names Playwright computes (a tab with a count badge is `{ name: 'Regressions 5' }`), is scored
-the way the dashboard scores captured locators, and is run against the page as Playwright runs it. Those that find only
-the picked element come first. One that also finds others is offered narrowed: exact (`{ name: 'Failed' }` also finds
-"3 failed"), filtered by its text, or scoped to its landmark, dialog or row, and below it with its count;
-failing that, `.first()` or `.nth()`, with a warning.
+Every candidate uses the names Playwright computes (a tab with a count badge is `{ name: 'Regressions 5' }`), is
+scored as the dashboard scores locators, and run against the page. Those that find only the picked element come
+first; one that also finds others is offered narrowed (exact, filtered by its text, or scoped to
+its landmark, dialog or row) and, failing that, with `.first()` or `.nth()` and a warning.
 
-Copy the result as the bare locator, an action line (`await page.getByRole(…).click();`) or a visibility assertion. **Copy all** copies every ranked locator, one per line, for a project's
-[Locators page](./locator-usage#the-locators-page).
+Copy the result as the bare locator, an action line or a visibility assertion; **Copy all** copies every ranked
+locator for a project's [Locators page](./locator-usage#the-locators-page).
 
 ## Multi-pick
 
-Pick two or three similar items (table rows, cards) to derive the pattern they share, such as
+Pick two or three similar items (rows, cards) to get the pattern they share, such as
 `getByRole('row').filter({ hasText: … })`. It warns when only `.nth()` could tell them apart.
 
 ## Lint overlay
@@ -7841,35 +7850,46 @@ Pick two or three similar items (table rows, cards) to derive the pattern they s
 One click outlines every interactive element no stable locator finds alone, with a suggested `data-testid` for each
 and a Markdown checklist.
 
+<figure>
+  <img src="/screenshots/picker-lint.png" alt="Four Add to cart buttons outlined, each with a suggested data-testid">
+  <figcaption>Lint overlay: four buttons share a name; each gets a test id to add.</figcaption>
+</figure>
+
 ## Assertion suggester
 
 Pick an element to get the `expect(...)` candidates that apply to it (`toHaveValue`, `toHaveText`,
-`toHaveAccessibleName`, `toBeVisible`), built on its top-ranked locator, each with a copy button.
+`toHaveAccessibleName`, `toBeVisible`), built on its top-ranked locator.
 
 ## Copy context for agent
 
-Pick an element to copy one block for a coding agent: the page URL, a summary of the element and every ranked locator.
+Pick an element to copy one block for a coding agent: the page URL, the element and every ranked locator.
 
 ## Record actions
 
-**Record actions** asks for access to the site you are on, then captures clicks, double clicks, fills, checks,
-choices, drags, the names of chosen files (never their content) and the keys that submit, close or move through a
-list, across pages, and a click on what a hover shows after that hover. **Check an element** and **Check the
-address** add an `expect(…)` of what the page shows now. **Stop** opens the review: **Copy as TypeScript** for a runnable spec that waits for each page it opens, **Download steps** for a
-[steps file](/reference/steps-format) to share or render with [`piwi codegen`](/reference/cli#codegen),
-[**Send to editor**](./editor-recording#send-from-piwi-picker), or **Discard**. Passwords are never captured, nor a card number, its security code or a one-time code in a field whose `autocomplete` names it: the spec reads them from `process.env`.
+**Record actions** asks for access to the site you are on, then captures clicks, fills, checks, choices, drags, the
+names of chosen files (never their content), the keys that submit, close or move through a list, and a click on what a
+hover shows, across pages. **Check an element** and **Check the address** add an `expect(…)` of what the page shows
+now. **Stop** opens the review: **Copy as TypeScript** for a runnable spec that waits for each page it opens,
+**Download steps** for a [steps file](/reference/steps-format) to share or render with
+[`piwi codegen`](/reference/cli#codegen), [**Send to editor**](./editor-recording#send-from-piwi-picker), or
+**Discard**. Passwords are never captured, nor a card number, its security code or a one-time code in a field whose
+`autocomplete` names it: the spec reads them from `process.env`.
+
+<figure>
+  <img src="/screenshots/picker-record.png" alt="The review panel after a recording: seven steps, Copy as TypeScript">
+  <figcaption>The review after Stop: every step, the spec one click away.</figcaption>
+</figure>
 
 ## Matching functions
 
 With a connection, the recorder loads the [function catalog](./test-functions) of the project mapped to the page and
 ranks, while you record, the functions the steps look like. On export, a complete match becomes a call to your
-function; other steps stay locator lines. No AI: it scores your registered functions' DOM patterns.
+function. No AI: it scores your registered functions' DOM patterns.
 
 ## Test functions against this page
 
-**Test functions** in the popup scores every function of the active project's catalog against the page as it is now:
-**Ready to use here** (every step finds one element), **Partly found here**, or **Not on this page**. Its link opens
-the catalog in Piwi.
+**Test functions** in the popup scores every function of the active project's catalog against the page:
+**Ready to use here** (every step finds one element), **Partly found here**, or **Not on this page**.
 
 ## Tested elements
 
@@ -7881,35 +7901,35 @@ project reaches, lists those tests, and marks the buttons, links and fields no t
 Piwi Picker speaks English, French, German, Spanish and Brazilian Portuguese, following the browser unless
 **Language**, in the settings, picks another. German, Spanish and Portuguese are unreviewed drafts:
 [suggest a correction](https://github.com/PiwiTests/platform/issues/new?template=translation.yml). A bug report is
-written in the extension's language; page texts, locators, test ids, `steps.json` and generated specs never are.
+written in the extension's language; locators, test ids and specs never are.
 
 ## Permissions, explained
 
 | Permission | Why |
 |---|---|
 | `activeTab` | acts on the tab you are looking at, only when you click the toolbar icon or press the shortcut |
-| `debugger` (Chrome and Edge) | trusted input for a [replay](./replay-a-bug-report), a bug report's console, requests and screenshots, and DevTools' [throttling](./devtools#slow-down-or-fail-a-request). Attached only while one of them runs, under Chrome's bar saying Piwi Picker started debugging the browser. Without it (Firefox, or **Cancel** there), they use the page's own events. Nothing leaves your machine |
+| `debugger` (Chrome and Edge) | trusted input for a [replay](./replay-a-bug-report), a bug report's console, requests and screenshots, and DevTools' [throttling](./devtools#slow-down-or-fail-a-request), attached only while one of them runs, under Chrome's own debugging bar. Without it (Firefox, or **Cancel** there), they use the page's events. Nothing leaves your machine |
 | `scripting` | injects the picker or the recorder into that tab on demand, and marks your instance's pages once [connected](./extension-connection#what-is-sent); nothing else runs unasked |
-| `storage` | keeps your copy format and, only if you connect, the instance URL, URL patterns, cached catalogs and the last three [locator indexes](./tested-elements), on your machine. The API key and the desktop app's and editor's tokens are kept in the extension's own database, which scripts it runs in web pages cannot read. The session and the running recording use `chrome.storage.session`, cleared when the browser closes |
+| `storage` | keeps your copy format and, only if you connect, the instance URL, URL patterns, cached catalogs and the last three [locator indexes](./tested-elements), on your machine. The API key and the desktop app's and editor's tokens live in the extension's own database, out of reach of web pages; the session and a running recording use `chrome.storage.session`, cleared when the browser closes |
 | `cookies` (optional, not granted in advance) | [Save login for tests](./devtools#save-login-for-tests) asks for it, for the one site whose login you save |
 | `optional_host_permissions` (none granted in advance) | recording asks for the one site you are on, to follow you across its pages; a connection asks for your instance's origin. Never `<all_urls>` |
 
 ## Connecting to a Piwi instance
 
-Optional and off by default. In the settings (the popup's gear button), type your instance's address and click
+Optional and off by default. In the settings, type your instance's address and click
 **Connect**, then **Allow** in the tab that opens: Piwi Picker receives its own API key. Which project applies on a
-page comes from URL patterns kept on the instance, per project, and from any you keep in this browser; the popup's
-**Active project** select overrides both on the tab's site for the session. See [Extension connection](./extension-connection).
+page comes from URL patterns kept on the instance and from any you keep in this browser; the popup's **Active
+project** select overrides both for the session. See [Extension connection](./extension-connection).
 
-Function catalogs refresh in the background; **Refresh** in Test functions fetches them now. **A recording is never sent to your instance**, and a [bug report](./bug-reports) only from its preview.
+Function catalogs refresh in the background. **A recording is never sent to your instance**, and a
+[bug report](./bug-reports) only from its preview.
 
 ## Limits
 
 - **One frame at a time.** The picker and the recorder see the top-level document, not iframes. The picker does not
-  reach inside shadow DOM; the recorder records the fields of a page's open shadow roots, and from a closed one only
-  the keys it records in a password field (Enter, Escape, the arrows).
-- **Recording covers one origin.** On another site, recording stops capturing steps; stop and review, or start again
-  there.
+  reach inside shadow DOM; the recorder records the fields of open shadow roots, and from a closed one only the keys
+  of a password field (Enter, Escape, the arrows).
+- **Recording covers one origin.** On another site it stops capturing: stop and review, or start again there.
 - **No aria-snapshot copier** yet for `toMatchAriaSnapshot()`.
 
 ## Related
@@ -8557,6 +8577,11 @@ getByTestId('apply-coupon')                        ✓ unique · stable
 locator('.btn').nth(2)                             ⚠ unique by position · brittle: position, CSS class
 ```
 
+<figure>
+  <img src="/screenshots/picker-devtools.png" alt="The Piwi pane in the Elements sidebar: the selected button's three locators, ranked, the test id first">
+  <figcaption>The pane for a selected button: each locator checked against the page, copied as a locator, an action or an assertion.</figcaption>
+</figure>
+
 A locator that finds the node among others says how many it finds. Under each one, **Locator**, **Action** and
 **Assertion** copy it as `page.…`, as a `click()` or as an `expect(…).toBeVisible()`, and **Add to session** puts it
 in the session under a name (the panel's Session tab, below). The pane ranks again when the selection changes and after
@@ -8893,10 +8918,15 @@ The Piwi extension for VS Code (and Cursor, VSCodium) and the Piwi plugin for th
 are editing. Both run the same editor service; [JetBrains IDEs](#jetbrains-ides) lists what the plugin draws
 differently.
 
+<figure>
+  <img src="/screenshots/vscode-heal.png" alt="VS Code: a CI failure at its line, the heal offered as a quick fix">
+  <figcaption>The latest run's failure at its line, and the heal as a quick fix.</figcaption>
+</figure>
+
 ## Install and connect
 
 Install **Piwi** from the extensions view (`piwitests.piwi`) or, in a JetBrains IDE, from the
-**[JetBrains Marketplace ↗](https://plugins.jetbrains.com/plugin/34674-piwi)** (**Settings → Plugins**). It
+**[JetBrains Marketplace ↗](https://plugins.jetbrains.com/plugin/34674-piwi)**. It
 starts on a trusted workspace that holds a Playwright config, and reads the connection the reporter already uses: the
 `PIWI_*` variables in the environment or the workspace `.env`, or the [desktop app](/features/desktop). Otherwise,
 run **Piwi: Connect** (**Settings → Tools → Piwi** in a JetBrains IDE) and sign in with the browser:
@@ -8912,22 +8942,21 @@ The failures of the latest complete [CI run](/reference/test-metadata#run-origin
 default branch, are errors in the Problems panel, at the line that failed: the call in the error's stack when that file
 is in your workspace (often a page object), else the `test(…)` line, with the failure's headline. Your local runs
 since are laid over it, read again as soon as a run ends: [Runs from the editor](./editor-runs)
-covers running tests, the failures view, the status bar, and what a run changes. Each failure follows your edits until a run covers its
+covers runs, the failures view and the status bar. Each failure follows your edits until a run covers its
 test again: [Failures follow your edits](./editor-runs#failures-follow-your-edits).
 
 On a failure, the quick fixes are:
 
-- **Heal: use …** — when [locator healing](/features/locator-healing) has a recommendation for the failing locator,
-  the same edit an [auto-heal pull request](/features/auto-heal) would make, applied in place.
-- **Run this test** — runs the failing test from the editor; first once you rewrote the line it failed at.
+- **Heal: use …** — the edit an [auto-heal pull request](/features/auto-heal) would make, when
+  [locator healing](/features/locator-healing) has a recommendation for the failing locator.
+- **Run this test** — runs the failing test; first once you rewrote the line it failed at.
 - **Open the trace** — in `npx playwright show-trace`.
-- **Reproduce in the desktop app**, **Find the breaking commit in the desktop app**, and **Run Flake Lab on its
-  untested suspects in the desktop app** for a test with an untested [flake suspect](./flake-lab) — on a team
-  instance's failure while the [desktop app](/features/desktop#jobs-from-your-editor) runs; **Share on …** records
-  the result.
+- **Reproduce in the desktop app**, **Find the breaking commit in the desktop app** and **Run Flake Lab on its
+  untested suspects in the desktop app**, for a test with an untested [flake suspect](./flake-lab), while the
+  [desktop app](/features/desktop#jobs-from-your-editor) runs; **Share on …** records the result.
 - **Apply the fix plan, then run its verification** — when the failure's [cluster](/features/failure-clusters) has a
-  [fix plan](/features/fix-plans) whose patch applies to your files: VS Code previews the edit, then runs the plan's
-  verify command in a terminal.
+  [fix plan](/features/fix-plans) whose patch applies to your files: the edit is previewed, then the plan's verify
+  command runs in a terminal.
 - **Copy context for agent** — the failure, its healing and fix plan.
 - **Open the failure in the dashboard** — the execution page, with its [evidence](/features/evidence).
 
@@ -8940,7 +8969,7 @@ Lines above the code (CodeLens):
 
 | File | What it shows | Click |
 |---|---|---|
-| A spec | the tests Piwi knows in it; beside each `test(…)`, its latest result in the gutter, a failing test's body tinted, and on hover how often it passed, its [flaky](/features/flaky-tests) score and root cause, its quarantine, and its selections | opens the test in the dashboard |
+| A spec | the tests Piwi knows in it; beside each `test(…)`, its latest result in the gutter, a failing test's body tinted, and on hover its pass rate, [flaky](/features/flaky-tests) score and root cause, quarantine and selections | opens the test in the dashboard |
 | A page object or spec | above each locator line, the tests using it, their actions, and how many fail or are flaky | runs those tests |
 | An application file | the tests that reach it, from [code reach](/features/code-reach); with [coverage](./editor-coverage), each function's too | runs those tests |
 | A page file (Nuxt `pages/**`) | the tests acting on that page, its locators and how many are brittle | runs those tests |
@@ -8949,8 +8978,8 @@ In a failing test, the line it failed at (in the spec, the line that calls the p
 reason, **Screenshot** and **Trace** above it.
 
 Above a flaky test: its flaky rate and [top suspect](./flake-lab#from-the-editor-and-the-failure-pages), then
-**Reproduce this flake** and, once reproduced, **Verify the flake fix**, which run `piwi flake` against the instance
-the editor reads, and, beside a team instance, **Reproduce this flake in the desktop app**.
+**Reproduce this flake** and, once reproduced, **Verify the flake fix**, which run `piwi flake`; beside a team instance,
+**Reproduce this flake in the desktop app**.
 
 ## Timeouts
 
@@ -8964,8 +8993,8 @@ suggested value.
   this file's tests visit, most used first and brittle ones last.
 - At the start of a statement: the [functions](/features/test-functions) of your catalog whose URL pattern matches
   those pages, as a call with a placeholder per parameter.
-- In a `piwi:` annotation: the types (`piwi:owner`, `piwi:priority`, `piwi:feature`, `piwi:link`), then the owners your
-  `CODEOWNERS` names, the priorities, or the project's features; in `tag: ['@…']`, the tags your tests already use.
+- In a `piwi:` annotation: the types (`piwi:owner`, `piwi:priority`, `piwi:feature`, `piwi:link`), then the owners,
+  priorities or features they take; in `tag: ['@…']`, the tags your tests already use.
 
 ## Brittle locators
 
@@ -8977,13 +9006,13 @@ quick fix replaces the chain with it.
 
 In an application file, the unsaved buffer is compared with `HEAD` as you type, the same way
 [`piwi preflight`](/features/preflight) compares a diff. A changed line whose string a locator finds its element by is
-a warning, with the chains it breaks and their tests on hover, and one quick fix that rewrites every call site.
+a warning, with the chains it breaks on hover, and one quick fix that rewrites every call site.
 
 ## Piwi's MCP server for the agent
 
 In VS Code 1.101 and later, the extension provides Piwi's [MCP server](/features/mcp) to the editor's agent with the
 connection it already has. In an editor without that API, **Piwi: Copy the MCP server configuration** puts an `mcp.json` entry on the
-clipboard. It holds your API key: paste it into your user settings, not into the repository.
+clipboard; it holds your API key, so paste it into your user settings, not into the repository.
 
 ## Commands
 
@@ -8992,13 +9021,13 @@ clipboard. It holds your API key: paste it into your user settings, not into the
 | Piwi: Connect, Disconnect | See [Editor connection](./editor-connection) |
 | Piwi: Refresh | Fetch the indexes and the latest run again |
 | Piwi: Refresh the latest run | Read the latest run again, as a click on the status bar does |
-| Piwi: Run the tests that reach this file | Run them in a terminal, with the arguments `piwi run` would use |
+| Piwi: Run the tests that reach this file | Run them in a terminal, as `piwi run` would |
 | Piwi: Open in dashboard | Open this file's test, or the latest run |
-| Piwi: Run selection… | Run one of the project's saved [selections](/features/test-selection) |
+| Piwi: Run selection… | Run a saved [selection](/features/test-selection) |
 | Piwi: Open the latest run | Open the run the status bar shows |
 | Piwi: Compare with… | Choose the run the failures are read against: [Compare with another run](./editor-runs#compare-with-another-run) |
 | Piwi: Pair with Piwi Picker | Copy the address [Piwi Picker sends to](./editor-recording#send-from-piwi-picker) |
-| Piwi: Record here, Record a new test file | Record in a browser opened through your project's own Playwright, at the cursor or into a new spec: [Record tests from the editor](./editor-recording) |
+| Piwi: Record here, Record a new test file | Record through your project's own Playwright, at the cursor or into a new spec: [Record tests from the editor](./editor-recording) |
 | Piwi: Stop recording, Pause recording, Resume recording | Control the recording in progress |
 | Piwi: Toggle the coverage marks | Show or hide the [coverage marks](./editor-coverage) |
 
@@ -9006,23 +9035,25 @@ clipboard. It holds your API key: paste it into your user settings, not into the
 
 The [plugin](https://plugins.jetbrains.com/plugin/34674-piwi) starts the editor service with the project's Node.js
 interpreter, 20 or later (**Settings → Languages & Frameworks → Node.js**, which the status bar opens when it is
-missing or older), once it finds a Playwright config within four folders of
-the project's (in Rider, the solution's) or of its Git root; it looks again when one is added or removed, and on
-**Tools → Piwi → Refresh**. The IDE's LSP client shows warnings, quick fixes and hover in open files; the rest is
-native:
+missing or older), once it finds a Playwright config within four folders of the project's (in Rider, the solution's)
+or of its Git root, and looks again on **Tools → Piwi → Refresh**. The IDE's LSP client shows warnings, quick fixes
+and hover in open files; the rest is native:
 
 - **The Piwi tool window** names the connection and holds the latest run's failures as a tree, since the IDE
   highlights open files only: [the failures view](./editor-runs#the-failures-view).
 - **Code Vision** shows the lines above files, locators and failing lines; each test's result is in the gutter.
 - **The status bar** shows the latest run, or the run in progress, and reads it again on a click
-  ([the status bar](./editor-runs#the-status-bar)); the actions are under **Tools → Piwi** and, for **Run the tests that
-  reach this file**, the editor's context menu.
-- **MCP**: **Copy the MCP server configuration** puts an `mcpServers` entry, which runs `mcp-remote` with the key, on
-  the clipboard for **Settings → Tools → AI Assistant → Model Context Protocol**.
-- **[Open in IDE](./ide-integration)**: a path clicked in the dashboard of the connected instance, or in the desktop app,
-  opens at its line.
+  ([the status bar](./editor-runs#the-status-bar)); the actions are under **Tools → Piwi**.
+- **MCP**: **Copy the MCP server configuration** puts an `mcpServers` entry, running `mcp-remote` with the key, on
+  the clipboard for the AI Assistant's MCP settings.
+- **[Open in IDE](./ide-integration)**: a path clicked in the dashboard or the desktop app opens at its line.
 - **[Recording](./editor-recording)**: **Tools → Piwi → Record Here**, Alt+Enter or Alt+Insert, and **File → New →
   Record a New Test File…**; the controls are in a banner above the editor.
+
+<figure>
+  <img src="/screenshots/jetbrains-failures.png" alt="WebStorm: the failing tests tinted in the spec, the Piwi tool window below with the run's failures">
+  <figcaption>WebStorm: the latest run's failures in the Piwi tool window, a local run laid over them, the failing tests tinted above.</figcaption>
+</figure>
 
 IntelliJ IDEA Community Edition and Android Studio lack the LSP API the plugin needs.
 
@@ -9033,6 +9064,11 @@ IntelliJ IDEA Community Edition and Android Studio lack the LSP API the plugin n
 The [editor extensions](./editors) run your tests where you edit them, then show what the run changed: its progress
 in the status bar while it executes, and its results over the latest CI run's failures within a second of its end.
 
+<figure>
+  <img src="/screenshots/vscode-failures.png" alt="VS Code: the failing tests marked in a spec, and the Failures view below">
+  <figcaption>The failing tests in the spec, and the Failures view with the run you made since.</figcaption>
+</figure>
+
 ## Run tests
 
 - The lines above a locator line, an application file or a page file (CodeLens in VS Code, Code Vision in a JetBrains
@@ -9040,12 +9076,11 @@ in the status bar while it executes, and its results over the latest CI run's fa
   [coverage](./editor-coverage#refresh-the-marks-with-a-local-run).
 - **Piwi: Run the tests that reach this file** runs every test reaching the active file through
   [code reach](/features/code-reach); also in the editor's context menu.
-- **Piwi: Run selection…** runs one of the project's saved [selections](/features/test-selection).
+- **Piwi: Run selection…** runs a saved [selection](/features/test-selection).
 
-The command, `npx playwright test` with the arguments `piwi run` would pass, is built by the editor and runs from the
-Playwright config's folder: in a terminal in VS Code, in the Run tool window in a JetBrains IDE, whose **Rerun** starts
-it again, or in the IDE's Playwright runner (test tree, Debug, **Rerun Failed Tests**), a choice of **Settings → Tools →
-Piwi**. It sets `PIWI_ORIGIN=editor` and its own `PIWI_ORIGIN_REF` ([run origin](/reference/test-metadata#run-origin)),
+The command, `npx playwright test` with the arguments `piwi run` would pass, runs from the Playwright config's
+folder: in a terminal in VS Code, in the Run tool window in a JetBrains IDE (**Rerun** starts it again), or in the
+IDE's Playwright runner (test tree, Debug, **Rerun Failed Tests**), a choice of **Settings → Tools → Piwi**. It sets `PIWI_ORIGIN=editor` and its own `PIWI_ORIGIN_REF` ([run origin](/reference/test-metadata#run-origin)),
 by which the editor finds its run. Breakpoints pause it in the browser, with Piwi's picker one click away:
 [Breakpoints in the browser](./editor-breakpoints).
 
@@ -9082,8 +9117,8 @@ While the run executes, the gutter shows each test as running, then its result.
 A run reports the line a test failed at in the files it ran. The editor reads those files as the run saw them and
 follows each failing line through your changes, saved or not:
 
-- Add or remove lines above a failing line, and its error moves with it: in the Problems panel, in the lines above the
-  test, in the Piwi tool window of a JetBrains IDE.
+- Add or remove lines above a failing line, and its error moves with it, in the Problems panel, the lines above the
+  test and the Piwi tool window.
 - Rewrite the failing line, and the error turns into an information marker, *Edited since run #120: …*: the run said
   nothing about the new line. **Run this test** comes first among its quick fixes, and the reason above the line reads
   *✎ edited since run #120*. The test keeps its failing mark until a run says otherwise.
@@ -9091,9 +9126,8 @@ follows each failing line through your changes, saved or not:
 
 The next run that covers the test says what is true: a failure there is an error again, and a pass takes it away.
 
-For a CI run, the files as the run saw them are those of the run's commit (`git show`). For a run on your machine, which
-ran your files as saved, a run that recorded no commit, or a commit your clone does not have, they are the files as
-saved when the editor first showed the failure.
+For a CI run, the files as the run saw them are those of its commit (`git show`); for a local run, a run without a
+commit, or a commit your clone lacks, the files as saved when the editor first showed the failure.
 
 ## The failures view
 

@@ -1,1 +1,0 @@
-import{m as e}from"./BRBH_C8i.js";import{H as t}from"./s3RbNEu0.js";function n(n,r){return t(n)?!1:Array.isArray(n)?n.some(t=>e(t,r)):e(n,r)}export{n as t};
