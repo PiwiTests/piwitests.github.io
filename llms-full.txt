@@ -2232,6 +2232,11 @@ and a **Learn more** link into these docs, and every source path [opens in your 
 beside the recent activity, then the **failure inbox** of open clusters, triaged from the row or the keyboard
 ([Failure clusters & the inbox](./failure-clusters#the-failure-inbox)).
 
+<figure>
+  <img src="/screenshots/home.png" alt="Home in the light and dark themes: filters, stat strip, project health and recent activity">
+  <figcaption>Home.</figcaption>
+</figure>
+
 ## Analytics
 
 `/analytics`: trends across projects and over time, where Home shows what is happening now. The filters at the top
@@ -2307,8 +2312,8 @@ evidence rebuilt from a trace, and the fallback the reporter took to send the ru
     reported. Runs sent by an older reporter show the sections without their hook list.
   - **Gaps**: a lane is one worker. Playwright replaces a worker process after a failed test, so a lane can hold
     several processes one after another: **↻** marks where a new one took over, and the stretch before it is the old
-    process shutting down and the new one starting. A dashed line is time the worker ran no test — before its first test, between two tests,
-    or after its last one while the others finished. Hover either to see which it was.
+    process shutting down and the new one starting. A dashed line is time the worker ran no test; hover either for
+    the details.
   - **Retries**: a retried test has one bar per attempt, the last solid, the earlier ones pale. Hover one to join
     them with arrows.
   - **Resources**: when the reporter measured them, the machine's CPU, the run's memory and the pages open in the
@@ -2362,7 +2367,7 @@ run** replays a reporter's stream, so you can watch a run arrive. **Acting as** 
 show how [roles](/operate/project-access) change what each one sees and can do, including changes made on
 the [permission grid](/operate/project-access#permission-grid). **Guided tour** asks what you do (**Developer**,
 **QA engineer**, **Product owner** or **DevOps / platform**) and walks you through the screens that role uses most,
-pointing at one element on each with a link to the page of these docs that explains it. The tour is in English,
+pointing at one element on each, linked to its docs page. The tour is in English,
 French, Spanish and German; the dashboard stays in English.
 
 ## Related
@@ -3233,6 +3238,11 @@ Failed executions sharing an **error fingerprint** join one cluster, so twenty s
 With an embedding model configured, near-duplicate clusters that the fingerprint keeps apart are merged too: see
 [semantic merging](./ai-diagnosis#semantic-merging-optional).
 
+<figure>
+  <img src="/screenshots/failure-clusters-tab.png" alt="A project's Failures tab: its open clusters with type, triage, tests and occurrences">
+  <figcaption>A project's open clusters, one row per root cause.</figcaption>
+</figure>
+
 ## The failure inbox
 
 The **Failure inbox** on Home lists up to 50 open failure clusters across the projects you can see, most
@@ -3263,13 +3273,13 @@ tracker is connected). `x` selects rows for a **bulk bar** that applies the same
 one row can be undone for a few seconds. [Keyboard shortcuts](/reference/keyboard-shortcuts#failure-inbox) lists every key.
 
 Linking a known issue (`l`) pins a URL; with an [issue tracker connected](/operate/integrations), Jira links unfurl
-and stay in sync, and you can **[file the issue from the failure](/features/issue-tracking)** (`c`).
+and stay in sync (see [issue tracking](/features/issue-tracking)).
 
 ## Owners and assignees
 
 A cluster's **owner** is derived, not stored: it comes from the failing test's `piwi:owner` annotation; the
-cluster and execution pages (not the inbox) fall back to the repository's `CODEOWNERS`. **Assigning** the cluster to a person overrides it:
-an assignee takes precedence over the derived owner, and the **Mine** queue matches either one against the
+cluster and execution pages (not the inbox) fall back to the repository's `CODEOWNERS`. **Assigning** the cluster to a person overrides it,
+and the **Mine** queue matches either one against the
 signed-in user (by name or email).
 
 ## The cluster page
@@ -3313,7 +3323,7 @@ the sparkline opens it.
 ## Did the fix work?
 
 When a run executes every test a cluster covers and they all pass, Piwi records the fix: the run, the commit, and how
-long the cluster was open. Three verdicts, each a different claim:
+long the cluster was open. Three verdicts:
 
 | Verdict | Means |
 |---|---|
@@ -3321,8 +3331,8 @@ long the cluster was open. Three verdicts, each a different claim:
 | **Diagnosis verified** | The commits since the last failing run touched a file the [suggested patch](./ai-diagnosis#what-a-diagnosis-contains) named. |
 | **Regressed** | A fix was recorded, and the cluster is failing again. |
 
-**Every affected test must pass**: a test that did not run counts against the fix. A filtered run can close a cluster
-if it covered all of it, so `--grep` over exactly the affected tests is enough.
+**Every affected test must pass**: a test that did not run counts against the fix. A filtered run covering all of it can close
+the cluster, so `--grep` over exactly the affected tests is enough.
 
 **The commit must have changed.** A run at the commit the cluster last failed at (a CI retry, or **Re-run in CI**)
 proves nothing was fixed: Piwi records it as flake evidence and the state line says *passed again at the same commit,
@@ -3338,8 +3348,8 @@ changes nothing, and an *ignored* cluster is never touched. The [notifications](
 
 ## Snoozing
 
-**Snoozing** hides a cluster from every inbox queue without touching its status: it is still *open*. **1 day** and
-**1 week** return it when the deadline passes; **Until it recurs** returns it to the **New** queue, with a **snoozed,
+**Snoozing** hides a cluster from every inbox queue without touching its status. **1 day** and
+**1 week** return it then; **Until it recurs** returns it to the **New** queue, with a **snoozed,
 back** badge, when a new run fails it again.
 
 ## From an AI agent
@@ -3607,8 +3617,8 @@ Manage it from the **Quarantine** view of the project's **Failures** tab, or ove
 Individual test cases in a run carry at-a-glance badges:
 
 - **New regression** (red) — failing here but passing in the baseline (the last passing run)
-- **Newly flaky** (purple) — the first run in which the test was flaky
-- **Passed on retry** (purple) — failed at least once in this run, then passed
+- **Newly flaky** (fuchsia) — the first run in which the test was flaky
+- **Passed on retry** (fuchsia) — failed at least once in this run, then passed
 
 Filters on the run's test-case list show only new regressions or new flaky tests.
 
@@ -3645,7 +3655,7 @@ reproduces. A reproduced condition proves the cause, and the same condition late
 
 ## Run an experiment
 
-From the project root, name the test by its test case id (the number in its dashboard URL) or by its spec file and
+From the project root, name the test by its test case id (the number in its dashboard URL) or its spec file and
 line:
 
 ```bash
@@ -3666,7 +3676,7 @@ It runs, one after the other:
    same error as in CI. Suspects no experiment tested run first, most likely first; one that did not reproduce runs
    last, never dropped.
 
-Every run has retries off and runs the checkout you are in. Before it starts, it prints an estimate from the test's
+Every run has retries off, on your current checkout. Before it starts, it prints an estimate from the test's
 median duration; `--budget` (15 minutes by default) stops it from starting another arm once spent.
 
 ```text
@@ -3727,8 +3737,8 @@ still fails, or too few runs passed to say) · `2` error.
 
 ## Where results show
 
-- The project's **Flake Lab** tab lists every flaky or tested test with where it stands (not tested, reproduced, fix
-  verified) and the command it needs next, then the project's newest experiments.
+- The project's **Flake Lab** tab lists every flaky or tested test with where it stands and the
+  command it needs next, then the project's newest experiments.
 - The test's **Flakiness** tab lists its experiments and each suspect's latest result, with buttons that copy both
   commands.
 - The **flaky list** marks a test whose latest experiment reproduced it.
@@ -3736,8 +3746,13 @@ still fails, or too few runs passed to say) · `2` error.
 - Over [MCP](/features/mcp), `get_flake_profile` and `plan_flake_experiment` give an agent the experiments and the
   arms to run; the `stabilize-flaky-tests` [agent skill](/features/agent-skills) follows this loop.
 
-The lab's own runs are stamped as flake-lab runs, kept out of the flaky score, clusters, notifications, quarantine,
-the suspects, the editor's CI failures and every other comparison between runs.
+<figure>
+  <img src="/screenshots/flake-lab.png" alt="The Flake Lab tab: counts by stage over each test and its next command">
+  <figcaption>The Flake Lab tab.</figcaption>
+</figure>
+
+The lab's own runs are stamped as flake-lab runs, kept out of the flaky score, clusters, notifications, quarantine
+and every other comparison between runs.
 
 ## From the editor and the failure pages
 
@@ -3752,8 +3767,8 @@ the suspects, the editor's CI failures and every other comparison between runs.
 
 ## Run it in CI
 
-A local machine is not CI: a delay reproduces a race anywhere, but load and interference depend on the machine. To
-run the lab where the flake lives, add a manual workflow and start it with the test case id:
+A local machine is not CI: a delay reproduces a race anywhere, but load and interference depend on the machine. Run it
+where the flake lives with a manual workflow, started with the test case id:
 
 ```yaml
 # .github/workflows/flake-lab.yml
@@ -3796,7 +3811,7 @@ reached, pass a plan saved earlier with `--plan <file>`: the response of the pla
 
 ## Limits
 
-- `cpu` needs Chromium; on another browser the arm reports the condition as skipped.
+- `cpu` needs Chromium; on another browser the arm is skipped.
 - A failure that depends on another team's run on a shared environment has no condition; it stays context on the
   Flakiness tab.
 - Order across whole files is not controlled: an `after` arm counts only the rounds Playwright happened to run in
@@ -3804,7 +3819,7 @@ reached, pass a plan saved earlier with `--plan <file>`: the response of the pla
 
 ## Try it in the demo
 
-The [live demo](https://piwitests.dev/demo/) cannot run the lab, but it holds experiments:
+The [live demo](https://piwitests.dev/demo/) cannot run the lab but holds experiments:
 
 - [E2E Checkout › should apply discount code](https://piwitests.dev/demo/test-cases/9?tab=flakiness): A cart delay reproduced it 3 times in 4 against a clean control.
 - [UI Components › Table pagination works correctly](https://piwitests.dev/demo/test-cases/35?tab=flakiness): One suspect reproduced it and one did not, a first fix still failed and the second is verified, so its quarantine is proposed for release.
@@ -5375,7 +5390,7 @@ definition to check nothing was silently dropped.
 If the dashboard is unreachable, `piwi run` falls back to the full suite with a warning (and reuses the last good
 resolution from `.piwi/selection-cache.json` when it has one): a reporting problem never breaks the test run. Pass
 `--strict` to invert that for CI, where an unresolvable selection should stop the pipeline. Resolving a named selection to
-**zero** tests is always an error: a smoke job that silently runs nothing is worse than one that fails loudly.
+**zero** tests is always an error.
 
 ### Print, shard and reorder
 
@@ -5435,8 +5450,7 @@ absent `include` starts from the whole suite. The predicates, all optional:
 | `lastStatus` | the latest execution's status is one of these |
 | `failedInLastRuns` | the test failed within its last _N_ executions (N ≤ 25) |
 
-An unknown predicate is a validation error, not a silent no-op — a typo fails loudly rather than resolving to a wider
-set than you meant.
+An unknown predicate is a validation error, so a typo never widens the set.
 
 ### Budgets and pins
 
@@ -5480,6 +5494,11 @@ The project's **Selections** tab lists the built-ins and your saved selections, 
 definition resolves to (the matching tests, the estimated duration, any warnings and the exact command) before you save
 it. Agents use the selection tools of the [MCP server](/reference/mcp-tools#workflow) and the `run-the-right-tests`
 skill.
+
+<figure>
+  <img src="/screenshots/test-selections.png" alt="The Selections page: built-in and saved selections with their commands, over the suggestions">
+  <figcaption>A project's selections.</figcaption>
+</figure>
 
 ## Health and drift
 
@@ -7183,6 +7202,11 @@ once its owner verified it. Notifications need no authentication: with it off, t
 channel and subscription is **global**. With `PIWI_AUTH_ENABLED=true` ([authentication](/operate/authentication)), each user keeps
 their own, and administrators can add global ones shared by everyone.
 
+<figure>
+  <img src="/screenshots/notifications.png" alt="Settings, Notifications: the SMTP status with the environment variables to set, a Slack channel, and its subscription to project 1's failed runs and new clusters">
+  <figcaption><strong>Settings → Notifications</strong>: email delivery, the channels, and what each one is subscribed to.</figcaption>
+</figure>
+
 ## Events
 
 Run events fire when a run finishes or fails, cluster events when a failure cluster appears, is fixed or regresses,
@@ -7379,6 +7403,43 @@ with a real API key. The **MCP server** page of the dashboard shows both forms. 
 [desktop app](/features/desktop#connecting-ai-assistants), the MCP server page detects the installed clients and
 writes their entry in one click instead.
 
+<figure>
+  <img src="/screenshots/mcp-client-setup.png" alt="The MCP server page's client setup card: the agents listed on the left, Claude Desktop picked, its config entry on the right">
+  <figcaption>The <strong>MCP server</strong> page writes the setup for each client with this dashboard's URL already filled in.</figcaption>
+</figure>
+
+### Claude Desktop
+
+Add to `claude_desktop_config.json` (`~/Library/Application Support/Claude/` on macOS, `%APPDATA%\Claude\` on
+Windows), then restart Claude Desktop:
+
+```json
+{
+  "mcpServers": {
+    "piwi": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-remote",
+        "<your-piwi-url>/mcp",
+        "--transport",
+        "http-only",
+        "--header",
+        "Authorization:${AUTH_HEADER}"
+      ],
+      "env": {
+        "AUTH_HEADER": "Bearer pd_YOUR_API_KEY"
+      }
+    }
+  }
+}
+```
+
+Claude Desktop only starts local commands from this file and ignores an entry with a `url`, so
+[`mcp-remote`](https://www.npmjs.com/package/mcp-remote), a small Node bridge, carries the HTTP connection; `npx`
+needs Node on your PATH. The header goes through `env` because Claude Desktop mishandles arguments with spaces. Plans
+that offer **Settings → Connectors → Add custom connector** take the `/mcp` URL directly.
+
 ### Claude Code (CLI)
 
 ```bash
@@ -7424,38 +7485,6 @@ Add to `.vscode/mcp.json` in your workspace (VS Code 1.99+):
   }
 }
 ```
-
-### Claude Desktop
-
-Add to `claude_desktop_config.json` (`~/Library/Application Support/Claude/` on macOS, `%APPDATA%\Claude\` on
-Windows), then restart Claude Desktop:
-
-```json
-{
-  "mcpServers": {
-    "piwi": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "mcp-remote",
-        "<your-piwi-url>/mcp",
-        "--transport",
-        "http-only",
-        "--header",
-        "Authorization:${AUTH_HEADER}"
-      ],
-      "env": {
-        "AUTH_HEADER": "Bearer pd_YOUR_API_KEY"
-      }
-    }
-  }
-}
-```
-
-Claude Desktop only starts local commands from this file and ignores an entry with a `url`, so
-[`mcp-remote`](https://www.npmjs.com/package/mcp-remote), a small Node bridge, carries the HTTP connection; `npx`
-needs Node on your PATH. The header goes through `env` because Claude Desktop mishandles arguments with spaces. Plans
-that offer **Settings → Connectors → Add custom connector** take the `/mcp` URL directly.
 
 ### Gemini CLI
 
@@ -8355,7 +8384,7 @@ confirm it there.
 # Bug reports
 
 A tester who [reports a bug](./report-a-bug) in Piwi Picker can send it to your Piwi instance. Piwi keeps it with its
-steps, the value the page showed, and the evidence the tester chose to send; writes it as a failing Playwright test for
+steps and the evidence the tester chose to send; writes it as a failing Playwright test for
 your project; and follows that test's runs: from the test being committed, to the bug looking fixed, to the report
 closing when the fix holds.
 
@@ -8370,8 +8399,7 @@ With the extension [connected to the instance](./extension-connection), the fini
 - **Leave out the values I typed**, which removes them from the steps and from the evidence that repeats them; the
   failing test then reads them from environment variables.
 
-Nothing is sent before **Send**, and only to the instance the extension is connected to. The first time, the preview
-explains this. Anyone who can read a project can send a report to it, so a tester's own key is enough.
+Nothing is sent before **Send**, and only to the connected instance. Anyone who can read a project can send a report to it, so a tester's own key is enough.
 
 The report keeps the language it was written in; the test Piwi writes from it is the same in every language.
 
@@ -8388,6 +8416,11 @@ tester expected and what the page showed instead, where the report stands, and w
 - **Spec**: the failing test.
 
 **Dismiss** sets a report aside: runs no longer move it. **Reopen** brings it back.
+
+<figure>
+  <img src="/screenshots/bug-report.png" alt="A bug report's page: situation, state, next step and why the suite missed it, over its steps">
+  <figcaption>A report's page.</figcaption>
+</figure>
 
 ### Why the suite missed it
 
@@ -8427,8 +8460,7 @@ Two project settings shape it, under **Generated specs** in the **Source control
 tab: the folder bug specs go to (`tests/bugs` by default) and the module `test` and `expect` are imported from, such as
 `../fixtures` when your tests use fixtures of their own.
 
-From a terminal, [`piwi bug 37 --write`](/reference/cli#bug) writes the spec into that folder and runs it once, so you
-see the bug before you fix it.
+From a terminal, [`piwi bug 37 --write`](/reference/cli#bug) writes the spec into that folder and runs it once.
 
 ## From report to fix
 
@@ -8472,7 +8504,7 @@ reopens as its ticket moves into and out of Done.
 For the exact verdict and a trace, the [desktop app](./desktop) runs a report's steps with Playwright in your project.
 Pair it once: in the extension's settings, under **Desktop app**, click **Pair**, then **Allow** in the app's window,
 which shows the same code. The address is on the app's **Setup** page, under **Connect Piwi Picker**
-(`http://127.0.0.1:3000` unless another program holds that port); **Pair by hand** takes the token shown there.
+(`http://127.0.0.1:3000` by default); **Pair by hand** takes the token shown there.
 The token goes only to an app that proves it holds it.
 
 **Run with Playwright…**, in Replay's chooser or on a finished replay, shows what it sends (the title and the steps,
@@ -8646,6 +8678,11 @@ The test functions catalog is a **per-project registry of your own page-object m
 ## Where it lives
 
 A project's **Test functions** page in the dashboard (**Project → Test functions**). Every entry is scoped to that project, and the [browser extension](./extension#connecting-to-a-piwi-instance) caches a mapped project's catalog locally so it can match against it while you record.
+
+<figure>
+  <img src="/screenshots/test-functions.png" alt="The test function catalog: page-object methods and helpers, each with its module, the steps it performs and the URL it applies to">
+  <figcaption>A project's <strong>Test functions</strong> page: each function with the steps it performs and the pages it applies to.</figcaption>
+</figure>
 
 ## Registering a function
 
