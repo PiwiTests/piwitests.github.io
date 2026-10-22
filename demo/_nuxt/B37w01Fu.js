@@ -1,1 +1,0 @@
-import"./BYWV-2Ux.js";var e=globalThis.setInterval;export{e as t};
