@@ -2339,6 +2339,10 @@ CREATE UNIQUE INDEX `idx_test_cases_external_id` ON `test_cases` (`project_id`,`
 
 ALTER TABLE `projects` ADD `external_id_url` text;
 
+DROP INDEX `idx_test_runs_cases_run_browser`;
+ALTER TABLE `test_runs_cases` ADD `repeat_each_index` integer DEFAULT 0 NOT NULL;
+CREATE UNIQUE INDEX `idx_test_runs_cases_run_browser` ON `test_runs_cases` (`test_run_id`,`test_case_id`,`repeat_each_index`,`retries`,`browser_name`);
+
 BEGIN TRANSACTION;
 
 -- Tags

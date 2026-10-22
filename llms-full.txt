@@ -251,6 +251,11 @@ This is the object at `/test-cases/:id` — pass rate, duration trend, and the l
 field on one: a test that failed twice and passed on the third attempt contributes three executions to
 the same run. So is each browser in a project matrix.
 
+So is each `--repeat-each` repetition, which Playwright runs as a test of its own, with its own retries:
+`--repeat-each=3` contributes three executions of the test, more with retries. The run counts each
+repetition once, as Playwright's summary does, and a test failed in a run when one of its repetitions
+failed, whatever the others did.
+
 This is the object at `/test-run-cases/:id` — the error, steps, trace, screenshots, console, network,
 Web Vitals, and (for a failure) the diagnosis view. When the docs say *execution* or *test-run case*,
 this is what they mean; when they say *test case*, they mean the identity above it.
@@ -1234,8 +1239,8 @@ e2e:
 - run: cat piwi-run.json   # { runUrl, runId, projectId, projectName, status, ciBuildUrl, failedCount, failures }
 ```
 
-`failures` lists every test whose final attempt failed as `{ title, file, retry, browser, headline, url }`, with
-`url` the same per-test link the log prints.
+`failures` lists every test whose final attempt failed as `{ title, file, retry, browser, repeatEachIndex, headline,
+url }`, with `url` the per-test link the log prints.
 
 ## Pull-request feedback
 
@@ -1825,7 +1830,7 @@ reported as not importable and skipped; the rest of the batch is unaffected.
 
 Everything Playwright itself recorded comes across:
 
-- Test results — status, duration, timeout, retries, worker, start time, annotations
+- Test results — status, duration, timeout, retries, `--repeat-each` repetition, worker, start time, annotations
 - Suite structure — spec file, `describe` nesting, Playwright project (browser) name
 - Errors, with full call logs, so failures **cluster exactly like reported ones**
 - Steps, including their subtitles and capped, masked params (Playwright 1.63+), the slowest step and wasted-time totals
@@ -3521,7 +3526,7 @@ For the same signals aggregated across every project, see [Analytics](./analytic
 
 A test is flaky when its result isn't deterministic. Piwi computes a **flakiness score** (0–100) per test from two signals, weighted 60/40:
 
-- **Retry passes** — failed on the first attempt, passed on retry.
+- **Retry passes** — failed, then passed on retry (each `--repeat-each` repetition on its own).
 - **Status alternation** — flips between pass and fail across runs.
 
 The **failure rate** is shown but not scored.
@@ -4850,7 +4855,7 @@ git bisect reset
 
 The bisect needs two commits, the failing run's and the **last green** run's, which the reporter records from git (`collectScmInfo`, on by default): when either is missing, or the two are the same commit, the section says so in one line instead of showing a script. The recipe is always there.
 
-In the [desktop app](/features/desktop#reproducing-a-failure-and-finding-the-breaking-commit) the same section can do the work for you: **Reproduce here** runs the recipe against the linked folder in a throwaway `git worktree` (your checkout is never touched), and **Find the breaking commit here** drives the whole bisect with live progress, then records the first bad commit on the cluster. For a failure on a team instance, your [editor](/features/editors#ci-failures-in-the-problems-panel) passes the bisect to the desktop app and shares the first bad commit back with its own key; an agent records one with the `set_cluster_bisect` [MCP tool](/reference/mcp-tools).
+In the [desktop app](/features/desktop#reproducing-a-failure-and-finding-the-breaking-commit) the same section can do the work for you: **Reproduce here** runs the recipe against the linked folder in a throwaway `git worktree` (your checkout is never touched), and **Find the breaking commit here** drives the whole bisect with live progress, then records the first bad commit on the cluster. For a failure on a team instance, your [editor](/features/editor-failures#ci-failures-in-the-problems-panel) passes the bisect to the desktop app and shares the first bad commit back with its own key; an agent records one with the `set_cluster_bisect` [MCP tool](/reference/mcp-tools).
 
 ## Fixed before
 
@@ -6797,8 +6802,8 @@ The *Tests* filter narrows every number to some tests:
 - **browsers**: the Playwright projects the executions ran on.
 
 It means the tests that match **today**, with their whole history. The widgets then count from the
-stored executions, final attempt per test and browser, so they reach back only as far as retention keeps
-runs. A widget that cannot narrow (the failure clusters) says so above its card.
+stored executions, final attempt per test, browser and `--repeat-each` repetition, so they reach back only
+as far as retention keeps runs. A widget that cannot narrow (the failure clusters) says so above its card.
 
 With one project in scope, *Save as selection* stores the tags as a selection you can run with
 `piwi run <key>`.
@@ -7760,7 +7765,7 @@ bisect exercises test changes only.
 
 ### Jobs from your editor
 
-On a failure of a team instance, the [editor extensions](/features/editors#ci-failures-in-the-problems-panel) offer
+On a failure of a team instance, the [editor extensions](/features/editor-failures#ci-failures-in-the-problems-panel) offer
 **Reproduce in the desktop app** and **Find the breaking commit in the desktop app**; on a flaky test, or a failure
 whose test has an untested suspect, a [Flake Lab](/features/flake-lab#from-the-editor-and-the-failure-pages) run of
 the team instance's plan. The window shows the commits, tests or arms, and runs nothing until you start it. The editor
@@ -8942,169 +8947,136 @@ Extraction is deliberately conservative. A function that branches on its argumen
 
 # Open in IDE
 
-Every source path the dashboard shows — the failing call stack ("Failed here"), a
-run's test-case list, a test case's file, flaky lists, cluster evidence, the AI
-suggested-fix — is clickable. Hover a path and a small **open in IDE** control
-appears: click it to jump straight to that file (and line) in your local editor,
-or open the chooser to pick a specific method.
+Every source path the dashboard shows is clickable: the failing call stack ("Failed here"), a run's test-case list, a
+test case's file, flaky lists, cluster evidence, the AI suggested fix. Hover a path and a small **open in IDE** control
+appears: click it to open that file, at its line, in your local editor, or open the chooser to pick a method.
 
-Because the dashboard runs in your browser while the source lives on your
-machine, the mapping from a repo-relative path (`tests/checkout.spec.ts`) to a
-real file is configured **per browser** and stored locally — it is never sent to
-the server.
-
-To see Piwi's answers inside the editor instead — CI failures at their lines, the
-tests behind each locator, the heal as a quick fix — install the
-[editor extension](/features/editors).
+The dashboard runs in your browser while the source lives on your machine, so the mapping from a repo-relative path
+(`tests/checkout.spec.ts`) to a real file is set **per browser** and stored there.
 
 ## JetBrains IDEs: the Piwi plugin
 
-With the [Piwi plugin](./editors#jetbrains-ides) installed in Rider, WebStorm,
-IntelliJ IDEA Ultimate or another JetBrains IDE (from **Settings → Plugins**, or
-**[the JetBrains Marketplace ↗](https://plugins.jetbrains.com/plugin/34674-piwi)**),
-clicking a path opens it there with **nothing to set up** once the project is
-connected to the instance the dashboard belongs to (the reporter's `PIWI_*`
-variables, **Settings → Tools → Piwi** or the desktop app):
+With the [Piwi plugin](./jetbrains) installed in Rider, WebStorm, IntelliJ IDEA Ultimate or another JetBrains IDE,
+clicking a path opens it there with **nothing to set up** once the project is connected to the instance the dashboard
+belongs to:
 
-- The dashboard asks every JetBrains IDE running, on its built-in server
-  (ports 63342 to 63361: a second IDE running takes the next free port). The IDE
-  whose open project holds the file opens it at its line and brings its window
-  to the front.
-- The dashboard then shows **Opened in Rider** (or the IDE's name), or, when no
-  open project holds the file, says so and lists the projects the IDE has open.
-  No other method can confirm the file opened.
-- The path, relative to the folder the tests ran in, is looked up under the
-  folder of each Playwright config in the project, the project folder and its
-  content roots. So a Rider solution in a subfolder, or a Playwright project
-  inside a monorepo, needs no workspace root and no project name. A workspace
-  root, when you set one, is tried first; the file must still be inside the
+- The dashboard asks every JetBrains IDE running, on its built-in server (ports 63342 to 63361). The IDE whose open
+  project holds the file opens it at its line and brings its window to the front.
+- The dashboard then shows **Opened in Rider** (or the IDE's name), or, when no open project holds the file, says so
+  and lists the projects the IDE has open.
+- The path, relative to the folder the tests ran in, is looked up under each Playwright config's folder in the
+  project, the project folder and its content roots, so a Rider solution in a subfolder, or a monorepo, needs no
+  workspace root and no project name. A workspace root, when set, is tried first; the file must still be in the
   project.
-- When several IDEs hold the file, the one matching the **JetBrains product**
-  you set wins; when several projects do, the one connected to the same Piwi
-  project wins.
+- When several IDEs hold the file, the one matching the **JetBrains product** you set wins; when several projects do,
+  the one connected to the same Piwi project wins.
 
-The IDE answers only a page of the Piwi instance one of its open projects is
-connected to (**Settings → Tools → Piwi**, or `PIWI_DASHBOARD_URL` in the
-environment or the workspace `.env`), or of the [desktop app](./desktop.md)
-running on the same machine; an instance's page finds files only in the projects
-connected to it. A page from any other address, another page on your machine
-included, gets no answer whatever the IDE's built-in server settings allow, and
-the first address refused in an IDE session is named in a notification. When the dashboard you use is the project's instance under another
-address, connect the project to that address.
+The IDE answers only a page of the Piwi instance one of its open projects is connected to (**Settings → Tools →
+Piwi**, or `PIWI_DASHBOARD_URL` in the environment or the workspace `.env`), or of the [desktop app](./desktop.md) on
+the same machine, and finds files only in the projects connected to that instance. A page from any other address,
+another page on your machine included, gets no answer whatever the IDE's built-in server settings allow, and the first
+address refused in an IDE session is named in a notification. When the dashboard you use is the project's instance
+under another address, connect the project to that address.
+
+## VS Code: the Piwi extension
+
+With the [Piwi extension](./editors#install-and-connect) installed in VS Code, Cursor or VSCodium, a path opens there
+with **no workspace root**: the dashboard hands the editor a `vscode://piwitests.piwi/open` link with the path as the
+run reported it, and the extension looks for it under the folder of each Playwright config in the window, then the
+workspace folders. It opens the file at its line and column, and never a file outside the workspace folders.
+
+- The editor hands the link to its window **focused last**. When that window holds no such file, a warning there says
+  so: focus the window of the project and click the path again.
+- Like any URL scheme, the link reports nothing back: the dashboard shows **Asked the Piwi extension in VS Code**, and
+  if nothing opens, the extension is not installed in the flavor you chose.
+- With a workspace root, or a project's linked folder in the desktop app, the absolute path opens instead, through
+  `vscode://file` or the desktop app's launcher (below).
 
 ## Set it up
 
-1. Hover any source path and click the **⌄** caret, then **Configure…** — or open
-   it from the user menu (bottom-left) → **Open in IDE…**.
-2. For VS Code, or a JetBrains IDE without the Piwi plugin, set your **workspace
-   root**: the absolute path of the folder the tests run from, e.g.
-   `/home/me/my-repo` (or `C:\Users\me\my-repo` on Windows). Repo-relative paths
-   are joined onto it, which is what VS Code needs to resolve a file.
-3. Pick a **method** (or leave it on **Auto**), then hit **Test** to open
-   `package.json` and confirm it lands in your editor. Close the dialog —
-   clicking any path now opens it there.
+1. Hover any source path and click the **⌄** caret, then **Configure…**, or open it from the user menu (bottom-left)
+   → **Open in IDE…**.
+2. For VS Code without the Piwi extension, or a JetBrains IDE without the Piwi plugin, set your **workspace root**: the
+   absolute path of the folder the tests run from, such as `/home/me/my-repo` (or `C:\Users\me\my-repo` on Windows).
+   Repo-relative paths are joined onto it. With the Piwi extension, leave it empty and tick **The Piwi extension is
+   installed in VS Code**, or click **Use the Piwi extension** on the toast that asks for a workspace root.
+3. Pick a **method**, or leave it on **Auto**. The **Test** row's **Open package.json** and **Open &lt;your Playwright
+   config&gt;** open a known file with your current settings. In the desktop app, the config's file name is read from the linked folder; elsewhere it is `playwright.config.ts`.
 
 ## Methods
 
 | Method | How it opens | Needs |
 |--------|--------------|-------|
-| **VS Code** | `vscode://file/<abs-path>:<line>` URL scheme | A workspace root (for the absolute path). Flavors: VS Code, Insiders, VSCodium, Cursor. |
+| **VS Code** | `vscode://file/<abs-path>:<line>` URL scheme with a workspace root; without one, the Piwi extension's `vscode://piwitests.piwi/open` link | A workspace root (for the absolute path), or the [Piwi extension](./editors#install-and-connect) in the editor. Flavors: VS Code, Insiders, VSCodium, Cursor. |
 | **JetBrains (URL)** | The Piwi plugin, then `jetbrains://<product>/navigate/reference?project=<name>&path=<rel>:<line>` | Without the plugin: [JetBrains Toolbox](https://www.jetbrains.com/toolbox-app/), the IDE product tag (e.g. `idea`, `rider`) and the open project name (in Rider, the solution's name). |
-| **JetBrains (local server)** | The Piwi plugin, then `http://localhost:63342/api/file/<path>:<line>` | Without the plugin: the IDE running with the **[IDE Remote Control](https://plugins.jetbrains.com/plugin/19991-ide-remote-control)** plugin and **Settings → Build → Debugger → "Allow unsigned requests"** enabled, which lets any page reach the IDE's local server. It cannot confirm the file opened. |
+| **JetBrains (local server)** | The Piwi plugin, then `http://localhost:63342/api/file/<path>:<line>` | Without the plugin: the IDE running with the **[IDE Remote Control](https://plugins.jetbrains.com/plugin/19991-ide-remote-control)** plugin and **Settings → Build → Debugger → "Allow unsigned requests"** enabled, which lets any page reach the IDE's local server. |
 | **Auto** | The Piwi plugin, then the other methods in turn (see below) | Whatever the method that answers needs. |
 
-### Desktop app — direct launch (most reliable)
+### Desktop app: direct launch
 
-In the [desktop app](./desktop.md) there is a better path than any URL scheme: the
-shell runs your IDE's **command-line launcher** directly. Whatever method you
-pick, clicking a path first tries the launcher —
+In the [desktop app](./desktop.md), whatever method you pick, clicking a path first runs your IDE's **command-line
+launcher**:
 
-- VS Code family: `code --goto <file>:<line>:<column>` (or `cursor`, `codium`,
-  `code-insiders`, matching the flavor you chose);
-- JetBrains: `<product> --line <line> --column <column> <file>`, where
-  `<product>` is the product tag you set (`rider`, `idea`, `webstorm`, …).
+- VS Code family: `code --goto <file>:<line>:<column>` (or `cursor`, `codium`, `code-insiders`, matching the flavor
+  you chose);
+- JetBrains: `<product> --line <line> --column <column> <file>`, where `<product>` is the product tag you set
+  (`rider`, `idea`, `webstorm`, …).
 
-This needs **no** `vscode://`/`jetbrains://` protocol handler, no JetBrains
-Toolbox, no open-project name to match and no "allow unsigned requests" — the
-reasons the URL schemes are unreliable, on Rider especially — and unlike a URL
-scheme it reports back whether the launcher started (and flags a missing file).
-It needs a workspace root or a linked project folder. The app finds the launcher
-on your `PATH`, then where the IDEs install it, since an app started from the
-Dock or the Start menu does not see the `PATH` your shell sets:
+Unlike a URL scheme, it reports whether the launcher started, and flags a missing file. It needs a workspace root, or
+the project's [linked folder](./desktop.md), which stands in for it. The app finds the launcher on your
+`PATH`, then where the IDEs install it, since an app started from the Dock or the Start menu does not see the `PATH`
+your shell sets:
 
-- **Windows:** the Toolbox scripts folder (`rider.cmd`), then the IDE's own
-  `bin` folder (`rider64.exe`) under `%LOCALAPPDATA%\Programs` (a Toolbox or
-  per-user install) or `C:\Program Files\JetBrains`, newest version first;
-  `code.cmd` in VS Code's `bin` folder.
-- **macOS:** the Toolbox scripts folder, `/usr/local/bin`, `/opt/homebrew/bin`,
-  then the app bundles in `/Applications` and `~/Applications`
-  (`Rider.app/Contents/MacOS/rider`, VS Code's `Contents/Resources/app/bin/code`).
-- **Linux:** the Toolbox scripts folder, `~/.local/bin`, `/usr/local/bin`,
-  `/usr/bin`, `/snap/bin`, then `/opt/<IDE>/bin` (`rider` or `rider.sh`).
+- **Windows:** the Toolbox scripts folder, then the IDE's `bin` folder under `%LOCALAPPDATA%\Programs` or
+  `C:\Program Files\JetBrains`, newest version first; VS Code's `bin` folder.
+- **macOS:** the Toolbox scripts folder, `/usr/local/bin`, `/opt/homebrew/bin`, then the app bundles in
+  `/Applications` and `~/Applications`.
+- **Linux:** the Toolbox scripts folder, `~/.local/bin`, `/usr/local/bin`, `/usr/bin`, `/snap/bin`, then
+  `/opt/<IDE>/bin`.
 
-When no matching launcher is found the desktop app falls back to the URL scheme
-for the chosen method, so nothing regresses. On desktop, a project's
-[linked folder](./desktop.md) also stands in for the workspace root, so files
-open with zero extra setup.
+When no launcher is found, the app falls back to the URL scheme of the chosen method.
 
-### Auto — "try all, stop on first success"
+### Auto: the first method that works
 
-Only the **Piwi plugin** can confirm the file opened: its answer is one the page
-can read. The IDE Remote Control endpoint can be reached but its answer not read,
-so the dashboard only knows an IDE is listening; the `vscode://` and
-`jetbrains://` URL schemes are handed off to the operating system with **no
-success signal** — the browser's own "Open &lt;app&gt;?" prompt is the only real
-confirmation.
+Only the **Piwi plugin** can confirm the file opened. The IDE Remote Control server cannot, and the URL schemes are
+handed to the operating system with **no success signal** but the browser's own "Open &lt;app&gt;?" prompt. **Auto**
+tries, in order:
 
-So **Auto** goes, stopping at the first that works:
+1. The Piwi plugin in any JetBrains IDE running. If an IDE answers that none of its open projects holds the file,
+   Auto says so rather than launch another editor.
+2. In the desktop app, the command-line launchers: JetBrains first when a JetBrains IDE is running, VS Code first
+   otherwise.
+3. The IDE Remote Control local server, reported as **Sent to JetBrains**, not as opened.
+4. A single URL scheme: VS Code when a workspace root is set, otherwise `jetbrains://` when a JetBrains project name
+   is set, otherwise the Piwi extension in VS Code while **The Piwi extension is installed in VS Code** is ticked,
+   reported as "opening…" or "asked".
 
-1. The Piwi plugin in any JetBrains IDE running. If an IDE answers that none of
-   its open projects holds the file, Auto says so rather than launch another
-   editor.
-2. In the desktop app, the command-line launchers: JetBrains first when a
-   JetBrains IDE is running, VS Code first otherwise.
-3. The IDE Remote Control local server, reported as **Sent to JetBrains**, not
-   as opened.
-4. A single URL scheme: VS Code when a workspace root is set, otherwise
-   `jetbrains://`, reported as "opening…".
-
-If you only ever use one editor, set the method explicitly to skip the other
-rungs.
+If you only use one editor, set the method explicitly to skip the other steps.
 
 ::: warning HTTPS and the IDE on localhost
-The Piwi plugin and the local server are reached on `http://127.0.0.1` /
-`http://localhost`. When the dashboard is served over **HTTPS** from another
-address, some browsers block that request as mixed content, and recent Chrome
-versions ask once for permission to reach apps on your device. These two
-methods therefore work best when the dashboard is served over **http /
-localhost**, or in the desktop app. Over HTTPS, Auto still falls back to the URL
-schemes, which are unaffected.
+The Piwi plugin and the local server are reached on `http://127.0.0.1` or `http://localhost`. When the dashboard is
+served over **HTTPS** from another address, some browsers block that request as mixed content, and recent Chrome
+versions ask once for permission to reach apps on your device. These two methods work best with the dashboard on
+**http / localhost**, or in the desktop app; over HTTPS, Auto still falls back to the URL schemes.
 :::
-
-## Test your setup
-
-The **Configure…** dialog has a **Test** row with two buttons — **Open
-package.json** and **Open &lt;your Playwright config&gt;** — that open a known
-file with your current settings, so you can confirm files land in your editor
-without hunting down a real failure first. On the desktop app the Playwright
-config's real file name is read from the linked folder; elsewhere it defaults to
-`playwright.config.ts`.
 
 ## Per-project overrides
 
-If you view several projects that live in different local checkouts (or a
-monorepo), open **Configure…** from a path inside that project — the dialog then
-offers a **workspace root override** and a **JetBrains project name** just for
-that project. Everything else falls back to your global settings. The Piwi
-plugin needs neither: it finds the file in the IDE's open projects.
+If you view several projects that live in different local checkouts (or a monorepo), open **Configure…** from a path
+inside that project: the dialog then offers a **workspace root override** and a **JetBrains project name** for that
+project alone. Everything else falls back to your global settings. The Piwi plugin needs neither.
 
 ## Privacy
 
-All of this — the method, workspace root(s), editor flavor and JetBrains
-product/port — lives in your browser's `localStorage` under `piwi-ide-prefs`.
-Nothing about your local filesystem is sent to the Piwi server. The Piwi plugin
-is asked from your browser directly, on your own machine: the file path, the
-workspace root and the Piwi project's name go to the IDE, nowhere else.
+The method, workspace roots, editor flavor and JetBrains product and port live in your browser's `localStorage` under
+`piwi-ide-prefs`. Nothing about your local filesystem is sent to the Piwi server. The Piwi plugin is asked from your
+browser directly, on your own machine, with the file path, the workspace root and the Piwi project's name; the Piwi
+extension's link carries the file path and line to VS Code through your operating system. Neither goes anywhere else.
+
+## Related
+
+- [Editor extensions](./editors): Piwi's answers inside VS Code and the JetBrains IDEs.
+- [JetBrains plugin](./jetbrains): what the plugin needs, and where it shows what.
 
 <!-- https://piwitests.dev/features/editors -->
 
@@ -9112,8 +9084,8 @@ workspace root and the Piwi project's name go to the IDE, nowhere else.
 
 The Piwi extension for VS Code (and Cursor, VSCodium) and the Piwi plugin for the JetBrains IDEs with the LSP API
 (WebStorm, IntelliJ IDEA Ultimate, Rider, from 2024.1) bring what the dashboard knows about your suite to the line you
-are editing. Both run the same editor service; [JetBrains IDEs](#jetbrains-ides) lists what the plugin draws
-differently.
+are editing. Both run the same editor service; the [JetBrains plugin](./jetbrains) page lists what the plugin needs
+and draws differently.
 
 <figure>
   <img src="/screenshots/vscode-heal.png" alt="VS Code: a CI failure at its line, the heal offered as a quick fix">
@@ -9129,6 +9101,13 @@ in the extensions view) or the **[JetBrains Marketplace ↗](https://plugins.jet
 the reporter already uses: the `PIWI_*` variables in the environment or the workspace `.env`, or the
 [desktop app](/features/desktop). Otherwise, run **Piwi: Connect** (**Settings → Tools → Piwi** in a JetBrains IDE)
 and sign in with the browser: [Editor connection](./editor-connection) has the steps.
+In VS Code, the extension also opens a path clicked in the dashboard, with no workspace root to set:
+[Open in IDE](./ide-integration#vs-code-the-piwi-extension).
+
+In VS Code, the first workspace with a Playwright config opens the **Get started with Piwi** walkthrough, once per
+machine, unless `workbench.welcomePage.walkthroughs.openOnInstall` is off; **Piwi: Get started** opens it again. Its
+steps connect, open the latest CI run's failures, run the failing tests, record a test, give your agent the MCP server
+and open the settings. A JetBrains IDE shows one notification instead: [JetBrains plugin](./jetbrains#install-and-start).
 
 Nothing from your workspace is sent to the instance: the project's
 [locator index](/guide/concepts#locator-index), [code reach](/features/code-reach) and latest run are compared with
@@ -9137,29 +9116,9 @@ your files locally.
 ## CI failures in the Problems panel
 
 The failures of the latest complete [CI run](/reference/test-metadata#run-origin) on the checked-out branch, else the
-default branch, are errors in the Problems panel, at the line that failed: the call in the error's stack when that file
-is in your workspace (often a page object), else the `test(…)` line, with the failure's headline. Your local runs
-since are laid over it, read again as soon as a run ends: [Runs from the editor](./editor-runs)
-covers runs, the failures view and the status bar. Each failure follows your edits until a run covers its
-test again: [Failures follow your edits](./editor-runs#failures-follow-your-edits).
-
-On a failure, the quick fixes are:
-
-- **Heal: use …** — the edit an [auto-heal pull request](/features/auto-heal) would make, when
-  [locator healing](/features/locator-healing) has a recommendation for the failing locator.
-- **Run this test** — runs the failing test; first once you rewrote the line it failed at.
-- **Open the trace** — in `npx playwright show-trace`.
-- **Reproduce in the desktop app**, **Find the breaking commit in the desktop app** and **Run Flake Lab on its
-  untested suspects in the desktop app**, for a test with an untested [flake suspect](./flake-lab), while the
-  [desktop app](/features/desktop#jobs-from-your-editor) runs; **Share on …** records the result.
-- **Apply the fix plan, then run its verification** — when the failure's [cluster](/features/failure-clusters) has a
-  [fix plan](/features/fix-plans) whose patch applies to your files: the edit is previewed, then the plan's verify
-  command runs in a terminal.
-- **Copy context for agent** — the failure, its healing and fix plan.
-- **Open the failure in the dashboard** — the execution page, with its [evidence](/features/evidence).
-
-Hover for the error message, its call chain, the failure screenshot, and the tickets linked to its cluster or
-test. Without one, **File an issue** opens the cluster in the dashboard.
+default branch, are in the Problems panel at the line that failed, with your local runs laid over them, and each
+failing line follows your edits until a run covers its test again. The heal, the trace, a rerun and the fix plan are
+quick fixes on the failure, and the failures view lists them as a tree: [Failures in the editor](./editor-failures).
 
 ## The tests behind each line
 
@@ -9171,9 +9130,6 @@ Lines above the code (CodeLens):
 | A page object or spec | above each locator line, the tests using it, their actions, and how many fail or are flaky | runs those tests |
 | An application file | the tests that reach it, from [code reach](/features/code-reach); with [coverage](./editor-coverage), each function's too | runs those tests |
 | A page file (Nuxt `pages/**`) | the tests acting on that page, its locators and how many are brittle | runs those tests |
-
-In a failing test, the line it failed at (in the spec, the line that calls the page object) is tinted darker, with the
-reason, **Screenshot** and **Trace** above it.
 
 Above a flaky test: its flaky rate and [top suspect](./flake-lab#from-the-editor-and-the-failure-pages), then
 **Reproduce this flake** and, once reproduced, **Verify the flake fix**, which run `piwi flake`; beside a team instance,
@@ -9187,8 +9143,13 @@ suggested value.
 
 ## Completion
 
-- After `page.` (or `this.page.`) in a spec or a page object: the locator chains your suite already uses on the pages
-  this file's tests visit, most used first and brittle ones last.
+- After a page and a `.` in a spec or a page object: the locator chains your suite already uses on the pages this
+  file's tests visit, most used first and brittle ones last. The page is `page`, `this.page`, or any page the code at
+  the cursor can use, the same ones [a recording](/features/editor-recording#start-a-recording) offers: another page
+  fixture of the test (`adminPage.`), a page object's page field (`this.root.`), a page the test opens
+  (`newPage()`, a popup).
+- Right after `expect(`: the same chains on the page in use there, such as
+  `page.getByRole('button', { name: 'Pay' })`, so an assertion's locator is written in one step.
 - At the start of a statement: the [functions](/features/test-functions) of your catalog whose URL pattern matches
   those pages, as a call with a placeholder per parameter.
 - In a `piwi:` annotation: the types (`piwi:owner`, `piwi:priority`, `piwi:feature`, `piwi:link`), then the owners,
@@ -9209,8 +9170,9 @@ a warning, with the chains it breaks on hover, and one quick fix that rewrites e
 ## Piwi's MCP server for the agent
 
 In VS Code 1.101 and later, the extension provides Piwi's [MCP server](/features/mcp) to the editor's agent with the
-connection it already has. In an editor without that API, **Piwi: Copy the MCP server configuration** puts an `mcp.json` entry on the
-clipboard; it holds your API key, so paste it into your user settings, not into the repository.
+connection it already has. Elsewhere, **Piwi: Copy the MCP server configuration** puts an entry on the clipboard: for
+`mcp.json` in VS Code, for the AI Assistant's MCP settings in a JetBrains IDE (an `mcpServers` entry running
+`mcp-remote`). It holds your API key, so paste it into your user settings, not into the repository.
 
 ## Commands
 
@@ -9219,96 +9181,151 @@ clipboard; it holds your API key, so paste it into your user settings, not into 
 | Piwi: Connect, Disconnect | See [Editor connection](./editor-connection) |
 | Piwi: Refresh | Fetch the indexes and the latest run again |
 | Piwi: Refresh the latest run | Read the latest run again, as a click on the status bar does |
+| Piwi: Run the test at the cursor | Run the test whose `test(…)` call holds the cursor: [Run tests](./editor-runs#run-tests) |
+| Piwi: Verify the test at the cursor ×3 | Run it three times without retries and say how many runs passed |
+| Piwi: Run this spec | Run the tests of the spec Piwi knows |
 | Piwi: Run the tests that reach this file | Run them in a terminal, as `piwi run` would |
+| Piwi: Re-run the failing tests | Run every test still failing: [Re-run the failing tests](./editor-runs#re-run-the-failing-tests) |
 | Piwi: Open in dashboard | Open this file's test, or the latest run |
 | Piwi: Run selection… | Run a saved [selection](/features/test-selection) |
 | Piwi: Open the latest run | Open the run the status bar shows |
-| Piwi: Compare with… | Choose the run the failures are read against: [Compare with another run](./editor-runs#compare-with-another-run) |
+| Piwi: Compare with… | Choose the run the failures are read against: [Compare with another run](./editor-failures#compare-with-another-run) |
 | Piwi: Pair with Piwi Picker | Copy the address [Piwi Picker sends to](./editor-recording#send-from-piwi-picker) |
-| Piwi: Record here, Record a new test file | Record through your project's own Playwright, at the cursor or into a new spec: [Record tests from the editor](./editor-recording) |
+| Piwi: Record here, Record a new test file | Record at the cursor, or into a new spec: [Record tests from the editor](./editor-recording) |
 | Piwi: Stop recording, Pause recording, Resume recording | Control the recording in progress |
 | Piwi: Toggle the coverage marks | Show or hide the [coverage marks](./editor-coverage) |
+| Piwi: Open the log | Show the editor service's log; the `piwi.trace.server` setting adds its traffic |
+| Piwi: Get started | Open the walkthrough |
+
+Three commands have a shortcut, the same in VS Code and the JetBrains IDEs and free in their default keymaps on
+Windows, Linux and macOS: `Ctrl+Shift+Alt+K` runs the test at the cursor, `Ctrl+Shift+Alt+F` re-runs the failing
+tests, and `Ctrl+Shift+Alt+R` records at the cursor, then stops the recording; on macOS, `Cmd` takes the place of
+`Ctrl`. **Preferences: Open Keyboard Shortcuts** changes them in VS Code (search `piwi`), **Settings → Keymap** in a
+JetBrains IDE (search `Piwi`).
 
 ## JetBrains IDEs
 
-The [plugin](https://plugins.jetbrains.com/plugin/34674-piwi) starts the editor service with the project's Node.js
-interpreter, 20 or later (**Settings → Languages & Frameworks → Node.js**, which the status bar opens when it is
-missing or older), once it finds a Playwright config within four folders of the project's (in Rider, the solution's)
-or of its Git root, and looks again on **Tools → Piwi → Refresh**. The IDE's LSP client shows warnings, quick fixes
-and hover in open files; the rest is native:
+The plugin runs in WebStorm, IntelliJ IDEA Ultimate, Rider and the other JetBrains IDEs with the LSP API, with the
+project's Node.js interpreter, 20 or later. It shows the failures in the Piwi tool window, the lines above the code
+with Code Vision, and its actions under **Tools → Piwi**: [JetBrains plugin](./jetbrains).
 
-- **The Piwi tool window** names the connection and holds the latest run's failures as a tree, since the IDE
-  highlights open files only: [the failures view](./editor-runs#the-failures-view).
-- **Code Vision** shows the lines above files, locators and failing lines; each test's result is in the gutter.
-- **The status bar** shows the latest run, or the run in progress, and reads it again on a click
-  ([the status bar](./editor-runs#the-status-bar)); the actions are under **Tools → Piwi**.
-- **MCP**: **Copy the MCP server configuration** puts an `mcpServers` entry, running `mcp-remote` with the key, on
-  the clipboard for the AI Assistant's MCP settings.
-- **[Open in IDE](./ide-integration)**: a path clicked in the dashboard or the desktop app opens at its line.
-- **[Recording](./editor-recording)**: **Tools → Piwi → Record Here**, Alt+Enter or Alt+Insert, and **File → New →
-  Record a New Test File…**; the controls are in a banner above the editor.
+## Related
+
+- [Failures in the editor](./editor-failures): the CI failures at their lines, the quick fixes and the failures view.
+- [Runs from the editor](./editor-runs): run tests, and follow the run in the status bar.
+- [Record tests from the editor](./editor-recording): steps written at the cursor as you take them in a browser.
+- [Editor connection](./editor-connection): the instance the editor reads, and its key.
+
+<!-- https://piwitests.dev/features/jetbrains -->
+
+# JetBrains plugin
+
+The Piwi plugin brings the [editor extensions](./editors) to the JetBrains IDEs with the LSP API: WebStorm, IntelliJ
+IDEA Ultimate, Rider and the others, from 2024.1. It runs the same editor service as the VS Code extension, so the
+editor pages describe it too, with the JetBrains names of each action. This page lists what the plugin needs, and
+where it shows what VS Code shows differently.
 
 <figure>
   <img src="/screenshots/jetbrains-failures.png" alt="WebStorm: the failing tests tinted in the spec, the Piwi tool window below with the run's failures">
   <figcaption>WebStorm: the latest run's failures in the Piwi tool window, a local run laid over them, the failing tests tinted above.</figcaption>
 </figure>
 
-IntelliJ IDEA Community Edition and Android Studio lack the LSP API the plugin needs.
+## Install and start
 
-<!-- https://piwitests.dev/features/editor-runs -->
+Install **Piwi** from **Settings → Plugins** or the
+**[JetBrains Marketplace ↗](https://plugins.jetbrains.com/plugin/34674-piwi)**. IntelliJ IDEA Community Edition and
+Android Studio lack the LSP API the plugin needs.
 
-# Runs from the editor
+The plugin starts the editor service with the project's Node.js interpreter, 20 or later (**Settings → Languages &
+Frameworks → Node.js**, which the status bar opens when it is missing or older), once it finds a Playwright config
+within four folders of the project's (in Rider, the solution's) or of its Git root, and looks again on **Tools → Piwi
+→ Refresh**. It reads the connection the reporter already uses; otherwise, **Settings → Tools → Piwi** signs you in
+with the browser: [Editor connection](./editor-connection).
 
-The [editor extensions](./editors) run your tests where you edit them, then show what the run changed: its progress
-in the status bar while it executes, and its results over the latest CI run's failures within a second of its end.
+The first trusted project with a Playwright config that nothing connects yet shows one notification, once per
+installation, with **Connect…**, **Open the Failures** and **Learn More**.
+
+## Where things are
+
+The IDE's LSP client shows warnings, quick fixes (Alt+Enter) and hover in open files; the rest is native, and every
+action is under **Tools → Piwi**:
+
+- **The Piwi tool window** names the connection and holds the [failures view](./editor-failures#the-failures-view),
+  since the IDE highlights open files only.
+- **Code Vision** shows the lines above files, locators and failing lines; each test's result is in the gutter, and a
+  click on its icon opens the test in the dashboard.
+- **The status bar** shows the latest run, or the run in progress, of the selected file's Playwright config, with an
+  icon for its state and the error color while its tests fail; a click opens a menu of the actions, led by what the
+  item calls for: [the status bar](./editor-runs#the-status-bar).
+- **The editor's context menu** of a spec holds **Run the Test at the Caret**, **Verify the Test at the Caret ×3** and
+  **Run This Spec**.
+- **[Recording](./editor-recording)** starts from **Record Here**, Alt+Enter or Alt+Insert, and **File → New → Record
+  a New Test File…**; its controls are in a banner above the editor.
+- **The severity of a failure**: **Settings → Tools → Piwi → Runs** chooses it
+  ([CI failures in the Problems panel](./editor-failures#ci-failures-in-the-problems-panel)); an information shows as a
+  weak warning.
+- **[Open in IDE](./ide-integration#jetbrains-ides-the-piwi-plugin)**: a path clicked in the dashboard or the desktop
+  app opens at its line, with nothing to set up.
+
+The shortcuts are those of VS Code ([Commands](./editors#commands)); **Settings → Keymap** changes them (search
+`Piwi`).
+
+## Related
+
+- [Editor extensions](./editors): what the editor shows from your suite, in both editors.
+- [Editor connection](./editor-connection): the instance the plugin reads, and its key.
+- [Open in IDE](./ide-integration): open a path from the dashboard in the IDE.
+
+<!-- https://piwitests.dev/features/editor-failures -->
+
+# Failures in the editor
+
+The [editor extensions](./editors) show the failures of the latest CI run at the lines that failed, lay your local runs
+over them, and follow each failing line through your edits until a run covers its test again.
 
 <figure>
   <img src="/screenshots/vscode-failures.png" alt="VS Code: the failing tests marked in a spec, and the Failures view below">
   <figcaption>The failing tests in the spec, and the Failures view with the run you made since.</figcaption>
 </figure>
 
-## Run tests
+## CI failures in the Problems panel
 
-- The lines above a locator line, an application file or a page file (CodeLens in VS Code, Code Vision in a JetBrains
-  IDE) run the tests they name when clicked; those of a server file record its
-  [coverage](./editor-coverage#refresh-the-marks-with-a-local-run).
-- **Piwi: Run the tests that reach this file** runs every test reaching the active file through
-  [code reach](/features/code-reach); also in the editor's context menu.
-- **Piwi: Run selection…** runs a saved [selection](/features/test-selection).
+The failures of the latest complete [CI run](/reference/test-metadata#run-origin) on the checked-out branch, else the
+default branch, are in the Problems panel, at the line that failed: the call in the error's stack when that file
+is in your workspace (often a page object), else the `test(…)` line, with the failure's headline. In the spec, the
+line a failing test failed at (the line that calls the page object, when it failed in one) is tinted darker, with the
+reason, **Run this test**, **Screenshot** and **Trace** above it.
 
-The command, `npx playwright test` with the arguments `piwi run` would pass, runs from the Playwright config's
-folder: in a terminal in VS Code, in the Run tool window in a JetBrains IDE (**Rerun** starts it again), or in the
-IDE's Playwright runner (test tree, Debug, **Rerun Failed Tests**), a choice of **Settings → Tools → Piwi**. It sets `PIWI_ORIGIN=editor` and its own `PIWI_ORIGIN_REF` ([run origin](/reference/test-metadata#run-origin)),
-by which the editor finds its run. Breakpoints pause it in the browser, with Piwi's picker one click away:
-[Breakpoints in the browser](./editor-breakpoints).
+On a failure, the quick fixes are:
+
+- **Heal: use …** makes the edit an [auto-heal pull request](/features/auto-heal) would, when
+  [locator healing](/features/locator-healing) has a recommendation for the failing locator.
+- **Run this test** runs the failing test; it comes first once you rewrote the line it failed at.
+- **Open the trace** opens it in `npx playwright show-trace`.
+- **Reproduce in the desktop app**, **Find the breaking commit in the desktop app** and **Run Flake Lab on its
+  untested suspects in the desktop app**, for a test with an untested [flake suspect](./flake-lab), while the
+  [desktop app](/features/desktop#jobs-from-your-editor) runs; **Share on …** records the result.
+- **Apply the fix plan, then run its verification**, when the failure's [cluster](/features/failure-clusters) has a
+  [fix plan](/features/fix-plans) whose patch applies to your files: the edit is previewed, then the plan's verify
+  command runs in a terminal.
+- **Copy context for agent** copies the failure, its healing and fix plan.
+- **Open the failure in the dashboard** opens the execution page, with its [evidence](/features/evidence).
+
+Hover for the error message, its call chain, the failure screenshot, and the tickets linked to its cluster or
+test. Without one, **File an issue** opens the cluster in the dashboard.
+
+A failure of a run on the checked-out branch is an error; one from another branch, such as the default branch's while
+yours has no run yet, is a warning; one whose line you changed since the run is an information (a weak warning in a
+JetBrains IDE). The `piwi.failureSeverity` setting (**Settings → Tools → Piwi → Runs** in a JetBrains IDE) chooses
+`warning` or `information` in place of the error, or `off`: nothing in the Problems panel, while the failures view,
+the gutter and the lines above the tests still show the failures.
 
 ## Your local runs
 
 A later finished run on the branch, from the editor, `piwi run`, `npx playwright test` or the desktop app, overlays the
 latest CI run per test and Playwright project: a test it fixed leaves the Problems panel, its lens saying *fixed
 locally in run #124*; a test failing in it is an error labeled *local run #124*, or *your run #124* when this editor
-started it.
-
-## After a run
-
-The editor listens to the instance's event stream: within a second of a run of the project ending, it reads the
-branch's latest run and its failures again, and every five minutes with the stream, every minute without.
-
-A run started from the editor is its own wherever it runs: the status bar follows it as it runs, and its failures
-read *your run #124* once it ends. When the command ends and no run on the instance carries its ref, the editor says
-so: `The run ended (exit code 1) but did not reach https://piwi.example.com: is the Piwi reporter in the Playwright
-config?` VS Code learns a command ended through shell integration (1.93 and later), and gives each run a terminal
-of its own; without it, a folder's runs share one terminal, and a run that never arrived goes unmentioned.
-
-## When your run ends
-
-Once a run you started from the editor ends and the editor has read it, a notification (a balloon in a JetBrains IDE)
-says what it changed: `Piwi: run #124 · 1 of 3 CI failures fixed, 2 still failing (login.spec.ts › logs in,
-checkout.spec.ts › pays)`, then the tests it failed that were not failing before. It offers **Open the failures**,
-**Open in dashboard** and, when something fails, **Re-run failing**. The `piwi.runNotifications` setting (**Settings →
-Tools → Piwi** in a JetBrains IDE) shows it always, only when something fails, or never.
-
-While the run executes, the gutter shows each test as running, then its result.
+started it. The editor reads a run within a second of its end: [After a run](./editor-runs#after-a-run).
 
 ## Failures follow your edits
 
@@ -9316,7 +9333,7 @@ A run reports the line a test failed at in the files it ran. The editor reads th
 follows each failing line through your changes, saved or not:
 
 - Add or remove lines above a failing line, and its error moves with it, in the Problems panel, the lines above the
-  test and the Piwi tool window.
+  test and the failures view.
 - Rewrite the failing line, and the error turns into an information marker, *Edited since run #120: …*: the run said
   nothing about the new line. **Run this test** comes first among its quick fixes, and the reason above the line reads
   *✎ edited since run #120*. The test keeps its failing mark until a run says otherwise.
@@ -9341,16 +9358,22 @@ the progress of the run you started (`running 4/9`). Under it:
 - A failure shows its title, where it failed (`tests/login.spec.ts:42 · chromium · new`), and an icon for failing,
   edited since the run, or fixed locally, with the headline and its run (`your run #124`, `edited since run #120`).
 
+In a workspace with several Playwright configs, each config with a run, your runs or failures has a node of its own,
+named by its folder (`apps/admin`), with its project and counts beside it (`Admin · 2 failing`). Its run and failures
+are under it, as above, or its run alone when it fails nothing. Its row in VS Code, and its context menu in both
+editors, re-run that config's failing tests (**Re-run the failing tests**) and open its run in the dashboard; the
+context menu adds **Compare with…** for that config. With one config, the run is the first node.
+
 Click a failure (double-click, Enter or **Next Occurrence** in a JetBrains IDE) to open its line. **Run this test**,
 **Open the trace** and **Open in dashboard** sit on its row in VS Code; the context menu adds **Open the screenshot**,
 **Copy context for agent**, and, on a CI failure while the [desktop app](/features/desktop#jobs-from-your-editor) runs,
 **Reproduce in the desktop app** and **Find the breaking commit in the desktop app**. **Heal** stays a quick fix on the
 line.
 
-The title bar, or the toolbar, holds Refresh, **Re-run the failing tests**, **Open the run in the dashboard**,
-**Compare with…** and the grouping. In VS Code, **Follow the active editor** selects the first failure of the file you
-switch to, and the badge counts the failing tests, as the tool window's title does. The tree is read again when a run
-ends or an edit moves a failure. The Problems panel keeps its errors.
+The title bar, or the toolbar, holds Refresh, **Re-run the failing tests** (every config's), **Open the run in the
+dashboard** (the run the status bar shows), **Compare with…** (for the active file's config) and the grouping. In VS
+Code, **Follow the active editor** selects the first failure of the file you switch to, and the badge counts the
+failing tests, as the tool window's title does. The tree is read again when a run ends or an edit moves a failure.
 
 ## Compare with another run
 
@@ -9361,11 +9384,77 @@ machine, the desktop app or an editor, without CI. Your runs since are laid over
 failures view name it (`Baseline: CI run #120 on feature/x`), ending with `(no run)` when it found none. The choice is
 kept on this machine, per Playwright config.
 
+## Related
+
+- [Editor extensions](./editors): what else the editor shows from your suite.
+- [Runs from the editor](./editor-runs): run the failing tests again, and follow the run in the status bar.
+- [Locator healing](/features/locator-healing): where the heal quick fix comes from.
+
+<!-- https://piwitests.dev/features/editor-runs -->
+
+# Runs from the editor
+
+The [editor extensions](./editors) run your tests where you edit them, then show what the run changed: its progress
+in the status bar while it executes, and its results over the latest CI run's [failures](./editor-failures) within a
+second of its end.
+
+## Run tests
+
+- The lines above a locator line, an application file or a page file (CodeLens in VS Code, Code Vision in a JetBrains
+  IDE) run the tests they name when clicked; those of a server file record its
+  [coverage](./editor-coverage#refresh-the-marks-with-a-local-run).
+- **Piwi: Run the test at the cursor** (`Ctrl+Shift+Alt+K`, `Cmd+Shift+Alt+K` on macOS) runs the test whose
+  `test(…)` call holds the cursor, and **Piwi: Run this spec** the spec's tests Piwi knows; both in the editor's
+  context menu of a spec (**Run the Test at the Caret** and **Run This Spec** in a JetBrains IDE). In VS Code, **Run**
+  in the hover of a test's gutter icon runs that test. A test the instance does not know yet, such as one you just
+  [recorded](./editor-recording#run-it-or-verify-it-three-times), runs by the line of its `test(…)` call
+  (`npx playwright test tests/checkout.spec.ts:42`), with or without an instance. Both save the spec first.
+- **Piwi: Verify the test at the cursor ×3** (**Verify the Test at the Caret ×3**) runs that test three times, without
+  retries and without the breakpoints (`--repeat-each=3 --retries=0`), and says how many of the runs passed:
+  [When your run ends](#when-your-run-ends).
+- **Piwi: Run the tests that reach this file** runs every test reaching the active file through
+  [code reach](/features/code-reach); also in the editor's context menu.
+- **Piwi: Run selection…** runs a saved [selection](/features/test-selection).
+
+The command, `npx playwright test` with the arguments `piwi run` would pass, runs from the Playwright config's
+folder: as a task in VS Code, in a terminal of its own (**Tasks: Rerun Last Task** starts it again), in the Run tool
+window in a JetBrains IDE (**Rerun** starts it again), or in the IDE's Playwright runner (test tree, Debug, **Rerun
+Failed Tests**), a choice of **Settings → Tools → Piwi**. It sets `PIWI_ORIGIN=editor` and its own `PIWI_ORIGIN_REF`
+([run origin](/reference/test-metadata#run-origin)), by which the editor finds its run. Breakpoints pause it in the
+browser, with Piwi's picker one click away: [Breakpoints in the browser](./editor-breakpoints).
+
 ## Re-run the failing tests
 
-**Piwi: Re-run the failing tests** (**Tools → Piwi → Re-run the Failing Tests**) runs every test still failing, or
-edited since its run, one command per Playwright config; when none fails, it says so. **Run this test** also sits above the reason line of
-a failing test, beside **Screenshot** and **Trace**.
+**Piwi: Re-run the failing tests** (`Ctrl+Shift+Alt+F`, `Cmd+Shift+Alt+F` on macOS; **Tools → Piwi → Re-run the
+Failing Tests**) runs every test still failing, or edited since its run, one command per Playwright config, or those
+of one config from its node in the [failures view](./editor-failures#the-failures-view); when none fails, it says so.
+
+## After a run
+
+The editor listens to the instance's event stream: within a second of a run of the project ending, it reads the
+branch's latest run and its failures again, and every five minutes with the stream, every minute without. A checkout
+or a commit is noticed within seconds: the editor reads the branch's latest run again, and compares your application
+files with the new `HEAD`.
+
+A run started from the editor is its own wherever it runs: the status bar follows it, the gutter shows each test as
+running, then its result, and its failures read *your run #124* once it ends. When the command ends and no run on the
+instance carries its ref, the editor says so: `The run ended (exit code 1) but did not reach
+https://piwi.example.com: is the Piwi reporter in the Playwright config?` The editor learns the command's end and its
+exit code from the process it started, in every shell, a rerun included.
+
+## When your run ends
+
+Once a run you started from the editor ends and the editor has read it, a notification (a balloon in a JetBrains IDE)
+says what it changed: `Piwi: run #124 · 1 of 3 CI failures fixed, 2 still failing (login.spec.ts › logs in,
+checkout.spec.ts › pays)`, then the tests it failed that were not failing before. It offers **Open the failures**,
+**Open in dashboard** and, when something fails, **Re-run failing**. The `piwi.runNotifications` setting (**Settings →
+Tools → Piwi** in a JetBrains IDE) shows it always, only when something fails, or never.
+
+A verification (**Verify ×3**) says how many of its runs passed instead, whatever the setting: `Piwi: run #124 ·
+Passed 3 of 3`, or `Failed 1 of 3`. Each run is a result of its own on the instance, and the editor counts them from
+the results the run streams as it executes; when it missed some, a failing verification says `Failed at least 1 of 3`.
+When its run never reached an instance, the exit code says it: `Passed 3 of 3: tests/checkout.spec.ts:42`, or
+`Failed at least 1 of 3: tests/checkout.spec.ts:42 (exit code 1)`.
 
 ## The status bar
 
@@ -9373,16 +9462,27 @@ The latest complete run on the branch: how many tests passed, failed and were fl
 local runs fixed (`2 failing · 1 fixed locally`). While a run started from this editor, or another run of the branch,
 is in progress, the item counts it instead (`4/9 · 1 failing · your run`) and returns to the latest run when it ends.
 
-Click it to read the latest run and its failures again (**Piwi: Refresh the latest run**), without the indexes **Piwi:
-Refresh** fetches. The tooltip holds the run's counts, the baseline, your local runs since, the run in progress, and
-when the run was read (`Updated 12 s ago · live` while the event stream is connected, `· read every minute` without it).
-In VS Code it ends with **Open run #120**, **Open in dashboard**, **Compare with…** and **Connect**; in a JetBrains IDE,
-**Tools → Piwi → Open the Latest Run in the Dashboard**, also in the Piwi tool window's toolbar, opens the run. When the
-extension is not connected, the item says why, and a click runs **Piwi: Connect**, or retries an
-[unreachable instance](./editor-connection#an-unreachable-instance).
+With several Playwright configs, the item speaks for the config of the file you are editing, the deepest config folder
+that holds it, and follows you from file to file; outside every config folder, it shows the first connected config.
+Its tooltip names the config (`The active file's Playwright config, in apps/admin (one of 3)`), then holds the run's
+counts, the baseline, your local runs since, the run in progress, and when the run was read (`Updated 12 s ago · live`
+while the event stream is connected, `· read every minute` without it).
+
+In VS Code, a click reads the latest run and its failures again (**Piwi: Refresh the latest run**), without the
+indexes **Piwi: Refresh** fetches, and the tooltip ends with **Open run #120**, **Open in dashboard**, **Compare
+with…** and **Connect**. When the extension is not connected, the item says why, and a click runs **Piwi: Connect**,
+or retries an [unreachable instance](./editor-connection#an-unreachable-instance).
+
+In a JetBrains IDE, an icon before the text shows the state of the run the item counts (running, failing, passed) or
+of the connection, and the text takes the theme's error color while tests of that run fail, a run in progress
+included. A click opens a menu of the **Tools → Piwi** actions that apply, led by what the item calls for: **Read the
+Latest Run Again**, **Refresh** for an unreachable instance, **Connect…** while not connected, **Node.js Settings…**
+when Node.js is missing or too old, or **Go to the Recorded Lines** while a recording runs, with **Pause Recording**,
+**Resume Recording** and **Stop Recording**.
 
 ## Related
 
+- [Failures in the editor](./editor-failures): the failures a run leaves, at their lines and in the failures view.
 - [Editor extensions](./editors): what the editor shows from your suite.
 - [Editor connection](./editor-connection): the instance the editor reads, and its key.
 - [Test selection](/features/test-selection): the saved selections **Run selection…** runs.
@@ -9445,7 +9545,7 @@ The marks come from, in order:
 3. **The version the most tests recorded that your repository holds** (`git cat-file`).
 
 From the second and the third, the lines are placed on your file through the diff between the two, as
-[failures follow your edits](./editor-runs#failures-follow-your-edits): a line moved by the edits above it keeps its
+[failures follow your edits](./editor-failures#failures-follow-your-edits): a line moved by the edits above it keeps its
 mark on its new line; a line the diff adds or rewrites is marked changed since the coverage run, not guessed; a line it
 removes loses its mark. Blank lines are never marked changed.
 
@@ -9593,7 +9693,7 @@ With the setting off, a run started from Piwi ignores the editor's breakpoints.
 **Piwi: Record here** opens a browser through your project's own Playwright and writes what you do there at the cursor,
 as you do it: steps inside a test, a page object's method or a helper function, a new test anywhere else in a spec. It
 works in VS Code (and Cursor, VSCodium) and in the JetBrains IDEs with the
-[Piwi plugin](./editors#jetbrains-ides), and needs no instance, no desktop app and no browser extension.
+[Piwi plugin](./jetbrains), and needs no instance, no desktop app and no browser extension.
 
 ## Start a recording
 
@@ -9606,7 +9706,8 @@ Before the browser opens, the editor asks for:
 
 1. **The start page**: a path on the project's `baseURL`, or an address; left empty, the browser opens the `baseURL`.
 2. **The page the steps run on**, when the code around the cursor offers several: `page`, a fixture such as
-   `adminPage`, or `this.page` in a page object. Any other expression can be typed.
+   `adminPage`, or `this.page` in a page object. A fixture named like a page object (`todoPage`) comes after `page`
+   until the test calls a page method on it. Any other expression can be typed.
 3. **The Playwright project**, when the config has several. The browser gets its `use` options: `baseURL`,
    `storageState`, the viewport and device, the locale, the extra headers and `testIdAttribute`.
 
@@ -9616,8 +9717,8 @@ writes a whole spec into it.
 ## While it records
 
 - **The block** the recording writes is tinted, and written again as each step arrives: a run of steps becomes one call
-  to your own page object or helper once its last step is recorded, and the import that call needs is added at the top
-  of the file.
+  to your own page object or helper once its last step is recorded. Started on a line inside a call that spans several
+  lines, the block goes after that statement.
 - **The controls**: the step count, **Stop** and **Pause** (**Resume** while paused), above the block in VS Code and in
   a banner above the editor in a JetBrains IDE, and **Pause**, **Stop** and the checks in the browser's recording bar. The status
   bar shows the recording too. While paused, from the editor or the browser, what you do in the browser is not
@@ -9628,7 +9729,10 @@ writes a whole spec into it.
 - **Typing in the block** pauses the recording. **Resume** writes the block again from the recorded steps, over your
   edits; **Keep my edits** stops the recording and keeps the code as you changed it.
 - **Warnings** (a brittle locator, a password read from the environment, a file to upload) are on their lines. They stay
-  after the recording, until the code they describe is edited.
+  after the recording, each until its line is edited.
+
+What the code holds, from locators to imports, and the options in the Playwright config that shape it:
+[Recorded code](./recorded-code).
 
 ## Stop and undo
 
@@ -9637,7 +9741,78 @@ Closing the file ends it too. One **Undo** then removes the whole recording, imp
 edit of the file during the recording starts a new undo step, so your own changes stay undoable on their own; in a
 JetBrains IDE, that Undo also takes back the edits you made in the file meanwhile, and Redo brings everything back.
 
-## The code
+### Run it, or verify it three times
+
+Once the recording stopped, a notification says what it wrote, `Recorded 6 steps into checkout.spec.ts.`, with two
+actions for the test that holds the block, the new test or the test you recorded steps into:
+
+- **Run** runs that test, with your breakpoints, as **Piwi: Run the test at the cursor** does.
+- **Verify ×3** runs it three times, without retries and without the breakpoints, as **Piwi: Verify the test at the
+  cursor ×3** does, and says how it went: `Passed 3 of 3`, or `Failed 1 of 3` with **Open the failures** and **Open
+  in dashboard**.
+
+Both save the file, then run the test by the line of its `test(…)` call
+(`npx playwright test tests/checkout.spec.ts:42`), so neither needs an instance:
+[When your run ends](./editor-runs#when-your-run-ends) says how a run without one is counted. Steps recorded into a
+page object or a helper offer neither action: no test holds them.
+
+### Choose another locator
+
+The recorder keeps up to five locators for each element it acts on, each verified to find that element alone on the
+page, and writes the best one. Once the recording stopped, a warning on a step that has other locators offers each of
+them as a quick fix, best first: **Use getByTestId('pay')** in the light bulb menu in VS Code, with **Alt+Enter** in a
+JetBrains IDE. It puts that locator in place of the one written on the line, as one edit that **Undo** takes back, and
+the line's warning goes. While the recording runs, none is offered: each step writes the block again.
+
+The quick fix replaces the locator only where the line holds it once, as it was written: a line that calls your own
+page object or helper has none of its own, and offers none.
+
+## Send from Piwi Picker
+
+A locator picked with the [Piwi Picker](./extension) browser extension in your everyday browser, or a flow it
+recorded, lands at the editor's cursor too:
+
+1. In the editor, run **Piwi: Pair with Piwi Picker** (**Tools → Piwi → Pair with Piwi Picker** in a JetBrains IDE).
+   It copies a pairing address, `http://127.0.0.1:<port>/…#<token>`.
+2. In Piwi Picker's settings, paste it under **Send to editor** and click **Pair**; the browser asks once for access to
+   that local address.
+3. A picked locator's row, the top locator of the [Elements sidebar](./devtools#the-elements-sidebar), the
+   [Locators console](./devtools#the-piwi-panel) in DevTools and the recording review then show **Send to editor**. A
+   locator is inserted in the copy form you chose; a recording is rendered as the body of a test, like
+   [`piwi codegen --body`](/reference/cli#codegen).
+
+The editor listens on the loopback interface only, and accepts a request only with the token. With several VS Code
+windows open, the one that paired receives. With no editor open, a JetBrains IDE puts it in a new scratch file. In a remote window (Remote SSH, WSL, Dev Containers), the pairing address
+is the local end of a port VS Code forwards to the listener, listed in the Ports view, so Piwi Picker in your browser
+reaches it from your machine.
+
+## Limits
+
+- The browser is the one your tests use, installed by Playwright (`npx playwright install chromium`).
+- Your project's Playwright runs with the first `node` on the editor's `PATH` in VS Code (when it is Node 20 or later,
+  else with the editor's own runtime), and with the project's Node.js interpreter in a JetBrains IDE.
+- The recording does not start your `webServer`: start the application first.
+- It records the top-level page: clicks inside an iframe, and steps in a popup or a new tab, are not recorded yet. The
+  editor says so when the application opens a tab or a popup.
+- A file takes one recording at a time.
+
+## Related
+
+- [Recorded code](./recorded-code): what a recording writes, and the options that shape it.
+- [Editor extensions](./editors): everything else the editor shows from your suite.
+- [Piwi Picker](./extension): records in your everyday browser, for a bug report or a steps file.
+- [Test functions](./test-functions): the page objects and helpers a recording calls.
+
+<!-- https://piwitests.dev/features/recorded-code -->
+
+# Recorded code
+
+A [recording from the editor](./editor-recording), and a flow [sent from Piwi Picker](./editor-recording#send-from-piwi-picker),
+are written as the code your suite would hold: locators verified on the page, calls to your own page objects and
+helpers, no password in the file. The Playwright config sets how that code looks for everyone who records in the
+repository.
+
+## What a recording writes
 
 - **Locators** come from the same converter as Piwi Picker's recordings and [`piwi codegen`](/reference/cli#codegen):
   each is verified to find the element alone on the page, the stable ones first and those your tests already use
@@ -9645,9 +9820,10 @@ JetBrains IDE, that Undo also takes back the edits you made in the file meanwhil
 - **Pages**: an address on the project's `baseURL` is written as a path, and the step that leads to another page is
   followed by a wait for it, except next to a call to your own code, which waits for its pages itself.
 - **Imports**: a call to your own code, and `expect` when a step checks something, are imported at the top of the file
-  when it lacks them.
+  when it lacks them: `expect` from `@playwright/test`, or from your fixtures module when the file or a spec beside it
+  imports `expect` from there. A spec that loads `test` with `require` gets `require` lines after its last one.
 - **Your own code**: when the editor is connected to an instance or the [desktop app](./desktop), steps that match one
-  of your [test functions](./test-functions) become a call to it.
+  of your [test functions](./test-functions) become a call to it, as soon as the last of those steps is recorded.
 - **Passwords** are never recorded: the code reads them from an environment variable named after the field, such as
   `process.env.E2E_PASSWORD`, including in a call to a page object.
 
@@ -9682,40 +9858,15 @@ export default defineConfig({
 | `tags` | none | Tags a new test gets |
 | `annotations` | none | Annotations a new test gets, `{ type, description? }` |
 
-The editor reads the section through your project's own Playwright, which hands the top-level keys starting with `@`
-to reporters as they are written, so it applies to the recordings started after the config is saved. **Send to
-editor** from Piwi Picker follows it too. An unknown option or a value of the wrong kind is left out, and the recording
-says so when it starts.
-
-## Send from Piwi Picker
-
-A locator picked with the [Piwi Picker](./extension) browser extension in your everyday browser, or a flow it
-recorded, lands at the editor's cursor too:
-
-1. In the editor, run **Piwi: Pair with Piwi Picker** (**Tools → Piwi → Pair with Piwi Picker** in a JetBrains IDE).
-   It copies a pairing address, `http://127.0.0.1:<port>/…#<token>`.
-2. In Piwi Picker's settings, paste it under **Send to editor** and click **Pair**; the browser asks once for access to
-   that local address.
-3. A picked locator's row, the top locator of the [Elements sidebar](./devtools#the-elements-sidebar), the
-   [Locators console](./devtools#the-piwi-panel) in DevTools and the recording review then show **Send to editor**. A
-   locator is inserted in the copy form you chose; a recording is rendered as the body of a test, like
-   [`piwi codegen --body`](/reference/cli#codegen).
-
-The editor listens on the loopback interface only, and accepts a request only with the token. With several VS Code
-windows open, the one that paired receives.
-
-## Limits
-
-- The browser is the one your tests use, installed by Playwright (`npx playwright install chromium`).
-- The recording does not start your `webServer`: start the application first.
-- It records the top-level page: clicks inside an iframe, and steps in a popup or a new tab, are not recorded yet.
-- A file takes one recording at a time.
+The editor reads the section through your project's own Playwright, so it applies to the recordings started after the
+config is saved, and to what Piwi Picker sends to the editor. An unknown option or a value of the wrong kind is left
+out, and the recording says so when it starts.
 
 ## Related
 
-- [Editor extensions](./editors): everything else the editor shows from your suite.
-- [Piwi Picker](./extension): records in your everyday browser, for a bug report or a steps file.
+- [Record tests from the editor](./editor-recording): start a recording, and what happens while it runs.
 - [Test functions](./test-functions): the page objects and helpers a recording calls.
+- [Piwi Picker](./extension): records in your everyday browser, for a bug report or a steps file.
 
 <!-- https://piwitests.dev/features/editor-connection -->
 
@@ -9740,6 +9891,9 @@ The desktop app needs no pairing with the editor: while it runs, it publishes it
 `~/.piwi/desktop.json`, which the editor reads, as the reporter does. The editor notices within seconds when the app
 starts or quits. With nothing else naming an instance, the editor uses the app as soon as it runs.
 
+The app is looked for on the machine the extension runs on: in a remote window of VS Code (Remote SSH, WSL, Dev
+Containers), that is the remote machine, and `localhost` in `piwi.serverUrl` names it too.
+
 ### Beside a shared instance
 
 When the environment, a `.env` or Connect names your team's instance, the desktop app sits beside it rather than
@@ -9758,7 +9912,8 @@ switch once per workspace.
 With the app chosen, the project is the one picked with Connect, else the one whose **linked folder** holds the
 workspace's Playwright config (link the folder on the project's page in the desktop app), else `PIWI_PROJECT_NAME`.
 When the app is used because nothing else names an instance, `PIWI_PROJECT_NAME` comes first, since the reporter
-sends its runs there under that name too.
+sends its runs there under that name too. Several Playwright configs of one repository reading the same project share
+what the editor reads from it: the instance answers each read once.
 
 ## Connect
 
@@ -9799,6 +9954,21 @@ instance is in use, or was chosen and is not running. In a JetBrains IDE, **Sett
 tool window say the same, or why the editor is not connected. The plugin starts its service when you
 open a file of a project that holds a Playwright config; until then, both say so, and Connect still finds the desktop
 app.
+
+## Behind a proxy
+
+In VS Code, the editor service reaches the instance through the editor's own proxy settings: `http.proxy`, with
+`http.proxyAuthorization` when it is a `Basic` credential, `http.noProxy`, and `http.proxyStrictSSL`, which turned
+off leaves every certificate unverified. An instance on your machine (`localhost`, `127.0.0.1`), and the desktop
+app, are reached directly. With `http.proxy` empty, the `HTTPS_PROXY`, `HTTP_PROXY` and `NO_PROXY`
+variables of the environment VS Code was started with apply, as they do to the editor. A change of these settings
+starts the service again. An instance whose certificate a private certificate authority signed needs that authority
+in `NODE_EXTRA_CA_CERTS` in the environment VS Code was started with: the extension passes the environment through
+to the service.
+
+In a JetBrains IDE, the service gets the HTTP proxy of **Settings → Appearance & Behavior → System Settings → HTTP
+Proxy** for the instance the project names, and reaches this machine's addresses directly. A private certificate
+authority goes in `NODE_EXTRA_CA_CERTS` in the environment the IDE was started with.
 
 ## An unreachable instance
 
