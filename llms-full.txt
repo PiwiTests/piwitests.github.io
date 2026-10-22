@@ -4525,10 +4525,10 @@ With `pickLocatorOnFailure: true` (or `PIWI_PICK_LOCATOR_ON_FAIL=true`), a test 
 (`.click()`, `.fill()`) or an assertion (`expect(locator).toBeVisible()`), gets the same overlay aimed at the locator
 that broke:
 
-1. **Pick the element.** The pick snaps to the nearest actionable ancestor, and <kbd>↑</kbd>/<kbd>↓</kbd> walk the DOM
-   tree before you click, showing the locator each step would produce.
-2. **Choose stable parents (optional).** The element's ancestors are listed with their strongest hook (`data-testid`,
-   `#id`, labeled landmark, role); selecting one scopes the locator to it, with a live **"matches N"** count.
+1. **Pick the element.** The pick snaps to the nearest actionable ancestor; <kbd>↑</kbd>/<kbd>↓</kbd> walk the DOM
+   tree, showing each step's locator, and <kbd>Enter</kbd> picks the highlighted element, else the focused one.
+2. **Choose stable parents (optional).** The ancestors are listed with their strongest hook (`data-testid`, `#id`,
+   labeled landmark, role); one selected scopes the locator, with a live **"matches N"** count.
 3. **Confirm** one of the ranked candidates.
 
 ```bash
@@ -7826,11 +7826,6 @@ are looking at, scored by the same engine the dashboard uses, and records a mult
 spec. It works standalone and sends nothing by default; connecting it to a Piwi instance adds what needs your
 project's history.
 
-<figure>
-  <img src="/screenshots/picker-pick.png" alt="The ranked locators of a Checkout button, the unique one first">
-  <figcaption>Pick an element: the locator that finds exactly one element comes first.</figcaption>
-</figure>
-
 ## What it does
 
 Every tool below runs on the live page, from the toolbar popup. The last three need a
@@ -7838,15 +7833,15 @@ Every tool below runs on the live page, from the toolbar popup. The last three n
 
 | Tool | For |
 |---|---|
-| [Pick an element](#pick-an-element) | a ranked locator for one element, re-checked against the page |
-| [Multi-pick](#multi-pick) | the shared pattern of a list's rows or cards |
-| [Lint overlay](#lint-overlay) | the elements that would make bad locator targets |
-| [Assertion suggester](#assertion-suggester) | `expect(...)` lines for an element |
-| [Copy context for agent](#copy-context-for-agent) | one block about an element for a coding agent |
-| [Record actions](#record-actions) | a runnable spec from clicks and fills across pages |
+| [Pick an element](./pick-an-element) | a ranked locator for one element, re-checked against the page |
+| [Multi-pick](./pick-an-element#multi-pick) | the shared pattern of a list's rows or cards |
+| [Lint overlay](./lint-overlay) | the elements that would make bad locator targets |
+| [Assertion suggester](./pick-an-element#assertion-suggester) | `expect(...)` lines for an element |
+| [Copy context for agent](./pick-an-element#copy-context-for-agent) | one block about an element for a coding agent |
+| [Record actions](./record-actions) | a runnable spec from clicks and fills across pages |
 | [Report a bug](./report-a-bug) | a failing test and a report of a bug you reproduce |
 | [Developer tools](./devtools) | in DevTools: the selected element's locators, the locator console, the session, mocks, viewports |
-| [Matching functions](#matching-functions) | a recording that calls your own functions |
+| [Matching functions](./record-actions#matching-functions) | a recording that calls your own functions |
 | [Test functions](#test-functions-against-this-page) | which of your functions work on this page |
 | [Tested elements](#tested-elements) | which elements of this page your tests reach |
 
@@ -7858,9 +7853,9 @@ Chrome or Edge 118 or later (in Edge, click **Allow** on the *Allow extensions f
 **Get**), or from **[Firefox Add-ons ↗](https://addons.mozilla.org/firefox/addon/piwi-picker/)** for Firefox 140 or
 later.
 
-Every tool in the popup has a key on its tile (`1` records, `2` picks, `B` reports a bug). One tool runs at a time and
-**Esc** cancels it; recording runs until its own **Stop**. The tools that need no pick on the page are in the browser's
-DevTools: [Developer tools](./devtools).
+Every tool in the popup has a tile with a line under its name saying what it is for, and a key (`1` records, `2`
+picks, `B` reports a bug). One tool runs at a time and **Esc** cancels it; recording runs until its own **Stop**. The
+tools that need no pick on the page are in the browser's DevTools: [Developer tools](./devtools).
 
 <figure>
   <img src="/screenshots/picker-popup.png" alt="The Piwi Picker popup over a shop page, one tile per tool">
@@ -7869,66 +7864,6 @@ DevTools: [Developer tools](./devtools).
 
 Picking also has a shortcut, `Ctrl+Shift+E` by default (`Cmd+Shift+E` on macOS); the popup footer shows the key
 bound.
-
-## Pick an element
-
-Hover highlights, a click picks. The pick snaps to the nearest actionable ancestor (the text inside a button picks
-the button), and ↑/↓ walk the DOM tree, showing the locator each step would produce. For an element with a role, an
-**anchors** step offers stable parents to scope the locator to, with a live match count.
-
-Every candidate uses the names Playwright computes (a tab with a count badge is `{ name: 'Regressions 5' }`), is
-scored as the dashboard scores locators, and run against the page. Those that find only the picked element come
-first; one that also finds others is offered narrowed (exact, filtered by its text, or scoped to
-its landmark, dialog or row) and, failing that, with `.first()` or `.nth()` and a warning.
-
-Copy the result as the bare locator, an action line or a visibility assertion; **Copy all** copies every ranked
-locator for a project's [Locators page](./locator-usage#the-locators-page).
-
-## Multi-pick
-
-Pick two or three similar items (rows, cards) to get the pattern they share, such as
-`getByRole('row').filter({ hasText: … })`. It warns when only `.nth()` could tell them apart.
-
-## Lint overlay
-
-One click outlines every interactive element no stable locator finds alone, with a suggested `data-testid` for each
-and a Markdown checklist.
-
-<figure>
-  <img src="/screenshots/picker-lint.png" alt="Four Add to cart buttons outlined, each with a suggested data-testid">
-  <figcaption>Lint overlay: four buttons share a name; each gets a test id to add.</figcaption>
-</figure>
-
-## Assertion suggester
-
-Pick an element to get the `expect(...)` candidates that apply to it (`toHaveValue`, `toHaveText`,
-`toHaveAccessibleName`, `toBeVisible`), built on its top-ranked locator.
-
-## Copy context for agent
-
-Pick an element to copy one block for a coding agent: the page URL, the element and every ranked locator.
-
-## Record actions
-
-**Record actions** asks for access to the site you are on, then captures clicks, fills, checks, choices, drags, the
-names of chosen files (never their content), the keys that submit, close or move through a list, and a click on what a
-hover shows, across pages. **Check an element** and **Check the address** add an `expect(…)` of what the page shows
-now. **Stop** opens the review: **Copy as TypeScript** for a runnable spec that waits for each page it opens,
-**Download steps** for a [steps file](/reference/steps-format) to share or render with
-[`piwi codegen`](/reference/cli#codegen), [**Send to editor**](./editor-recording#send-from-piwi-picker), or
-**Discard**. Passwords are never captured, nor a card number, its security code or a one-time code in a field whose
-`autocomplete` names it: the spec reads them from `process.env`.
-
-<figure>
-  <img src="/screenshots/picker-record.png" alt="The review panel after a recording: seven steps, Copy as TypeScript">
-  <figcaption>The review after Stop: every step, the spec one click away.</figcaption>
-</figure>
-
-## Matching functions
-
-With a connection, the recorder loads the [function catalog](./test-functions) of the project mapped to the page and
-ranks, while you record, the functions the steps look like. On export, a complete match becomes a call to your
-function. No AI: it scores your registered functions' DOM patterns.
 
 ## Test functions against this page
 
@@ -7952,11 +7887,19 @@ written in the extension's language; locators, test ids and specs never are.
 | Permission | Why |
 |---|---|
 | `activeTab` | acts on the tab you are looking at, only when you click the toolbar icon or press the shortcut |
-| `debugger` (Chrome and Edge) | trusted input for a [replay](./replay-a-bug-report), a bug report's console, requests and screenshots, and DevTools' [throttling](./devtools#slow-down-or-fail-a-request), attached only while one of them runs, under Chrome's own debugging bar. Without it (Firefox, or **Cancel** there), they use the page's events. Nothing leaves your machine |
+| `debugger` (Chrome and Edge) | trusted input for a [replay](./replay-a-bug-report), a bug report's console, requests and screenshots, and DevTools' [throttling](./mock-requests#slow-down-or-fail-a-request), attached only while one of them runs, under Chrome's own debugging bar. Without it (Firefox, or **Cancel** there), they use the page's events. Nothing leaves your machine |
 | `scripting` | injects the picker or the recorder into that tab on demand, and marks your instance's pages once [connected](./extension-connection#what-is-sent); nothing else runs unasked |
 | `storage` | keeps your copy format and, only if you connect, the instance URL, URL patterns, cached catalogs and the last three [locator indexes](./tested-elements), on your machine. The API key and the desktop app's and editor's tokens live in the extension's own database, out of reach of web pages; the session and a running recording use `chrome.storage.session`, cleared when the browser closes |
 | `cookies` (optional, not granted in advance) | [Save login for tests](./devtools#save-login-for-tests) asks for it, for the one site whose login you save |
-| `optional_host_permissions` (none granted in advance) | recording asks for the one site you are on, to follow you across its pages; a connection asks for your instance's origin. Never `<all_urls>` |
+| `optional_host_permissions` (none granted in advance) | recording asks for the one site you are on, to follow you across its pages; a connection asks for your instance's origin. Never `<all_urls>`. The settings list every site allowed under **Sites Piwi Picker may run on**, each with **Revoke** |
+
+### Sites Piwi Picker may run on
+
+Recording, replaying, Save login and the DevTools pane each ask for the site you are on the first time they need it,
+and the access stays until you take it back. Settings → **Sites Piwi Picker may run on** lists every site allowed
+with a **Revoke** button; Piwi Picker then runs there only when you click its icon. A site a recording or a replay runs
+on keeps its access until it ends, and your instance's address, the desktop app's and the editor's are given back by
+**Disconnect** and **Unpair**.
 
 ## Connecting to a Piwi instance
 
@@ -7970,9 +7913,10 @@ Function catalogs refresh in the background. **A recording is never sent to your
 
 ## Limits
 
-- **One frame at a time.** The picker and the recorder see the top-level document, not iframes. The picker does not
-  reach inside shadow DOM; the recorder records the fields of open shadow roots, and from a closed one only the keys
-  of a password field (Enter, Escape, the arrows).
+- **One frame at a time.** The picker and the recorder see the top-level document, not iframes.
+- **Open shadow roots only.** The picker reaches inside open shadow roots; a closed one is out of reach, and a pick
+  there picks its host element. The recorder records the fields of open shadow roots, and from a closed one only the
+  keys of a password field (Enter, Escape, the arrows).
 - **Recording covers one origin.** On another site it stops capturing: stop and review, or start again there.
 - **No aria-snapshot copier** yet for `toMatchAriaSnapshot()`.
 
@@ -7983,6 +7927,160 @@ Function catalogs refresh in the background. **A recording is never sent to your
 - [Tested elements](./tested-elements): the elements your tests reach, drawn on the page
 - [Test functions catalog](./test-functions): the functions a recording can call
 - [Locator healing](./locator-healing): the replacement Piwi proposes after a failure
+
+<!-- https://piwitests.dev/features/pick-an-element -->
+
+# Pick an element
+
+**Pick an element**, in the [Piwi Picker](./extension) popup or with its shortcut, ranks the Playwright locators of one
+element of the page you are looking at, checks each against the page, and writes what a test needs around it.
+
+<figure>
+  <img src="/screenshots/picker-pick.png" alt="The ranked locators of a Checkout button, the unique one first">
+  <figcaption>Pick an element: the locator that finds exactly one element comes first.</figcaption>
+</figure>
+
+## How a pick works
+
+Hover highlights, a click picks. The pick snaps to the nearest actionable ancestor (the text inside a button picks
+the button), and ↑/↓ walk the DOM tree, showing the locator each step would produce. When a locator that is not
+brittle already finds the element alone, the results open at once, and **Scope to a parent…** in them opens the
+**anchors** step: stable parents to scope the locator to, with a live match count, after which the results show again
+with the scoped locators. When none finds it alone, the anchors step comes first.
+
+**Enter** picks too: the highlighted element when the pointer is on one, otherwise the element that has the keyboard
+focus, so a control reached with Tab is picked without the mouse. **Esc** cancels the pick.
+
+Elements inside a web component's open shadow root are picked like any other: ↑ walks out of the shadow root through
+its host element, and the anchors step lists the host and its parents and counts the matches inside open shadow roots,
+as Playwright's locators do.
+
+Every candidate uses the names Playwright computes (a tab with a count badge is `{ name: 'Regressions 5' }`), is
+scored as the dashboard scores locators, and run against the page. Those that find only the picked element come
+first. One that also finds others is narrowed, trying in order:
+
+- the exact name or text, then the element's own text as a filter;
+- a parent whose test id is unique on the page;
+- the repeated row, list item or card the element sits in, picked by a short text it shows and its siblings do not
+  (a cell, a heading, a visible text before a hidden one), or by its own `aria-label`:
+  `getByTestId('product-card').filter({ hasText: 'Blue mug' }).getByRole('button', { name: 'Add to cart' })`;
+- its landmark, a named dialog or a named row.
+
+Only when none of these finds it alone is it offered with `.first()` or `.nth()`, and a warning.
+
+While the results are open, the picked element stays outlined on the page, and the results move to the other side of
+the page when they would cover it. **Pick another** closes them and starts picking the next element, without going
+back to the popup or the shortcut.
+
+Each locator leads with a word: `stable`, `could break` or `brittle` for one that finds the element alone, by what the
+stability rules say of it, and `unique by position`, `3 matches` or `not checked` otherwise, the words the DevTools
+sidebar uses. Its **Details** give the reasons (`unique · brittle: CSS class`) and the stability score.
+
+Copy the result as the bare locator, an action line or an assertion; **Copy all** copies every ranked locator for a
+project's [Locators page](./locator-usage#the-locators-page). The action is the one the element calls for: `fill` with
+what a field holds (`'value'` for an empty field or a password), `check` for a checkbox or a radio, `selectOption` for
+a select, `click` for anything else. The assertion is the element's first
+[suggestion](#assertion-suggester), and `toHaveCount` for a locator that finds several elements. Each button names
+what it writes, such as **Action (fill)** or **Assertion (toHaveText)**. **Add to session** names a
+locator for the session that the DevTools Piwi panel's Session tab lists and copies as a page object, as the Elements
+sidebar does (see [Developer tools](./devtools)).
+
+## Multi-pick
+
+Pick two or three similar items (rows, cards) to get the pattern they share, such as
+`getByRole('row').filter({ hasText: … })`. Pick the same button in two rows or cards (Delete, Add to cart) and the
+pattern is the button inside the repeated row or card, with how many elements it finds on the page:
+`getByTestId('product-card').getByRole('button', { name: 'Add to cart' })`, then each pick as its card filtered by a
+text only that card shows, such as its heading. It warns when only `.nth()` could tell them apart.
+
+## Assertion suggester
+
+Pick an element to get the `expect(...)` candidates that apply to it, most telling first (`toHaveValue`,
+`toBeChecked`, `toContainText` with the start of a long text, `toHaveText`, `toHaveAccessibleName`, `toBeVisible`),
+built on its top-ranked locator. `toHaveAccessibleName` is offered only for an
+element that has a name, as Playwright computes it: a paragraph takes none from its text, a field takes its label's.
+
+## Copy context for agent
+
+Pick an element to copy one block for a coding agent: the page URL, the element and every ranked locator.
+
+## Related
+
+- [Browser extension](./extension): the other tools, the permissions and the limits
+- [Developer tools](./devtools): the same ranking for the element selected in DevTools
+- [Lint overlay](./lint-overlay): the elements no stable locator finds alone
+- [Locator stability](/reference/locator-stability): the rules behind the words
+- [Fix a broken locator](/recipes/broken-locator): from a failing locator to the one to use instead
+
+<!-- https://piwitests.dev/features/record-actions -->
+
+# Record actions
+
+**Record actions** asks for access to the site you are on, then captures clicks, fills, checks, choices, drags, the
+names of chosen files (never their content), the keys that submit, close or move through a list, and a click on what a
+hover shows, across pages. **Check an element** and **Check the address** add an `expect(…)` of what the page shows
+now. **Pause** stops capturing without ending the recording, on every page and tab of it, so signing in or closing a
+banner stays out of the spec, until **Resume**. **Stop** opens the review: the **Test title**, filled with the first
+page's own title (or, left empty, the first step in words), names the spec's test and the steps file; **Copy as
+TypeScript** for a runnable spec that waits for each page it opens,
+**Download steps** for a [steps file](/reference/steps-format) to share or render with
+[`piwi codegen`](/reference/cli#codegen), [**Send to editor**](./editor-recording#send-from-piwi-picker),
+[**Replay**](./replay-a-bug-report) to play the steps again in the tab and see that each still finds its element, or
+**Discard**. Passwords are never captured, nor a card number, its security code or a one-time code in a field whose
+`autocomplete` names it: the spec reads them from `process.env`.
+
+<figure>
+  <img src="/screenshots/picker-record.png" alt="The review panel after a recording: seven steps, Copy as TypeScript">
+  <figcaption>The review after Stop: every step, the spec one click away.</figcaption>
+</figure>
+
+## Matching functions
+
+With a connection, the recorder loads the [function catalog](./test-functions) of the project mapped to the page and
+ranks, while you record, the functions the steps look like. On export, a complete match becomes a call to your
+function. No AI: it scores your registered functions' DOM patterns.
+
+## Related
+
+- [Report a bug](./report-a-bug): the same recording, with what the page should show and the evidence
+- [Replay a bug report](./replay-a-bug-report): play recorded steps again in a tab
+- [Steps file](/reference/steps-format): the format **Download steps** writes
+- [Send to editor](./editor-recording#send-from-piwi-picker): the spec inserted in VS Code or a JetBrains IDE
+- [Browser extension](./extension): the other tools, the permissions and the limits
+
+<!-- https://piwitests.dev/features/lint-overlay -->
+
+# Lint overlay
+
+The **Lint overlay**, under **More tools** in the [Piwi Picker](./extension) popup, checks every button, link and
+field of the page with the ranking [Pick an element](./pick-an-element) uses.
+
+One click outlines every interactive element no stable locator finds alone and says what to add, with a **Copy**
+button for each and **Copy as a Markdown checklist** for all of them:
+
+- **A test id named after the element**: its accessible name, label or placeholder, else the nearest heading with the
+  role (`data-testid="submit-order"` for a button named "Submit order", `shipping-address-button`), else the role. A
+  value the page already uses, or another suggestion took, gets `-2`, `-3`.
+- **A test id on the repeated container** when the element sits in a row, a card or a list item whose copies hold the
+  same element: named after the text that tells this copy apart (`data-testid="blue-mug"`), with the locator a test
+  then uses, `getByTestId('blue-mug').getByRole('button', { name: 'Add to cart' })`. The container and the text are
+  the ones [Pick an element](./pick-an-element) narrows by: the nearest container whose copies hold the other
+  elements, and a text no other copy contains, a heading first, then a name rather than a price or a count, a
+  visible text before a hidden one. The container is outlined in amber.
+- **A scope** when those copies already share a test id: no attribute to add, the locator filters by the copy's text,
+  `getByTestId('product-card').filter({ hasText: 'Blue mug' }).getByRole('button', { name: 'Add to cart' })`.
+
+<figure>
+  <img src="/screenshots/picker-lint.png" alt="Four unnamed wishlist icon buttons outlined in their product cards, each with a test id named after its card's heading">
+  <figcaption>Lint overlay: four icon buttons without a name; each gets a test id named after its card's heading. The Add
+  to cart buttons beside them are not listed: the ranking finds each one through its card.</figcaption>
+</figure>
+
+## Related
+
+- [Pick an element](./pick-an-element): the ranked locators of one element
+- [Locator stability](/reference/locator-stability): what makes a locator stable
+- [Browser extension](./extension): the other tools and the permissions
 
 <!-- https://piwitests.dev/features/extension-connection -->
 
@@ -8012,11 +8110,32 @@ disconnected at its next request. **Deny**, or ten minutes without an answer, cr
 With [authentication](/operate/authentication) off, **Allow** only confirms the connection: there is no account to
 own a key, and none is needed.
 
+### Is the connection working?
+
+Piwi Picker keeps how its last request to your instance went. The popup says it under **Active project**
+("Connected to piwi.example.com, checked 5 minutes ago"), or since when nothing answers, the key is refused or the
+instance answers with errors, with a link to the settings, which show the same beside the address. A revoked key
+thus shows in the popup at the next request, before a tool fails: click **Connect** again.
+
 ### Use an API key instead
 
 Under **Use an API key instead**, paste a key created in your account's [API key settings](/operate/api-keys) and
-click **Save and test**. An instance older than the one-step connection needs this. So does the
-desktop app, whose server answers only requests carrying its access token.
+click **Save and test**. An instance older than the one-step connection needs this.
+
+### The desktop app as your instance
+
+The [desktop app](./desktop) runs a Piwi instance on your computer that answers only requests carrying its access
+token. Once the app is [paired](./bug-reports#running-it-with-playwright-in-the-desktop-app) and no instance is
+connected, **Use the desktop app as your instance** fills in the app's address and token as the API key, checks them
+and connects. If the app refuses the token (installed again since the pairing), paste the one from its **Connect
+Piwi Picker**, or pair again.
+
+The token goes out only after the program at that address proves it holds it, before every request, as for **Run
+with Playwright**: another program on the app's port receives nothing, after **Unpair** too. Typed under **Use an API
+key instead**, the address must use `127.0.0.1`, since `localhost` may reach another program.
+
+While an instance is connected and no app is paired, the settings point to the pairing. The shared address stays
+granted: **Disconnect** leaves it to the app, and **Unpair** to the instance.
 
 ## URL patterns
 
@@ -8063,7 +8182,9 @@ keeps a copy, so a page's project is known with the instance out of reach. For a
 3. the instance's patterns, by project, in each project's order, the first that matches.
 
 A pattern kept in the browser is therefore an override for that browser alone. The settings page marks each pattern
-with where it comes from.
+with where it comes from. **Disconnect** sets the patterns of this browser aside: connecting to the same instance
+again brings them back, and connecting to another drops them, since they name the first one's projects. A connection
+that is not completed, because you disconnect or cancel along the way, leaves them aside for the next one.
 
 ### Add a site
 
@@ -8234,7 +8355,7 @@ send it to your [Piwi instance](./bug-reports).
 ## Recording the steps
 
 Open the popup on the page where the flow starts and choose **Report a bug**, or press `B`. The first time on a site,
-Piwi Picker asks for access to it, as [Record actions](./extension#record-actions) does. From then on, clicks, fills,
+Piwi Picker asks for access to it, as [Record actions](./record-actions) does. From then on, clicks, fills,
 checks, select changes and Enter are recorded across the site's pages, and a red border marks the tab.
 
 A panel in the corner lists the last steps and offers three ways to say what is wrong:
@@ -8326,7 +8447,7 @@ shows there: see [Replay a bug report](./replay-a-bug-report).
 
 ## Limits
 
-- It follows one site, like [Record actions](./extension#record-actions), in the top-level document only.
+- It follows one site, like [Record actions](./record-actions), in the top-level document only.
 - Without the debugging protocol, only the page's own `fetch` and `XMLHttpRequest` calls are seen: not images,
   stylesheets, a form that loads a new page, or a request made by a worker.
 - A recording sends nothing anywhere: only **Send to Piwi…** does, after showing what it sends.
@@ -8350,11 +8471,12 @@ hand.
 
 ## Choosing a report
 
-- From the finished report, **Replay** plays it at once on the same site.
+- From the finished report, **Replay** plays it at once on the same site. The review of a
+  [recording of actions](./record-actions) has the same **Replay**, to check its steps before you export them.
 - From the popup, **Replay a bug report** (`R`) asks for the site's access if needed, then for the report: the
   [`.piwibug` file](/reference/bug-report-file) (or the same file named `.zip`) or its `steps.json`, the text of a
-  `steps.json` pasted in, the report just recorded in this browser, or, connected, one of the project's reports on
-  Piwi.
+  `steps.json` pasted in, the report or the recording of actions just made in this browser (**Use the actions recorded
+  in this browser**), or, connected, one of the project's reports on Piwi.
 - From a failed execution on the dashboard, **Export → Bug report (.piwibug)** makes a report from the test run
   ([below](#a-report-made-from-a-test-run)), and **Steps (steps.json)** copies its steps to paste.
 
@@ -8375,7 +8497,8 @@ visible, enabled and still. The replay ends with one of three answers:
   the one the test failed at.
 
 Under the answer, the panel lists the failed requests and console errors the page showed during the replay, such as
-"POST /api/cart/coupon answered 500". For a report from Piwi, **Share result…** records the answer on the report, with
+"POST /api/cart/coupon answered 500": from the moment the replay started, never those of the recording, even when you
+replay on the page you just recorded the report on. For a report from Piwi, **Share result…** records the answer on the report, with
 the site it ran on, after showing what it sends.
 
 **Step by step** waits for **Next** before each step, with the element outlined, so you can set a breakpoint first.
@@ -8606,13 +8729,14 @@ and the reproductions), `render_steps`, which writes a report's failing test, or
 
 The [Piwi Picker extension](./extension) answers one question beside the browser's own DevTools: what will a test see
 on this page, and how does the test get there? Its developer tools live here rather than in the toolbar popup, which
-keeps the tools that act on the page. In Chrome and Edge, the conditions below and a viewport set in the tab itself go
-through the browser's debugging protocol, and Chrome shows its debugging bar while one is on.
+keeps the tools that act on the page. In Chrome and Edge, the
+[request conditions](./mock-requests#slow-down-or-fail-a-request) and a viewport set in the tab itself go through the
+browser's debugging protocol, and Chrome shows its debugging bar while one is on.
 
 ## The Elements sidebar
 
 Open DevTools, go to **Elements**, and choose the **Piwi** tab beside Styles and Computed. Select a node and the pane
-lists its locators, ranked and checked against the page as it is, the same list [Pick an element](./extension#pick-an-element)
+lists its locators, ranked and checked against the page as it is, the same list [Pick an element](./pick-an-element)
 shows:
 
 ```
@@ -8627,8 +8751,12 @@ locator('.btn').nth(2)                             ⚠ unique by position · bri
 </figure>
 
 A locator that finds the node among others says how many it finds. Under each one, **Locator**, **Action** and
-**Assertion** copy it as `page.…`, as a `click()` or as an `expect(…).toBeVisible()`, and **Add to session** puts it
-in the session under a name (the panel's Session tab, below). The pane ranks again when the selection changes and after
+**Assertion** copy it as `page.…`, as the action the element calls for (`fill`, `check`, `selectOption` or `click`)
+or as its first assertion (`toHaveValue`, `toHaveText`…, `toHaveCount` for a locator finding several), as in
+[Pick an element](./pick-an-element); each button names what it writes. **Add to session** puts it
+in the session under a name (the panel's Session tab, below). With an editor
+[paired](./editor-recording#send-from-piwi-picker), **Send to editor** under the top locator inserts it at the
+editor's cursor, in the copy form you chose last. The pane ranks again when the selection changes and after
 the page navigates; **Refresh** ranks the same node on the page as it is now. DevTools' own element picker
 (`Ctrl+Shift+C`, `Cmd+Shift+C` on macOS) selects what the pointer is on.
 
@@ -8648,15 +8776,75 @@ page navigates; the recording and replay panels on the page stay too, for when D
 - **Replay** lists a replay's steps with their results and the verdict once it ends. **Pause**, **Continue**, **Next
   step** and **Stop** act on the replay running in the page.
 - **Network** lists the page's `fetch` and XHR requests, from DevTools' own log while it is open; **Other sites too**
-  adds the requests to other origins. Select one to mock it, slow it down or make it fail (below).
+  adds the requests to other origins. Select one to mock it, slow it down or make it fail: [Mock and slow down requests](./mock-requests).
 - **Locators** is the locator console: type a locator and the elements it finds are listed, as Playwright finds
   them, with the strict-mode verdict. It reads the expression, never runs it: every `getBy*`, `locator()`, chains,
   `filter()`, `and()`/`or()`, `.nth()` and same-origin frames. Hovering one outlines it on the page, and **Reveal**
-  selects it in the Elements panel.
+  selects it in the Elements panel. **Enter** tries the locator at once and keeps it in a history that the up and down
+  arrows go through, as in a shell; the history lasts until the browser closes, so the panel opened again shows the
+  last locator. Under the field, **Copy as** writes the locator as a locator, an action or an assertion, as the
+  Elements sidebar does: the action and the assertion are the first match's, and a locator finding several elements
+  asserts `toHaveCount`. **Add to session** names it for the Session tab. With an editor paired,
+  [**Send to editor**](./editor-recording#send-from-piwi-picker) inserts it at the editor's cursor in the copy form
+  chosen last. A `page.` typed in front is left out of what is copied or sent.
 - **Session** lists the elements named with **Add to session**, and copies them as a page object, a Markdown table or
   JSON.
 
-The toolbar's **Viewport**, **Playwright view** and **Save login for tests** set the page up for a test (below).
+The toolbar starts the popup's tools on the inspected page without leaving DevTools: **Pick** is
+[Pick an element](./pick-an-element), **Lint** the [lint overlay](./lint-overlay), and **Tested
+elements** shows what your tests reach, once Piwi Picker is connected to your instance and the site is mapped to a
+project (the button says what is missing until then). The first time on a site, the click asks for access to it, as
+recording does. Then **Viewport**, **Playwright view** and **Save login for tests** set the page up for a test (below).
+
+## Save login for tests
+
+**Save login for tests**, in the Piwi panel's toolbar, saves the site's login as the
+file Playwright's `storageState` reads: the site's cookies, `httpOnly` ones included, which a page's scripts cannot
+read, and its `localStorage`. IndexedDB is left out. **Save login file** asks, the first time, for permission to read
+that one site's cookies, on any of its ports and on its parent domains, where a login cookie is often set, then
+downloads `user.json`:
+
+```ts
+test.use({ storageState: 'playwright/.auth/user.json' });
+```
+
+The file logs anyone in as you until the session expires: save it with a test account, as
+`playwright/.auth/user.json`, and add `playwright/.auth` to `.gitignore`. The page offers both lines, and a setup test
+that refreshes the file.
+
+## Open this page at a viewport
+
+**Viewport**, in the Piwi panel's toolbar, shows a bar that opens the inspected page in a new window whose viewport,
+not its outer frame, has the size of one of your Playwright projects: **Mobile Safari (390×664)**. With a connection, the sizes come from the `use.viewport`
+the [reporter](/guide/reporter) sends with each run, per project; without one, or for another size, choose **Size typed
+by hand**. In Chrome and Edge, **In this tab** gives the tab itself that viewport instead, as DevTools' device toolbar
+does, until **Back to the window's size**. Either way it sizes the viewport only, without touch, device pixel ratio or
+user agent.
+
+## Playwright view
+
+**Playwright view**, in the Piwi panel's toolbar, labels the page as a test sees it: each button, link, field, heading and
+landmark with the role and name `getByRole` finds it by, such as `button · Apply coupon` or `link · Cart (2)`, and its
+test id beside it when it has one. Two marks point at the elements a test will struggle with:
+
+- **Red**: no stable locator reaches it. A `<div>` with a click handler, a `tabindex` or a pointer cursor but no role,
+  or a button or link with no name, and no test id either.
+- **Amber**: its `getByRole` finds other elements too, two buttons both named "Show popup", or "Save" beside "Save
+  draft". A test needs `exact: true`, a scope or `.nth()`.
+
+The labels follow scrolling and come back after the page changes. Labels of elements side by side never cover one
+another: each sits above its element, or a row or a few lower or higher when that place is taken. Where elements crowd
+too closely for that, the labels left over are not drawn and the panel says how many. The panel in the corner counts
+each kind, and **Role** shows the labels of one role only. Hidden elements get no label, as `getByRole` does not find them. Press
+**Esc** or `V` again to turn it off. The [lint overlay](./lint-overlay) stays for suggesting the test ids to
+add.
+
+<!-- https://piwitests.dev/features/mock-requests -->
+
+# Mock and slow down requests
+
+The **Network** tab of the Piwi panel in [Developer tools](./devtools) lists the page's `fetch` and XHR requests. Select
+one to write it as a mock for a test, or to try the page under a slow or failing request.
 
 ## Mock this response
 
@@ -8697,46 +8885,11 @@ that replaces `fetch` itself may behave differently.
 A replay started while a condition is on runs under it, and its panel says which conditions were on, beside the
 verdict.
 
-## Save login for tests
+## Related
 
-**Save login for tests**, in the Piwi panel's toolbar, saves the site's login as the
-file Playwright's `storageState` reads: the site's cookies, `httpOnly` ones included, which a page's scripts cannot
-read, and its `localStorage`. IndexedDB is left out. **Save login file** asks, the first time, for permission to read
-that one site's cookies, on any of its ports and on its parent domains, where a login cookie is often set, then
-downloads `user.json`:
-
-```ts
-test.use({ storageState: 'playwright/.auth/user.json' });
-```
-
-The file logs anyone in as you until the session expires: save it with a test account, as
-`playwright/.auth/user.json`, and add `playwright/.auth` to `.gitignore`. The page offers both lines, and a setup test
-that refreshes the file.
-
-## Open this page at a viewport
-
-**Viewport**, in the Piwi panel's toolbar, shows a bar that opens the inspected page in a new window whose viewport,
-not its outer frame, has the size of one of your Playwright projects: **Mobile Safari (390×664)**. With a connection, the sizes come from the `use.viewport`
-the [reporter](/guide/reporter) sends with each run, per project; without one, or for another size, choose **Size typed
-by hand**. In Chrome and Edge, **In this tab** gives the tab itself that viewport instead, as DevTools' device toolbar
-does, until **Back to the window's size**. Either way it sizes the viewport only, without touch, device pixel ratio or
-user agent.
-
-## Playwright view
-
-**Playwright view**, in the Piwi panel's toolbar, labels the page as a test sees it: each button, link, field, heading and
-landmark with the role and name `getByRole` finds it by, such as `button · Apply coupon` or `link · Cart (2)`, and its
-test id beside it when it has one. Two marks point at the elements a test will struggle with:
-
-- **Red**: no stable locator reaches it. A `<div>` with a click handler, a `tabindex` or a pointer cursor but no role,
-  or a button or link with no name, and no test id either.
-- **Amber**: its `getByRole` finds other elements too, two buttons both named "Show popup", or "Save" beside "Save
-  draft". A test needs `exact: true`, a scope or `.nth()`.
-
-The labels follow scrolling and come back after the page changes. The panel in the corner counts each kind, and
-**Role** shows the labels of one role only. Hidden elements get no label, as `getByRole` does not find them. Press
-**Esc** or `V` again to turn it off. The [lint overlay](./extension#lint-overlay) stays for suggesting the test ids to
-add.
+- [Developer tools](./devtools): the Piwi panel and its other tabs
+- [Browser extension](./extension): the permissions these use
+- [Replay a bug report](./replay-a-bug-report): a replay under the conditions on
 
 <!-- https://piwitests.dev/features/test-functions -->
 
@@ -9543,8 +9696,9 @@ recorded, lands at the editor's cursor too:
    It copies a pairing address, `http://127.0.0.1:<port>/…#<token>`.
 2. In Piwi Picker's settings, paste it under **Send to editor** and click **Pair**; the browser asks once for access to
    that local address.
-3. A picked locator's row and the recording review then show **Send to editor**. A locator is inserted in the copy
-   form you chose; a recording is rendered as the body of a test, like
+3. A picked locator's row, the top locator of the [Elements sidebar](./devtools#the-elements-sidebar), the
+   [Locators console](./devtools#the-piwi-panel) in DevTools and the recording review then show **Send to editor**. A
+   locator is inserted in the copy form you chose; a recording is rendered as the body of a test, like
    [`piwi codegen --body`](/reference/cli#codegen).
 
 The editor listens on the loopback interface only, and accepts a request only with the token. With several VS Code
@@ -12093,6 +12247,12 @@ stable and that find only that element on the page, and picks one the way
 id, CSS), when that is stable enough; otherwise the most stable one. When no stable locator finds only that element,
 the overlay says to give it a test id.
 
+A candidate that finds the element among others is narrowed before the choice, as the extension narrows it: made
+exact, filtered by the element's text, or scoped to a parent. An element of a list, a grid or a table is scoped to its
+row or card, filtered by a text that row or card shows and the others do not:
+`getByTestId('product-card').filter({ hasText: 'Blue mug' }).getByRole('button', { name: 'Add to cart' })` rather than
+`getByRole('button', { name: 'Add to cart' }).nth(1)`.
+
 A replacement is checked against the page as it is now. A test that uses the locator in another state of the page
 may need a different one.
 
@@ -12414,7 +12574,7 @@ npx @piwitests/reporter ai resolve --grep "checkout"
 ## `codegen`
 
 Turn a [steps file](/reference/steps-format) into a Playwright spec. Piwi Picker saves one with
-[**Download steps**](/features/extension#record-actions). The spec is written for a test project: URLs on the recorded
+[**Download steps**](/features/record-actions). The spec is written for a test project: URLs on the recorded
 site become paths, so your config's `baseURL` applies; each element uses the first of its recorded locators that the
 [stability rules](/reference/locator-stability) call stable; and after each step that leads to another page, the spec
 waits for that page's URL. Nothing is sent anywhere unless a project is configured.
@@ -12525,7 +12685,7 @@ could not be written.
 
 # Steps file format
 
-A **steps file** is a recording as data rather than code. [Piwi Picker](/features/extension#record-actions) saves one
+A **steps file** is a recording as data rather than code. [Piwi Picker](/features/record-actions) saves one
 with **Download steps**, and [`piwi codegen`](/reference/cli#codegen) turns one into a Playwright spec. Because it
 holds steps and not code, the same file can be rendered for different projects (their `test` import, their
 `baseURL`) and read again by newer tools.
