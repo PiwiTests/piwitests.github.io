@@ -22,6 +22,7 @@
 ## Features
 
 - [UI overview](https://piwitests.dev/features/ui-overview): A map of the dashboard: every page and tab, what it is for, and the page of these docs that explains it.
+- [Guides](https://piwitests.dev/features/guides): Step-by-step walkthroughs of common tasks on your own dashboard, from reporting a first run to the Flake Lab, opened from the command palette, with no AI model.
 - [Branches](https://piwitests.dev/features/branches): Branch as a first-class dimension: how Piwi records it, filtering by branch, and baselines computed per branch.
 - [What changed in a run](https://piwitests.dev/features/run-changes): What changed in a run against its baseline: new failures, fixed tests, new flakes, the largest duration changes and the commits in between.
 - [Offline export](https://piwitests.dev/features/offline-export): Export a failing execution or a whole failure cluster as HTML, ZIP, PDF, Markdown or JSON that opens with no network and no Piwi server, plus a Perfetto trace of a run.
@@ -39,6 +40,7 @@
 - [Resource leaks](https://piwitests.dev/features/resource-leaks): The browsers, contexts, pages and API request contexts your tests leave open or open for nothing, listed at the end of each run and on its Resources tab, with the line that opened them.
 - [CPU, memory & disk](https://piwitests.dev/features/cpu-memory-disk): What a test run cost the machine: CPU by process, time spent waiting for a CPU, peak memory and disk, printed by the reporter at the end of every run and shown on the run's Resources tab.
 - [AI diagnosis](https://piwitests.dev/features/ai-diagnosis): An LLM you configure explains a failure cluster against your git diff, with a suggested patch checked against your source before you see it. Off by default.
+- [Assistant](https://piwitests.dev/features/assistant): Ask about your runs, failures and setup: your AI model answers from the read tools agents use, with your access, and changes nothing unless you click Apply on a change it proposes.
 - [Fix a broken locator](https://piwitests.dev/recipes/broken-locator): A UI change broke a Playwright locator. Piwi proposes ranked replacements captured from the last run where the test passed, and points at the line to change.
 - [Locator healing](https://piwitests.dev/features/locator-healing): When a locator breaks, ranked replacements captured from the last passing run, a recommended fix in your suite's style, and pickers for local runs.
 - [Who uses a locator](https://piwitests.dev/features/locator-usage): Before changing an element, see which tests reach it and from which lines, from the locator chains Playwright records on every step.

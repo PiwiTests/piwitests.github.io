@@ -1,0 +1,1 @@
+function e(e){if(!e)return null;try{let{protocol:t}=new URL(e);return t===`http:`||t===`https:`?e:null}catch{return null}}function t(e){return/^(?:https?:\/\/|mailto:|\/(?!\/)|#|\?)/i.test(e)}function n(e){return e.button!==0||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey}export{t as n,e as r,n as t};

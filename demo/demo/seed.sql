@@ -2343,6 +2343,62 @@ DROP INDEX `idx_test_runs_cases_run_browser`;
 ALTER TABLE `test_runs_cases` ADD `repeat_each_index` integer DEFAULT 0 NOT NULL;
 CREATE UNIQUE INDEX `idx_test_runs_cases_run_browser` ON `test_runs_cases` (`test_run_id`,`test_case_id`,`repeat_each_index`,`retries`,`browser_name`);
 
+CREATE TABLE `assistant_conversations` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`owner_id` integer,
+	`title` text DEFAULT '' NOT NULL,
+	`extra_tools` text,
+	`created_at` integer NOT NULL,
+	`updated_at` integer NOT NULL,
+	FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade
+);
+
+CREATE INDEX `idx_assistant_conversations_owner` ON `assistant_conversations` (`owner_id`,`updated_at`);
+CREATE INDEX `idx_assistant_conversations_updated` ON `assistant_conversations` (`updated_at`);
+CREATE TABLE `assistant_messages` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`conversation_id` integer NOT NULL,
+	`role` text NOT NULL,
+	`content` text NOT NULL,
+	`context` text,
+	`tool_calls` text,
+	`provider` text,
+	`model` text,
+	`input_tokens` integer,
+	`output_tokens` integer,
+	`status` text DEFAULT 'completed' NOT NULL,
+	`error` text,
+	`duration_ms` integer,
+	`created_at` integer NOT NULL,
+	FOREIGN KEY (`conversation_id`) REFERENCES `assistant_conversations`(`id`) ON UPDATE no action ON DELETE cascade
+);
+
+CREATE INDEX `idx_assistant_messages_conversation` ON `assistant_messages` (`conversation_id`,`id`);
+CREATE TABLE `assistant_nudge_dismissals` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`owner_id` integer,
+	`nudge_id` text NOT NULL,
+	`dismissed_at` integer NOT NULL,
+	FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade
+);
+
+CREATE UNIQUE INDEX `idx_assistant_nudge_dismissals_owner` ON `assistant_nudge_dismissals` (`owner_id`,`nudge_id`) WHERE owner_id IS NOT NULL;
+CREATE UNIQUE INDEX `idx_assistant_nudge_dismissals_shared` ON `assistant_nudge_dismissals` (`nudge_id`) WHERE owner_id IS NULL;
+CREATE TABLE `assistant_usage` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`owner_id` integer,
+	`provider` text,
+	`model` text,
+	`input_tokens` integer DEFAULT 0 NOT NULL,
+	`output_tokens` integer DEFAULT 0 NOT NULL,
+	`status` text NOT NULL,
+	`created_at` integer NOT NULL,
+	FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE set null
+);
+
+CREATE INDEX `idx_assistant_usage_created` ON `assistant_usage` (`created_at`);
+CREATE INDEX `idx_assistant_usage_owner` ON `assistant_usage` (`owner_id`,`created_at`);
+
 BEGIN TRANSACTION;
 
 -- Tags
@@ -10471,6 +10527,11 @@ INSERT INTO scenario_gaps (project_id, kind, detector, class, key, title, eviden
 INSERT INTO scenario_gaps (project_id, kind, detector, class, key, title, evidence, factors, score, test_case_id, status, created_at, updated_at) VALUES (5, 'finding', 'not-handled', 'degraded', 'dependency:sendgrid @ POST /api/invitations', 'sendgrid (via POST /api/invitations): degraded failure', '["A server probe made sendgrid (via POST /api/invitations) fail; the application degraded under it (invites a user by email) — an error-state scenario is missing."]', '{"churn":0.1,"age":0.1,"escapeHistory":0.1,"priority":0.1}', 0.05, 47, 'open', 1742977800000, 1745569800000);
 INSERT INTO scenario_gaps (project_id, kind, detector, class, key, title, evidence, factors, score, test_case_id, status, created_at, updated_at) VALUES (5, 'finding', 'not-handled', 'unhandled', 'dependency:clickhouse @ GET /api/reports/revenue', 'clickhouse (via GET /api/reports/revenue): unhandled failure', '["A server probe made clickhouse (via GET /api/reports/revenue) fail; the application did not handle it (renders the revenue chart) — an error-state scenario is missing."]', '{"churn":0.1,"age":0.1,"escapeHistory":0.1,"priority":0.2}', 0.2, 49, 'open', 1742977800000, 1745569800000);
 
+-- An assistant conversation of the default persona
+INSERT INTO assistant_conversations (id, owner_id, title, created_at, updated_at) VALUES (1, 1, 'Why does the users table test fail?', 1745561880000, 1745561889000);
+INSERT INTO assistant_messages (id, conversation_id, role, content, context, status, created_at) VALUES (1, 1, 'user', '{"blocks":[{"kind":"text","text":"Why does the users table test fail?"}]}', '{"route":"/failure-clusters/10","page":"/failure-clusters/[id]","params":{"id":"10"},"projectId":5}', 'completed', 1745561880000);
+INSERT INTO assistant_messages (id, conversation_id, role, content, tool_calls, provider, model, status, duration_ms, created_at) VALUES (2, 1, 'assistant', '{"blocks":[{"kind":"text","text":"[Users table paginates 25 rows per page](piwi:cluster/10) expects 26 rows, the header and 25 users, and finds 51. Pagination moved to the server, and the users endpoint pages with the API default page size, 50, when a request names no page size, and the users table names none. The suspect lines are in `api/Users/UsersEndpoints.cs`, the stored diagnosis suggests a patch, and the fix has since landed."},{"kind":"entity","id":"users-cluster","entity":{"type":"cluster","id":10,"label":"Users table paginates 25 rows per page"},"status":"open"}]}', '[{"name":"get_cluster","arguments":{"clusterId":10},"summary":"Get cluster (clusterId 10)","entities":[{"type":"cluster","id":10,"label":"Users table paginates 25 rows per page"}]},{"name":"get_fix_plan","arguments":{"clusterId":10},"summary":"Get fix plan (clusterId 10)"}]', 'demo', 'demo', 'completed', 9000, 1745561889000);
+
 -- ── Rebase every timestamp to load time (see generator for rationale) ──────
 CREATE TEMP TABLE _rebase AS SELECT (CAST(strftime('%s', 'now') AS INTEGER) - 1745572680) AS delta_sec;
 
@@ -10508,6 +10569,8 @@ UPDATE groups SET created_at = created_at + (SELECT delta_sec FROM _rebase) * 10
 UPDATE group_members SET created_at = created_at + (SELECT delta_sec FROM _rebase) * 1000;
 UPDATE role_bindings SET created_at = created_at + (SELECT delta_sec FROM _rebase) * 1000;
 UPDATE analytics_dashboards SET created_at = created_at + (SELECT delta_sec FROM _rebase) * 1000, updated_at = updated_at + (SELECT delta_sec FROM _rebase) * 1000, last_viewed_at = last_viewed_at + (SELECT delta_sec FROM _rebase) * 1000;
+UPDATE assistant_conversations SET created_at = created_at + (SELECT delta_sec FROM _rebase) * 1000, updated_at = updated_at + (SELECT delta_sec FROM _rebase) * 1000;
+UPDATE assistant_messages SET created_at = created_at + (SELECT delta_sec FROM _rebase) * 1000;
 UPDATE entity_links SET created_at = created_at + (SELECT delta_sec FROM _rebase) * 1000, updated_at = updated_at + (SELECT delta_sec FROM _rebase) * 1000;
 UPDATE locator_snapshots SET last_seen_at = last_seen_at + (SELECT delta_sec FROM _rebase) * 1000;
 UPDATE handback_outcomes SET created_at = created_at + (SELECT delta_sec FROM _rebase) * 1000;

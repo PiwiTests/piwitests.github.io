@@ -1,1 +1,0 @@
-import{n as e}from"./EZ26rm1_.js";import{t}from"./D6rP0HdG.js";import{i as n}from"./DuihyOQr.js";function r(){let r=e(`desktop-prev-runs-proposal`,()=>null),i=e(`desktop-prev-runs-open`,()=>!1);async function a(e,a){if(!t()||!e||!a)return;let o=await n(a);o.length!==0&&(r.value={projectName:e,folder:a,archives:o},i.value=!0)}return{proposal:r,open:i,propose:a}}export{r as t};
