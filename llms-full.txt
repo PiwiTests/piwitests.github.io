@@ -703,7 +703,7 @@ export default defineConfig({
 The `use` block is Playwright's, not Piwi's: `trace`, `screenshot` and `video` decide what Playwright records, and the reporter uploads whatever exists, including what a test attaches itself with `testInfo.attach()`. Leave `screenshot` at its default (`'off'`) and the failure evidence has no screenshot to show. Videos can be large, so pair `retain-on-failure` with [storage cleanup](/operate/storage#storage-management).
 
 ::: tip You don't also need Playwright's `html` reporter
-The dashboard rebuilds the run from the data this reporter collects, so it is complete without Playwright's `html` reporter. Running `html` alongside only repeats end-of-run work (and, run locally, opens a browser on failure). If you still want Playwright's standalone report, keep it and Piwi uploads it with the run (`uploadReport`).
+The dashboard rebuilds the run from what this reporter collects, so it is complete without Playwright's `html` reporter, which only repeats end-of-run work (and, run locally, opens a browser on failure). Keep it if you want the standalone report: Piwi uploads it with the run (`uploadReport`).
 :::
 
 ## Installing via wrapConfig
@@ -743,18 +743,19 @@ capture, failure-time ARIA snapshots and the locator snapshots behind [locator h
 
 Options go in the reporter's entry in `playwright.config.ts`, or in `wrapConfig`'s second argument. Most options can
 also be set with a `PIWI_*` environment variable, which fills in an option you left unset: an option in the config
-wins, except `PIWI_VERBOSE`, which overrides even an explicit `verbose` outside `wrapConfig`. [Reporter options](/reference/reporter-options)
+wins, except `PIWI_VERBOSE`, which overrides even an explicit `verbose` outside `wrapConfig`. `PIWI_DASHBOARD_URL`,
+`PIWI_API_KEY` and `PIWI_PROJECT_NAME` also come from the config folder's
+[`.env`](/reference/reporter-options#values-from-env), below the environment. [Reporter options](/reference/reporter-options)
 lists every option with its default and its variable, and [Test metadata](/reference/test-metadata) what the reporter
 records on its own.
 
 ### Finding the desktop app automatically
 
-If nothing sets a server at all (no `serverUrl`, no `apiKey`, and neither `PIWI_DASHBOARD_URL` nor `PIWI_API_KEY` in
-the environment), the reporter looks for a running [desktop app](/features/desktop) on the same machine and uploads
-there. The app publishes its loopback URL and access token to `~/.piwi/desktop.json`
-(`%USERPROFILE%\.piwi\desktop.json` on Windows) while it runs, and deletes the file on quit. This is the lowest
-precedence step, so a CI job or a project pointed at a hosted dashboard is never redirected. Set `enabled: false` to
-opt out; `PIWI_DESKTOP_CONFIG` overrides the path.
+If neither the config, the environment nor that `.env` sets a server URL or an API key, the reporter looks for a
+running [desktop app](/features/desktop) on the same machine and uploads there. The app publishes its loopback URL and
+access token to `~/.piwi/desktop.json` (`%USERPROFILE%\.piwi\desktop.json` on Windows) while it runs, and deletes the
+file on quit. This is the lowest precedence step, so a CI job or a project pointed at a hosted dashboard is never
+redirected. Set `enabled: false` to opt out; `PIWI_DESKTOP_CONFIG` overrides the path.
 
 ## Sharding
 
@@ -784,7 +785,7 @@ To send all results at the end of the run:
 
 ### Tuning batch parameters
 
-Control how frequently results are sent during streaming:
+How often results are sent:
 
 ```typescript
 ['@piwitests/reporter', {
@@ -824,7 +825,7 @@ Registration is best-effort: if the server is unreachable, the run is created wh
 
 ## Multiple reports
 
-Attach multiple report types to a single test run. Each report appears as a separate button in the dashboard UI.
+Each report attached to a run gets its own dashboard button.
 
 ```typescript
 export default defineConfig({
@@ -852,8 +853,8 @@ as an archive. Any other type is accepted too, read from `dir` or else `<type>-r
 ## With authentication enabled
 
 When the dashboard has authentication enabled, pass an **API key**: create one in the dashboard (see
-[API keys](/operate/api-keys)), store it in a CI secret, and give it to the reporter as `apiKey` or
-`PIWI_API_KEY`:
+[API keys](/operate/api-keys)), store it in a CI secret (locally, in `.env`), and give it to the reporter as `apiKey`
+or `PIWI_API_KEY`:
 
 ```typescript
 ['@piwitests/reporter', {
@@ -8002,8 +8003,8 @@ tray tooltip.
 
 While the app runs, the reporter finds it by itself: a config with only a `projectName` reports here. The app writes
 its address and a local access token to `~/.piwi/desktop.json`, and the reporter reads that file only when neither
-the config nor the environment sets a server URL or an API key, so a project pointed at a shared dashboard, or a CI
-job, is never redirected. [Finding the desktop app automatically](/guide/reporter#finding-the-desktop-app-automatically)
+the config, its `.env` nor the environment sets a server URL or an API key, so a project pointed at a shared
+dashboard, or a CI job, is never redirected. [Finding the desktop app automatically](/guide/reporter#finding-the-desktop-app-automatically)
 has the details.
 
 When the tests run as another user or in a container, **Setup → Send results to this app** gives the
@@ -12850,6 +12851,8 @@ Several commands read connection settings from the environment as a fallback: `P
 
 Wire a Playwright project up to a dashboard. It installs the reporter as a dev dependency, wraps `export default defineConfig(...)` with [`wrapConfig(...)`](/guide/reporter#installing-via-wrapconfig), creates the [capture-fixtures](/guide/capture-fixtures) file, records `PIWI_*` connection settings in `.env` / `.env.example` (and `.gitignore`), and installs the [agent skills](/features/agent-skills). **Every step is idempotent** — safe to re-run — and a config shape it will not rewrite is reported as `manual` with the exact change to make. See the [one-command setup](/guide/getting-started#fast-path-one-command) in Getting started.
 
+The `.env` it writes sits next to the Playwright config, where `npx playwright test` reads it: the reporter takes `PIWI_DASHBOARD_URL`, `PIWI_API_KEY` and `PIWI_PROJECT_NAME` from it for whatever the config and the environment leave unset, so the config needs no dotenv loading ([Values from `.env`](/reference/reporter-options#values-from-env)). The file stays out of git; in CI, set the same variables as secrets.
+
 ```bash
 npx @piwitests/reporter init --server-url http://localhost:3000 --project my-project
 ```
@@ -12858,7 +12861,7 @@ npx @piwitests/reporter init --server-url http://localhost:3000 --project my-pro
 |---|---|
 | `--server-url <url>` | Dashboard URL to write into the config (env `PIWI_DASHBOARD_URL`, default `http://localhost:3000`) |
 | `--project <name>` | Project name to report under (default: your package/folder name) |
-| `--api-key <key>` | API key to write into `.env` (env `PIWI_API_KEY`). Omit to leave a `.env.example` placeholder you fill in yourself |
+| `--api-key <key>` | API key to write into `.env` (env `PIWI_API_KEY`), where the reporter reads it. Omit to leave a `.env.example` placeholder you fill in yourself |
 | `--cwd <path>` | Project root to operate on (default: current directory) |
 | `--skills <list>` | Comma-separated skills to install, or `all` / `none` (default: the four workflow skills) |
 | `--skills-dir <path>` | Directory to install skills into (default: `.claude/skills`) |
