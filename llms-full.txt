@@ -6219,6 +6219,9 @@ Piwi can observe a file when one of these could happen to it, or when the head c
 lines. A skipped test reaches nothing. A *changed, unreached* gap closes when a later diff no longer counts its file
 as uncovered, or when the Test Map's next recompute finds it reached or out of scope.
 
+Before the pull request, the [editor extensions](./editor-coverage#uncovered-changes) mark the lines of an uncovered
+change of a page or a server route in the file itself, by the same rule.
+
 The diff comes from the [source control](/guide/source-control) connection: a pull-request run is compared with its
 base branch, any other run with the commit of the last passing run. With no SCM token or no diff, nothing appears.
 
@@ -7804,7 +7807,8 @@ Add to `~/.cursor/mcp.json` (global) or `.cursor/mcp.json` in your project root:
 ### VS Code (GitHub Copilot, agent mode)
 
 With the [Piwi extension](/features/editors) installed and connected, VS Code 1.101 and later list Piwi's server
-without any configuration. Otherwise:
+without any configuration, with the extension's key, or signed in through OAuth when `piwi.mcpAuthorization` is
+`sign-in`. Otherwise:
 
 Add to `.vscode/mcp.json` in your workspace (VS Code 1.99+):
 
@@ -9461,6 +9465,11 @@ connection it already has. Elsewhere, **Piwi: Copy the MCP server configuration*
 `mcp.json` in VS Code, for the AI Assistant's MCP settings in a JetBrains IDE (an `mcpServers` entry running
 `mcp-remote`). It holds your API key, so paste it into your user settings, not into the repository.
 
+The key carries your whole role, write tools included. For a token of the agent's own, set `piwi.mcpAuthorization`
+to `sign-in` (**Settings → Tools → Piwi → AI Assistant** in a JetBrains IDE): the server comes without a key, and the
+agent [signs in](/features/mcp#authentication) in your browser when it first connects. You revoke that token with
+your API keys. The desktop app keeps its own token.
+
 ## Commands
 
 | Command | What it does |
@@ -9551,6 +9560,9 @@ action is under **Tools → Piwi**:
 - **The severity of a failure**: **Settings → Tools → Piwi → Runs** chooses it
   ([CI failures in the Problems panel](./editor-failures#ci-failures-in-the-problems-panel)); an information shows as a
   weak warning.
+- **Piwi's MCP server for the agent**: **Settings → Tools → Piwi → AI Assistant** chooses whether the copied
+  configuration holds the IDE's key or has the agent sign in through the browser
+  ([Piwi's MCP server for the agent](./editors#piwi-s-mcp-server-for-the-agent)).
 - **[Open in IDE](./ide-integration#jetbrains-ides-the-piwi-plugin)**: a path clicked in the dashboard or the desktop
   app opens at its line, with nothing to set up.
 
@@ -9693,7 +9705,7 @@ second of its end.
 - **Piwi: Run the test at the cursor** (`Ctrl+Shift+Alt+K`, `Cmd+Shift+Alt+K` on macOS) runs the test whose
   `test(…)` call holds the cursor, and **Piwi: Run this spec** the spec's tests Piwi knows; both in the editor's
   context menu of a spec (**Run the Test at the Caret** and **Run This Spec** in a JetBrains IDE). In VS Code, **Run**
-  in the hover of a test's gutter icon runs that test. A test the instance does not know yet, such as one you just
+  in the hover of a test's line runs that test, and so does [the Testing view](#the-testing-view-vs-code). A test the instance does not know yet, such as one you just
   [recorded](./editor-recording#run-it-or-verify-it-three-times), runs by the line of its `test(…)` call
   (`npx playwright test tests/checkout.spec.ts:42`), with or without an instance. Both save the spec first.
 - **Piwi: Verify the test at the cursor ×3** (**Verify the Test at the Caret ×3**) runs that test three times, without
@@ -9709,6 +9721,25 @@ window in a JetBrains IDE (**Rerun** starts it again), or in the IDE's Playwrigh
 Failed Tests**), a choice of **Settings → Tools → Piwi**. It sets `PIWI_ORIGIN=editor` and its own `PIWI_ORIGIN_REF`
 ([run origin](/reference/test-metadata#run-origin)), by which the editor finds its run. Breakpoints pause it in the
 browser, with Piwi's picker one click away: [Breakpoints in the browser](./editor-breakpoints).
+
+## The Testing view (VS Code)
+
+VS Code's Testing view lists Piwi's tests: the specs your instance knows, as they stand in the editor, under their
+folders and `test.describe` blocks, each test with its latest result, and for a failure why and where it failed
+(**Peek Error**). The results are published as a test run (`Piwi: run #120 on main`) when the latest run, its baseline
+or the runs laid over it change, and a run in progress is a test run of its own, each test shown as it begins and
+ends. The view's gutter shows each test's result in place of Piwi's icon; the line keeps Piwi's hover.
+
+<figure>
+  <img src="/screenshots/vscode-testing.png" alt="VS Code: the Testing view lists the spec's tests with their latest results, and a failing test's error is peeked at its line in the spec">
+  <figcaption>The Testing view with the latest run's results, and why <strong>pays by card</strong> failed, at its line.</figcaption>
+</figure>
+
+**Run with Piwi**, the view's run profile, runs the tests you pick as the commands above do, one command per
+Playwright config with your breakpoints, and **Verify ×3 with Piwi** runs them three times. A test the run gave Piwi no
+result for, such as one the instance does not know yet, passes when the command exited with 0 and is an error
+otherwise. The view shows results; it does not discover tests nor debug them: a spec the instance has not seen joins
+the tree once you open it. The `piwi.testExplorer` setting turns the view's Piwi tests off.
 
 ## Re-run the failing tests
 
@@ -9809,13 +9840,14 @@ locally.
 | Solid, teal | A test ran the line. The hover names the tests. |
 | Solid, slate | The line is executable and no test runs it. Shown when the run recorded the file's executable lines, which `lines` does. |
 | Dashed, amber | The line changed since the coverage run: what runs it is not known until a run records it again. |
+| Solid, orange | In a file no test reaches, the line changed since the default branch: an [uncovered change](#uncovered-changes). |
 
 Teal and slate are the colors the dashboard marks a file's source in. The hover on a marked line ends by saying what
 the marks mean.
 
-In VS Code the marks are a bar at the left edge of each line, in `piwi.coverageRunBorder`, `piwi.coverageNotRunBorder`
-and `piwi.coverageChangedBorder`, which a theme or `workbench.colorCustomizations` can restyle; the lines no test runs
-and the changed lines also show in the overview ruler. In a JetBrains IDE they are at the left of the gutter and in the
+In VS Code the marks are a bar at the left edge of each line, in `piwi.coverageRunBorder`, `piwi.coverageNotRunBorder`,
+`piwi.coverageChangedBorder` and `piwi.uncoveredChangeBorder`, which a theme or `workbench.colorCustomizations` can
+restyle; all but the lines run also show in the overview ruler. In a JetBrains IDE they are at the left of the gutter and in the
 scroll bar, and hovering either shows what the lines are and what the marks mean. Restyle them under **Settings →
 Editor → Color Scheme → Piwi → Coverage**, where the error stripe color is the mark's, and a background, none by
 default, tints the lines too.
@@ -9838,6 +9870,23 @@ removes loses its mark. Blank lines are never marked changed.
 
 When your repository holds none of the versions, such as a commit you have not fetched, no line is marked and the
 file's lens says `coverage recorded on another version`. Fetching it brings the marks back on the next refresh.
+
+## Uncovered changes
+
+A file the editor can observe and no test reaches has its changes marked before the pull request's
+[uncovered changes](./uncovered-changes) list them, by the same rule: a page (Nuxt `pages/**`) while Piwi knows the
+pages your tests visit, or a server route (`server/api/**`, `server/routes/**`) while code reach maps routes to tests,
+that no test visits, requests or runs. Its lines changed since the default branch are marked orange: those added since
+the commit your branch left it at (the merge base with `origin/main`, else `main`), uncommitted changes included,
+blank lines left out. The file's top lens says `Uncovered changes: 12 lines changed since main, and no test reaches
+this file`, and so does the hover on a marked line. A test that reaches the file, or the change reaching the default
+branch, takes the marks away. A file nothing can observe, and a project whose code reach is missing or cut short, show
+nothing.
+
+<figure>
+  <img src="/screenshots/vscode-uncovered.png" alt="VS Code: a server route no test reaches, its lines changed since main marked orange, the top lens and the hover saying why">
+  <figcaption>A server route no test requests: the lines changed since <code>main</code> are marked, and the hover says why.</figcaption>
+</figure>
 
 ## Lenses and hover
 
@@ -9916,7 +9965,13 @@ It is not Playwright's inspector, and no debugger attaches: the test waits in th
 | **Resume** (<kbd>Esc</kbd>) | Runs on to the next breakpoint |
 | **Step** | Pauses again before the next locator action or assertion, breakpoint or not |
 | **Pick a locator** | Opens Piwi's [element picker](/features/locator-healing#pick-a-replacement-locator-on-the-failing-page-local-runs): pick the element, choose stable parents, confirm a ranked locator; the bar comes back after |
+| **Record here** | Records what you do in the page into the editor, above the paused line: [Record from a pause](#record-from-a-pause) |
 | **Finish** | Runs on without pausing again in this test |
+
+<figure>
+  <img src="/screenshots/picker-pause.png" alt="A shop page in the browser, paused before a click on Checkout: the button highlighted, Piwi's pause bar at the top with Resume, Step, Pick a locator, Record here and Finish">
+  <figcaption>A run paused before the click on <strong>Checkout</strong>: the element highlighted, and Piwi's bar at the top of the page.</figcaption>
+</figure>
 
 The page under the bar stays live: scroll it, open the browser's developer tools, or click through it before you
 resume. The test timeout stops while the test is paused, and the test has the time it had left once it resumes.
@@ -9936,6 +9991,27 @@ pick** once the run uploads.
 The run reaches the editor through the address [Piwi Picker sends to](./editor-recording#send-from-piwi-picker): VS
 Code starts its listener when a run with breakpoints starts, and the JetBrains plugin answers on the IDE's built-in
 server. Nothing is copied to the clipboard.
+
+## Record from a pause
+
+**Record here** hands the paused page to the editor's [recorder](./editor-recording): the steps you take from there
+are written into the file on a new line above the paused statement (the first line of a statement broken over lines),
+on the page expression in scope there, as **Record here** in the editor writes them, but with no `page.goto`: the page
+is where the test left it, signed in and filled in as the test made it. The editor opens the file at that line and
+starts recording without asking anything. Pause and Stop are in the recorder's bar in the page and in the editor; once
+you stop, the pause bar comes back, and **Resume** runs the rest of the test from the page as you left it, which checks
+at once that the new steps fit what follows.
+
+`await page.pause()` in a test does the same without a breakpoint: in a run Piwi starts, it shows Piwi's pause bar there
+in place of Playwright's Inspector, with **Record here** among its buttons, and Piwi adds `--headed` to a run whose
+spec holds a `page.pause()` call. The `page.pause()` line stays, so the next run can record from there again; remove
+it when the test is done. In a run Piwi did not start, and in a headless one, `page.pause()` is Playwright's own.
+**Record here** records http(s) pages: on a page the test made with `setContent`, or a `file:` page, the editor says
+so and nothing is recorded.
+
+The test reaches the editor through a socket on your machine that the editor service opens, readable by you only,
+named in the run's environment as `PIWI_RECORD_CHANNEL`. A recording the editor does not start within 30 seconds is
+refused, and the test goes on.
 
 ## The setting
 
@@ -9965,7 +10041,9 @@ With the setting off, a run started from Piwi ignores the editor's breakpoints.
 - **Every attempt pauses.** With retries, a test pauses again on its retry, and the bar says `attempt 2`.
 - **Each worker pauses its own browser.** When several tests reach a breakpoint, run them with `--workers=1` to pause
   one at a time.
-- Stepping through the test's JavaScript stays with the editor's own debugger and Playwright's.
+- Stepping through the test's JavaScript stays with the editor's own debugger and Playwright's; **Record here** is not
+  offered from a debugger paused in your code, only from Piwi's pause bar.
+- **Record here** records the paused page alone: a tab or a popup it opens is not recorded, as in any recording.
 
 ## Related
 
@@ -10082,6 +10160,8 @@ reaches it from your machine.
 - It records the top-level page: clicks inside an iframe, and steps in a popup or a new tab, are not recorded yet. The
   editor says so when the application opens a tab or a popup.
 - A file takes one recording at a time.
+- A recording starts on a fresh page. To record where a test already is (signed in, halfway through a flow), pause the
+  test there and [record from the pause](./editor-breakpoints#record-from-a-pause).
 
 ## Related
 
