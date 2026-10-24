@@ -1,0 +1,1 @@
+import{t as e}from"./SOi9y6cY.js";import{n as t}from"./CFcBQqz6.js";var n=null;function r(){let r=t(`ai-status`,()=>null);async function i(){r.value===null&&(n||=e(`/api/ai/status`).catch(()=>({configured:!1})),r.value=await n)}return i(),{aiStatus:r}}export{r as t};
