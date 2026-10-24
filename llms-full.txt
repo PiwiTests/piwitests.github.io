@@ -1047,7 +1047,7 @@ If that request fails, the set stays empty and **nothing is sampled**. Turn it o
 
 ## Try it
 
-A runnable example project exercising every capture path, a failing test included, lives in [`examples/sample-app`](https://github.com/PiwiTests/platform/tree/main/examples/sample-app).
+A runnable example project exercising every capture path, a failing test included, lives in [`examples/sample-app`](https://github.com/PiwiTests/piwi/tree/main/examples/sample-app).
 
 ## Related
 
@@ -1633,7 +1633,7 @@ Or, without touching code, set `PIWI_TEST_LOGS_ENVIRONMENTS=Development,Podman,I
 
 **Requirements:** .NET 8, 9, or 10.
 
-[`examples/sample-app`](https://github.com/PiwiTests/platform/tree/main/examples/sample-app) runs an ASP.NET Core app with this package wired in, and a Playwright suite that checks what it sends.
+[`examples/sample-app`](https://github.com/PiwiTests/piwi/tree/main/examples/sample-app) runs an ASP.NET Core app with this package wired in, and a Playwright suite that checks what it sends.
 
 ### Nitro / Nuxt (npm)
 
@@ -1653,7 +1653,7 @@ Nitro loads the plugin itself. It captures `consola` Warning/Error entries (not 
 
 **Requirements:** Nuxt 3+ / Nitro 2+ (peer deps `nitropack ≥2`, `h3 ≥1`, `consola ≥3` — all included in any Nuxt project).
 
-[`examples/sample-app`](https://github.com/PiwiTests/platform/tree/main/examples/sample-app) runs a standalone Nitro app with this package and the same Playwright suite.
+[`examples/sample-app`](https://github.com/PiwiTests/piwi/tree/main/examples/sample-app) runs a standalone Nitro app with this package and the same Playwright suite.
 
 ### Reporter setup
 
@@ -1704,7 +1704,7 @@ uploads it with the run, so a route or page nothing reaches becomes a
   hubs as routes, Razor Pages and routable Blazor components as pages. Each one is declared at the URL link
   generation produces (`/` for `Home/Index`), optional parameters marked optional (`/archive/{page?}`), with the source
   file of its handler when the build has a PDB. Static files, fallbacks and endpoints marked `ExcludeFromDescription()` are left out. See
-  the [package README](https://github.com/PiwiTests/platform/tree/main/integrations/aspnetcore#route-manifest) for
+  the [package README](https://github.com/PiwiTests/piwi/tree/main/integrations/aspnetcore#route-manifest) for
   every rule.
 - **Nitro** reads its route table at build time through the package's module
   (`modules: ['@piwitests/instrumentation-nitro/module']`, under `nitro` in Nuxt); without it, only matched routes.
@@ -2039,7 +2039,7 @@ Modest; see [resource requirements](/operate/deployment#resource-requirements). 
 
 ### Where do I ask questions or propose features?
 
-[GitHub Discussions](https://github.com/PiwiTests/platform/discussions) for questions and ideas, [issues](https://github.com/PiwiTests/platform/issues) for bugs, and [ROADMAP.md](https://github.com/PiwiTests/platform/blob/main/ROADMAP.md) for direction.
+[GitHub Discussions](https://github.com/PiwiTests/piwi/discussions) for questions and ideas, [issues](https://github.com/PiwiTests/piwi/issues) for bugs, and [ROADMAP.md](https://github.com/PiwiTests/piwi/blob/main/ROADMAP.md) for direction.
 
 ---
 
@@ -2177,7 +2177,7 @@ by anything else. See [Storage → Data retention](/operate/storage#data-retenti
 ## Verifying any of this
 
 The source is public and the outbound surface is small enough to audit: watch the container's egress, or read
-[`server/utils/`](https://github.com/PiwiTests/platform/tree/main/apps/application/server/utils) — the AI
+[`server/utils/`](https://github.com/PiwiTests/piwi/tree/main/apps/application/server/utils) — the AI
 provider, SCM, SMTP, notification, OAuth, Jira and link-unfurl clients are the only things there that open
 a socket; the S3 client is in `server/storage/`.
 
@@ -2191,7 +2191,7 @@ a socket; the S3 client is in `server/storage/`.
 # License
 
 Piwi is fair source. The dashboard, the server, the desktop app and the browser extension are published under the
-[Functional Source License, Version 1.1, MIT Future License](https://github.com/PiwiTests/platform/blob/main/LICENSE)
+[Functional Source License, Version 1.1, MIT Future License](https://github.com/PiwiTests/piwi/blob/main/LICENSE)
 (FSL-1.1-MIT). The parts that run inside your own projects are MIT.
 
 ## What you can do
@@ -2235,7 +2235,7 @@ Releases up to v0.39.x were published under the MIT License, and stay under it.
 ## Questions
 
 Not sure whether what you have in mind is a competing use? Ask in
-[GitHub Discussions](https://github.com/PiwiTests/platform/discussions) before you build it.
+[GitHub Discussions](https://github.com/PiwiTests/piwi/discussions) before you build it.
 
 ## Related
 - [Privacy & data flow](./privacy) — what leaves your server, and what never does
@@ -2527,7 +2527,7 @@ Notification subscriptions can filter by branch and alert only on the default br
 ## Limits
 
 - **Views read the default branch by default.** Analytics counts each project's default branch (plus runs with no branch) until you pick branches or *All branches* (see [Branch policy](./analytics#branch-policy)). The flaky leaderboard does the same unless you scope it, but only once the project's default branch is known (set on its Settings tab, or resolved from the SCM provider); until then it reads every branch.
-- **Branches are a run dimension, not yet entities.** There is no per-branch merge-readiness verdict, branch-class gate policy, or retention by branch class yet — those are the "branches as entities" work still under *Exploring* in the [roadmap](https://github.com/PiwiTests/platform/blob/main/ROADMAP.md).
+- **Branches are a run dimension, not yet entities.** There is no per-branch merge-readiness verdict, branch-class gate policy, or retention by branch class yet — those are the "branches as entities" work still under *Exploring* in the [roadmap](https://github.com/PiwiTests/piwi/blob/main/ROADMAP.md).
 - **A run needs a resolvable branch.** A purely local run with no CI variables, a detached `HEAD`, and no `PIWI_BRANCH` records no branch at all, so it will not appear under any branch filter.
 
 ## Related
@@ -2658,7 +2658,7 @@ content.
 The ZIP carries reconstructed `trace.zip` archives, but reading one still needs a Playwright trace
 viewer — `npx playwright show-trace trace.zip`, or the [bundled viewer](./evidence#trace-viewer) on any
 Piwi instance. Bundling the viewer's assets into the export itself is on the
-[roadmap](https://github.com/PiwiTests/platform/blob/main/ROADMAP.md).
+[roadmap](https://github.com/PiwiTests/piwi/blob/main/ROADMAP.md).
 
 ## Perfetto trace
 
@@ -6473,12 +6473,12 @@ the [editors](./editor-coverage) and the [coverage insights](./coverage-insights
 ## Turn it on
 
 1. Add the `PiwiTests.Instrumentation.Coverage` package to every project whose code you want covered, as its
-   [README](https://github.com/PiwiTests/platform/tree/main/integrations/aspnetcore/PiwiTests.Instrumentation.Coverage#readme)
+   [README](https://github.com/PiwiTests/piwi/tree/main/integrations/aspnetcore/PiwiTests.Instrumentation.Coverage#readme)
    shows, serve it with `app.UsePiwiTestLogs()` ([backend instrumentation](/guide/backend-logs)), and build the test
    environment with `-p:PiwiCoverage=true`. Never ship that build to production: its code runs slower, and its
    coverage endpoints expose source paths and line numbers. It refuses to start in the Production environment, and
    `PiwiCoverageForbidden` makes a build fail when coverage reaches it
-   ([README](https://github.com/PiwiTests/platform/tree/main/integrations/aspnetcore/PiwiTests.Instrumentation.Coverage#enabling-it)).
+   ([README](https://github.com/PiwiTests/piwi/tree/main/integrations/aspnetcore/PiwiTests.Instrumentation.Coverage#enabling-it)).
 2. Set the reporter's `coverage.server` option, or `PIWI_COVERAGE_SERVER`, with the
    [capture fixtures](/guide/capture-fixtures) in place.
 
@@ -6538,7 +6538,7 @@ answers it is the one that served the run's first requests.
   [combined coverage](./combined-coverage) notes the run, and its `e2e` suite reads as incomplete unless a complete
   run of the commit counts beside it.
 - **Exclusions:** the coverage build leaves out what coverlet does, read from the project's coverlet settings
-  ([README](https://github.com/PiwiTests/platform/tree/main/integrations/aspnetcore/PiwiTests.Instrumentation.Coverage#what-it-leaves-out)):
+  ([README](https://github.com/PiwiTests/piwi/tree/main/integrations/aspnetcore/PiwiTests.Instrumentation.Coverage#what-it-leaves-out)):
   an excluded member has no executable lines and no coverage.
 - C# and Visual Basic only.
 
@@ -6746,7 +6746,7 @@ function the tool knows. No source code, no test names, no hit counts.
 - **coverlet can skip an assembly** whose dependencies it cannot resolve, saying so only in its diagnostic log.
 - **Exclusions.** A .NET file counts the span table's lines, so code only a unit tool excludes still counts: the
   coverage build reads coverlet's exclusions from the project or its `RunSettingsFilePath`
-  ([details](https://github.com/PiwiTests/platform/tree/main/integrations/aspnetcore/PiwiTests.Instrumentation.Coverage#what-it-leaves-out)),
+  ([details](https://github.com/PiwiTests/piwi/tree/main/integrations/aspnetcore/PiwiTests.Instrumentation.Coverage#what-it-leaves-out)),
   never Microsoft code coverage's. Exclude a whole file in the scope too.
 - **EF Core migrations count**, in both tools: add `**/Migrations/` to the scope. `Program.cs` counts too, its inline
   minimal API handlers at run level only.
@@ -6986,7 +6986,7 @@ Once a probe on that route is noticed, the gap closes itself.
 
 **Experimental.** Server probes are off by default. The rule for when to turn them on (client probes reporting
 *not noticed* on one probed pair in ten) has not been measured yet. The design is in the
-[scenario gaps design record](https://github.com/PiwiTests/platform/blob/main/adr/scenario-gaps.md#level-two--server-probes-m3-on-an-entry-condition).
+[scenario gaps design record](https://github.com/PiwiTests/piwi/blob/main/adr/scenario-gaps.md#level-two--server-probes-m3-on-an-entry-condition).
 
 A client probe rewrites the response in the browser, so the server never runs its error path. A server probe signs a
 fault onto one request (`X-Piwi-Probe`, an HMAC signature made with `PIWI_PROBE_SECRET`), and the
@@ -7977,7 +7977,7 @@ Everything binds to `127.0.0.1`, so nothing is exposed to the network.
 
 ## Where it is
 
-Download the installer from the [latest release](https://github.com/PiwiTests/platform/releases/latest):
+Download the installer from the [latest release](https://github.com/PiwiTests/piwi/releases/latest):
 
 | OS | Installer |
 |----|-----------|
@@ -8175,7 +8175,7 @@ project reaches, lists those tests, and marks the buttons, links and fields no t
 
 Piwi Picker speaks English, French, German, Spanish and Brazilian Portuguese, following the browser unless
 **Language**, in the settings, picks another. German, Spanish and Portuguese are unreviewed drafts:
-[suggest a correction](https://github.com/PiwiTests/platform/issues/new?template=translation.yml). A bug report is
+[suggest a correction](https://github.com/PiwiTests/piwi/issues/new?template=translation.yml). A bug report is
 written in the extension's language; locators, test ids and specs never are.
 
 ## Permissions, explained
@@ -10411,7 +10411,7 @@ fix before its release; don't run it in production: it has had no release testin
 Pin a specific version in production, and read [Upgrading](./upgrading) before you bump it, because
 migrations are forward-only. Browse the published tags on
 [Docker Hub](https://hub.docker.com/r/phenx/piwitests-server/tags) or
-[GHCR](https://github.com/PiwiTests/platform/pkgs/container/platform).
+[GHCR](https://github.com/PiwiTests/piwi/pkgs/container/platform).
 
 ### Image details
 
@@ -10447,7 +10447,7 @@ provider and what to check before you rely on it.
 
 ## Docker Compose
 
-The repository ships a ready-to-use [`docker-compose.yml`](https://github.com/PiwiTests/platform/blob/main/docker-compose.yml) with commented options (secret key, auth, PostgreSQL). Minimal version:
+The repository ships a ready-to-use [`docker-compose.yml`](https://github.com/PiwiTests/piwi/blob/main/docker-compose.yml) with commented options (secret key, auth, PostgreSQL). Minimal version:
 
 ```yaml
 services:
@@ -10742,8 +10742,8 @@ point it isn't one click. [Deploy it](./deployment) to a machine with Docker ins
 
 Railway publishes templates from its own dashboard rather than from a file in this repository, so the
 template's exact contents live in
-[`deploy/railway/template.md`](https://github.com/PiwiTests/platform/blob/main/deploy/railway/template.md)
-and the repo ships a [`railway.json`](https://github.com/PiwiTests/platform/blob/main/railway.json) pinning
+[`deploy/railway/template.md`](https://github.com/PiwiTests/piwi/blob/main/deploy/railway/template.md)
+and the repo ships a [`railway.json`](https://github.com/PiwiTests/piwi/blob/main/railway.json) pinning
 the health check to `/api/health` and the replica count to 1.
 
 > **No button yet.** Until the template is published on Railway, create a service from the
@@ -10754,10 +10754,10 @@ Railway injects `PORT`, which the image honors.
 
 ## Render
 
-Render reads [`render.yaml`](https://github.com/PiwiTests/platform/blob/main/render.yaml) straight from the
+Render reads [`render.yaml`](https://github.com/PiwiTests/piwi/blob/main/render.yaml) straight from the
 repository, so the button is genuinely one click:
 
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/PiwiTests/platform)
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/PiwiTests/piwi)
 
 The blueprint asks for a **paid instance type**, deliberately: Render's free web services have no disk, and
 without one the database and every stored trace are discarded on each redeploy. It also sets
@@ -10768,7 +10768,7 @@ point at the right origin.
 
 ## Fly.io
 
-Fly has no browser button, but [`fly.toml`](https://github.com/PiwiTests/platform/blob/main/fly.toml) makes
+Fly has no browser button, but [`fly.toml`](https://github.com/PiwiTests/piwi/blob/main/fly.toml) makes
 it one command plus the secrets:
 
 ::: code-group
@@ -10815,12 +10815,12 @@ Koyeb carries the whole service definition in the URL, so nothing needs to be in
 Set `PIWI_SECRET_KEY`, `PIWI_AUTH_SECRET`, `PIWI_SETUP_TOKEN` and `PIWI_SITE_URL` in the Koyeb console after the first deploy,
 because the URL can't generate secrets. With authentication on, the service refuses to start until
 `PIWI_AUTH_SECRET` is set. The full command list is kept in
-[`deploy/koyeb-deploy-url.txt`](https://github.com/PiwiTests/platform/blob/main/deploy/koyeb-deploy-url.txt).
+[`deploy/koyeb-deploy-url.txt`](https://github.com/PiwiTests/piwi/blob/main/deploy/koyeb-deploy-url.txt).
 
 ## Coolify / Dokploy
 
 Both consume a Compose file, so one stack covers them. In Coolify: **Add a new resource → Service →**
-paste [`deploy/coolify/docker-compose.yml`](https://github.com/PiwiTests/platform/blob/main/deploy/coolify/docker-compose.yml).
+paste [`deploy/coolify/docker-compose.yml`](https://github.com/PiwiTests/piwi/blob/main/deploy/coolify/docker-compose.yml).
 It uses Coolify's magic variables, so the domain and the secrets are generated for you and Traefik routing
 and TLS are wired up automatically.
 
@@ -10897,7 +10897,7 @@ The defaults are conservative, so the checklist above is short. Without any extr
 - [Backup & restore](./backup-restore) — what to copy, and how to restore it
 - [Privacy & data flow](/guide/privacy) — what is stored, and secrets at rest
 - [Configuration reference](/reference/configuration) — every `PIWI_*` variable
-- [Security policy](https://github.com/PiwiTests/platform/blob/main/SECURITY.md) — reporting a vulnerability
+- [Security policy](https://github.com/PiwiTests/piwi/blob/main/SECURITY.md) — reporting a vulnerability
 
 <!-- https://piwitests.dev/operate/authentication -->
 
@@ -11643,7 +11643,7 @@ about, or accept starting fresh. Your file storage is unaffected either way.
 - [Storage & retention](./storage) — where reports, traces and attachments go
 - [Deployment](./deployment) — Compose and Kubernetes, and [one-click deploy](./one-click-deploy) templates
 - Changing the schema is a contributor task, not an operator one:
-  [CONTRIBUTING.md](https://github.com/PiwiTests/platform/blob/main/CONTRIBUTING.md)
+  [CONTRIBUTING.md](https://github.com/PiwiTests/piwi/blob/main/CONTRIBUTING.md)
 
 <!-- https://piwitests.dev/operate/storage -->
 
@@ -12031,7 +12031,7 @@ what happens before you pull a new tag.
 
 ## The short version
 
-1. Read the [changelog](https://github.com/PiwiTests/platform/blob/main/CHANGELOG.md) for the versions
+1. Read the [changelog](https://github.com/PiwiTests/piwi/blob/main/CHANGELOG.md) for the versions
    you're skipping, looking for **⚠ BREAKING CHANGES**.
 2. **Back up** the database and file storage ([how](./backup-restore)).
 3. Pull the new tag and restart.
@@ -12181,7 +12181,7 @@ progress bar.
 
 **The container is unhealthy after upgrading** (`/api/health` returns `503` and anything that reads data fails). Check
 the logs for `Migration error`. The schema is mid-flight or incompatible; restore your backup and open an
-[issue](https://github.com/PiwiTests/platform/issues) with the error. If the error starts with
+[issue](https://github.com/PiwiTests/piwi/issues) with the error. If the error starts with
 `Migration history repair failed`, the database ran another build and could not be brought in line
 automatically ([details](#a-database-that-ran-another-build)); it was left as it was.
 
@@ -12201,7 +12201,7 @@ share a root cause have merged. Triage state is carried across the merge.
 ## Related
 - [Backup & restore](./backup-restore) — what to back up and how
 - [Deployment → Available tags](./deployment#available-tags) — what to pin
-- [Changelog](https://github.com/PiwiTests/platform/blob/main/CHANGELOG.md) — breaking changes per release
+- [Changelog](https://github.com/PiwiTests/piwi/blob/main/CHANGELOG.md) — breaking changes per release
 
 <!-- https://piwitests.dev/reference/coverage-cost -->
 
