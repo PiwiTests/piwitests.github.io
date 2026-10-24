@@ -1,0 +1,1 @@
+import{c as e,u as t}from"./ChVCHXvE.js";import{Kt as n,b as r,k as i,mt as a}from"./DVRkMeDb.js";var o=i({__name:`edit`,async setup(i){let o,s,c=t();return[o,s]=n(()=>e({path:`/projects/${c.params.id}`,query:{tab:`settings`},hash:c.hash},{replace:!0})),await o,s(),(e,t)=>(a(),r(`div`))}});export{o as default};

@@ -1,0 +1,1 @@
+import{H as e}from"./ChVCHXvE.js";function t(){let t=e();return String(t.public.desktop)===`true`}export{t};
