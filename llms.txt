@@ -131,7 +131,7 @@
 - [Metrics](https://piwitests.dev/reference/metrics): Every number the analytics widgets, quality reports, MCP tools and exports show, with its unit, which direction is better and its definition, generated from the metric catalog.
 - [Gap detectors & exposure](https://piwitests.dev/reference/gap-detectors): Every Test Map detector with the class it reports, what it needs and its evidence, the exposure factors that rank gaps, and what the graph includes.
 - [Notification events & webhooks](https://piwitests.dev/reference/notification-events): Every notification event Piwi fires, when it fires, and the JSON body a webhook channel receives, with its signature and payload fields.
-- [Keyboard shortcuts](https://piwitests.dev/reference/keyboard-shortcuts): Every keyboard shortcut the dashboard registers: the command palette, the go-to chords, failure inbox triage, the test lists' search, and the keys of the image and element viewers.
+- [Keyboard shortcuts](https://piwitests.dev/reference/keyboard-shortcuts): Every keyboard shortcut the dashboard registers: the command palette, the assistant, the go-to chords, failure inbox triage, the test lists' search, and the keys of the image and element viewers.
 
 ## Optional
 
