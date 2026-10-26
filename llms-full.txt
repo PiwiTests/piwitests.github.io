@@ -1435,7 +1435,7 @@ are not read.
 
 | Variable | Description |
 |----------|-------------|
-| `PIWI_AI_PROVIDER` | `anthropic`, `openai`, or `claude-cli` |
+| `PIWI_AI_PROVIDER` | `anthropic`, `openai`, `claude-cli`, `codex-cli`, or `deepseek-cli` |
 | `PIWI_AI_API_KEY` | Provider API key (stored encrypted when set via the UI; never returned by the API) |
 | `PIWI_AI_MODEL` | Model name (default: `claude-opus-4-8` for Anthropic) |
 | `PIWI_AI_BASE_URL` | Base URL of the provider API: required for `openai`, OpenAI itself (`https://api.openai.com/v1`) included; optional for `anthropic` (a gateway or proxy) |
@@ -1444,8 +1444,7 @@ are not read.
 | `PIWI_AI_RESEARCH_MODEL` / `_PROVIDER` / `_BASE_URL` / `_API_KEY` | Optional **research** model for two-stage diagnosis; provider/base URL/key default to the main ones |
 | `PIWI_AI_EMBEDDING_PROVIDER` / `_MODEL` / `_BASE_URL` / `_API_KEY` | Optional **embedding** model for semantic failure clustering (OpenAI-compatible only: Anthropic has no embeddings API) |
 
-A saved key is sent only to the provider and base URL it was saved for: pointing a role at another base URL in
-**Settings → AI**, or testing one there, needs the key entered again.
+Saved keys are bound to their provider and base URL. Enter the key again when changing either.
 
 The [Configuration reference](/reference/configuration#ai-diagnosis) lists every AI variable.
 
@@ -1459,6 +1458,10 @@ into the result card when it completes. The [API docs](https://piwitests.dev/dem
 protocol (the in-app reference at `/docs` shows the same spec).
 
 To be told when a diagnosis finishes without watching the panel, turn on **Settings → AI → Diagnosis notifications**: a per-browser preference (stored on that device only) that shows a browser notification on completion once you grant the permission.
+
+### Local Codex CLI
+
+Use [Codex CLI](/guide/codex-cli) with a ChatGPT login, or [official DeepSeek Harness](/guide/deepseek-cli) with DeepSeek credentials.
 
 ## Model roles
 
@@ -1545,6 +1548,106 @@ the custom instructions or the language can be told apart. Piwi never switches m
 - [Source control](./source-control): the diffs and source files a diagnosis reads
 - [Privacy & data flow](./privacy): exactly what a diagnosis sends, and where
 - [Configuration reference](/reference/configuration#ai-diagnosis): every AI variable
+
+<!-- https://piwitests.dev/guide/codex-cli -->
+
+# Codex CLI
+
+Piwi can use [Codex CLI](https://github.com/openai/codex) for diagnosis, research and the assistant without an OpenAI
+API key. The CLI must be installed on the machine running Piwi.
+
+## Setup
+
+1. Install Codex CLI and run `codex login` with your ChatGPT account.
+2. Choose **Codex (local)** in **Settings → AI**. The desktop app finds `codex` on PATH; a self-hosted server enables it
+   with `PIWI_CODEX_CLI_PATH` pointing to the executable's absolute path. Alternatively, set `PIWI_AI_PROVIDER=codex-cli`
+   for environment-managed settings.
+3. Use **Recheck** in the status card to check availability, version and authentication. Sign-in and sign-out stay in
+   Codex. No API key or Piwi secret-encryption key is needed for this provider.
+
+Piwi reuses the file-backed login at `CODEX_HOME/auth.json` (default: `.codex/auth.json` in your home directory).
+For a keyring-only login, set `cli_auth_credentials_store = "file"` in your Codex configuration and run `codex login`.
+Use a recent CLI with the isolation flags; Piwi refuses incompatible versions.
+
+## Models and output
+
+Diagnosis, research and assistant roles accept a model ID; blank uses `gpt-5.4`. Embeddings need an OpenAI-compatible
+provider. Codex receives JSON Schema through its structured-output option. Its JSONL events stream completed messages,
+so text can arrive in message-sized chunks. Input-token counts already include cached input tokens; the cached count
+is also reported separately. Codex does not report a dollar cost, so Piwi leaves it unknown. Image attachments are
+omitted for CLI diagnosis; text evidence is still sent.
+
+## Isolation
+
+Each invocation uses a private temporary home and working directory with only a login snapshot. Refreshed credentials
+are saved back if the source login is unchanged. User configuration, project instructions, skills, hooks, plugins and
+unrelated credentials are excluded. Built-in execution, filesystem and web tools are disabled. The assistant receives
+only its turn's MCP endpoint, with its short-lived token and allowed tools; calls retain the asking user's project
+scope, read-only access and answer limits. Temporary files are removed when the process exits or times out.
+
+## Related
+
+- [AI provider](/guide/ai-provider)
+- [Assistant](/features/assistant)
+- [Configuration reference](/reference/configuration#ai-diagnosis)
+
+<!-- https://piwitests.dev/guide/deepseek-cli -->
+
+# DeepSeek CLI
+
+Piwi uses the official [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) command line tool, `dsh`.
+It runs diagnosis, research and assistant roles using your DeepSeek credentials. No OpenAI API key is used.
+
+## Setup
+
+Install the supported official developer-preview release on the machine running Piwi:
+
+```bash
+npm install -g @deepseek-ai/dsh@0.2.1-rc.2
+```
+
+Sign in through `dsh web`, or configure `DEEPSEEK_API_KEY` for that machine. Piwi reads the DeepSeek account grant or
+saved DeepSeek API-key reference from `DSH_HOME/.credentials.yaml` (default: `.dsh/.credentials.yaml` in your home
+directory). A saved account takes precedence; a saved API key takes precedence over the environment key.
+Other provider credentials and `.env` files are excluded.
+
+Select **DeepSeek Harness (local)** in **Settings → AI**. The desktop app discovers `dsh` on PATH; servers opt in by
+setting `PIWI_DEEPSEEK_CLI_PATH` to its absolute launcher path. Use `PIWI_AI_PROVIDER=deepseek-cli` for environment-managed
+configuration. No API key is stored in Piwi for this provider. **Recheck** reports installation compatibility and local
+credential presence; credential validity is checked when a model is called. Sign-in and sign-out remain in Harness.
+
+The integration targets `0.2.1-rc.2`. Harness is in developer preview, so Piwi refuses other versions until their
+profile and event contracts have been verified.
+
+## Models and output
+
+Blank model fields use `deepseek-flash`; enter another model ID supported by your DeepSeek account or API access.
+Embeddings need an OpenAI-compatible provider. CLI diagnosis sends text evidence and omits image attachments.
+
+The official CLI emits JSONL messages, per-step usage and a final answer. Text streams in completed-message chunks.
+Piwi adds cache reads and writes to uncached input tokens for its total input count, and reports the cache counts
+separately. Missing usage stays unknown. Dollar cost is unknown because the CLI does not report it.
+
+JSON Schema requests are included in the system instructions. Harness has no native JSON Schema output flag in this
+release, so schema-conforming output depends on the model; this is not a strict structured-output guarantee.
+Intermediate commentary is excluded from the returned structured answer.
+
+## Isolation
+
+Each run uses a private temporary home, working directory and generated profile with no inherited bundles. The profile
+contains only official model and agent plugins, with the turn's Piwi MCP client added for assistant runs. Shell,
+filesystem, web, skill, plugin-management and project-instruction plugins are absent. User profiles, plugins, endpoint
+overrides, runtime injection variables and unrelated credentials are excluded.
+
+Only the selected DeepSeek credential is copied. The assistant's MCP token stays in a private profile file, outside the
+command line. The existing turn endpoint enforces the asking user's project scope, read-only tools and answer limits;
+the token is revoked when the turn ends. Processes are killed at the turn timeout, and temporary files are removed.
+
+## Related
+
+- [AI provider](/guide/ai-provider)
+- [Codex CLI](/guide/codex-cli)
+- [Assistant](/features/assistant)
 
 <!-- https://piwitests.dev/guide/backend-logs -->
 

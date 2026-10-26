@@ -11,7 +11,9 @@
 - [Capture fixtures](https://piwitests.dev/guide/capture-fixtures): The optional fixtures file that records network timing, Web Vitals, console output, ARIA snapshots and locator snapshots from inside your tests.
 - [CI & sharding](https://piwitests.dev/guide/ci): Run the reporter in CI: GitHub Actions, GitLab and others, shards merged into one run, the run URL for later steps and the merge gate.
 - [Source control](https://piwitests.dev/guide/source-control): Connect the dashboard to your GitHub, GitLab or Bitbucket repository with an SCM token, and see which features read or write through it.
-- [AI provider](https://piwitests.dev/guide/ai-provider): Connect an LLM to the dashboard: Anthropic, OpenAI, a local OpenAI-compatible model or the Claude Code CLI, with model roles, response language and token limits.
+- [AI provider](https://piwitests.dev/guide/ai-provider): Connect an LLM to the dashboard: Anthropic, OpenAI, a local OpenAI-compatible model or a local Claude Code or Codex CLI, with model roles, response language and token limits.
+- [Codex CLI](https://piwitests.dev/guide/codex-cli): Use a local Codex ChatGPT login for Piwi diagnosis and the assistant, with isolated execution, structured output and scoped read-only tools.
+- [DeepSeek CLI](https://piwitests.dev/guide/deepseek-cli): Use the official DeepSeek Harness command line tool for Piwi diagnosis and the assistant, with private profiles and scoped read-only MCP access.
 - [Backend instrumentation](https://piwitests.dev/guide/backend-logs): Add the ASP.NET Core or Nitro package to your backend so each test's requests carry the server's logs, spans and routes, with server probes as an experimental fourth use.
 - [Import past runs](https://piwitests.dev/guide/importing-runs): Backfill the dashboard with past runs from Playwright JSON and blob reports or trace files, and make imported history line up with new runs.
 - [What Piwi does](https://piwitests.dev/guide/what-piwi-does): What Piwi is for: the jobs it serves, the failure loop, the two rules behind every feature, its pieces, and what it is not.
