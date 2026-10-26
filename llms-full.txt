@@ -1663,7 +1663,7 @@ except in those response headers, or from the coverage endpoints of a coverage b
 | [Server spans](#server-spans) | The server's time on a request, and the handler and dependencies it reached | | ✓ |
 | [Route manifest](#route-manifest) | The routes the server has, so the Test Map can name the ones no test reaches | ✓ | ✓ |
 | [Server probes](#server-probes) | A fault injected inside the server for one request (**Experimental**) | ✓ | ✓ |
-| [Server coverage](/features/server-coverage) | The backend files, functions and lines each test ran, from a coverage build | ✓ | |
+| [Server coverage](/features/server-coverage) | Backend files, functions and lines each test ran, from a coverage build | ✓ | ✓ |
 
 **Active only in non-production environments by default.** The ASP.NET Core integration emits its headers in the Development and Test environments unless you [choose others](#choosing-the-environments); the Nitro/Nuxt integration only when `NODE_ENV` is `development` or `test`. Both honor `PIWI_TEST_LOGS_DISABLED`: set it to `true` to turn capture off anywhere, or to `false` to force capture on in a production-mode test deployment.
 
@@ -5907,25 +5907,26 @@ dependency graph:
 npx @piwitests/reporter run impact --base origin/main
 ```
 
-It fails safe, widening to the full suite with a warning, when a changed file maps to no test (stylesheets too) or
-only through source frames, which miss passing tests. A docs-only change runs nothing. `piwi select impact` prints
-the Playwright arguments instead of running them, for a job that passes them to `playwright test`: nothing when the
-run widens, and `--pass-with-no-tests --grep-invert .` when no test is impacted, under which Playwright runs none and
-passes.
+It fails safe, widening to the full suite with a warning, when a changed file maps to no test (a stylesheet too,
+unless [CSS coverage](/features/css-coverage) maps it) or only through source frames, which miss passing tests. A
+docs-only change runs nothing. `piwi select impact` prints the Playwright arguments instead of running them, for a job
+that passes them to `playwright test`: nothing when the run widens, and `--pass-with-no-tests --grep-invert .` when no
+test is impacted, under which Playwright runs none and passes.
 [`piwi preflight --run`](/features/preflight) runs the same tests along with those of the locators the change breaks.
 
 ## Line level
 
-When tests record coverage ([code reach](/features/code-reach) at `functions`, or
-[server coverage](/features/server-coverage)), a modified file selects only the tests that ran the lines you changed,
-not every test that touched the file. The reporter sends each modified file's changed lines with the git blob id of
-its version before the change, and the dashboard reads them against each test's recorded coverage of that same
-version:
+When tests record coverage ([code reach](/features/code-reach) at `functions`,
+[CSS coverage](/features/css-coverage), or [server coverage](/features/server-coverage)), a modified file selects
+only the tests that ran the lines you changed, not every test that touched the file. The reporter sends each modified
+file's changed lines with the git blob id of its version before the change, and the dashboard reads them against each
+test's recorded coverage of that same version:
 
 | A changed line… | selects the tests that… |
 | --- | --- |
 | is a statement, with server coverage at `lines` | ran that line |
 | sits inside a function: any other line, an insertion, or coverage at `functions` | ran that function |
+| sits inside a style sheet rule, with CSS coverage | matched that rule |
 | sits outside every function (module code, a declaration, an attribute), or crosses from one function into the next | reach the file at all |
 
 An added line counts by the lines around it, so it selects the tests that ran the code it was added to. A test whose
@@ -6560,31 +6561,115 @@ The [API](https://piwitests.dev/demo/docs) (`/docs` on your instance) serves the
 
 ## Related
 
-- [Server coverage](./server-coverage): the code each test ran in an ASP.NET Core backend
+- [CSS coverage](./css-coverage): the style sheet rules each test's pages matched, in the same capture
+- [Server coverage](./server-coverage): the code each test ran in an ASP.NET Core or Nitro backend
 - [Coverage cost](/reference/coverage-cost): what each mode costs
 - [Capture fixtures](/guide/capture-fixtures): what else the fixtures record
 - [Impact from a diff](./change-impact): the tests a change affects
 - [Privacy & data flow](/guide/privacy): what the reporter sends
 
+<!-- https://piwitests.dev/features/css-coverage -->
+
+# CSS coverage
+
+Each test records the rules of your style sheets its pages matched: a rule counts once an element on the page matched
+its selector. A change to a style sheet then selects the tests that rendered the rules it touched, where a style
+change used to run the whole suite. It sits beside [code reach](./code-reach), the scripts' side, and
+[server coverage](./server-coverage).
+
+## Turn it on
+
+Set `coverage.css: 'rules'` in the reporter options, or `PIWI_COVERAGE_CSS=rules`, with the
+[capture fixtures](/guide/capture-fixtures) in place. It is a choice of its own, independent of `coverage.browser`.
+
+```ts
+reporter: [['@piwitests/reporter', { coverage: { browser: 'functions', css: 'rules' } }]],
+```
+
+## What it records
+
+The fixtures start Chromium's CSS rule usage on each page the test has, in the same capture as code reach, and read
+it as each document is left and when the test ends. Each style sheet goes to its file:
+
+- a sheet with a source map (Sass, Less, PostCSS, a `.vue` file's `<style>` with Vite's `css.devSourcemap`) counts in
+  the map's sources;
+- a `<style>` element a Vite dev server injected counts in the file its `data-vite-dev-id` names, at its lines there,
+  a component's `<style>` block included;
+- a sheet served as written (`/assets/app.css`) is the file at that path, found as
+  [code reach](./code-reach#what-it-records) finds a module.
+
+Without a source map, a sheet's lines are the file's only when each rule sits at the same line in the file: a
+preprocessor's output served without its map (Sass, PostCSS, Tailwind, an inlined `@import`) counts at file level, so
+a change to that file keeps every test that matched one of its rules.
+
+A style rule counts from its selector to its closing brace, like a function. A grouping rule (`@media`, `@supports`,
+`@layer`, `@container`) counts its first line once a rule inside it matched. Every rule of each sheet, matched or not,
+goes with the run, for the file's ratio.
+
+## Where it is used
+
+Wherever browser files are read: the execution page's coverage, a file's coverage page, the tests behind a line,
+[test selection](./change-impact) (a changed rule selects the tests that matched it; a change outside every rule, at
+file level, the tests that matched any), and [uncovered changes](./uncovered-changes).
+
+On the sample application, a change to its stylesheet selected 24 of its 32 tests by file, and 12 by line for a change
+to one rule, where it ran all 32 before.
+
+## Cost
+
+The cost is Chromium's style recalculation, not the reads: about 10% more per test on the sample application, close to
+what function coverage costs there, and up to 57% on a page with 2,000 rules and frequent re-renders, where function
+coverage costs 4%. Turn it on where style changes are frequent, or in a scheduled run.
+
+## Limits
+
+- **Chromium only**, like JavaScript coverage.
+- **A state the tests never reach reads as unused:** a `:hover` never hovered, a breakpoint never rendered, a theme
+  never set.
+- **Utility CSS** (Tailwind) maps into the framework's own sheet under `node_modules`, which counts for nothing: the
+  classes a test used are in the templates code reach already covers.
+- **CSS-in-JS and constructed sheets** (`adoptedStyleSheets`) have no file.
+- **Production builds:** Vite writes no source map for its CSS and minifies it to one line, so a built sheet maps to no
+  source. Record CSS coverage against a dev server, or an application serving its CSS as written.
+- A `<style>` in a page's HTML counts only when the page's address names its file (`/index.html`).
+- A document replaced without `beforeunload` (`page.setContent`) loses the rules it matched: Chromium drops them with
+  it.
+
+## Related
+
+- [Code reach](./code-reach): the scripts each test ran
+- [Change impact](./change-impact): the tests a change selects
+- [Coverage cost](/reference/coverage-cost): what each mode costs
+
 <!-- https://piwitests.dev/features/server-coverage -->
 
 # Server coverage
 
-With an ASP.NET Core backend built for coverage, each test records the backend code it ran: its files, the functions
-that ran in them and, at the finest granularity, the executed lines. Requests are told apart, so tests running in
+With an ASP.NET Core or a Nitro backend built for coverage, each test records the backend code it ran: its files, the
+functions that ran in them and, at the finest granularity, the executed lines. Requests are told apart, so tests running in
 parallel against one shared backend each keep their own. The browser side is [code reach](./code-reach); both feed
 the [execution page](./code-reach#on-the-execution-page), the [file coverage page](./code-reach#which-tests-run-a-file),
 the [editors](./editor-coverage) and the [coverage insights](./coverage-insights).
 
 ## Turn it on
 
-1. Add the `PiwiTests.Instrumentation.Coverage` package to every project whose code you want covered, as its
-   [README](https://github.com/PiwiTests/piwi/tree/main/integrations/aspnetcore/PiwiTests.Instrumentation.Coverage#readme)
-   shows, serve it with `app.UsePiwiTestLogs()` ([backend instrumentation](/guide/backend-logs)), and build the test
-   environment with `-p:PiwiCoverage=true`. Never ship that build to production: its code runs slower, and its
-   coverage endpoints expose source paths and line numbers. It refuses to start in the Production environment, and
-   `PiwiCoverageForbidden` makes a build fail when coverage reaches it
-   ([README](https://github.com/PiwiTests/piwi/tree/main/integrations/aspnetcore/PiwiTests.Instrumentation.Coverage#enabling-it)).
+1. Build the backend for coverage, in the test environment only:
+   - **ASP.NET Core:** add the `PiwiTests.Instrumentation.Coverage` package to every project whose code you want
+     covered, as its
+     [README](https://github.com/PiwiTests/piwi/tree/main/integrations/aspnetcore/PiwiTests.Instrumentation.Coverage#readme)
+     shows, serve it with `app.UsePiwiTestLogs()` ([backend instrumentation](/guide/backend-logs)), and build with
+     `-p:PiwiCoverage=true`. It refuses to start in the Production environment, and `PiwiCoverageForbidden` makes a
+     build fail when coverage reaches it
+     ([README](https://github.com/PiwiTests/piwi/tree/main/integrations/aspnetcore/PiwiTests.Instrumentation.Coverage#enabling-it)).
+   - **Nitro:** with the plugin and the module of `@piwitests/instrumentation-nitro` in place
+     ([README](https://github.com/PiwiTests/piwi/tree/main/integrations/nitro#server-coverage)), set
+     `PIWI_COVERAGE_BUILD=true` when the server is built (`nitro build`, or `nitro dev`). The module then instruments
+     the server's own code. A coverage build refuses to start where `NODE_ENV` is `production`, which `nitro build`
+     makes it, unless `PIWI_TEST_LOGS_DISABLED=false` serves it there; `PIWI_COVERAGE_FORBIDDEN=true` makes a coverage
+     build fail.
+
+   Never ship that build to production: its code runs slower, and its coverage endpoints expose source paths and line
+   numbers.
 2. Set the reporter's `coverage.server` option, or `PIWI_COVERAGE_SERVER`, with the
    [capture fixtures](/guide/capture-fixtures) in place.
 
@@ -6605,7 +6690,8 @@ the option costs nothing: it can stay on, and the build decides.
 
 With `functions` and `lines`, each file names the git blob its line numbers refer to. At the end of the run the
 reporter also sends each backend's run-level coverage, attributed to no test, with each file's executable lines at
-`lines`: the lines no test runs, in every assembly built with coverage, including those whose code never ran. A test
+`lines`: the lines no test runs, in every assembly or every Nitro server file built with coverage, including those
+whose code never ran. A test
 whose coverage the backend no longer held, or that could not be collected, is marked incomplete.
 
 <figure>
@@ -6613,7 +6699,7 @@ whose coverage the backend no longer held, or that could not be collected, is ma
   <figcaption>One test's backend files, with the lines it ran.</figcaption>
 </figure>
 
-The backend names the checksum of the source each file was compiled from. When the file in the reporter's checkout
+The backend names the checksum of the source each file was built from. When the file in the reporter's checkout
 differs (the backend was built from another commit), the reporter keeps the file's path but drops its line numbers,
 which would point at the wrong lines, and marks the test incomplete; the run-level coverage drops them the same way.
 
@@ -6628,9 +6714,6 @@ answers it is the one that served the run's first requests.
 
 ## Limits
 
-- **Run level only:** lambdas created at startup (inline minimal API handlers, inline middleware, DI factory lambdas),
-  work outside a request (hosted services, timers), and work a request started that still runs once the reporter
-  collected its coverage. The methods they call count normally.
 - **API calls** through Playwright's `request` fixture keep their last response's coverage only: a redirect's earlier
   responses, and a response `failOnStatusCode` turns into an error, name none.
 - **One backend per request:** a call the backend makes to another counts there only if it forwards the
@@ -6642,17 +6725,37 @@ answers it is the one that served the run's first requests.
   [API](https://piwitests.dev/demo/docs) names the origin and about when it restarted. A backend unreachable at the
   end of the run is flagged the same way, with only the tests' lines kept. The commit's
   [combined coverage](./combined-coverage) notes the run, and its `e2e` suite reads as incomplete unless a complete
-  run of the commit counts beside it.
+  run of the commit counts beside it. A Nitro development server restarts on every rebuild.
+- **Run level only:** work outside a request (hosted services, timers started at startup), and work a request started
+  that still runs once the reporter collected its coverage. On ASP.NET Core, lambdas created at startup too (inline
+  minimal API handlers, inline middleware, DI factory lambdas); the methods they call count normally. On Nitro, a
+  module's top-level code: it runs when the module loads, often inside the first request that reaches its route.
+
+**ASP.NET Core:**
+
 - **Exclusions:** the coverage build leaves out what coverlet does, read from the project's coverlet settings
   ([README](https://github.com/PiwiTests/piwi/tree/main/integrations/aspnetcore/PiwiTests.Instrumentation.Coverage#what-it-leaves-out)):
   an excluded member has no executable lines and no coverage.
 - C# and Visual Basic only.
 
+**Nitro:**
+
+- **The server's own code only:** the files the build bundles, under the repository, outside `node_modules`. A
+  dependency Nitro keeps external is not covered. A Nuxt application's `server/` code is; its pages and components
+  rendered on the server are not yet.
+- **Lines are the statements' first lines**, as Istanbul and Vitest count them: a statement spanning several lines
+  counts its first one. A class field's initializer is not instrumented.
+- **Callbacks that lose the request's async context**, such as those a library queues without `AsyncResource`, count
+  at run level.
+- Node only: the Bun, Deno and edge presets are not covered.
+
 ## Cost
 
 On a large ASP.NET Core and Vue application, the coverage build alone ran within 1% of a normal build, and per-test
 line coverage added under 10% to its UI tests, with no measurable change in its CPU. The build records the same way
-at every granularity, so files and functions cost what lines cost. [Coverage cost](/reference/coverage-cost) has every
+at every granularity, so files and functions cost what lines cost.
+On the sample application, whose suite runs against either backend, a coverage build cost no measurable test time
+on either, and 5.6% more server CPU on Nitro, 12.5% on ASP.NET Core. [Coverage cost](/reference/coverage-cost) has every
 mode, how it was measured, and the prototype figures.
 
 ## Try it in the demo
@@ -12413,6 +12516,11 @@ Browser files, medians on a 4-core sandbox, headless Chromium, one page per test
 Server coverage, on a prototype of the coverage package: under 2% of test duration on Microsoft's eShopOnWeb, whose
 CPU goes to the framework; up to 26% more backend CPU on an application written to spend its CPU in business logic, and
 6% in its run-level mode. Functions cost about what lines cost: the cost is the recorder's call on every method call.
+
+Server coverage on a Nitro backend, on the sample application's suite against production builds: no measurable
+change in test duration (72.8 s of tests without coverage, 72.2 s with, medians of 5 runs), 5.6% more server CPU, and
+a server bundle 7.8% larger. On the same suite, the ASP.NET Core coverage build costs 12.5% more server CPU, and no
+measurable test time either. Per call, the Nitro recorder costs 5 to 13 ns, about what the .NET one costs.
 
 ## Choosing
 
