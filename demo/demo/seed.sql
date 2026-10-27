@@ -2399,6 +2399,8 @@ CREATE TABLE `assistant_usage` (
 CREATE INDEX `idx_assistant_usage_created` ON `assistant_usage` (`created_at`);
 CREATE INDEX `idx_assistant_usage_owner` ON `assistant_usage` (`owner_id`,`created_at`);
 
+ALTER TABLE `projects` ADD `status_filter` text;
+
 BEGIN TRANSACTION;
 
 -- Tags
@@ -2410,7 +2412,7 @@ INSERT INTO tags (id, text, color, created_at, updated_at) VALUES (4, 'performan
 -- Projects
 INSERT INTO projects (id, name, label, description, created_at, updated_at, targets, external_id_url, default_branch, repository_url) VALUES (1, 'e2e-checkout', 'E2E Checkout', 'End-to-end tests for the checkout flow', 1740787200, 1745569800, '{"testPassRate":99,"maxFlakyTests":2,"maxMedianTimeToFixDays":3}', 'https://tcm.example.com/case/{id}', 'main', 'https://github.com/example/shop-web');
 INSERT INTO projects (id, name, label, description, created_at, updated_at, default_branch, repository_url) VALUES (2, 'api-integration', 'API Integration', 'Integration tests for REST API endpoints', 1739577600, 1745565300, 'main', 'https://github.com/example/shop-api');
-INSERT INTO projects (id, name, label, description, created_at, updated_at, targets, default_branch, repository_url) VALUES (3, 'ui-components', 'UI Components', 'Visual regression tests for UI components', 1736467200, 1745513100, '{"testPassRate":60,"maxOpenClusterAgeDays":400}', 'main', 'https://github.com/example/design-system');
+INSERT INTO projects (id, name, label, description, created_at, updated_at, targets, status_filter, default_branch, repository_url) VALUES (3, 'ui-components', 'UI Components', 'Visual regression tests for UI components', 1736467200, 1745513100, '{"testPassRate":60,"maxOpenClusterAgeDays":400}', '{"environments":[],"branches":[],"allBranches":false,"fullRunsOnly":true}', 'main', 'https://github.com/example/design-system');
 INSERT INTO projects (id, name, label, description, created_at, updated_at, capabilities, default_branch, repository_url) VALUES (4, 'mobile-safari', 'Mobile Safari', 'Mobile Safari browser compatibility tests', 1743465600, 1745150400, '{"markers":"declined","test-map":"declined"}', 'main', 'https://github.com/example/mobile-web');
 INSERT INTO projects (id, name, label, description, created_at, updated_at, default_branch, repository_url, coverage_areas) VALUES (5, 'web-dashboard', 'Web Dashboard', 'Cross-browser tests for the SaaS admin dashboard', 1740009600, 1745572200, 'main', 'https://github.com/example/admin-dashboard', '[{"name":"front","include":["src/"]},{"name":"back","include":["api/"]}]');
 
