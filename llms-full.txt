@@ -8408,31 +8408,32 @@ project reaches, lists those tests, and marks the buttons, links and fields no t
 ## Runs from the editor
 
 With Piwi Picker [paired with VS Code or a JetBrains IDE](./editor-recording#send-from-piwi-picker), the popup shows a
-**Runs** tile under **More tools** while the editor answers, with the number of runs it has. It opens the Runs
-window, to keep beside the test's browser. For each run the editor [started](./editor-runs), it shows the folder and
-the command, then each worker's test, project and attempt, and whether it runs or where it stopped: the file and line,
-the call about to run, and an image of the page, taken again at each stop.
+**Runs** tile under **More tools** while the editor answers. It opens the Runs window, to keep beside the test's
+browser. For each run the editor [started](./editor-runs), it shows the folder and the command, then each worker's
+test and whether it runs or where it stopped: the file and line, the call about to run, and an image of the page.
 
 **Pause** stops a running test before its next call. At a stop, **Resume**, **Step** and **Finish** do what they do
-[in the editor](./editor-run-control#the-controls); **Pick** and **Record**, when Piwi's pause bar shows in the test's
-window, start the bar's **Pick a locator** and **Record here** there, and the code lands in the editor. Run to cursor
-stays in the editor, which has the file. A control the editor refuses, because the test went on meanwhile, says why
-under the test.
+[in the editor](./editor-run-control#the-controls); Run to cursor stays in the editor. The other actions send code
+to the editor, which writes it at the stopped line, when its Piwi extension and your reporter take them. Where the
+pause bar shows, **Pick** and **Record** start its **Pick a locator** and **Record here**, **Assert** the recorder's
+**Check an element**, and **Assert a region** a pick whose ARIA snapshot becomes `toMatchAriaSnapshot`. **Mock a
+request** lists the page's fetch and XHR requests, credentials hidden: the one you choose becomes a `page.route`.
+Under the test, the window says the code went to the editor, with what to review in it, or why not.
+
+A failing test is held at its line, a headless one only while a Runs window is open: **Failed at** in red, its error
+under it. **Resume** lets it end as it failed; **Pick** replaces the failing locator.
 
 <figure>
-  <img src="/screenshots/picker-runs.png" alt="The Runs window beside a shop page stopped before a click on Checkout: the test, its file and line, the call, an image of the page, and Resume, Step, Finish, Pick and Record">
+  <img src="/screenshots/picker-runs.png" alt="The Runs window beside a shop page stopped before a click on Checkout: the test, its place, an image of the page, its controls and code actions">
   <figcaption>The Runs window, beside a test stopped at a breakpoint.</figcaption>
 </figure>
 
-The run shortcut resumes the stopped tests, or with none stopped, pauses every run. It has no key until you set one:
-**Set a shortcut**, in the Runs window, opens `chrome://extensions/shortcuts` (`edge://` in Edge), where you give it a
-key and the **Global** scope, to use it from any window, the editor's included. In Firefox, the button opens the
-add-ons manager's **Manage Extension Shortcuts**, and the key works while Firefox has the focus.
+The run shortcut resumes the stopped tests, else pauses every run. It has no key until you set one: **Set a
+shortcut** opens the browser's shortcuts page, where you give it a key and, in Chrome and Edge, the **Global** scope.
+In Firefox, it works while Firefox has the focus.
 
-The extension's background worker asks the editor for its services' addresses, once the program on the paired port
-has proved it holds the pairing's token, and keeps a WebSocket to each on `127.0.0.1`, their tokens in the
-extension's own database. A page, even one your machine serves, cannot reach them:
-[how the pieces connect](./editor-run-control#how-it-works).
+The background worker reaches the editor's services on `127.0.0.1` only once the paired port proves it holds the
+pairing's token: [how the pieces connect](./editor-run-control#how-it-works).
 
 ## Languages
 
@@ -8467,8 +8468,7 @@ Optional and off by default. In the settings, type your instance's address and c
 page comes from URL patterns kept on the instance and from any you keep in this browser; the popup's **Active
 project** select overrides both for the session. See [Extension connection](./extension-connection).
 
-Function catalogs refresh in the background. **A recording is never sent to your instance**, and a
-[bug report](./bug-reports) only from its preview.
+**A recording is never sent to your instance**, and a [bug report](./bug-reports) only from its preview.
 
 ## Limits
 
@@ -9437,9 +9437,20 @@ buster) into `*`; edit it before copying. A status other than 200 is kept, and a
 **Answer with** switches to a server error (500) or a network failure (`route.abort()`), for testing the page's
 error state. A body over 100 kB goes to a file the route reads, such as `mocks/cart.json`, downloaded beside the code.
 
-Fields named like a password, a token, a key or a session are written as `<hidden>` until you tick **Show hidden
-values**; headers, cookies included, are never written. Nothing is sent anywhere: the code reaches your clipboard
-when you copy it.
+Until you tick **Show hidden values**, credentials are written as `<hidden>`:
+
+- **By name**: the whole value of a JSON field, a form field or a query parameter named like a password, a token, a
+  key, a signature, a session or a cookie, whatever it holds.
+- **By shape**, anywhere in the body, a JSON text inside a JSON string included: a JWT, a `Bearer` or `Basic`
+  credential, a private key, a cookie a `Set-Cookie:` line sets, a key with a service's prefix (AWS, Google, Stripe,
+  GitHub, GitLab, Slack, OpenAI, npm, Twilio), and a random token of 40 characters or more.
+- **Kept**: ids, hashes and slugs (a UUID, a number, a git SHA, a file id shorter than 40 characters) and base64 that
+  encodes text, such as a pagination cursor.
+
+The URL pattern keeps the host, matches a hidden query value with `**` and a path segment shaped like a credential
+with `*`. Headers, cookies included, are never written. A body that is neither JSON nor a form is written as the
+server sent it but for those values: read it before you commit it. Nothing is sent anywhere: the code reaches your
+clipboard when you copy it.
 
 ## Slow down or fail a request
 
@@ -9670,7 +9681,7 @@ in the extensions view) or the **[JetBrains Marketplace ↗](https://plugins.jet
 the reporter already uses: the `PIWI_*` variables in the environment or the workspace `.env`, or the
 [desktop app](/features/desktop). Otherwise, run **Piwi: Connect** (**Settings → Tools → Piwi** in a JetBrains IDE)
 and sign in with the browser: [Editor connection](./editor-connection) has the steps.
-In VS Code, the extension also opens a path clicked in the dashboard, with no root to set:
+In VS Code, the extension also opens a path clicked in the dashboard:
 [Open in IDE](./ide-integration#vs-code-the-piwi-extension).
 
 In VS Code, the first workspace with a Playwright config opens the **Get started with Piwi** walkthrough, once per
@@ -9765,7 +9776,7 @@ your API keys. The desktop app keeps its own token.
 | Piwi: Pair with Piwi Picker | Copy the address [Piwi Picker sends to](./editor-recording#send-from-piwi-picker) |
 | Piwi: Record here, Record a new test file | Record at the cursor, or into a new spec: [Record tests from the editor](./editor-recording) |
 | Piwi: Stop recording, Pause recording, Resume recording | Control the recording in progress |
-| Piwi: Pause the run, Resume the run, Step to the next call, Run to the cursor, Finish the test without stopping again, Stop the run, Show the paused page | [Pause and step from the editor](./editor-run-control) |
+| Piwi: Pause the run, Resume the run, Step to the next call, Run to the cursor, Finish the test without stopping again, Stop the run, Show the paused page, Write code at the stop… | [Pause and step from the editor](./editor-run-control), [Code from a pause](./editor-stop-code) |
 | Piwi: Toggle the coverage marks | Show or hide the [coverage marks](./editor-coverage) |
 | Piwi: Open the log | Show the editor service's log; the `piwi.trace.server` setting adds its traffic |
 | Piwi: Get started | Open the walkthrough |
@@ -9837,6 +9848,10 @@ action is under **Tools → Piwi**:
   an inlay above it with **Resume**, **Step**, **Run to Caret** and **Finish**; they are also first in the status bar
   item's menu and under **Tools → Piwi**, with **Pause the Run** and **Stop the Run**. A headless test's page shows in
   the Piwi tool window's **Paused Page** tab.
+- **[Code from a pause](./editor-stop-code)**: the inlay, the arrow's menu, the status bar item's menu and **Tools →
+  Piwi** also offer **Pick a Locator**, **Record Here**, **Assert**, **Assert a Region** and **Mock a Request** (the
+  inlay names them shorter), whose code goes above the stopped line in one undoable edit; the end of the caret's line
+  says how many elements its locator matches on the stopped page, and a failure held there reads `Failed · …`.
 - **The severity of a failure**: **Settings → Tools → Piwi → Runs** chooses it
   ([CI failures in the Problems panel](./editor-failures#ci-failures-in-the-problems-panel)); an information shows as a
   weak warning.
@@ -10362,7 +10377,8 @@ A test run the [editor extensions](./editors) start can be paused, stepped and r
 own commands: no debug session starts, and the IDE's debugger works as usual beside it. The editor marks the line the
 test stopped at, as a debugger does, and the breakpoints you set or remove reach the run while it goes on. The
 [pause bar](./editor-breakpoints#pause-a-run) in the page answers the same stops, as does Piwi Picker's
-[Runs window](./extension#runs-from-the-editor), with a shortcut you set to pause and resume from any window.
+[Runs window](./extension#runs-from-the-editor), with a shortcut you set to pause and resume from any window. At a
+stop, the editor also writes code from the page: [Code from a pause](./editor-stop-code).
 
 ## The controls
 
@@ -10375,8 +10391,8 @@ test stopped at, as a debugger does, and the breakpoints you set or remove reach
 | **Finish** | Runs the test on without stopping at a breakpoint again in this attempt | `Shift+F11` | Step Out's, `Shift+F8` |
 | **Stop** | Ends the run's process | `Shift+F5` | the Run tool window's Stop |
 
-The keys are the IDE's own debugger keys (VS Code's defaults; in a JetBrains IDE, those actions' shortcuts in your
-keymap, the default keymap's shown), Piwi's only while their control applies and no debug session runs. Where a
+The keys are the IDE's own debugger keys (in a JetBrains IDE, your keymap's, the default one's shown), Piwi's only
+while their control applies and no debug session runs. Where a
 JetBrains keymap also gives one to another action (the VSCode keymap's `F5`, NetBeans' `F4`), Piwi's goes first while
 it applies. On macOS, `Cmd+F10` runs to the cursor in VS Code. **Pause** has no key in VS Code, since it applies as
 long as the test runs: bind one in **Preferences: Open Keyboard Shortcuts** (search `piwi`), where the others change
@@ -10398,15 +10414,16 @@ Playwright's own debugger, says why.
 
 ## Where the test stands
 
-When a test stops, at a breakpoint, after **Step** or **Pause**, on the line it was run to, or at `page.pause()`, the
-editor opens the file of the call about to run, a spec or a page object, with the cursor on its line, and marks it:
+When a test stops, at a breakpoint, after **Step** or **Pause**, on the line it was run to, at `page.pause()`, or at
+[a failure](./editor-stop-code#a-failure), the editor opens the file of the call about to run, with the cursor on its
+line, and marks it:
 an arrow in the gutter, the debugger's execution point color, and above it the call, as Playwright names it, with the
 controls:
 
 `Paused · Fill "MORNING10" getByLabel('Coupon code') · attempt 2`  Resume  Step  Run to cursor  Finish
 
-`attempt 2` shows on a retry. In VS Code the line is a CodeLens, and the hover on the marked line has the same
-controls; the color is `piwi.executionPointBackground`. In a JetBrains IDE the line is an inlay whose words are links,
+`attempt 2` shows on a retry. In VS Code the line is a CodeLens, and the marked line's hover has the same controls;
+the color is `piwi.executionPointBackground`. In a JetBrains IDE the line is an inlay whose words are links,
 the arrow's click lists the controls, and the color is **Settings → Editor → Color Scheme → Piwi → Line a run is
 stopped at**. The mark goes when the test goes on (from the editor or the bar), ends, or closes its page.
 
@@ -10417,7 +10434,7 @@ stopped at**. The mark goes when the test goes on (from the editor or the bar), 
 
 With several workers stopped, each has its own mark, and the controls above a line act on its worker; a key or command
 acts on the one at the cursor's line, else asks which. A control answers the stop it was shown for: when the test went
-on meanwhile (a key pressed twice), it says so and asks nothing.
+on meanwhile, it says so and asks nothing.
 
 The run's code is your files as they stood when it started. The mark follows lines you add or remove above it, and
 **Run to cursor** in an edited file runs to the run's line for the cursor's; on a line written since, it says the test
@@ -10474,6 +10491,143 @@ IDE, closes the connections: a stop with no pause bar then goes on, and one the 
 - [Breakpoints in the browser](./editor-breakpoints): the breakpoints a run starts with, and the pause bar.
 - [Runs from the editor](./editor-runs): the commands that start a run, and how the editor follows it.
 - [Editor extensions](./editors): what the editor shows from your suite, in both editors.
+
+<!-- https://piwitests.dev/features/editor-stop-code -->
+
+# Code from a pause
+
+When a test stops in a run the [editor extensions](./editors) started, at a breakpoint, after **Pause** or **Step**,
+or at a failure, the editor offers code written from the page as it stands: an assertion of what you see, a mock of a
+request the page made, a better locator, the missing steps. The work on the page happens in the test's own browser;
+the editor service writes the code, and the editor puts it above the stopped line. The controls that move the test
+are on [Pause and step from the editor](./editor-run-control).
+
+## The actions
+
+| Action | What is written | Where it runs |
+|---|---|---|
+| **Pick a locator** | The locator of the element you pick, in place of the locator chain on the stopped line | The test's window, as the pause bar's [Pick a locator](./editor-breakpoints#where-the-pick-lands) |
+| **Record here** | The steps you take, above the stopped line | The test's window, as the bar's [Record here](./editor-breakpoints#record-from-a-pause) |
+| **Assert** | The check you choose in the recorder's check panel, `await expect(…).toHaveText(…)` and the like | The test's window |
+| **Assert a region** | `await expect(…).toMatchAriaSnapshot(…)` with the ARIA snapshot of the region you pick | The test's window |
+| **Mock a request** | `await page.route(…)` that answers as the server answered a request the page made | The editor alone, at any stop |
+
+The first four need the pause bar, so a headed browser: a run Piwi starts with breakpoints is headed. **Mock a
+request** works headless too.
+
+- **In VS Code**, they are in the line above the stopped line, after the controls (named **Pick**, **Record**,
+  **Assert**, **Assert region** and **Mock** there), in its hover, in the palette while a stop offers them (**Piwi:
+  Assert in the stopped test's page**, **Piwi: Mock a request of the stopped test**…), and behind the status bar's
+  `</>` item, **Piwi: Write code at the stop…**.
+- **In a JetBrains IDE**, they are links in the inlay above the stopped line (by the same short names), in the
+  gutter icon's menu, first in the status bar item's menu, and under **Tools → Piwi** (**Assert at the Stop**, **Mock
+  a Request at the Stop**…).
+
+None has a default key: bind one in **Preferences: Open Keyboard Shortcuts** or **Settings → Keymap** (search
+`piwi`). A stop offers only the actions its reporter takes: with one that predates them, none.
+
+<figure>
+  <img src="/screenshots/vscode-run-control-code.png" alt="VS Code: a test paused before it types a coupon; above the line, the controls then Pick, Record, Assert, Assert region and Mock; at the line's end, Piwi: 1 match; at the top, the list of the requests the test made, to mock one">
+  <figcaption>Mock a request lists the answers the test received; the line's locator matches one element on the paused page.</figcaption>
+</figure>
+
+## Where the code goes
+
+The code goes on a new line above the stopped statement (the first line of a statement broken over lines), indented
+for it, on the page in scope there (`this.page` in a page object), with the import of `expect` the file lacks, as one
+edit that one undo takes away. A second action at the same stop goes above the same statement, under the first.
+The running test goes on with the code it started with: the new lines run next time, which the first code of a run
+says.
+
+Nothing is written, and the editor says why, at a stop:
+
+- outside a test's or a function's body, such as a test timeout stopped at its `test(` line;
+- as the body of an `if`, `else`, `for`, `while`, `do` or arrow function (`() => page.click(…)`) without braces,
+  or on a line where no statement starts;
+- in a file written on disk since the run started, or unsaved as it started: Piwi follows a file through the edits
+  the editor makes, not through another program's;
+- that the test went on from: an action answers the stop it was offered at.
+
+Assert and Assert a region check this before anything opens in the test's window. Code that arrives while you type in
+its file is not written into the changed text: a warning offers **Copy the code**.
+
+## Mock a request
+
+In a run Piwi started, each worker keeps the text answers its test's pages received for `fetch` and
+XHR requests, the latest 50, 256 KB each at most, in its memory only. **Mock a request** lists them, the latest first,
+by method and URL (type to filter on the URL), with the status, the type, the size (`no size` when the response did
+not say) and when it finished in the test. Only the answer you choose is read whole:
+
+```ts
+await page.route('**/api/shipping?country=FR', (route) =>
+  route.fulfill({
+    json: {
+      "price": 4.9,
+      "token": "<hidden>"
+    },
+  }),
+);
+```
+
+It is written as [Piwi Picker's Network tab](./mock-requests#mock-this-response) writes one, the body inline whatever
+its size, with what it hides:
+
+- **Credentials.** A field named like a password, a token, a key, a signature or a session is written as `<hidden>`,
+  whatever it holds, and so is a value shaped like a credential anywhere in the body, by the
+  [rule Piwi Picker's mocks follow](./mock-requests#mock-this-response): ids, hashes and cursors stay. The URL pattern
+  matches such a value with a wildcard, and keeps the host. The list hides them too. Headers, cookies included, are
+  never written.
+- **Warnings.** The editor says how many values it wrote as `<hidden>`, that a body neither JSON nor a form was
+  written as it came (read it before you commit it), and that a body seems to hold an email address or a phone
+  number (replace it with made-up data).
+
+## The locator at the cursor
+
+While a test is stopped, put the cursor on a line of the stopped file: its end says how many elements the line's
+locator matches on the stopped page, `Piwi: 3 matches`, `1 match` or `no match`, and where the pause bar shows, the
+matches are outlined in the page. Edit the locator and it is counted again. The outline goes
+when the cursor leaves the file or the test goes on.
+
+The locator must start from the page the test stopped on, as the code written there would: a line of `adminPage` at a
+stop on `page` may be another page, and says so for a moment instead of a count. Only the stopped file's lines are
+counted, and a line without a locator says nothing.
+
+## A failure
+
+In a run Piwi started, a failing test holds its page once the test function, its hooks and its fixtures are done,
+instead of closing it, when someone can see it: in a headed browser, where the pause bar shows the failure (a run
+started with breakpoints, or for a spec with `page.pause()`, is headed), or while Piwi Picker's
+[Runs window](./extension#runs-from-the-editor) is open. The editor shows it as a stop of its own, at the
+line where the error entered the test's code, or at the call a test timeout cut short:
+
+`Failed · Timed out 5000ms waiting for getByRole('button', { name: 'Apply' }) · attempt 2`  Resume  Pick  Record …
+
+**Resume** lets the test end as it failed (**Step** and **Finish** do the same); **Pick** replaces the failing
+locator, **Record** writes the steps that were missing above the failing line, and the code actions work as at any
+stop. Every attempt that fails is held, never an expected failure. A headless failure in any other run, such as a
+plain **Run**, goes on at once, and the editor shows nothing of it.
+
+The run reports the failure as it happened. Piwi's evidence of it is the page at the failure: the requests, console
+entries and dialogs of the hold are not recorded. Playwright's own trace and video go on through it.
+
+## Limits
+
+- **Runs Piwi started only**, with a reporter that takes the actions; an editor extension older than the reporter
+  holds no failure.
+- **Assert offers what a recording's check panel offers**: a value, a text, a name, visible or hidden, enabled or
+  disabled, with no `toBeChecked` or `toHaveCount` choice.
+- **Assert a region** leaves out the value of a password, one-time code or card field, in a shadow root too, and a link
+  whose URL holds a credential.
+- **Mock a request** knows `fetch` and XHR answers with a text body only; one the browser no longer holds cannot be
+  mocked, which the editor says.
+- **The count needs a locator Piwi reads**: literal arguments, starting from a page in scope on the line.
+
+## Related
+
+- [Pause and step from the editor](./editor-run-control): the controls, the paused line, a headless test's page.
+- [Breakpoints in the browser](./editor-breakpoints): the pause bar, Pick a locator and Record here.
+- [Mock and slow down requests](./mock-requests): the same mocks from Piwi Picker's Network tab.
+- [Recorded code](./recorded-code): what a recording writes, and how the config shapes it.
 
 <!-- https://piwitests.dev/features/editor-recording -->
 
