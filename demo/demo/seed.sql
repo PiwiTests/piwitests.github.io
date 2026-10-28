@@ -2401,6 +2401,8 @@ CREATE INDEX `idx_assistant_usage_owner` ON `assistant_usage` (`owner_id`,`creat
 
 ALTER TABLE `projects` ADD `status_filter` text;
 
+ALTER TABLE `projects` ADD `live_view` integer DEFAULT false NOT NULL;
+
 BEGIN TRANSACTION;
 
 -- Tags

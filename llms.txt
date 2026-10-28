@@ -35,6 +35,7 @@
 - [Cut costly flakiness](https://piwitests.dev/recipes/flaky-cleanup): One afternoon to make an unreliable suite trustworthy: fix the flaky tests that cost the most, one root cause at a time, and quarantine the rest.
 - [Cut the time it costs](https://piwitests.dev/recipes/faster-suite): Find where your suite's CI time goes, from waits and timeouts to flaky retries and slow endpoints, and what to cut first.
 - [Failure evidence](https://piwitests.dev/features/evidence): Everything captured about one failing execution on one screen: the evidence tabs, clues, attempts, the page diff and the trace-powered views.
+- [Live view of a run](https://piwitests.dev/features/live-view): Watch the page each worker of a running CI run is on, from the run page, in a project that turns it on: a few images a second with the call each was taken at, sent only while someone watches and never stored.
 - [Failure clusters & the inbox](https://piwitests.dev/features/failure-clusters): Failures that share an error fingerprint grouped into one cluster, triaged once from the failure inbox with an owner, a known issue and snoozing.
 - [Environment incidents](https://piwitests.dev/features/environment-incidents): How Piwi recognizes a run that failed because the app under test was down, and keeps it out of flaky scores, baselines, fix verification and the CI gate.
 - [Flaky tests & quarantine](https://piwitests.dev/features/flaky-tests): How Piwi scores and classifies flaky tests from their history, ranks them by the CI time they waste, and quarantines them with a way out.
