@@ -2005,6 +2005,65 @@ instead of failing mid-upload.
 - [Capture fixtures](./capture-fixtures): the data an imported run cannot carry
 - [Test metadata](/reference/test-metadata): how spec paths and branches are recorded
 
+<!-- https://piwitests.dev/guide/remote-development -->
+
+# Remote development
+
+In remote development the editor's window is on your computer, while the code, the
+[editor service](/features/editors) and the test runs are on another machine: a server over SSH, WSL, a dev container
+or a codespace. What the editor shows from the service works there as it does on your computer: failures, runs,
+[pausing and stepping](/features/editor-run-control), a headless stop's image and Pick on it,
+[code from a pause](/features/editor-stop-code). [Piwi Picker](/features/extension) is the part that needs a word: it
+runs in the browser on your computer and reaches the editor through a pairing address on the loopback interface,
+which in remote development is the local end of a forwarded port.
+
+## VS Code
+
+In a remote window (Remote SSH, WSL, Dev Containers, or a codespace opened in VS Code desktop):
+
+1. Run **Piwi: Pair with Piwi Picker** in that window. VS Code forwards the window's Send to editor port to your
+   computer, on the same number when it is free there, and copies the local end on `127.0.0.1`, whatever name VS
+   Code gives it: `http://127.0.0.1:<port>/piwi/send#<token>`.
+2. Paste it in Piwi Picker's settings under **Send to editor** and click **Pair**.
+
+Piwi Picker then sends locators and recordings to the remote window, and its
+[Runs window](/features/runs-window) lists the runs that window starts, and shows a headless test's page live: when
+Piwi Picker asks for them, VS Code forwards the port of the window's run hub too, and the hub accepts a connection on that local port once
+the window has named it, which Piwi Picker reaches on `127.0.0.1` too. Both forwarded ports show in the **Ports** view. The pairing's token, the proof that the
+editor holds it, and the browser extension's origin are checked as on your own computer.
+
+One pairing reaches the runs of one window when it is remote, and of every local window when it is local: pair from
+the window whose runs you follow. After the window reloads, VS Code forwards the pairing's port again; when it lands
+on another local port, pair again.
+
+### Codespaces in the browser
+
+A codespace opened in a browser tab forwards ports to an `https://…app.github.dev` address behind GitHub's sign-in,
+not to your computer's loopback interface. Piwi Picker pairs with a loopback address only, so neither Send to editor
+nor the Runs window reaches a codespace in the browser: open it in VS Code desktop instead.
+
+## JetBrains Gateway
+
+A JetBrains Gateway backend runs the IDE, its built-in server and the editor service on the remote machine. The
+platform offers plugins no supported way to forward a port to your computer, so you forward the ports yourself:
+
+1. Run **Tools → Piwi → Pair with Piwi Picker** in the remote IDE. Besides copying the pairing address, its
+   notification names the IDE's port (63342 by default) and the ports of the open projects' runs.
+2. In the JetBrains Client, forward each of them under **Ports**, with the local port the same as the host port.
+3. Paste the pairing address in Piwi Picker's settings under **Send to editor**.
+
+The numbers must match: Piwi Picker checks the IDE's proof for the port it asked on, and a run's hub accepts its own
+port alone. A project's run port changes when its editor service starts again (the IDE restarted, the project was
+reopened): pair again, and forward the port the notification names.
+
+## Related
+
+- [Pause and step from the editor](/features/editor-run-control): the runs Piwi Picker follows.
+- [Piwi Picker](/features/extension): the Runs window and Send to editor.
+- [Record tests from the editor](/features/editor-recording#send-from-piwi-picker): pairing Piwi Picker with the
+  editor.
+- [Editor connection](/features/editor-connection): the instance and the desktop app a remote window reads.
+
 <!-- https://piwitests.dev/guide/what-piwi-does -->
 
 # What Piwi does
@@ -8385,7 +8444,7 @@ Every tool below runs on the live page, from the toolbar popup. The last three n
 | [Record actions](./record-actions) | a runnable spec from clicks and fills across pages |
 | [Report a bug](./report-a-bug) | a failing test and a report of a bug you reproduce |
 | [Developer tools](./devtools) | in DevTools: the selected element's locators, the locator console, the session, mocks, viewports |
-| [Runs from the editor](#runs-from-the-editor) | pause, step and resume the tests your editor runs, from a window beside them |
+| [Runs window](./runs-window) | pause, step and resume the tests your editor runs, and watch a headless one live |
 | [Matching functions](./record-actions#matching-functions) | a recording that calls your own functions |
 | [Test functions](#test-functions-against-this-page) | which of your functions work on this page |
 | [Tested elements](#tested-elements) | which elements of this page your tests reach |
@@ -8422,33 +8481,10 @@ project reaches, lists those tests, and marks the buttons, links and fields no t
 
 ## Runs from the editor
 
-With Piwi Picker [paired with VS Code or a JetBrains IDE](./editor-recording#send-from-piwi-picker), the popup shows a
-**Runs** tile under **More tools** while the editor answers. It opens the Runs window, to keep beside the test's
-browser. For each run the editor [started](./editor-runs), it shows the folder and the command, then each worker's
-test and whether it runs or where it stopped: the file and line, the call about to run, and an image of the page.
-
-**Pause** stops a running test before its next call. At a stop, **Resume**, **Step** and **Finish** do what they do
-[in the editor](./editor-run-control#the-controls); Run to cursor stays in the editor. The other actions send code
-to the editor, which writes it at the stopped line, when its Piwi extension and your reporter take them. Where the
-pause bar shows, **Pick** and **Record** start its **Pick a locator** and **Record here**, **Assert** the recorder's
-**Check an element**, and **Assert a region** a pick whose ARIA snapshot becomes `toMatchAriaSnapshot`. **Mock a
-request** lists the page's fetch and XHR requests, credentials hidden: the one you choose becomes a `page.route`.
-Under the test, the window says the code went to the editor, with what to review in it, or why not.
-
-A failing test is held at its line, a headless one only while a Runs window is open: **Failed at** in red, its error
-under it. **Resume** lets it end as it failed; **Pick** replaces the failing locator.
-
-<figure>
-  <img src="/screenshots/picker-runs.png" alt="The Runs window beside a shop page stopped before a click on Checkout: the test, its place, an image of the page, its controls and code actions">
-  <figcaption>The Runs window, beside a test stopped at a breakpoint.</figcaption>
-</figure>
-
-The run shortcut resumes the stopped tests, else pauses every run. It has no key until you set one: **Set a
-shortcut** opens the browser's shortcuts page, where you give it a key and, in Chrome and Edge, the **Global** scope.
-In Firefox, it works while Firefox has the focus.
-
-The background worker reaches the editor's services on `127.0.0.1` only once the paired port proves it holds the
-pairing's token: [how the pieces connect](./editor-run-control#how-it-works).
+With Piwi Picker [paired with VS Code or a JetBrains IDE](./editor-recording#send-from-piwi-picker), the popup's
+**Runs** tile, under **More tools**, opens the [Runs window](./runs-window): the tests your editor runs, paused,
+stepped and resumed from a window beside them, code written from a stop, and a headless test's page watched live,
+clicked and typed on, and picked on.
 
 ## Languages
 
@@ -8499,6 +8535,7 @@ project** select overrides both for the session. See [Extension connection](./ex
 - [Fix a broken locator](/recipes/broken-locator): from a failing locator to the one to use instead
 - [Extension connection](./extension-connection): connecting in one step, and the URL patterns kept on the instance
 - [Tested elements](./tested-elements): the elements your tests reach, drawn on the page
+- [Runs window](./runs-window): the editor's runs, steered and watched from the browser
 - [Test functions catalog](./test-functions): the functions a recording can call
 - [Locator healing](./locator-healing): the replacement Piwi proposes after a failure
 
@@ -9491,6 +9528,124 @@ verdict.
 - [Browser extension](./extension): the permissions these use
 - [Replay a bug report](./replay-a-bug-report): a replay under the conditions on
 
+<!-- https://piwitests.dev/features/runs-window -->
+
+# Runs window
+
+Piwi Picker's Runs window follows the test runs VS Code or a JetBrains IDE starts, from a window of its own beside
+the test's browser. It pauses, steps and resumes them, writes code from a stop through the editor, and, for a test
+that runs headless or in a remote container, shows its page live, takes your clicks and keys on it, and picks a
+locator on its image. The editor shows the same stops: [Pause and step from the editor](./editor-run-control).
+
+## Open it
+
+With Piwi Picker [paired with VS Code or a JetBrains IDE](./editor-recording#send-from-piwi-picker), the popup shows a
+**Runs** tile under **More tools** while the editor answers. It opens the Runs window, to keep beside the test's
+browser. For each run the editor [started](./editor-runs), it shows the folder and the command, then each worker's
+test and whether it runs or where it stopped: the file and line, the call about to run, and an image of the page.
+
+## The controls
+
+**Pause** stops a running test before its next call. At a stop, **Resume**, **Step** and **Finish** do what they do
+[in the editor](./editor-run-control#the-controls); Run to cursor stays in the editor.
+
+A failing test is held at its line, a headless one only while a Runs window is open: **Failed at** in red, its error
+under it. **Resume** lets it end as it failed; **Pick** replaces the failing locator.
+
+## Code from a stop
+
+The other actions send code to the editor, which writes it at the stopped line, when its Piwi extension and your
+reporter take them. **Pick** and **Record** start the pause bar's **Pick a locator** and **Record here**, **Assert**
+the recorder's **Check an element**, and **Assert a region** a pick whose ARIA snapshot becomes `toMatchAriaSnapshot`.
+They run in the test's page: where the pause bar shows, or, at a headless stop, once you [watch it
+live](#watch-live), driven through the view. **Mock a request** lists the page's fetch and XHR requests, credentials
+hidden: the one you choose becomes a `page.route`. Under the test, the window says the code went to the editor, with
+what to review in it, or why not.
+
+<figure>
+  <img src="/screenshots/picker-runs.png" alt="The Runs window beside a shop page stopped before a click on Checkout: the test, its place, an image of the page, its controls and code actions">
+  <figcaption>The Runs window, beside a test stopped at a breakpoint.</figcaption>
+</figure>
+
+## Watch live
+
+With a reporter newer than 0.61.0 and an editor extension of the same release, a stop has **Watch live** above its
+image. It shows the page as it paints, in place of the image, at most ten frames a second, the window's width and the
+page's proportions kept, with a red **Live** badge. Only the window that asked gets the frames, and nothing stores
+them: they go from the test's worker to the editor service and the extension's background worker, on your machine or
+through the port your IDE forwards from a [remote window](/guide/remote-development).
+
+The view ends with the stop, when you turn **Watch live** off, minimize the window, or close it. Left on, it starts
+again at the worker's next stop, and as the window shows again.
+
+At a headless stop, nobody sees the test's page: **Pick**, **Record**, **Assert** and **Assert a region** show once you
+watch it. The picker, the recorder's panel and the check panel appear in the view, and you answer them there as in a
+headed browser; their code reaches the editor the same way.
+
+<figure>
+  <img src="/screenshots/picker-runs-live.png" width="488" alt="The Runs window at a headless stop, watching the shop page live: Watch live pressed, the Live badge on the view, the picker over the page, and Pick, Record, Assert and Assert a region among the controls">
+  <figcaption>A headless test's page watched live, with Pick started in it.</figcaption>
+</figure>
+
+## Click and type on the view
+
+While you watch, your input on the view goes to the page as a person's would, the picker and the recorder included:
+
+- **The pointer**: moves, left and right clicks, double and triple clicks as your system counts them, drags, and the
+  wheel once the view has the focus. `Ctrl`, `Alt` and `⌘` held with a click are held in the page too.
+- **The keys**, while the view has the focus (a focus ring around it): characters are typed, named keys (Enter, the
+  arrows, Backspace, Delete, Home, End) pressed, with Shift, and `Ctrl` (`⌘` on macOS) with A, Z, Y, Enter and the
+  editing keys. A paste types the clipboard's text.
+- **What stays the window's**: the browser's other shortcuts, the function keys, and `Esc`, which gives the keys
+  back to the window and moves the focus to **Watch live**. `Tab` moves the focus on past the view, unless you
+  clicked into it: then `Tab` and `Shift+Tab` go to the page too, until `Esc`.
+
+The first time, a hint under the view says so. Whatever you hold down is let go before the test goes on.
+
+## Pick on the image
+
+**Pick on the image**, beside **Watch live**, or a `Shift`+click on the image or the view, names the element under the
+pointer, the one a click there would reach (a dialog or a banner over the page included), without touching the page:
+the locator the pause bar's **Pick a locator** would rank first for it, sent to the editor in place of the one on the
+stopped line. The window shows that locator, or why there is none. It works on a headed stop's image too. `Esc`
+turns it off.
+
+## The run shortcut
+
+The run shortcut resumes the stopped tests, else pauses every run. It has no key until you set one: **Set a
+shortcut** opens the browser's shortcuts page, where you give it a key and, in Chrome and Edge, the **Global** scope.
+In Firefox, it works while Firefox has the focus.
+
+## How it connects
+
+The background worker reaches the editor's services on `127.0.0.1` only once the paired port proves it holds the
+pairing's token: [how the pieces connect](./editor-run-control#how-it-works). The window talks to that worker alone,
+and makes no network call of its own. With an editor extension older than the live view, the window shows the image
+and the controls alone.
+
+## Limits
+
+- **The top frame.** Pick on the image refuses an element inside an iframe.
+- **A test's own screencast.** When the test records its own (a video, a trace with screenshots), the view takes its
+  size and quality; when none can start, it is an image of the page twice a second.
+- **A heavy page.** A frame over 384 KB (noise, large photos) gives way to a lighter image of the page, twice a
+  second; when even that is too heavy, the window says so under the stop's image.
+- **The browser's keys stay its own.** A shortcut of the browser, a function key and `Esc` never reach the page.
+- **No input method.** Characters an input method composes (Chinese, Japanese, Korean) do not reach the page; paste
+  them instead.
+- **The test's own page alone.** A page or a popup the page opens (`window.open`, a link with `Ctrl`) is not shown.
+  A download your click starts and a dialog the page opens go to the test as its own would: Playwright deletes the
+  download with the test's context, and dismisses the dialog unless the test handles it.
+- **The middle button stays the window's.** It would open a link in a tab the view does not show; `Shift`+click picks
+  instead of clicking.
+
+## Related
+
+- [Pause and step from the editor](./editor-run-control): the controls and the paused line, in the editor.
+- [Code from a pause](./editor-stop-code): what each action writes, and where.
+- [Browser extension](./extension): Piwi Picker's other tools, and its permissions.
+- [Remote development](/guide/remote-development): the runs of a dev container or a remote window.
+
 <!-- https://piwitests.dev/features/test-functions -->
 
 # Test functions catalog
@@ -9862,7 +10017,9 @@ action is under **Tools → Piwi**:
 - **[A paused run](./editor-run-control)**: the line a run Piwi started is stopped at has an arrow in the gutter and
   an inlay above it with **Resume**, **Step**, **Run to Caret** and **Finish**; they are also first in the status bar
   item's menu and under **Tools → Piwi**, with **Pause the Run** and **Stop the Run**. A headless test's page shows in
-  the Piwi tool window's **Paused Page** tab.
+  the Piwi tool window's **Paused Page** tab, where a click on the image picks the locator of the element under it.
+  On a JetBrains Gateway backend, forward the ports **Pair with Piwi Picker** names:
+  [Remote development](/guide/remote-development#jetbrains-gateway).
 - **[Code from a pause](./editor-stop-code)**: the inlay, the arrow's menu, the status bar item's menu and **Tools →
   Piwi** also offer **Pick a Locator**, **Record Here**, **Assert**, **Assert a Region** and **Mock a Request** (the
   inlay names them shorter), whose code goes above the stopped line in one undoable edit; the end of the caret's line
@@ -10392,7 +10549,7 @@ A test run the [editor extensions](./editors) start can be paused, stepped and r
 own commands: no debug session starts, and the IDE's debugger works as usual beside it. The editor marks the line the
 test stopped at, as a debugger does, and the breakpoints you set or remove reach the run while it goes on. The
 [pause bar](./editor-breakpoints#pause-a-run) in the page answers the same stops, as does Piwi Picker's
-[Runs window](./extension#runs-from-the-editor), with a shortcut you set to pause and resume from any window. At a
+[Runs window](./runs-window), with a shortcut you set to pause and resume from any window. At a
 stop, the editor also writes code from the page: [Code from a pause](./editor-stop-code).
 
 ## The controls
@@ -10406,19 +10563,15 @@ stop, the editor also writes code from the page: [Code from a pause](./editor-st
 | **Finish** | Runs the test on without stopping at a breakpoint again in this attempt | `Shift+F11` | Step Out's, `Shift+F8` |
 | **Stop** | Ends the run's process | `Shift+F5` | the Run tool window's Stop |
 
-The keys are the IDE's own debugger keys (in a JetBrains IDE, your keymap's, the default one's shown), Piwi's only
-while their control applies and no debug session runs. Where a
-JetBrains keymap also gives one to another action (the VSCode keymap's `F5`, NetBeans' `F4`), Piwi's goes first while
-it applies. On macOS, `Cmd+F10` runs to the cursor in VS Code. **Pause** has no key in VS Code, since it applies as
-long as the test runs: bind one in **Preferences: Open Keyboard Shortcuts** (search `piwi`), where the others change
-too. There, `F5` pressed again within two seconds of an answer waits for the next stop rather than start a debug
-session.
+The keys are the IDE's own debugger keys (in a JetBrains IDE, your keymap's), Piwi's only while their control applies
+and no debug session runs, and first while it applies where a JetBrains keymap gives one to another action too. On
+macOS, `Cmd+F10` runs to the cursor in VS Code. **Pause** has no key in VS Code: bind one in
+**Preferences: Open Keyboard Shortcuts** (search `piwi`). There, `F5` pressed again within two seconds of an answer
+waits for the next stop rather than start a debug session.
 
 - **In VS Code**, the controls sit in the status bar beside the run's progress: **Pause** and **Stop** while the test
   runs (`Pausing…` until it stops), **Resume**, **Step**, **Finish** and **Stop** while it is stopped. The palette has
-  them while they apply: **Piwi: Pause the run**, **Piwi: Resume the run**, **Piwi: Step to the next call**,
-  **Piwi: Run to the cursor**, **Piwi: Finish the test without stopping again**, **Piwi: Stop the run** and
-  **Piwi: Show the paused page**.
+  them while they apply (**Piwi: Pause the run** and its kin), and **Piwi: Show the paused page**.
 - **In a JetBrains IDE**, they are under **Tools → Piwi**, enabled while they apply, and first in the status bar
   item's menu, which reads `Piwi: paused · checkout.page.ts:12` while a test is stopped.
 
@@ -10463,8 +10616,13 @@ shows an image of the page at the stop: in VS Code in a **Piwi: paused page** ta
 in the Piwi tool window's **Paused Page** tab. It is taken again at each such stop; **Piwi: Show the paused page**
 (**Tools → Piwi → Show the Paused Page**) asks for it at any stop.
 
-Whoever answers it, a stop counts as one at the bar: the test's duration leaves it out, and the dashboard's timelines
-draw it as a **Paused** band, with [why it stopped](./editor-breakpoints#pause-a-run).
+With a reporter newer than 0.61.0, the image says **Click the image to pick a locator**. A click picks the element
+under it, as the bar's **Pick a locator** does, without touching the page: its locator replaces the one on the stopped
+line, and the tab says so, or why not. In VS Code, a script in the tab sends the click's position to the editor, and
+nothing else.
+
+A stop counts as one at the bar: the test's duration leaves it out, and the dashboard's timelines draw it as a
+**Paused** band, with [why it stopped](./editor-breakpoints#pause-a-run).
 
 ## Breakpoints while the run goes on
 
@@ -10483,8 +10641,8 @@ run go on without them.
 
 With a reporter newer than 0.59.0, each worker of a run Piwi starts stays connected to the editor service while it
 runs, through a socket the service opens on your machine, readable by you only, named in the run's environment as
-`PIWI_RUN_CHANNEL`. The worker says which test it runs and where it stops; the editor answers with the controls. A run
-whose connection does not open, or closes, pauses as it would without it. Stopping the editor service, or closing the
+`PIWI_RUN_CHANNEL`. The worker says which test it runs and where it stops; the editor answers with the controls.
+Stopping the editor service, or closing the
 IDE, closes the connections: a stop with no pause bar then goes on, and one the bar shows waits there for its answer.
 
 ## Limits
@@ -10496,7 +10654,7 @@ IDE, closes the connections: a stop with no pause bar then goes on, and one the 
   Playwright's debugger never stops at, looks like any other and does nothing.
 - **Playwright calls, not JavaScript.** **Step** goes from one Playwright call to the next; stepping through the
   test's own code stays with the IDE's debugger.
-- **One image a stop.** The paused page is a still image: it does not follow what you do in a headed browser.
+- **A still image.** It does not follow the page: the [Runs window](./runs-window#watch-live) shows it live.
 - **No image when the page is unknown.** A stop at a call other than a locator's (a navigation, a key press) in a
   browser context with several pages has no image, and refuses Piwi Picker's **Pick** and **Record**: the
   worker cannot tell which page the call is on. Any page of that context closing ends it.
@@ -10506,6 +10664,7 @@ IDE, closes the connections: a stop with no pause bar then goes on, and one the 
 - [Breakpoints in the browser](./editor-breakpoints): the breakpoints a run starts with, and the pause bar.
 - [Runs from the editor](./editor-runs): the commands that start a run, and how the editor follows it.
 - [Editor extensions](./editors): what the editor shows from your suite, in both editors.
+- [Remote development](/guide/remote-development): remote windows and JetBrains Gateway.
 
 <!-- https://piwitests.dev/features/editor-stop-code -->
 
@@ -10612,7 +10771,7 @@ counted, and a line without a locator says nothing.
 In a run Piwi started, a failing test holds its page once the test function, its hooks and its fixtures are done,
 instead of closing it, when someone can see it: in a headed browser, where the pause bar shows the failure (a run
 started with breakpoints, or for a spec with `page.pause()`, is headed), or while Piwi Picker's
-[Runs window](./extension#runs-from-the-editor) is open. The editor shows it as a stop of its own, at the
+[Runs window](./runs-window) is open. The editor shows it as a stop of its own, at the
 line where the error entered the test's code, or at the call a test timeout cut short:
 
 `Failed · Timed out 5000ms waiting for getByRole('button', { name: 'Apply' }) · attempt 2`  Resume  Pick  Record …
@@ -10744,7 +10903,7 @@ its port, and accepts one only with the token. Before Piwi Picker sends the toke
 another program that took the port is sent nothing. With several VS Code windows open, the one that paired receives.
 With no editor open, a JetBrains IDE puts it in a new scratch file. In a remote window (Remote SSH, WSL, Dev
 Containers), the pairing address is the local end of a port VS Code forwards to the listener, listed in the Ports
-view; Piwi Picker's Runs window lists no run of a remote window yet.
+view, and Piwi Picker's Runs window lists that window's runs: [Remote development](/guide/remote-development).
 
 Every test run Piwi starts gets the pairing address and token as `PIWI_EDITOR_SEND`, so a locator picked at one of its
 stops reaches the editor: such a run starts the listener and creates the token if there is none. The capture fixtures
