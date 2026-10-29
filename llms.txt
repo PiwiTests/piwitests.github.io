@@ -28,7 +28,7 @@
 - [Guides](https://piwitests.dev/features/guides): Step-by-step walkthroughs of common tasks on your own dashboard, from reporting a first run to the Flake Lab, opened from the command palette, with no AI model.
 - [Branches](https://piwitests.dev/features/branches): Branch as a first-class dimension: how Piwi records it, filtering by branch, and baselines computed per branch.
 - [What changed in a run](https://piwitests.dev/features/run-changes): What changed in a run against its baseline: new failures, fixed tests, new flakes, the largest duration changes and the commits in between.
-- [Offline export](https://piwitests.dev/features/offline-export): Export a failing execution or a whole failure cluster as HTML, ZIP, PDF, Markdown or JSON that opens with no network and no Piwi server, plus a Perfetto trace of a run.
+- [Offline export](https://piwitests.dev/features/offline-export): Export a failing execution, a whole failure cluster or a whole run as HTML, ZIP, PDF, Markdown or JSON that opens with no network and no Piwi server, plus a Perfetto trace of a run.
 - [Share links](https://piwitests.dev/features/share-links): Read-only links to a failure, a quality report or a live dashboard for someone without an account, a status badge, and their security properties.
 - [Regression or flake?](https://piwitests.dev/recipes/regression-or-flaky): Decide in a minute whether a red test is your regression or a known flake, from the run's changes and the test's own history.
 - [Triage a run gone red](https://piwitests.dev/recipes/mass-failure): When most of a Playwright run goes red, it is usually two or three causes, not forty bugs. Collapse the failures into clusters, rule out the environment, triage each cause once, then confirm the fix.
