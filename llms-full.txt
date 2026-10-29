@@ -7940,8 +7940,7 @@ dashboard.
 ## Where it is
 
 **Settings → Notifications** manages channels and subscriptions, and the **bell** on a project page subscribes to that
-project. The new-channel form shows where to get each destination, flags a URL that belongs to another type (a Slack
-URL pasted under Teams offers to switch), and can **send a test** before saving: a channel whose test went through is
+project. The new-channel form shows where to get each destination, offers the right type for a URL pasted under another, and can **send a test** before saving: a channel whose test went through is
 saved as verified. Email goes only to a verified address: an email channel once a test reached it, the account email
 once its owner verified it. Notifications need no authentication: with it off, the instance is single-tenant and every
 channel and subscription is **global**. With `PIWI_AUTH_ENABLED=true` ([authentication](/operate/authentication)), each user keeps
@@ -7970,9 +7969,10 @@ Sends native OS notifications to any open Piwi tab, even in the background, thro
 
 - **With authentication**: create a channel of type `browser` in **Settings → Notifications** and subscribe it to events; the stream then delivers exactly the events and projects your subscriptions cover.
 - **Without authentication**: no channel is needed; the **bell** on each project page stores per-browser preferences (a cookie) for which events raise notifications.
+- **In the [desktop app](./desktop)**: on with no setup for failed runs and environment incidents; a project's bell changes them.
 
 Diagnosis-completion notifications can be switched off per browser in **Settings → AI → Diagnosis
-notifications** without deleting the subscription.
+notifications**.
 
 ### Email
 
@@ -8417,8 +8417,8 @@ folder** show it. Back up the parent folder while the app is closed; its `secret
 tokens.
 
 Closing the window quits the app unless you turn on **Run in background** in the tray menu; **Start on login** launches
-it hidden into the tray. In the background, [notifications](/features/notifications) arrive as OS notifications, with an
-unread count on the dock icon or the tray tooltip.
+it hidden into the tray. In the background, [notifications](/features/notifications#browser) arrive as OS notifications,
+with no setup, and an unread count on the dock icon or the tray tooltip.
 
 ## Sending results to it
 
@@ -8461,7 +8461,7 @@ Playwright and the app's bundled Node. The first time, it asks for the project's
 - **Pause, step and watch** each worker from the tray, at a `page.pause()` or a failure too: [Desktop app
   runs](/features/desktop-runs).
 
-The run uses your project's Playwright config, so its results come here, and the tray links to it.
+A local run's results come here, and the tray links to them.
 
 ### Reproducing a failure and finding the breaking commit
 
@@ -8476,8 +8476,7 @@ linked folder, **without touching your checkout**:
   progress and a **Stop** that kills the test and what it started, resets the bisect and removes the worktree. The
   first bad commit is linked to your SCM host and recorded on the failure cluster.
 
-It needs `git` and your package manager on this machine, and bisects one repository. The application under test has
-to build from the same checkout, started at each commit by a Playwright `webServer`; without one, a reproduction or
+The application under test has to build from the same checkout, started at each commit by a Playwright `webServer`; without one, a reproduction or
 bisect exercises test changes only.
 
 ### Jobs from your editor
@@ -8514,7 +8513,7 @@ The app serves the [MCP server](/features/mcp) with local tools a hosted instanc
 
 The **MCP server** page detects Claude Code, Claude Desktop, Cursor, Opencode, VS Code, Windsurf and Gemini CLI, and
 connects each in one click, writing a `piwi-desktop` entry with the address and token into its config file.
-It keeps a backup and rewrites only that entry, at each launch if the port changed. Claude Desktop, which takes only
+It keeps a backup and rewrites only that entry, again when the port changes. Claude Desktop, which takes only
 local commands, is pointed at the app's built-in bridge (`piwi-desktop mcp-stdio`), so no token is copied; the app must
 run. Restart the client after connecting. The page also installs the
 [agent skills](/features/agent-skills) into a linked folder.
@@ -8529,8 +8528,10 @@ verified against the project's signing key.
 
 - **One machine, one user.** The app accepts results only from this machine; a team needs the
   [Docker image](/operate/deployment).
-- **Local runs need the checkout**: a linked folder with Playwright installed, and `git` for reproduce, bisect and
-  the lab.
+- **Local runs need the checkout**: a linked folder with Playwright installed, and `git` and your package manager for
+  reproduce, bisect (one repository) and the lab.
+- **No public address**: no [pull-request feedback](/features/pr-feedback), [auto-heal](/features/auto-heal) or Jira
+  webhook, and email only with SMTP set.
 
 ## Related
 
@@ -13458,10 +13459,10 @@ The available tag patterns — and the GHCR mirror — are in
 
 Three ways, in increasing order of automation:
 
-- **Settings → About** shows the running version, the build SHA, the Node.js version the server was
-  built with, and which database backend is active.
-- The version endpoint returns the version, build SHA and database backend as JSON, along with the
-  Node.js version actually running — no authentication required:
+- **Settings → About** shows the running version, the build SHA, the Node.js version, the database backend, the
+  operating system, and the latest run's reporter and Playwright versions.
+- The version endpoint returns the version, build SHA, database backend, platform and architecture as JSON, along
+  with the Node.js version actually running — no authentication required:
 
   ```bash
   curl -s http://localhost:3000/api/version
@@ -15010,6 +15011,7 @@ For run events the payload includes up to three failing tests, so you can act wi
       "url": "https://github.com/acme/checkout/commit/3f9c2a1d8e7b6c5d4e3f2a1b0c9d8e7f6a5b4c3d"
     },
     "ciUrl": "https://github.com/acme/checkout/actions/runs/123",
+    "origin": "ci",
     "history": [
       { "runId": 40, "status": "passed", "failedTests": 0 },
       { "runId": 41, "status": "passed", "failedTests": 0 },
@@ -15054,6 +15056,8 @@ and `owners` covers every failed attempt, so a team hears of its flaky test's fa
 (`browserName`) and its `owner`. `source` holds the lines around the line the failure threw at, as the reporter
 captured them: the test file, or the helper the error's stack points at, from four lines before it to two after, the
 failing line marked `>`.
+
+`origin` is what launched the run: `ci`, `local`, `desktop`, … ([run origin](/reference/test-metadata#run-origin)).
 
 `history` lists the run and up to nine runs before it on the same branch and environment, oldest first: the ended runs
 that would send notifications themselves (no lab run, no run from an editor, no partial local run, no environment
