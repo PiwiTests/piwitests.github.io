@@ -5344,7 +5344,7 @@ The same plan is reachable three ways:
 - **As Markdown**: the REST API returns the same rendering as plain text, so an export or a script can drop it straight into an issue (see the [API docs](https://piwitests.dev/demo/docs)).
 - **For agents** — the `get_fix_plan` [MCP tool](/reference/mcp-tools#get_fix_plan) returns the structured plan, so a coding agent gets in one call what a person reads on the card.
 
-The plan also names a Playwright command scoped to the affected spec files and (up to five) test titles, and Piwi records the fix once they pass.
+The plan also names one Playwright command for the affected tests, by file and title in the projects they failed in, so a moved line still matches; the bisect and every re-run use the same tests, and Piwi records the fix once they pass.
 
 ## The next step
 
@@ -5363,7 +5363,7 @@ Both pages carry one **More ways to fix** toolbox, below the evidence and above 
 
 The fix plan also hands back the two things you do next: a copy-paste recipe that reproduces the failure locally, and a generated `git bisect` that finds the commit that broke it. Both sit in the toolbox's **Reproduce and bisect** section, and travel with the plan through `?format=markdown` and the `get_fix_plan` MCP tool. The exact test command leads; **Show the full recipe ▸** unfolds the checkout and installs, and the bisect follows under **Find the breaking commit**.
 
-The **recipe** is the local reproduction, in order: check out the commit the run failed on (`git switch --detach <sha>`), install dependencies, pin Playwright to the run's version, install the browser it ran on, and run exactly the failing test. Each part degrades on its own — no recorded commit skips the checkout and says so, an unknown version drops the pin — and the run's environment is listed beside it. Every command is `git`, `npm` or `npx`, identical on Linux, macOS and Windows; the dashboard still offers **Linux / macOS** and **Windows (PowerShell)** tabs.
+The **recipe** is the local reproduction, in order: check out the commit the run failed on (`git switch --detach <sha>`), install dependencies, pin Playwright to the run's version, install the browser it ran on, and run exactly the failing test. Each part degrades on its own (no recorded commit skips the checkout, an unknown version drops the pin), and the run's environment is listed beside it. Every command is `git`, `npm` or `npx`, identical on every system, in **Linux / macOS** and **Windows (PowerShell)** tabs.
 
 ```bash
 # Check out the failing commit
@@ -5375,14 +5375,15 @@ npm install -D @playwright/test@1.52.0
 # Install the browser
 npx playwright install chromium
 # Run the failing test
-npx playwright test "tests/admin/users.spec.ts" --project="Chromium"
+npx playwright test "tests/admin/users.spec.ts:42" --project="Chromium"
 ```
 
-The **bisect** walks the commits between the last green run and the failing one, re-running the test at each step — a non-zero exit marks a commit bad — until it names the first commit that broke it, then `git bisect reset` returns you to where you started.
+The **bisect** walks the commits between the last
+green run and the failing one, re-running the test at each step — a non-zero exit marks a commit bad — until it names the first commit that broke it, then `git bisect reset` returns you to where you started.
 
 ```bash
 git bisect start <failing-commit> <last-green-commit>
-git bisect run npx playwright test "tests/admin/users.spec.ts" -g "Users table paginates 25 rows per page"
+git bisect run npx playwright test "tests/admin/users.spec.ts" -g "Users table paginates 25 rows per page" --project="Chromium"
 git bisect reset
 ```
 
@@ -5835,9 +5836,10 @@ Turn it on in **Settings → Pull requests** (off by default). It needs:
 Once a cluster is fixed, the fastest way to prove it is to re-run exactly the affected tests, and a
 [filtered run that passes them all closes the cluster](./failure-clusters#did-the-fix-work). The cluster page can
 trigger that run in CI for you: **Re-run in CI**, next to *Copy retry command*, dispatches a workflow or pipeline with
-the cluster's retry arguments (each affected test's `file:line` from its latest failure, `--project` when they share
-one) on the branch of the cluster's latest run, and links to the run it started. The configured ref is used only when
-that run recorded no branch. The last dispatch (when, by whom, and a link) shows under the Test evidence header.
+the cluster's retry arguments (each affected test's `file:line` from its latest failure, and the projects it failed
+in) on the branch of the cluster's latest run, and links to the run it started. The configured ref is used only when
+that run recorded no branch. An execution's Verify section offers **Re-run this test in CI**, for that one test at its
+line and in its project, beside **Re-run the cluster in CI**; both are recorded as the cluster's last re-run. The last dispatch (when, by whom, and a link) shows under the Test evidence header.
 
 It is **off by default** and configured per project in the **Source control** section of the project's **Settings** tab,
 under **CI re-run**. Turn it on and fill in the block for your provider:
@@ -8452,8 +8454,8 @@ A dashboard link opened in your browser opens in the app; a tab opened for it cl
 ## Projects from local folders
 
 **Projects → New project → Choose folder…** creates a project from a checkout on this machine. The app detects the
-name it would report under and checks the setup (a Playwright config, Playwright installed, the reporter wired in);
-anything missing is a warning, and `npx @piwitests/reporter init` in the folder fixes it. The link to the folder
+name it would report under and checks the setup (a Playwright config, Playwright, the reporter):
+`npx @piwitests/reporter init` in the folder fixes what is missing. The link to the folder
 stays on this machine, under **project page → Settings → Local folder**, with the same checks and **Change** and
 **Unlink**. Linking a folder offers to import the runs already in its `blob-report/` and `test-results/` folders;
 [Open in IDE](/features/ide-integration) resolves source links against it when no workspace root is set; and a clone
@@ -8461,21 +8463,20 @@ of the repository serves its git history without an [SCM token](/guide/source-co
 
 ## Running tests from the app
 
-**Run locally**, on a run page or an execution page, re-runs the failed tests on this machine with the folder's own
-Playwright and the app's bundled Node. The first time, it asks for the project's folder.
+A run, an execution, a cluster or a test runs again here, with the folder's own Playwright, and its button says what:
+**Re-run 3 failed tests**, **Re-run this test**, or **Run this test** (20 times, traced) on a test case.
 
-- **The arrow next to the button** holds the options: headless, headed, the Playwright inspector or UI mode; tests
-  by `file:line`, title or file; a forced trace; `--repeat-each` up to 100 times (1,000 in **Run with
-  options…**, which shows the command). The last choice becomes the project's one-click default.
-- **Runs keep going while you browse.** Output streams into the **Local runs** tray; stopping is always explicit.
-- **More places to run from:** **Reproduce locally** on a test case (20 times with a trace), **Run locally**
-  on a failure cluster, and a [bug report](/features/bug-reports#running-it-with-playwright-in-the-desktop-app)
-  sent from Piwi Picker.
-- **Wrong folder?** When none of the tests exist in the linked folder, the button opens the link's dialog.
-- **Pause, step and watch** each worker from the tray, at a `page.pause()` or a failure too: [Desktop app
+- **The arrow next to the button** shows the command, runs it once headed, in the inspector or UI mode, and sets its
+  options: tests by `file:line`, title or file, a trace, `--repeat-each` (up to 1,000 in **Run with
+  options…**). The button names what differs from Playwright's defaults (**· headed · ×5**); set the project's in
+  **Settings → Local folder**.
+- **On a run**, the arrow also re-runs its flaky tests or all of them, and the **Tests** tab a selection.
+- **Runs keep going while you browse**, in the **Local runs** tray, each under what it runs; its results come here,
+  with **Compare with run #N**. A [bug report](/features/bug-reports#running-it-with-playwright-in-the-desktop-app)
+  from Piwi Picker runs there too.
+- **Wrong folder?** With none of the tests in it, the button opens the link's dialog.
+- **Pause, step and watch** each worker from the tray, at a `page.pause()` or a failure: [Desktop app
   runs](/features/desktop-runs).
-
-A local run's results come here, and the tray links to them.
 
 ### Reproducing a failure and finding the breaking commit
 
@@ -8559,7 +8560,7 @@ verified against the project's signing key.
 
 # Desktop app runs
 
-Every Playwright run the [desktop app](./desktop) starts names the app as its hub: **Run locally**, a reproduction, a
+Every Playwright run the [desktop app](./desktop) starts names the app as its hub: a **Re-run** of tests, a reproduction, a
 bisect step, a [Flake Lab](./flake-lab) run and a bug report's run. Its **Local runs** tray shows each worker of the
 run beside its output, and steers the test as the editor does: [Pause and step from the editor](./editor-run-control).
 Nothing leaves your machine unless you [share a run live](#share-live).
@@ -8616,14 +8617,14 @@ as it is on disk, in the folder linked to the project.
 
 ## Share live
 
-A run that reports to your team's Piwi instance, as a **Run locally** in a folder whose `.env` or Playwright config
+A run that reports to your team's Piwi instance, as a **Re-run** in a folder whose `.env` or Playwright config
 names it does, can be shared there for a teammate to watch from its page, in a project whose live view is on: **Share
 live**, above the run's workers, any time while it runs. The first time since the app started, it says what goes out and
 to whom, and waits for your yes. Shared, the run says where and how many views are open, with **Copy the run page's
 link** and **Stop sharing**. A run that cannot be shared says why: [Share a run from your
 machine](./live-view#share-a-run-from-your-machine).
 
-A run that reports to the app itself (a reproduction, a bisect, a **Run locally** in a folder that names no instance)
+A run that reports to the app itself (a reproduction, a bisect, a **Re-run** in a folder that names no instance)
 offers no **Share live**: the app hands out no live view key, since no teammate reaches it, and its project settings
 have no **Live view** section.
 
