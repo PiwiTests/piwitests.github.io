@@ -4564,8 +4564,9 @@ Pairs in the **ambiguous band**, between `PIWI_CLUSTER_SUGGEST_THRESHOLD` (defau
 not merged automatically. When AI is configured, a model judges the pair from its error text, locators, most-affected
 tests and overlap: it merges on a confident yes, turns a less confident yes into a **merge suggestion** on the
 project's Failure clusters tab, for a Maintainer or above to approve or dismiss, and leaves a no apart. Without AI, or
-past five model calls in a run, the pair becomes a suggestion directly. This runs after every finished run
-with an embedding role, independently of auto-diagnose.
+past five model calls in a run, the pair becomes a suggestion directly. This runs after every run
+that [sends notifications](/reference/test-metadata#run-origin), with an embedding role, independently of
+auto-diagnose.
 
 Each pair is judged once: the model's no is kept. A pair that someone dismissed, or that came from [moving tests to a
 new cluster](#split-a-cluster-by-hand), is never merged automatically, however close the two clusters score.
@@ -5768,8 +5769,8 @@ start the CI run that proves it.
 
 ## What gets posted
 
-Two things get posted when a run finishes, unless it is a run from an editor or a partial run from a developer's
-machine or the desktop app ([run origin](/reference/test-metadata#run-origin)):
+Two things get posted when a run finishes, unless it is a run from an editor, a bisect step, a reproduction, or a
+partial run from a developer's machine or the desktop app ([run origin](/reference/test-metadata#run-origin)):
 
 - **A summary comment** on the branch's open pull request: one comment per pull request, edited on each later run rather than appended, so a busy
   branch doesn't collect a comment per push.
@@ -7953,11 +7954,11 @@ dashboard.
 ## Where it is
 
 **Settings → Notifications** manages channels and subscriptions, and the **bell** on a project page subscribes to that
-project. The new-channel form shows where to get each destination, offers the right type for a URL pasted under another, and can **send a test** before saving: a channel whose test went through is
-saved as verified. Email goes only to a verified address: an email channel once a test reached it, the account email
-once its owner verified it. Notifications need no authentication: with it off, the instance is single-tenant and every
-channel and subscription is **global**. With `PIWI_AUTH_ENABLED=true` ([authentication](/operate/authentication)), each user keeps
-their own, and administrators can add global ones shared by everyone.
+project. The new-channel form shows where to get each destination, offers the right type for a URL pasted under another, and can **send a test** before saving; a test that goes
+through saves the channel as verified. Email goes only to a verified address: an email channel once a test reached it, the account email
+once its owner verified it. With authentication off, the instance is single-tenant and every channel and subscription is
+**global**. With `PIWI_AUTH_ENABLED=true` ([authentication](/operate/authentication)), each user keeps
+their own, and administrators can add global ones.
 
 <figure>
   <img src="/screenshots/notifications.png" alt="Settings, Notifications: the SMTP status with the environment variables to set, a Slack channel, and its subscription to project 1's failed runs and new clusters">
@@ -7971,8 +7972,8 @@ and others on a flakiness spike, a performance regression, a finished AI diagnos
 Each event, when it fires and the payload it carries are in
 [Notification events & webhooks](/reference/notification-events). A
 [report schedule](./quality-reports#report-schedules) sends its report to the channels it names, with no subscription.
-A run from an editor, or a partial run from a developer's machine or the desktop app, fires no run event and no
-new-cluster, flakiness or performance event ([run origin](/reference/test-metadata#run-origin)).
+A run from an editor, a bisect step, a reproduction, or a partial run from a developer's machine or the desktop app
+fires no run event and no new-cluster, flakiness or performance event ([run origin](/reference/test-metadata#run-origin)).
 
 ## Channels
 
@@ -13691,10 +13692,11 @@ Piwi recognizes it, and an imported report as `import`. You rarely set them your
 What each origin feeds:
 
 - **Flake Lab and probe runs** feed nothing: they replay tests under conditions Piwi injected.
-- **Bisect steps and reproductions** run at a commit chosen to investigate a failure. They notify like any run, but
-  stay out of baselines, fix verification, flaky scores, selections, change coverage, the stored locators and test
-  metadata, auto-heal, the bug-report lifecycle and the [automatic writes to an issue
-  tracker](/features/issue-automation#the-runs-that-write).
+- **Bisect steps and reproductions** run at a commit chosen to investigate a failure. They stay out of baselines, fix
+  verification, flaky scores, selections, change coverage, the stored locators and test metadata, and the bug-report
+  lifecycle, and have no outbound effect: no [notification](/features/notifications#events), no
+  [pull-request comment or commit status](/features/pr-feedback), no automatic AI diagnosis or auto-heal, and no
+  [automatic write to an issue tracker](/features/issue-automation#the-runs-that-write).
 - **`piwi bug` runs** do not move the bug report they were written for.
 - **Local runs** (`local`, `desktop`, `editor`, `preflight`) count like CI runs, with two exceptions. An editor's CI
   failures come from the newest complete CI run on the branch, and a local run stands in only while the branch has
@@ -15073,8 +15075,8 @@ failing line marked `>`.
 `origin` is what launched the run: `ci`, `local`, `desktop`, … ([run origin](/reference/test-metadata#run-origin)).
 
 `history` lists the run and up to nine runs before it on the same branch and environment, oldest first: the ended runs
-that would send notifications themselves (no lab run, no run from an editor, no partial local run, no environment
-incident). Each failure's `history` gives that test's outcome in each of those runs (`passed`, `flaky`, `failed`,
+that would send notifications themselves (no lab run, no run from an editor, no bisect step or reproduction, no
+partial run from a developer's machine or the desktop app, no environment incident). Each failure's `history` gives that test's outcome in each of those runs (`passed`, `flaky`, `failed`,
 `skipped`, `didnotrun` for a test that did not run or was interrupted, or `null` when the run did not report it). `commit`
 comes from the run's Git metadata, linked when the project's repository host is known, and `ciUrl` from its CI
 metadata.
