@@ -2237,10 +2237,10 @@ upload` adds the commit's tracked paths. Source code and hit counts never leave.
 Two rows need no setting: anonymous git-host reads for runs that report a public-host remote, and a
 link's title when someone attaches it. Both fail quietly offline; the rest is off until configured.
 
-The **AI provider** is the one worth pausing on, because it's the only destination that receives your
-source code and the full failure context. It's opt-in, it goes only to the endpoint *you* set — including a local
+The **AI provider** is the one worth pausing on, because it alone receives your source code and the full
+failure context. It's opt-in, it goes only to the endpoint *you* set — including a local
 model over Ollama or vLLM, in which case nothing leaves the machine at all — you can preview the exact
-context before it's sent, and you can cap its size. See
+context before it's sent, and cap its size. See
 [AI diagnosis → Privacy](/features/ai-diagnosis#privacy).
 
 ## What never leaves your server
@@ -2281,10 +2281,11 @@ report's title and steps, with their typed values and nothing else, to that app 
 Some data is skipped at the source, so it never exists to leak:
 
 - **Input values in locator snapshots.** The [capture fixtures](./capture-fixtures) record what an
-  element *is* — role, accessible name, test id — never what was typed into it. Playwright's own records
-  are different: step titles and parameters, traces and the failure-time ARIA snapshot include the values
-  a test typed, password fields too, so don't fill real secrets in tests. The **DOM** view and the AI
-  diagnosis show them, password fields masked.
+  element *is* — role, accessible name, test id — never what was typed into it. Traces and the
+  failure-time ARIA snapshot keep typed values, password fields too: don't fill real secrets in tests.
+  Error call logs never keep them, nor a request's credential headers, nor steps or an assertion's values on a
+  password field or one whose locator names a secret (`Mot de passe`).
+  The **DOM** view and AI diagnosis show them, passwords masked.
 - **Page-inventory field contents.** The optional [page inventory](./reporter#configuration-options)
   (`capturePageInventory`, **off by default**) records the names of a page's controls and links so the
   dashboard can tell which the suite never exercises. The name of a control that holds user input — a
@@ -2312,17 +2313,17 @@ credential and says which variable to set. Generate a key with:
 node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
 ```
 
-API keys are stored as SHA-256 hashes and shown exactly once, at creation. A leaked database gives an
+API keys are stored as SHA-256 hashes and shown once, at creation. A leaked database gives an
 attacker no usable key.
 
-Secrets provided by environment variable are never written to the database and never returned by the
+Secrets provided by environment variable are never written to the database nor returned by the
 API — the settings UI shows them as read-only with a lock badge.
 
 ## The demo
 
 The [live demo](https://piwitests.dev/demo/) has no backend. It runs the real application against
 an in-browser SQLite database seeded with fake data, inside a service worker. Nothing you click there
-reaches a server, and there is nothing for it to collect.
+reaches a server.
 
 ## Retention
 
@@ -3509,8 +3510,19 @@ A flaky test adds a **Flakiness** tab with its [suspects](./flaky-tests#suspects
 While a run executes, its run page shows the step each worker is on. In a project that turns the live view on, a
 running test of a CI run, or of a run a developer [shares from their machine](#share-a-run-from-your-machine), also
 gets **Watch**: it opens the page that worker is on, a few images a second, each with the call it was taken at. It is
-for watching a CI run that seems stuck, or a teammate's test paused at a breakpoint, from the dashboard, without
-waiting for the trace. You watch; nothing you do in the view reaches the test.
+for watching a CI run that seems stuck, or a teammate's test paused at a breakpoint, without waiting for the trace.
+You watch; nothing you do in the view reaches the test.
+
+## Where to watch a run
+
+| The run | Where its test's page shows |
+|---|---|
+| A CI run, or a run shared from a developer's machine | Its page on the team instance: **Watch** |
+| A run you start from VS Code, a JetBrains IDE or a terminal | Its browser when headed; at a stop, Piwi Picker's [Runs window](./runs-window#watch-live) and the editor's [paused page](./editor-run-control#a-headless-run) |
+| A run the desktop app starts | Its [Local runs](./desktop-runs#watch-live) tray and the Runs window, at a stop |
+
+A stop is a breakpoint, a `page.pause()` or **Pause**. A run that reports to the desktop app gets no **Watch**: the
+app hands out no live view key.
 
 ## Turn it on
 
@@ -3524,21 +3536,22 @@ job as the run's origin does: by a CI provider's own variable (`GITHUB_ACTIONS`,
 [Piwi Dashboard] Live view on: people who may open this run can watch its tests' pages on the dashboard while it runs. Nothing is stored.
 ```
 
-A run on a developer's machine holds a key too, and sends nothing until its developer shares it. Turning the setting
-off ends every view of the project's runs at once.
+Turning the setting off ends every view of the project's runs at once.
 
 ## Watch a worker
 
 On the run page's **Tests** tab, a running test shows the step its worker is on. With the live view on, **Watch** beside
 it opens that worker's view: the test's page as the browser paints it, headless or not, and under it the call the image
 was taken at (`Click getByRole('button', { name: 'Pay' }) · checkout.spec.ts:30`). A page that does not change sends no
-new image. A run on a developer's machine offers **Watch** only once its developer [shares
-it](#share-a-run-from-your-machine): until then its running tests say **Not shared live**.
+new image.
+
+In a CI run, the view also follows that call: how long it has run, Playwright's log of it as a failed call's error
+prints it, and while it waits, what its locator matches (no element yet, several, or one not enabled), outlined on the
+image, with the point a click acts on. A shared run shows the call alone.
 
 A view belongs to the test on whose row you opened it. Opened while the worker runs no test, in a `beforeAll` or between
 two tests, it says so, and shows the test's page once it opens. It ends as its test ends, the worker leaves, the run
-ends or the project turns the live view off, and when you close it. To watch the worker's next test, click **Watch**
-on its row.
+ends or the project turns the live view off, and when you close it.
 
 A CI run never stops at a breakpoint or a `page.pause()`; a shared run does, and its row then says **Paused** at the
 stopped call, which opens in your editor.
@@ -3556,22 +3569,19 @@ any time while it runs, in a project with the live view on.
 | Piwi Picker's [Runs window](./runs-window) | **Share live** under the run's name | **Stop sharing** |
 | The desktop app's [Local runs tray](./desktop-runs) | **Share live** above the run's workers | **Stop sharing** |
 
-The first share in a window (in a JetBrains IDE, in each project since it opened; in the desktop app, since it
-started) says what goes out and to whom, and waits for your yes. Shared, the run says where and how many views of it
-are open (one person may open several), with its page's link to copy for your teammate.
+The first share in a window says what goes out and to whom, and waits for your yes. Shared, the run says where and
+how many views of it are open, with its page's link to copy for your teammate.
 
-Until then, the run's workers hold their key and send nothing, and on its page each running test says **Not shared
-live** where **Watch** would be, its help listing where to share the run from. Once shared, each worker, and one
-Playwright starts later, opens its connection and sends what a CI run's do: its stops, which everyone with the run's
-page open sees (the call, its file and line, and the test's title), even while nobody watches; and images while someone
-does. **Stop sharing** closes the connections within seconds, so nothing more goes to the instance: each view ends
-saying the developer stopped sharing, and **Paused** leaves the rows. Closing the editor, or the desktop app, stops the
-sharing too.
+Until then, its workers send nothing, and its running tests say **Not shared live** where **Watch** would be. Once
+shared, each worker sends what a CI run's do: its stops, which everyone with the run's page open sees (the call, its
+file and line, and the test's title), even while nobody watches; and images while someone does. **Stop sharing** closes
+the connections within seconds: each view ends saying the developer stopped sharing, and **Paused** leaves the rows.
+Closing the editor, or the desktop app, stops the sharing too.
 
-A run that cannot be shared says why when you ask: it reports to no instance, its project has the live view off, the
-reporter's global setup did not register it, or it reports to the desktop app on your machine, which hands out no key
-since no teammate reaches it. A sharing that stops on its own says why, and **Share live** shows again: the project's
-live view turned off, the instance restarted (the key lives in its memory), or it stopped answering.
+A run that cannot be shared says why, in Piwi Picker's Runs window in place of **Share live**, elsewhere when you ask:
+it reports to no instance or to the desktop app, its project has the live view off, or the reporter's global setup did
+not register it. A sharing that stops on its own says why, and **Share live** shows again: the project's
+live view turned off, the instance restarted, or it stopped answering.
 
 ## What is sent, to whom, and what is kept
 
@@ -3580,31 +3590,30 @@ live view turned off, the instance restarted (the key lives in its memory), or i
   only when its test stops and goes on. No image is taken.
 - **While someone watches a worker**, that worker sends JPEG images of its test's page, at most 640 by 400 pixels at
   quality 50, four a second at most and about 256 KB a second: a heavier image holds the next one back longer. A test
-  whose trace or video already films the page (the trace `wrapConfig` sets does) shares that recording's images, 800
-  pixels wide at quality 90, and so sends fewer of them. The recording stays whole. A test that starts its own
-  `page.screencast` gets it, and the view goes on with an image a second. Nothing of the view is a step of the test or
-  an action of its trace.
+  whose trace or video already films the page shares that recording's images, 800 pixels wide at quality 90, and so
+  sends fewer of them. The recording stays whole. A test that starts its own `page.screencast` gets it, and the view
+  goes on with an image a second. A CI run's worker also sends the call's log. Nothing of the view is a step of the
+  test or an action of its trace.
 - **Only to people who may open the run**: watching needs what opening the run needs, the project's
   [roles](/operate/project-access). On an instance with authentication off, that is anyone who can reach it.
-- **Nothing is kept.** The dashboard relays each image to the people watching that worker and drops it: it is never
-  written to the database, the logs or an export, and a viewer that reads slowly gets the latest image alone. The
-  run's trace stays the record.
+- **Nothing is kept.** The dashboard relays each image to the people watching that worker and drops it: never written
+  to the database, the logs or an export. A viewer that reads slowly gets the latest image alone. The run's trace stays
+  the record.
 
 The images show whatever the page shows, as the run's screenshots, videos and traces already do; a credential in a
-call's URL is hidden in its caption. The workers reach the dashboard with a key the run got as it registered: it
-opens this run's live view and nothing else, ends with the run, and is never in the environment of the tests, their
-hooks or their fixtures, so a process they start does not get it.
+call's URL, the text a call types and a password field's value are hidden in its caption and its log. The workers reach the dashboard with a key
+the run got as it registered: it opens this run's live view and nothing else, ends with the run, and is never in the
+environment of the tests, their hooks or their fixtures, so a process they start does not get it.
 
 ## Limits
 
-- **Watch only.** The view has no input and no controls; stepping a test is the editor's and Piwi Picker's
-  ([Pause and step from the editor](./editor-run-control), [Runs window](./runs-window)).
-- **The test's `page`.** The view shows the page of Playwright's `page` fixture; a test with no page has nothing to
-  show, and a popup or a second page is not shown.
+- **Watch only.** No input and no controls: a test is stepped from the [editor](./editor-run-control) or the
+  [Runs window](./runs-window).
+- **The test's `page`.** The view shows the page of Playwright's `page` fixture; a popup or a second page is not shown.
 - **A run the global setup registered.** With the reporter entry alone, which has no global setup, the workers start
   before the run is registered and get no key.
-- **Sixteen views of a run at a time.** With authentication on, four of them one person's: a fifth closes that
-  person's oldest. With it off, the dashboard cannot tell people apart, and the sixteen are anyone's.
+- **Sixteen views of a run at a time**, four of them one person's with authentication on: a fifth closes that
+  person's oldest.
 - **One dashboard server.** The view is relayed in the memory of one server, as the run's live events are, so it needs
   a deployment of one server ([Resource requirements](/operate/deployment#resource-requirements)). Sticky sessions do
   not make up for it: the run's setup, its CI workers and the people watching are separate clients.
@@ -3614,7 +3623,6 @@ hooks or their fixtures, so a process they start does not get it.
 - [Capture fixtures](/guide/capture-fixtures): the worker side of the view
 - [Runs window](./runs-window): the live view of a test your editor runs, with its controls, and Share live
 - [Desktop app runs](./desktop-runs): the desktop app's runs, and Share live from its tray
-- [Pause and step from the editor](./editor-run-control)
 - [Failure evidence](./evidence): what a finished test keeps
 
 <!-- https://piwitests.dev/features/failure-clusters -->
@@ -8631,9 +8639,10 @@ to whom, and waits for your yes. Shared, the run says where and how many views a
 link** and **Stop sharing**. A run that cannot be shared says why: [Share a run from your
 machine](./live-view#share-a-run-from-your-machine).
 
-A run that reports to the app itself (a reproduction, a bisect, a **Re-run** in a folder that names no instance)
-offers no **Share live**: the app hands out no live view key, since no teammate reaches it, and its project settings
-have no **Live view** section.
+A run that reports to the app itself (a reproduction, a bisect, a **Re-run** in a folder that names no instance, a run
+your editor started) cannot be shared: the app hands out no live view key, since no teammate reaches it. The tray
+offers no **Share live** for it, the app's project settings have no **Live view** section, and on the run's page its
+running tests say **See its page at a stop** where **Watch** would be.
 
 ## From Piwi Picker
 
@@ -9800,8 +9809,9 @@ locator on its image. The editor shows the same stops: [Pause and step from the 
 With Piwi Picker [paired with VS Code or a JetBrains IDE](./editor-recording#send-from-piwi-picker), the popup shows a
 **Runs** tile under **More tools** while the editor answers. It opens the Runs window, to keep beside the test's
 browser. For each run the editor [started](./editor-runs), it shows the folder and the command, then each worker's test
-and whether it runs or where it stopped: the file and line, the call about to run, and an image of the page. A run you
-[started in a terminal](./terminal-runs) shows too, marked **Terminal**.
+and whether it runs or where it stopped: the file and line, the call about to run, and an image of the page. While
+none of its tests is stopped, the run says how one stops: at a breakpoint, a `page.pause()` or **Pause**. A run
+[started outside Piwi](./terminal-runs) shows too, marked **Terminal** or **Test runner**.
 
 ## The controls
 
@@ -9814,8 +9824,8 @@ under it. **Resume** lets it end as it failed; **Pick** replaces the failing loc
 
 **Share live**, under the run's name, lets a teammate watch the run from its page on your team's instance, in a
 project whose live view is on. The first time in a window, it says what goes out and to whom; shared, the run says
-how many views are open, with its page's link to copy, until **Stop sharing**:
-[Share a run from your machine](./live-view#share-a-run-from-your-machine).
+how many views are open, with its page's link to copy, until **Stop sharing**. A run that cannot be shared says why in
+its place: [Share a run from your machine](./live-view#share-a-run-from-your-machine).
 
 ## Code from a stop
 
@@ -9834,11 +9844,11 @@ what to review in it, or why not.
 
 ## Watch live
 
-With a reporter newer than 0.61.0 and an editor extension of the same release, a stop has **Watch live** above its
-image. It shows the page as it paints, in place of the image, at most ten frames a second, at the window's width, with
-a red **Live** badge. Only the window that asked gets the frames, and nothing stores
-them: they go from the test's worker to the editor service and the extension's background worker, on your machine or
-through the port your IDE forwards from a [remote window](/guide/remote-development).
+A stop has **Watch live** above its image, with a reporter newer than 0.61.0. It shows the page as it paints, in place
+of the image, at most ten frames a second, at the window's width, with a red **Live** badge. Only the window that asked
+gets the frames, and nothing stores them: they go from the test's worker to the editor service and the extension's
+background worker, on your machine or through the port your IDE forwards from a [remote
+window](/guide/remote-development).
 
 The view ends with the stop, when you turn **Watch live** off, minimize the window, or close it. Left on, it starts
 again at the worker's next stop, and as the window shows again.
@@ -9884,10 +9894,10 @@ In Firefox, it works while Firefox has the focus.
 
 [Paired](./bug-reports#running-it-with-playwright-in-the-desktop-app) with the [desktop app](./desktop), the window
 lists the runs the app starts beside your editor's, marked **Desktop app**: reproductions, bisect steps and bug reports
-included, with the same controls and live view. With no editor paired, it follows the app alone. A failure of a run
-nobody attends (a Flake Lab run, a bisect, a lab job) goes on while the window is open. The app holds no editor, so
-**Pick**, **Record** and **Assert** in the test's window are not offered; the code **Assert a region** and **Mock a
-request** make goes to the app's window, to copy there, and the window here says so: [Desktop app runs](./desktop-runs).
+included, with the same controls and live view. With no editor paired, it follows the app alone. The app holds no
+editor, so **Pick**, **Record** and **Assert** in the test's window are not offered; the code **Assert a region** and
+**Mock a request** make goes to the app's window, to copy there, and the window here says so: [Desktop app
+runs](./desktop-runs).
 
 ## How it connects
 
@@ -10290,12 +10300,12 @@ action is under **Tools → Piwi**:
   **Run This Spec**.
 - **[Recording](./editor-recording)** starts from **Record Here**, Alt+Enter or Alt+Insert, and **File → New → Record
   a New Test File…**; its controls are in a banner above the editor.
-- **[A paused run](./editor-run-control)**: the line a run Piwi started is stopped at has an arrow in the gutter and an
-  inlay above it with **Resume**, **Step**, **Run to Caret**, **Finish** and **End Test**; they are also first in the
-  status bar item's menu and under **Tools → Piwi**, with **Pause the Run** and **Stop the Run**. A headless test's page
-  shows in the Piwi tool window's **Paused Page** tab, where a click on the image picks the locator of the element under
-  it. On a JetBrains Gateway backend, forward the ports **Pair with Piwi Picker** names: [Remote
-  development](/guide/remote-development#jetbrains-gateway).
+- **[A paused run](./editor-run-control)**: the line a run is stopped at, Piwi's or [one the IDE's own **Run**
+  started](./terminal-runs), has an arrow in the gutter and an inlay above it with **Resume**, **Step**, **Run to
+  Caret**, **Finish** and **End Test**; they are also first in the status bar item's menu and under **Tools → Piwi**,
+  with **Pause the Run** and **Stop the Run**. A headless test's page shows in the Piwi tool window's **Paused Page**
+  tab, where a click on the image picks the locator of the element under it. On a JetBrains Gateway backend, forward the
+  ports **Pair with Piwi Picker** names: [Remote development](/guide/remote-development#jetbrains-gateway).
 - **[Code from a pause](./editor-stop-code)**: the inlay, the arrow's menu, the status bar item's menu and **Tools →
   Piwi** also offer **Pick a Locator**, **Record Here**, **Assert**, **Assert a Region** and **Mock a Request** (the
   inlay names them shorter), whose code goes above the stopped line in one undoable edit; the end of the caret's line
@@ -10783,7 +10793,7 @@ starts at the editor's breakpoints** under **Settings → Tools → Piwi** in a 
 - **`@piwitests/reporter` 0.48.0 or later**, with the [capture fixtures](/guide/capture-fixtures) in your tests: the
   pause runs in them. With an older one, the run starts anyway and the editor warns once. A reporter of 0.59.0 or
   older pauses before locator actions and assertions only.
-- **A run started from Piwi**, or [from a terminal](./terminal-runs). The editor passes the breakpoints under the
+- **A run started from Piwi**, or [started outside Piwi](./terminal-runs). The editor passes the breakpoints under the
   Playwright config's folder to the run as `PIWI_PAUSE_AT` (`tests/login.spec.ts:42;tests/pages/checkout.page.ts:9`,
   relative to that folder), with its pairing address as `PIWI_EDITOR_SEND`, and adds `--headed` to the command unless it
   already has `--headed`, `--ui` or `--debug`. Set `PIWI_PAUSE_AT` yourself to
@@ -10828,7 +10838,7 @@ starts at the editor's breakpoints** under **Settings → Tools → Piwi** in a 
 
 A test run the [editor extensions](./editors) start can be paused, stepped and resumed from the editor, with Piwi's own
 commands: no debug session starts, and the IDE's debugger works as usual beside it; so can
-[one you start in a terminal](./terminal-runs). The editor marks the line the test stopped at, as a debugger does, and
+[one started outside Piwi](./terminal-runs). The editor marks the line the test stopped at, as a debugger does, and
 the breakpoints you set or remove reach the run while it goes on. The [pause bar](./editor-breakpoints#pause-a-run) in
 the page answers the same stops, as does Piwi Picker's [Runs window](./runs-window). At a stop, the editor also writes
 code from the page: [Code from a pause](./editor-stop-code).
@@ -10928,9 +10938,9 @@ answers. Closing the IDE closes the connections: a stop with no pause bar then g
 
 ## Limits
 
-- **Runs Piwi can follow.** A run started by the IDE's own Playwright run configuration has no controls in the editor;
-  with **Run the tests in the IDE's Playwright runner** on, a JetBrains IDE's runs keep them, their Rerun, Rerun Failed
-  Tests and Debug included.
+- **The IDE's own runs** (the gutter's Run, a run configuration) are [runs started outside Piwi](./terminal-runs): no
+  Stop, and no Pick, Record or Assert in the test's window. With **Run the tests in the IDE's Playwright runner** on,
+  Piwi's commands run there with every control, the runner's Rerun and Debug included.
 - **No mark on a breakpoint that never stops.** One on a line with no call Playwright's debugger stops at looks like
   any other and does nothing.
 - **Playwright calls, not JavaScript.** **Step** goes from one Playwright call to the next; stepping through the
@@ -11001,20 +11011,22 @@ It is offered at any stop but a failure, with a reporter newer than 0.62.0:
 
 <!-- https://piwitests.dev/features/terminal-runs -->
 
-# Runs started in a terminal
+# Runs started outside Piwi
 
-A run you start yourself, `npx playwright test` in a terminal, follows the VS Code or JetBrains window whose workspace
-holds it, with a reporter and an editor extension newer than 0.62.0. It stops at the editor's breakpoints, shows in the
-editor and in Piwi Picker's [Runs window](./runs-window) as a run in a terminal, and takes the same controls
-([Pause and step from the editor](./editor-run-control)) but **Stop**: its process is the terminal's. It says so as it
-starts:
+A run you start yourself follows the VS Code or JetBrains window whose workspace holds it: `npx playwright test` in a
+terminal, with a reporter and an editor extension newer than 0.62.0, or a JetBrains IDE's own Playwright run (the
+gutter's **Run** and **Debug**, a Playwright run configuration), with a reporter newer than 0.63.0. It stops at the
+editor's breakpoints, shows in the editor and in Piwi Picker's [Runs window](./runs-window), marked **Terminal** or
+**Test runner**, and takes the same controls ([Pause and step from the editor](./editor-run-control)) but **Stop**: its
+process is the terminal's or the IDE's. It says so as it starts:
 
 ```text
 [Piwi Dashboard] Following this run in Visual Studio Code (pid 41230), whose breakpoints stop it: PIWI_EDITOR=off runs it alone.
 ```
 
 It runs as its config says, headless by default, so the editor shows a stop as
-[a headless run's](./editor-run-control#a-headless-run): an image of its page, which Piwi Picker can watch live.
+[a headless run's](./editor-run-control#a-headless-run): an image of its page, which Piwi Picker can watch live. To see
+the browser, add `--headed` to the command, or to the Playwright options of the run configuration.
 
 ## Which editor
 
@@ -11027,8 +11039,9 @@ whose runs would connect through a folder another user can open.
 
 ## When it follows one
 
-- **Only a run whose output goes to a terminal.** One whose output goes to a file or a pipe runs alone, unless it sets
-  `PIWI_EDITOR=on`.
+- **Only a run whose output goes to a terminal, or that a test runner started**: one that names its reporter's file
+  in `PW_TEST_REPORTER`, as a JetBrains IDE's Playwright runner does. Any other, whose output goes to a file or a pipe,
+  runs alone unless it sets `PIWI_EDITOR=on`.
 - **Never** under CI, with Playwright's own debugger (`--debug`, `PWDEBUG=1`) or UI mode, when the run names its own
   `PIWI_RUN_CHANNEL`, or when the desktop app or another launcher started it.
 - **`PIWI_EDITOR=off`** runs it alone.
@@ -11051,7 +11064,10 @@ the editor starts.
 
 - **No Pick, Record or Assert in the test's window.** They need the pairing a run Piwi starts carries: start the test
   from the editor to use them. Pick on the image names the locator, for you to copy, without writing it.
-- **No Stop.** End the run in its terminal.
+- **No Stop.** End the run in its terminal, or with the IDE's own **Stop**.
+- **Debug stops twice.** Under a JetBrains IDE's **Debug**, a breakpoint stops the test in the debugger, then at Piwi's
+  stop, whose controls take no key while the debug session runs. `PIWI_EDITOR=off` in the run configuration's
+  environment leaves the breakpoints to the debugger.
 - **Piwi's reporter in the config.** The run looks for an editor as the reporter starts (`wrapConfig` adds it): with
   the capture fixtures alone, it runs alone.
 - **Your machine.** A run in a dev container or over SSH follows an editor whose service runs there too.
@@ -11345,7 +11361,7 @@ characters). Piwi refuses to write a secret field's value, and a text or a value
 
 - **Only this machine, only this window.** The server answers a request to its own address on `127.0.0.1` with the
   token, and refuses any other name for the machine and any request a browser sends (it carries an `Origin`). It serves
-  the runs this window started, and those [started in a terminal](./terminal-runs) that follow it, and nothing of an
+  the runs this window started, and those [started outside Piwi](./terminal-runs) that follow it, and nothing of an
   instance.
 - **Only a stopped page, only the actions named.** An action needs the stop it answers, and goes nowhere once the test
   went on. The tools take a closed set of arguments; none evaluates code, reads a file or runs a command. Code reaches
