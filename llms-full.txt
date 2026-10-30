@@ -3625,6 +3625,67 @@ environment of the tests, their hooks or their fixtures, so a process they start
 - [Desktop app runs](./desktop-runs): the desktop app's runs, and Share live from its tray
 - [Failure evidence](./evidence): what a finished test keeps
 
+<!-- https://piwitests.dev/features/stuck-tests -->
+
+# Stuck tests
+
+A CI run that never ends is often one test waiting on something that will not come: a button that stays disabled, a
+page that never loads, a lock never released. Piwi says so while the run is still going. A running test that has run
+far longer than it usually does is marked **Stuck?** on its run page, and a `test.stuck` notification goes to the
+project's channels. Nobody needs to have the run open, and the [live view](./live-view) does not need to be on.
+
+## When a test is stuck
+
+The dashboard checks the running tests of its live runs every 15 seconds. A test is stuck when its current attempt has
+run longer than both:
+
+- two minutes, whatever the test usually takes;
+- three times its longest duration among its last ten passing executions on the same browser.
+
+A test needs two passing executions on that browser before any attempt of it can be stuck: a new test is never
+flagged. The executions read are the ones a baseline reads, so no Flake Lab or investigation run and no environment
+incident. The time counts from the start the attempt's begin event names, else from when the dashboard heard it begin; the
+reporter's begin events name none.
+Each attempt is said to be stuck once; a retry is a new attempt.
+
+The question mark is meant: a test can be slow for a good reason, a large import or a cold cache. The rule says only
+that this attempt is far outside what its passing runs took.
+
+## On the run page
+
+A stuck test's row on the run page's **Tests** tab carries a **Stuck?** badge, how long it has run and the longest
+its last passing runs took: `Running for 7 minutes, usually 41.2s at most`. The row's live step names the step it is
+in. With the project's [live view](./live-view) on, **Watch** shows its page and, in a CI run, what its current call
+waits for. The badge leaves the row when the attempt ends.
+
+A page opened after the test was said to be stuck shows it too: the dashboard keeps it with the running test.
+
+## The notification
+
+`test.stuck` fires once per attempt, through the channels of the project's
+[subscriptions](./notifications#subscriptions) that chose it. Its message names the test, how long it has run against
+its usual time, the run with its branch and environment, the browser and worker, and the test's owner. Its button opens
+the run with its **Tests** tab searched for the test. The payload is on
+[Notification events & webhooks](/reference/notification-events#payload-fields-by-event).
+
+The branch, environment, owner and **Default branch only** filters apply to it. A run that sends no notification sends
+none: a run from an editor, a bisect step, a reproduction, or a partial run from a developer's machine or the desktop
+app.
+
+## Limits
+
+- **A live run on this dashboard.** The running tests are kept in the memory of the server the run reports to, as the
+  run's live events are. A dashboard that restarts forgets them until each test's next attempt begins, and it needs one
+  dashboard server ([Resource requirements](/operate/deployment#resource-requirements)).
+- **Fixed thresholds.** Two minutes and three times the longest pass are the same for every project.
+- **No history, no verdict.** A test with fewer than two passing executions on its browser is never said to be stuck.
+
+## Related
+
+- [Live view of a run](./live-view): watch a stuck test's page and what it waits for
+- [Notifications & alerts](./notifications): channels and subscriptions
+- [Notification events & webhooks](/reference/notification-events)
+
 <!-- https://piwitests.dev/features/failure-clusters -->
 
 # Failure clusters & the inbox
@@ -7979,8 +8040,9 @@ their own, and administrators can add global ones.
 ## Events
 
 Run events fire when a run finishes or fails, cluster events when a failure cluster appears, is fixed or regresses,
-and others on a flakiness spike, a performance regression, a finished AI diagnosis and an auto-heal pull request.
-Each event, when it fires and the payload it carries are in
+and others on a flakiness spike, a performance regression, a [stuck test](./stuck-tests), a finished AI diagnosis and
+an auto-heal pull request.
+When each event fires, and its payload, are in
 [Notification events & webhooks](/reference/notification-events). A
 [report schedule](./quality-reports#report-schedules) sends its report to the channels it names, with no subscription.
 A run from an editor, a bisect step, a reproduction, or a partial run from a developer's machine or the desktop app
@@ -8058,7 +8120,7 @@ The bell offers the branches and environments the project's runs reported, and t
 any characters, so `release/*` covers every release branch. A subscription delivers only events from runs on one of
 its branches **and** in one of its environments; a run that reported no branch (or environment) matches none, and an
 empty list matches every run. The filters apply to every event that comes from a run: the `run.*` events,
-`flakiness.spike`, `perf.regression`, the `cluster.*` events and `bug.looks_fixed`. `diagnosis.completed` and
+`flakiness.spike`, `perf.regression`, the `cluster.*` events, `bug.looks_fixed` and `test.stuck`. `diagnosis.completed` and
 `auto_heal.pr_opened` are not filtered.
 
 ### Through the API
@@ -8067,8 +8129,8 @@ The subscriptions REST API (see the [API docs](https://piwitests.dev/demo/docs))
 
 - **Scope**: all projects (`projectId: null`, for a user who can access every project), or a single project.
 - **Filters**: `branches` and `environments` as above; for run events, status; **owner**, which applies to the
-  `run.*` events, `flakiness.spike`, `perf.regression` and `cluster.new` and delivers them only when a failing test
-  behind the event belongs to that team (see [Tags & ownership](/guide/concepts#tags-ownership)); `flakinessThreshold`
+  `run.*` events, `flakiness.spike`, `perf.regression`, `cluster.new` and `test.stuck` and delivers them only when a
+  test behind the event belongs to that team (see [Tags & ownership](/guide/concepts#tags-ownership)); `flakinessThreshold`
   (a 0–1 rate) and `perfRegressionPct`.
 - **Mode**: `realtime`, sent as events happen, or `digest` with `digestAt` (`HH:MM`, UTC), held until then and sent as
   **one combined message** per email, Slack or Teams channel.
@@ -15016,6 +15078,7 @@ one fires and what a webhook channel receives; channels, subscriptions and deliv
 | `diagnosis.completed` | A diagnosis of a cluster, or of one of its failures, is stored: Piwi's (requires an [AI provider](/guide/ai-provider)) or one an agent records. A failure in no cluster sends none |
 | `auto_heal.pr_opened` | [Auto-heal](/features/auto-heal) opened a pull request; the payload carries `prNumber`, `prUrl`, `branch` and `editCount` |
 | `environment.incident` | A completed run is flagged as an [environment incident](/features/environment-incidents); it replaces the run's `run.failed`, `run.failed.default_branch`, `flakiness.spike`, `perf.regression`, `cluster.new` and `bug.looks_fixed` (`run.finished` still fires). The payload carries `rule`, `reason`, `host`, `otherProjects` and `incidentKey`, which is the same for every run of one outage across projects, so a channel receives one message. A subscription filtered on owners does not receive it |
+| `test.stuck` | A running test of a live run has run longer than both two minutes and three times its longest duration among its last ten passing executions ([Stuck tests](/features/stuck-tests)), once per attempt; runs that send no run event send none |
 | `bug.looks_fixed` | A `test.fail()` test passed in a completed run, in every browser project that ran it, and did not already pass on the previous completed run of the same branch; the payload lists the `tests`, each with the bug report (`bugId`, from `piwi:bug`) and ticket (`link`) it names |
 
 **`report.ready`** needs no subscription: a [report schedule](/features/quality-reports#report-schedules) sends it to
@@ -15130,7 +15193,7 @@ numbered lines instead.
 ## Payload fields by event
 
 Every event that comes from a run carries that run's `branch` and `environment` when the run reported them: the
-`run.*` events, `flakiness.spike`, `perf.regression`, the `cluster.*` events and `bug.looks_fixed`. A subscription's
+`run.*` events, `flakiness.spike`, `perf.regression`, the `cluster.*` events, `bug.looks_fixed` and `test.stuck`. A subscription's
 [branch and environment filters](/features/notifications#branches-and-environments) match on these two fields.
 
 - **Run events** (`run.*`, `flakiness.spike`, `perf.regression`): the run, its counts, `topFailures`, and the `owners`
@@ -15143,6 +15206,9 @@ Every event that comes from a run carries that run's `branch` and `environment` 
   A fix landed by an [auto-heal PR](/features/auto-heal#after-the-pr-opens) carries `healPr` (`{ number, url, actionId }`).
 - **`diagnosis.completed`**: the cluster, and the diagnosis's `summary`, `rootCause`, `category` and `confidence`. A
   diagnosis of one failure in the cluster adds its `executionId`, and the notification opens that failure.
+- **`test.stuck`**: the run, the test's `testTitle`, `suitePath` and `location`, the `browserName`, `workerIndex` and
+  `shardIndex` it runs in, the attempt's `startedAt` (epoch ms), `elapsedMs` (how long it had run) and `usualMs` (its
+  longest passing duration), and the test's `owners`.
 
 A `cluster.*` event also carries `knownIssue` (`{ key, url }`) when the cluster is linked to a tracker issue.
 
