@@ -440,7 +440,9 @@ run that carries it (its commit, a `Piwi-Cluster: <id>` trailer in a commit mess
 When the [capture fixtures](./capture-fixtures) are installed, every successful locator call records
 what the element actually looked like — role, accessible name, test id, structural anchors — keyed by
 the **call site** (`file:line`) rather than the selector text. One row per call site, refreshed on each
-passing run.
+passing run. A click is read as it starts, beside the action, so a **Place order** button that submits
+and leaves the page is kept too; an Enter that submits its form at once can leave before its field is
+read.
 
 When that locator later fails, those snapshots are what Piwi ranks replacement locators from. See
 [Locator healing](/features/locator-healing).
@@ -936,7 +938,7 @@ That's the entire setup: nothing to start, wrap, or await inside your tests.
 | **Web Vitals**: TTFB, DOM Interactive, DOMContentLoaded, Load Complete, First Paint, First Contentful Paint, plus LCP, CLS and INP (Chromium-only) | at test teardown | Web vitals card with color-coded thresholds; [performance trends](/features/slow-tests) |
 | **ARIA snapshot** of the final page state: the YAML dump, plus the JSON aria tree on Playwright 1.63 or later; its **screenshot** when Playwright keeps failure screenshots | on failure | Failure evidence on the [execution](/features/evidence#one-execution-diagnosis-first) and cluster pages; [AI diagnosis](/features/ai-diagnosis) context; the JSON tree feeds [locator healing](/features/locator-healing)'s rename matching and the page diff |
 | **Browser dialogs**: an `alert`/`confirm`/`prompt`/`beforeunload` dialog's type, message and close time, through Playwright 1.63's `dialogclosed` event | as each dialog closes | A *dialogs* lane on the [failure timeline](/features/evidence#one-execution-diagnosis-first) and a *a dialog was open when the action failed* [clue](/features/evidence#clues) |
-| **Locator snapshots**: element attributes, stable-ancestor anchors, same-role position and ranked alternative locators for each element a test proves resolvable, stamped with the call site | after each successful action and each passing web-first assertion (`toBeVisible()`, `toHaveText()`, …) | [Locator healing](/features/locator-healing); when a failing name-based locator (`getByRole`, `getByText`, `getByLabel`, …) matches nothing, a fresh suggestion is attached to the test as a Playwright annotation |
+| **Locator snapshots**: element attributes, stable-ancestor anchors, same-role position and ranked alternative locators for each element a test proves resolvable, stamped with the call site | for each successful action and each passing web-first assertion (`toBeVisible()`, `toHaveText()`, …) | [Locator healing](/features/locator-healing); when a failing name-based locator (`getByRole`, `getByText`, `getByLabel`, …) matches nothing, a fresh suggestion is attached to the test as a Playwright annotation |
 | **Locator pages**: the [page key](/guide/concepts#page-key) each locator call ran on, never a query or raw id | at each locator action and assertion | [Locator pages](/features/locator-usage#pages); **This page** in [Tested elements](/features/tested-elements) |
 | **Code reach** (opt-in): executed files | teardown | [Code reach](/features/code-reach) |
 
@@ -1007,8 +1009,8 @@ Two rules:
 
 Capture never fails or noticeably slows a test:
 
-- Per call site: one DOM read, and a bounded ARIA snapshot (500 ms deadline) only when the element's attributes don't
-  already settle its accessible name.
+- Per call site: one DOM read, rarely two, and an ARIA snapshot (500 ms deadline) unless the attributes settle its
+  accessible name; one more per new document.
 - At teardown: draining in-flight captures is capped at 2 seconds.
 - A capture that can't complete (mid-navigation, detached element) is dropped silently; it never throws into your test.
 - Capture adds no steps to the report or trace, and errors, step locations and stacks name your own call.
@@ -5047,7 +5049,7 @@ opens the fix as a pull request.
 ## What it does
 
 While tests run, the [capture fixtures](/guide/capture-fixtures) record a [locator snapshot](/guide/concepts#locator-snapshot)
-after each successful action **or passing web-first assertion** (a passing `expect(locator).toBeVisible()` proves the
+for each successful action **or passing web-first assertion** (a passing `expect(locator).toBeVisible()` proves the
 element resolved just as a click does): the target element's attributes, plus alternative locators ranked by a
 stability score (`data-testid` = 100, role + accessible name ≈ 90, semantic CSS ≈ 35–40, hash-suffixed ≈ 10). Capture
 also generates **rename-proof** alternatives: locators scoped to a stable ancestor
@@ -5174,13 +5176,12 @@ CI, like the options above. The editor extensions set both from your [breakpoint
 - Healing runs only when the locator **never resolved**, matched nothing, or matched several elements. When it resolved
   and the step failed afterwards (`element is not enabled`, a wrong count, a hidden element) or the page failed to
   load, the panel says *The locator resolved; this is not a locator problem* (for a page that failed to load, *The page
-  failed to navigate before any locator ran*), because rewriting a locator that found its element would be a harmful
-  edit.
-- Suggestions need a passing run captured with the fixtures in place; until then only the ARIA fallback applies.
-- Capture costs one DOM read per call site, at most once per call site per test. Negated assertions, absence checks
-  (`toBeHidden`, `toBeDetached`) and multi-element checks (`toHaveCount`) are never probed. Turn it off with
-  `captureLocators: false` or `PIWI_CAPTURE_LOCATORS=false`; it is also off whenever `collectPerformanceMetrics` is
-  `false`.
+  failed to navigate before any locator ran*), because a locator that found its element needs no rewrite.
+- Suggestions need a passing run captured with the fixtures; until then only the ARIA fallback applies. An Enter that
+  submits at once can leave its field unread.
+- Capture reads each call site once per test, rarely twice. Negated assertions, absence checks (`toBeHidden`,
+  `toBeDetached`) and multi-element checks (`toHaveCount`) are never probed. Turn it off with `captureLocators: false`
+  or `PIWI_CAPTURE_LOCATORS=false`; it is also off whenever `collectPerformanceMetrics` is `false`.
 
 ## Related
 
