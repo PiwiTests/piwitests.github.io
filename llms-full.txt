@@ -735,11 +735,12 @@ command, `npx @piwitests/reporter init`; this page is the manual setup and the s
 npm install --save-dev @piwitests/reporter
 ```
 
-It needs `@playwright/test` 1.64.1 or later and Node.js 20 or later.
+It needs `@playwright/test` 1.59 or later and Node.js 20 or later. A feature that needs a later Playwright names the
+version on its page, and what it does on an older one.
 
 ### Try it without editing your config
 
-Playwright's `--add-reporter` appends this reporter to whatever your config already uses (unlike `--reporter`, which replaces them), so you can send one run to a dashboard with no config edit. Most reporter options have a `PIWI_*` [environment variable](/reference/reporter-options), so point it at your dashboard that way:
+Playwright's `--add-reporter` (1.63 or later; an older Playwright refuses the option) appends this reporter to whatever your config already uses (unlike `--reporter`, which replaces them), so you can send one run to a dashboard with no config edit. Most reporter options have a `PIWI_*` [environment variable](/reference/reporter-options), so point it at your dashboard that way:
 
 ::: code-group
 
@@ -3674,7 +3675,8 @@ browser paints it, headless or not, and under it the call the image was taken at
 
 In a CI run, the view also follows that call: how long it has run, Playwright's log of it as a failed call's error
 prints it, and while it waits, what its locator matches (no element yet, several, or one not enabled), outlined on the
-image, with the point a click acts on. A shared run shows the call alone.
+image, with the point a click acts on. A shared run shows the call alone. Following the call needs Playwright 1.64:
+1.63 shows its log without the matches, and an older one the call alone.
 
 A view belongs to the test whose row opened it. Opened between two tests or in a `beforeAll`, it says so and shows the
 next test's page. It ends with its test, its worker or the run, when the live view is turned off, or when you close it.
@@ -5449,7 +5451,7 @@ shows only what tests do on the page you are on. Without the fixtures a use has 
 
 ## Requirements and limits
 
-- **Playwright 1.61 or later**, with step collection on (`collectPerformanceMetrics`, the default). Playwright 1.63 puts the chain in each step's parameters; 1.61 and 1.62 print it in the step title, which Piwi reads the same way.
+- **Step collection on** (`collectPerformanceMetrics`, the default). Playwright 1.63 puts the chain in each step's parameters; an older one prints it in the step title, which Piwi reads the same way.
 - **Getter calls are not reported.** Playwright hides `textContent()`, `inputValue()`, `isVisible()` and similar calls from reporters, so a locator used only through them is not in the index.
 - **Long and described chains.** Piwi keeps 500 steps of an execution (`PIWI_INGEST_MAX_STEPS`, the steps that failed first) and the first 200 characters of each step parameter (`PIWI_INGEST_MAX_STEP_PARAM_VALUE_CHARS`), and `locator.describe()` replaces the chain with its description. Chains cut short or described are skipped.
 - **Matching is by chain text.** Two different chains that happen to resolve to the same element count separately. The counts tell you where to look, not that a test will break. To match on the element itself, open the page and use the extension's [Tested elements](./tested-elements), which evaluates every chain there.
@@ -8958,8 +8960,8 @@ until you turn it off. Your clicks, the wheel and your keys on the view go to th
 to the tray, and `Tab` leaves the view unless a click into it took the keyboard. The frames go from the test's worker
 to the windows that watch that stop, the app's and Piwi Picker's Runs window, and nothing keeps them.
 
-**Pick on the image**, or a `Shift`+click on the image or the view, names the element under the pointer: its locator
-shows under the test, with **Copy**.
+**Pick on the image** (Playwright 1.60 or later), or a `Shift`+click on the image or the view, names the element under
+the pointer: its locator shows under the test, with **Copy**.
 
 ## Code to copy
 
@@ -9559,8 +9561,8 @@ the element with the extension names the brittle locators finding it.
    name the branch deployed at those URLs, a staging site on `develop` for instance: the
    overlay then shows what that branch's tests reach, as the [Locators page](./locator-usage#branches)
    reads a branch. The branch select in the panel changes it for the rest of the browser session.
-2. Let a few runs arrive. The index fills in from the steps the reporter already sends, with
-   Playwright 1.61 or later: see the [requirements](./locator-usage#requirements-and-limits). With the
+2. Let a few runs arrive. The index fills in from the steps the reporter already sends: see the
+   [requirements](./locator-usage#requirements-and-limits). With the
    [capture fixtures](/guide/capture-fixtures), it also records the page of each use.
 3. For projects that set `testIdAttribute` in their Playwright config, the reporter records it
    with each run, and `getByTestId` reads that attribute on the page.
@@ -10277,7 +10279,7 @@ A hint under the view says so the first time. What you hold down is let go befor
 **Pick on the image**, beside **Watch live**, or a `Shift`+click on the image or the view, names the element a click
 under the pointer would reach (a dialog or a banner over the page included), without touching the page: the locator
 the pause bar's **Pick a locator** would rank first for it, sent to the editor in place of the stopped line's. The window shows that locator, or why there is none. It works on a headed stop's image too. `Esc`
-turns it off.
+turns it off. It needs Playwright 1.60 or later, and says so on an older one.
 
 ## The run shortcut
 
@@ -10706,8 +10708,9 @@ The rest is native, and every action is under **Tools → Piwi**:
   started](./terminal-runs), has an arrow in the gutter and an inlay above it with **Resume**, **Step**, **Run to
   Caret**, **Finish** and **End Test**; they are also first in the status bar item's menu and under **Tools → Piwi**,
   with **Pause the Run** and **Stop the Run**. A headless test's page shows in the Piwi tool window's **Paused Page**
-  tab, where a click on the image picks the locator of the element under it. On a JetBrains Gateway backend, forward the
-  ports **Pair with Piwi Picker** names: [Remote development](/guide/remote-development#jetbrains-gateway).
+  tab, where a click on the image picks the locator of the element under it (Playwright 1.60 or later). On a JetBrains
+  Gateway backend, forward the ports **Pair with Piwi Picker** names:
+  [Remote development](/guide/remote-development#jetbrains-gateway).
 - **[Code from a pause](./editor-stop-code)**: the inlay, the arrow's menu, the status bar item's menu and **Tools →
   Piwi** also offer **Pick a Locator**, **Record Here**, **Assert**, **Assert a Region** and **Mock a Request** (the
   inlay names them shorter), whose code goes above the stopped line in one undoable edit; the end of the caret's line
@@ -11260,7 +11263,7 @@ code from the page: [Code from a pause](./editor-stop-code).
 | **Step** | Runs the call and stops before the next one, breakpoint or not | `F10` | Step Over's, `F8` |
 | **Run to cursor** | Stops at the first call on the cursor's line, or at a breakpoint before it | `Ctrl+F10` | Run to Cursor's, `Alt+F9` |
 | **Finish** | Runs the test on without stopping at a breakpoint again in this attempt | `Shift+F11` | Step Out's, `Shift+F8` |
-| **End the test** | [Skips the rest of the test](./end-the-test), the stopped call included | none | none |
+| **End the test** | [Skips the rest of the test](./end-the-test), and a stopped locator call from Playwright 1.62 | none | none |
 | **Stop** | Ends the run's process | `Shift+F5` | the Run tool window's Stop |
 
 The keys are the IDE's own debugger keys (in a JetBrains IDE, your keymap's), Piwi's only while their control applies
@@ -11318,8 +11321,8 @@ Piwi tool window. **Piwi: Show the paused page** (**Tools → Piwi → Show the 
   <figcaption>A headless run paused before it clicks Apply: the page at the stop, beside the editor.</figcaption>
 </figure>
 
-Clicking the image picks a locator when the reporter supports it: the locator replaces the one on the stopped line,
-and the tab shows the result or refusal.
+Clicking the image picks a locator when the reporter supports it, on Playwright 1.60 or later: the locator replaces
+the one on the stopped line, and the tab shows the result or refusal.
 
 **Watch live** updates the paused page in the same tab. Choose **Interact** separately to click, scroll or type on
 the page; **Escape** releases the keyboard, and **Shift+click** picks a locator. Watching stops when you hide or close
@@ -11377,9 +11380,9 @@ answers. Closing the IDE closes the connections: a stop with no pause bar then g
 
 # End the test
 
-At a stop, **End the test** ends the test there, as if it had called `test.skip()` at that line: the call it stopped
-before never runs, nor the rest of the test, and Playwright reports it as skipped, its `skip` annotation reading
-`Ended from Piwi`. The run goes on with its next test. Use it once you have seen what you stopped for, or recorded the
+At a stop, **End the test** ends the test there, as if it had called `test.skip()` at that line: the locator call it
+stopped before never runs (Playwright 1.62 or later), nor the rest of the test, and Playwright reports it as skipped,
+its `skip` annotation reading `Ended from Piwi`. The run goes on with its next test. Use it once you have seen what you stopped for, or recorded the
 steps you were missing, and the rest of the test has nothing to show you.
 
 ## Where it is
@@ -11399,7 +11402,8 @@ It is offered at any stop but a failure, with a reporter newer than 0.62.0:
 ## What runs, and what does not
 
 - **At a locator call or an assertion** (`click`, `fill`, `expect(locator).toBeVisible()`), the call is given up
-  before it runs. At a `page.pause()`, nothing after it runs.
+  before it runs, with Playwright 1.62 or later; an older one runs it first, and the editor says so. At a
+  `page.pause()`, nothing after it runs.
 - **At another call** (a navigation, a key press on the page, `page.evaluate`), the call runs first: Piwi does not
   hold it. The test is skipped at its next locator call, or as its function ends, and the editor says so.
 - **At a failure**, it is not offered: **Resume** lets the test end as it failed, and the failure is kept.
@@ -11478,7 +11482,8 @@ the editor starts.
 ## Limits
 
 - **No Pick, Record or Assert in the test's window.** They need the pairing a run Piwi starts carries: start the test
-  from the editor to use them. Pick on the image names the locator, for you to copy, without writing it.
+  from the editor to use them. Pick on the image (Playwright 1.60 or later) names the locator, for you to copy,
+  without writing it.
 - **No Stop.** End the run in its terminal, or with the IDE's own **Stop**.
 - **Debug stops twice.** Under a JetBrains IDE's **Debug**, a breakpoint stops the test in the debugger, then at Piwi's
   stop, whose controls take no key while the debug session runs. `PIWI_EDITOR=off` in the run configuration's
@@ -11811,8 +11816,8 @@ its pages and run code in them. It is shared until the test ends, and no agent c
 ## Limits
 
 - **A remote window** (SSH, a dev container, Gateway) runs the server on the remote machine: an agent there reaches it.
-- An action needs Playwright 1.64 or later and a `@piwitests/reporter` at least as recent as the editor extension; at
-  an older one's stops, the tools say what it cannot do.
+- An action needs a `@piwitests/reporter` at least as recent as the editor extension; at an older one's stops, the
+  tools say what it cannot do.
 
 ## Related
 
