@@ -2403,6 +2403,8 @@ ALTER TABLE `projects` ADD `status_filter` text;
 
 ALTER TABLE `projects` ADD `live_view` integer DEFAULT false NOT NULL;
 
+ALTER TABLE `projects` ADD `live_view_masks` text;
+
 BEGIN TRANSACTION;
 
 -- Tags
