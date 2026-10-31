@@ -2012,10 +2012,13 @@ instead of failing mid-upload.
 In remote development the editor's window is on your computer, while the code, the
 [editor service](/features/editors) and the test runs are on another machine: a server over SSH, WSL, a dev container
 or a codespace. What the editor shows from the service works there as it does on your computer: failures, runs,
-[pausing and stepping](/features/editor-run-control), a headless stop's image and Pick on it,
+[pausing and stepping](/features/editor-run-control), a headless stop's live preview and Pick on it,
 [code from a pause](/features/editor-stop-code). [Piwi Picker](/features/extension) is the part that needs a word: it
 runs in the browser on your computer and reaches the editor through a pairing address on the loopback interface,
 which in remote development is the local end of a forwarded port.
+
+The editor's **Watch live** and **Interact** controls use its existing connection. They need no Picker pairing or
+extra port forwarding. The steps below are for using Picker's separate Runs window and Send to editor.
 
 ## VS Code
 
@@ -3507,11 +3510,10 @@ A flaky test adds a **Flakiness** tab with its [suspects](./flaky-tests#suspects
 
 # Live view of a run
 
-While a run executes, its run page shows the step each worker is on. In a project that turns the live view on, a
-running test of a CI run, or of a run a developer [shares from their machine](#share-a-run-from-your-machine), also
-gets **Watch**: it opens the page that worker is on, a few images a second, each with the call it was taken at. It is
-for watching a CI run that seems stuck, or a teammate's paused test, without waiting for the trace. Nothing you do in
-the view reaches the test.
+In a project that turns the live view on, a running test of a CI run, or of a run a developer
+[shares from their machine](#share-a-run-from-your-machine), gets **Watch** on its run page: it opens the page that
+worker is on, a few images a second, each with the call it was taken at. It is for watching a CI run that seems stuck,
+or a teammate's paused test, without waiting for the trace. Nothing you do in the view reaches the test.
 
 ## Where to watch a run
 
@@ -3526,39 +3528,49 @@ app hands out no live view key.
 
 ## Turn it on
 
-The live view is off in every project. A Project admin turns it on in **Project → Settings → Live view**, which says
-what goes out, to whom, and what is kept. It applies to the project's CI runs from their next start: each run in a CI
-job that the reporter's global setup registers, which [`wrapConfig`](/guide/reporter) adds. A CI job is told by a
-CI provider's own variable (`GITHUB_ACTIONS`, `GITLAB_CI`, …) or by `CI` set to anything but `false` or `0`. At the start of such a run the reporter prints:
+The live view is off in every project. A Project admin turns it on in **Project → Settings → Live view**. It applies to
+each CI run that starts after, as the reporter's global setup registers it: [`wrapConfig`](/guide/reporter) adds that
+setup. A CI job is told by its provider's variable (`GITHUB_ACTIONS`, `GITLAB_CI`, …) or by `CI` set to anything but
+`false` or `0`. Such a run's log then says:
 
 ```text
 [Piwi Dashboard] Live view on: people who may open this run can watch its tests' pages on the dashboard while it runs. Nothing is stored.
 ```
 
-Turning the setting off ends every view of the project's runs at once.
+Turning it off ends every view of the project's runs at once. A run that started while it was off stays without a view
+when it is turned on again.
+
+## Check availability
+
+Beside its search, a running run's **Tests** tab says **Live view available**, or what is missing; its help gives the
+step:
+
+| It says | Why, and what to do |
+|---|---|
+| **Live view off** | A Project admin turns it on; the next run gets it. |
+| **Live view unavailable** | The run has no key: it started before the setting was on, without `wrapConfig`'s global setup, with `streaming` off, or before the instance restarted. Start a new run. |
+| **Live view waiting** | No worker is connected yet: they are starting, or the specs do not import `test` from the [capture fixtures](/guide/capture-fixtures). |
+| **Not shared live** | The run is on a developer's machine: they [share it](#share-a-run-from-your-machine). |
 
 ## Watch a worker
 
-On the run page's **Tests** tab, a running test shows the step its worker is on. With the live view on, **Watch** beside
-it opens that worker's view: the test's page as the browser paints it, headless or not, and under it the call the image
-was taken at (`Click getByRole('button', { name: 'Pay' }) · checkout.spec.ts:30`). A still page sends no new image.
+On the run page's **Tests** tab, **Watch** beside a running test opens its worker's view: the test's page as the
+browser paints it, headless or not, and under it the call the image was taken at (`Click getByRole('button', { name: 'Pay' }) · checkout.spec.ts:30`). A still page sends no new image.
 
 In a CI run, the view also follows that call: how long it has run, Playwright's log of it as a failed call's error
 prints it, and while it waits, what its locator matches (no element yet, several, or one not enabled), outlined on the
 image, with the point a click acts on. A shared run shows the call alone.
 
-A view belongs to the test on whose row you opened it. Opened while the worker runs no test (a `beforeAll`, between
-two tests), it says so, and shows the next test's page. It ends as its test ends, the worker leaves, the run
-ends or the project turns the live view off, and when you close it.
+A view belongs to the test whose row opened it. Opened between two tests or in a `beforeAll`, it says so and shows the
+next test's page. It ends with its test, its worker or the run, when the live view is turned off, or when you close it.
 
 A CI run never stops at a breakpoint or a `page.pause()`; a shared run does, and its row then says **Paused** at the
 stopped call, which opens in your editor.
 
 ## Share a run from your machine
 
-A run that stops where you can steer it, from VS Code, a JetBrains IDE, a terminal an editor follows, Piwi Picker or
-the desktop app, can be shared on the instance it reports to, for a teammate to watch from its page: **Share live**, at
-any time while it runs, in a project with the live view on.
+Choose **Share live** while a local run executes to let a teammate watch it. The run must report to a team instance
+whose project enables live view, and connect to an editor or the desktop app for controls.
 
 | Where | Share | Stop |
 |---|---|---|
@@ -3567,18 +3579,16 @@ any time while it runs, in a project with the live view on.
 | Piwi Picker's [Runs window](./runs-window) | **Share live** under the run's name | **Stop sharing** |
 | The desktop app's [Local runs tray](./desktop-runs) | **Share live** above the run's workers | **Stop sharing** |
 
-The first share in a window says what goes out and to whom, and waits for your yes. Shared, the run says where and
-how many views of it are open, with its page's link to copy for your teammate.
+The first share in a window asks for confirmation. The shared run shows its destination, viewer count and a link to copy.
 
 Until then, its workers send nothing, and its running tests say **Not shared live** where **Watch** would be. Once
-shared, each worker sends what a CI run's do: its stops, which everyone with the run's page open sees (the call, its
-file and line, and the test's title), even while nobody watches; and images while someone does. **Stop sharing** closes
-the connections within seconds: each view ends saying so, and **Paused** leaves the rows.
-Closing the editor or the desktop app stops it too.
+shared, its stops (the call, its file and line, the test's title) reach everyone with the run's page open, and images
+only those watching. **Stop sharing** closes the views within seconds and clears **Paused** from the rows. Closing the
+editor or the desktop app stops it too.
 
 A run that cannot be shared says why: it reports to no instance or to the desktop app, its project has the live view
-off, or the reporter's global setup did not register it. A sharing that stops on its own says why, and **Share live** shows again: the project's
-live view turned off, the instance restarted, or it stopped answering.
+off, or the reporter's global setup did not register it. A sharing that stops on its own says why (the live view turned
+off, the instance restarted or stopped answering), and **Share live** shows again.
 
 ## What is sent, to whom, and what is kept
 
@@ -3609,8 +3619,6 @@ environment of the tests, their hooks or their fixtures, so a process they start
 - **Watch only.** No input and no controls: a test is stepped from the [editor](./editor-run-control) or the
   [Runs window](./runs-window).
 - **The test's `page`.** The view shows the page of Playwright's `page` fixture; a popup or a second page is not shown.
-- **A run the global setup registered.** With the reporter entry alone, which has no global setup, the workers start
-  before the run is registered and get no key.
 - **Sixteen views of a run at a time**, four of them one person's with authentication on: a fifth closes that
   person's oldest.
 - **One dashboard server.** The view is relayed in the memory of one server, as the run's live events are, so it needs
@@ -10969,15 +10977,18 @@ has none.
 
 ## A headless run
 
-A run Piwi starts with breakpoints is headed, so the pause bar answers its stops too. One started without runs as its
-config says, headless by default: when you pause it, or it reaches a breakpoint set since, no bar shows, and the editor
-shows an image of the page at the stop: in VS Code in a **Piwi: paused page** tab beside the editor, in a JetBrains IDE
-in the Piwi tool window's **Paused Page** tab. **Piwi: Show the paused page** (**Tools → Piwi → Show the Paused Page**)
-asks for it at any stop.
+A run Piwi starts with breakpoints is headed, with a pause bar. Without breakpoints it follows your config, headless
+by default. A headless stop opens **Piwi: paused page** beside VS Code's editor, or **Paused Page** in the JetBrains
+Piwi tool window. **Piwi: Show the paused page** (**Tools → Piwi → Show the Paused Page**) opens it at any stop.
 
-With a reporter newer than 0.61.0, the image says **Click the image to pick a locator**. A click picks the element
-under it, as the bar's **Pick a locator** does, without touching the page: its locator replaces the one on the stopped
-line, and the tab says so, or why not. In VS Code, a script in the tab sends the editor the click's position alone.
+Clicking the image picks a locator when the reporter supports it: the locator replaces the one on the stopped line,
+and the tab shows the result or refusal.
+
+**Watch live** updates the paused page in the same tab. Choose **Interact** separately to click, scroll or type on
+the page; **Escape** releases the keyboard, and **Shift+click** picks a locator. Watching stops when you hide or close
+the tab, resume the test or switch stops. Interact starts off at each stop. No Picker installation, pairing, project
+live-view setting or extra port forwarding is needed: the preview uses the editor's existing connection. Reporters
+without live-view support keep the still image.
 
 ## Breakpoints while the run goes on
 
@@ -11013,7 +11024,6 @@ answers. Closing the IDE closes the connections: a stop with no pause bar then g
   any other and does nothing.
 - **Playwright calls, not JavaScript.** **Step** goes from one Playwright call to the next; stepping through the
   test's own code stays with the IDE's debugger.
-- **A still image.** It does not follow the page: the [Runs window](./runs-window#watch-live) shows it live.
 - **No image when the page is unknown.** A stop at a call other than a locator's (a navigation, a key press) in a
   browser context with several pages has no image, and refuses Piwi Picker's **Pick** and **Record**: the worker
   cannot tell its page. Any page of that context closing ends it.
