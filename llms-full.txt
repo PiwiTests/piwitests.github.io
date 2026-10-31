@@ -5859,14 +5859,16 @@ refusal naming the field, which the modal then asks for.
 ## Requirements
 
 - A connected **Jira Cloud** site — see [Operate → Integrations](/operate/integrations#connecting-jira-cloud).
+- A [project binding](#the-project-binding) naming the connection: a project's issues are filed through that one
+  connection, never through another.
 - **`PIWI_SITE_URL`** set, so the issue body's links resolve back to the dashboard.
 - The **Contributor** [role](/operate/project-access#what-each-role-can-do) or above to create or link an issue; anyone
   who reads the project sees the key and status.
 
 ## Enable it
 
-The modal prefills its fields from the [project binding](#the-project-binding), else offers pickers over the
-connected site; toggles choose what the body carries (diagnosis and patch on, [share link](/features/share-links) off).
+The modal files through the connection of the [project binding](#the-project-binding) and prefills its fields from
+the binding, else offers pickers over the bound site; toggles choose what the body carries (diagnosis and patch on, [share link](/features/share-links) off).
 A share link needs the **Maintainer** role and is created when the issue is filed.
 From an AI agent, the [`create_issue` MCP tool](/reference/mcp-tools#create_issue) files the same ticket once the
 binding names a Jira project and issue type.
@@ -8357,9 +8359,9 @@ The body, its fields and how to verify the signature are in
 
 ### Reaching the person who fixed it
 
-`cluster.fixed` and `cluster.regressed` resolve the fixing commit's author through the SCM provider, which for a private repository needs an [SCM token](/guide/source-control) (for a regression, the author of the fix that did not hold). On top of the normal subscription routing, the event is then delivered to that person directly:
+`cluster.fixed` and `cluster.regressed` resolve the fixing commit's author through the SCM provider, which for a private repository needs an [SCM token](/guide/source-control) (for a regression, the author of the fix that did not hold). On top of the normal subscription routing, the event is then delivered to that person directly, when the commit's email belongs to a registered Piwi user who can open the project:
 
-- **Email**, through the same outbox, when SMTP is configured **and** the commit's email belongs to a registered Piwi user. The mail goes to that user's account email, never to the raw commit address, so a fix by an outside contributor never becomes a mail to a stranger.
+- **Email**, through the same outbox, when SMTP is configured. The mail goes to that user's account email, never to the raw commit address, so a fix by an outside contributor never becomes a mail to a stranger.
 - **A browser notification** for that user, delivered even when they have no matching subscription.
 
 When the lookup fails (a private repository without a token, a host that exposes no email), subscriptions alone apply.
@@ -12955,7 +12957,8 @@ Roles are granted from four places, which all edit the same grants:
 - **Settings → Users → Project roles**, the action next to a user: their role on All projects and on each project,
   with the groups that add to them.
 - A project's **Settings → Members**: the users and groups with a role on that project. Project admins see it for
-  their own projects.
+  their own projects. Their picker lists the users who share a project with them; anyone else, such as a new account,
+  is found by their whole username.
 - **Settings → Groups** for who belongs to each group; its roles are set on the grid or in a project's Members.
 
 Scripts read and change the same grants, called role bindings, through the API; see the
@@ -13331,7 +13334,8 @@ to French); a project binding overrides it, and the create modal offers a per-is
 
 With [authentication](./authentication) on, connections are administrator-only. Binding a project to Jira takes the
 Project admin role on that project (`project:manage`), or an administrator. Filing an issue takes the
-[Contributor role](./project-access#what-each-role-can-do) or above on the project (`issue:create`).
+[Contributor role](./project-access#what-each-role-can-do) or above on the project (`issue:create`), and goes through
+the connection the project is bound to: a request naming another connection is refused.
 
 ## Status sync
 
