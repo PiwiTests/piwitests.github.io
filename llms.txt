@@ -15,7 +15,7 @@
 - [Codex CLI](https://piwitests.dev/guide/codex-cli): Use a local Codex ChatGPT login for Piwi diagnosis and the assistant, with isolated execution, structured output and scoped read-only tools.
 - [DeepSeek CLI](https://piwitests.dev/guide/deepseek-cli): Use the official DeepSeek Harness command line tool for Piwi diagnosis and the assistant, with private profiles and scoped read-only MCP access.
 - [Backend instrumentation](https://piwitests.dev/guide/backend-logs): Add the ASP.NET Core or Nitro package to your backend so each test's requests carry the server's logs, spans and routes, with server probes as an experimental fourth use.
-- [Import past runs](https://piwitests.dev/guide/importing-runs): Backfill the dashboard with past runs from Playwright JSON and blob reports or trace files, and make imported history line up with new runs.
+- [Import past runs](https://piwitests.dev/guide/importing-runs): Backfill the dashboard with past runs from Playwright blob reports or trace files, and make imported history line up with new runs.
 - [Remote development](https://piwitests.dev/guide/remote-development): Use the Piwi editor extensions in a remote VS Code window (Remote SSH, WSL, Dev Containers, Codespaces) or on a JetBrains Gateway backend, and reach their runs from Piwi Picker through a forwarded port.
 - [What Piwi does](https://piwitests.dev/guide/what-piwi-does): What Piwi is for: the jobs it serves, the failure loop, the two rules behind every feature, its pieces, and what it is not.
 - [Why Piwi?](https://piwitests.dev/guide/comparison): How Piwi compares with the Playwright HTML report, Allure, ReportPortal, Currents and Fault0, and when another tool fits better.
@@ -51,7 +51,7 @@
 - [Who uses a locator](https://piwitests.dev/features/locator-usage): Before changing an element, see which tests reach it and from which lines, from the locator chains Playwright records on every step.
 - [Locator preflight](https://piwitests.dev/features/preflight): Before a push, the test locators your change breaks: a renamed label, a removed test id, a changed translation, with the rewrite applied in place.
 - [Fix plans, reproduce & bisect](https://piwitests.dev/features/fix-plans): The next step for a failure, the other ways to fix it, and the recipes to reproduce it locally and bisect to the commit that broke it.
-- [Auto-heal PRs](https://piwitests.dev/features/auto-heal): Piwi opens a pull request with a validated locator replacement or patch for a failure; you review and merge it, Piwi never does.
+- [Auto-heal PRs](https://piwitests.dev/features/auto-heal): Piwi opens a pull request with one-line locator replacements, from a passing run's capture or the change's own rename, for a broken locator; you review and merge it, Piwi never does.
 - [Issue tracking (Jira)](https://piwitests.dev/features/issue-tracking): File a Jira issue from a failure with the fix plan as its body, keep it linked as the cluster's known issue, and keep its status in sync.
 - [Issue automation](https://piwitests.dev/features/issue-automation): Rules that file a Jira issue for a failure that keeps failing on the branches and environments you choose, and keep its comments and description current as the failure evolves.
 - [Pull-request feedback & re-run](https://piwitests.dev/features/pr-feedback): Piwi posts a run's result on the pull request, new failures apart from pre-existing ones, and re-runs a cluster's tests in CI from the dashboard.
@@ -135,7 +135,7 @@
 - [Test search](https://piwitests.dev/reference/test-search): The search box of the Tests tabs: words, qualifiers such as file: and describe:, exclusions and wildcards, and the keys that complete them.
 - [Clue rules](https://piwitests.dev/reference/clues): Every rule that can produce a clue on a failing execution, its strength and when it fires, and the stories that chain several clues into one sentence.
 - [Locator stability rules](https://piwitests.dev/reference/locator-stability): Every rule Piwi uses to call a locator your tests use brittle or worth watching, what it catches and why that breaks.
-- [Piwi CLI](https://piwitests.dev/reference/cli): Every command and flag of the piwi CLI that ships with @piwitests/reporter: init, skills, gate, report, select, run, probe, flake, ai, codegen, preflight and bug.
+- [Piwi CLI](https://piwitests.dev/reference/cli): Every command and flag of the piwi CLI that ships with @piwitests/reporter: init, skills, gate, report, coverage, select, run, probe, flake, ai, codegen, preflight and bug.
 - [Steps file format](https://piwitests.dev/reference/steps-format): The steps file: a recording as data, which Piwi Picker saves and piwi codegen turns into a Playwright spec. Every field, the limits and how a file is checked.
 - [Bug report file format](https://piwitests.dev/reference/bug-report-file): The .piwibug file Piwi Picker saves for a bug report: a zip archive with the steps, the failing test, the Markdown report, the evidence and the screenshots, and how a reader tells it from any other zip.
 - [MCP tools](https://piwitests.dev/reference/mcp-tools): Every tool the dashboard's MCP server serves, by module, with the capability that removes it when declined, generated from the tool catalog.

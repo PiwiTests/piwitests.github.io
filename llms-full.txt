@@ -11,6 +11,11 @@ to the server, which keeps every run with its traces and renders the dashboard. 
 vocabulary (*run*, *test case*, *execution*, *cluster*)? [Core concepts](./concepts) defines each term the dashboard
 uses.
 
+<figure>
+  <img src="/diagrams/moving-parts.svg" alt="The reporter, inside a Playwright run on your machine or in CI, streams results and uploads traces to the Piwi server, which keeps them in its database and artifact storage and serves the dashboard to your browser">
+  <figcaption>The same reporter runs locally and in CI; one server keeps every run.</figcaption>
+</figure>
+
 ## 1. Run the dashboard
 
 The dashboard is one Node process. Pick the way to run it that fits:
@@ -63,6 +68,11 @@ Each ends in [`wrapConfig`](./reporter#installing-via-wrapconfig) around your co
 [capture fixtures](./capture-fixtures) in your specs: the reporter entry alone keeps your runs, and those two add the
 failure screenshots and traces, the network and console capture, and locator healing.
 
+<figure>
+  <img src="/screenshots/home-empty-connect-waiting.png" alt="The connect wizard on an instance with no project: the project name, the three ways to connect (one command, coding agent, by hand) with the init command, the fixtures import and the test command, and a status line waiting for the first run">
+  <figcaption>The connect wizard, waiting for the first run.</figcaption>
+</figure>
+
 ### Fast path: one command
 
 From your Playwright project, one command installs the reporter, wraps your `playwright.config`, creates the
@@ -70,6 +80,30 @@ From your Playwright project, one command installs the reporter, wraps your `pla
 
 ```bash
 npx @piwitests/reporter init --server-url http://localhost:3000 --project my-project
+```
+
+It prints one line per step, `+` for a file it created, `~` for one it changed, `=` for one already set, `!` for a
+step left to you:
+
+```txt
+Piwi setup for "my-project":
+
+  ~ [updated] dependency — Installed @piwitests/reporter
+  ~ [updated] config playwright.config.ts — Wrapped defineConfig(...) with wrapConfig(...) and added the import
+  + [created] fixtures tests/fixtures.ts — Created capture fixtures — import `test` from here in your specs
+  ~ [updated] env .env.example — Recorded PIWI_DASHBOARD_URL, PIWI_API_KEY
+  + [created] skill:investigate-failure .claude/skills/investigate-failure/SKILL.md — installed skill
+  + [created] skill:apply-locator-healing .claude/skills/apply-locator-healing/SKILL.md — installed skill
+  + [created] skill:stabilize-flaky-tests .claude/skills/stabilize-flaky-tests/SKILL.md — installed skill
+  + [created] skill:run-the-right-tests .claude/skills/run-the-right-tests/SKILL.md — installed skill
+  + [created] skill:write-the-missing-test .claude/skills/write-the-missing-test/SKILL.md — installed skill
+  + [created] skill:fix-a-reported-bug .claude/skills/fix-a-reported-bug/SKILL.md — installed skill
+
+Next:
+  • If your dashboard has authentication on, create an API key (Settings → Account → API keys) and put it in .env as PIWI_API_KEY: the reporter reads it from the .env next to your Playwright config. Keep .env out of git; in CI, set PIWI_API_KEY as a secret.
+  • In your specs, import `test` (and `expect`) from your fixtures file instead of `@playwright/test`.
+  • Run `npx playwright test` — the run should appear at http://localhost:3000.
+  • For a machine-readable check, set PIWI_OUTPUT_FILE=piwi-run.json and read runUrl from that file after the run.
 ```
 
 Every step is idempotent, so it is safe to re-run. When `init` finds a config shape it will not rewrite, or a fixtures
@@ -104,6 +138,27 @@ npx playwright test
 
 The run streams into the dashboard while it executes, and the reporter prints a `View run:` link at the end. Open it.
 
+While it runs, the wizard's status line changes from *Waiting for the first run* to the run reporting, with a link to watch it:
+
+<figure>
+  <img src="/screenshots/home-empty-connect-reporting.png" alt="The wizard's status line: a run of checkout is reporting now, with a Watch it link">
+  <figcaption>The checkpoint: your first run is reporting.</figcaption>
+</figure>
+
+If nothing shows up, read the first lines the reporter prints. This one means it found no server to report to:
+
+```txt
+[Piwi Dashboard] Not enabled — set PIWI_DASHBOARD_URL or serverUrl to enable.
+```
+
+Set `PIWI_DASHBOARD_URL`, in the environment or the `.env` next to your Playwright config, or rerun `init` with
+`--server-url`. From WSL, a dev container or another machine, the URL is the dashboard's address as that machine
+reaches it, not `localhost`.
+
+The home page and a project's page leave out partial runs (a run of a few files) until you change their **Filters**,
+and a project's page leaves out branches other than the default one too. The **Filters** block counts the runs it
+hides, with **Include partial runs** and **Show all branches** to bring them back.
+
 In CI nothing Piwi-specific is needed: the same reporter runs inside `npx playwright test`, pointed at your instance
 with `PIWI_DASHBOARD_URL` and `PIWI_API_KEY`. [CI & sharding](./ci) has the pipeline examples.
 
@@ -130,33 +185,33 @@ You've landed your first run ([Getting started](./getting-started)) and one test
 Open the failing test from the run page (click its row) to reach its **execution page**.
 
 <figure>
-  <img src="/screenshots/gather-evidence.png" alt="A failing execution laid out diagnosis-first: one situation block with the headline and the line under it, most likely, next step and the cluster, and one evidence card with tabs">
-  <figcaption>One failing execution, read top to bottom: the situation block that says what broke, what is most likely and what to do, then the evidence.</figcaption>
+  <img src="/screenshots/failure-headline.png" alt="A failing execution's situation block: the identity line, the headline, the line saying since when it fails, Most likely with its strength, the Next step with the patch to apply, and the Cluster line">
+  <figcaption>The situation block: what broke, since when, why, what to do next, and the cluster it belongs to.</figcaption>
 </figure>
 
-The top of the page is one **situation block**. Above its heading, a small **identity** line carries the status, the test (`checkout.spec.ts:9 › Checkout › pays`), marks such as `@fixme` or `@slow`, and whether it is quarantined. The lines below it are the rest of this page, in order.
+The top of the page is one **situation block**. Above its heading, a small **identity** line carries the status, the test (`tests/checkout/checkout.spec.ts:9 › Checkout › should complete checkout with credit card`), marks such as `@fixme` or `@slow`, and whether it is quarantined. The lines below it are the rest of this page, in order.
 
 ## 1. The headline: what broke
 
 The heading is a plain-English sentence built from the Playwright error, before you read a word of the raw error itself:
 
-> `getByRole('button', { name: 'Pay' }) never became enabled — click timed out after 30 s`
+> `Test timed out after 30 s while clicking getByRole('button', { name: 'Pay' })`
 
-It is read from the action or matcher, the locator, the expected and received values and the timeout; an unknown error shape falls back to the error's first line. A failure in a hook or fixture says where it happened (`In beforeEach: …`), and an `expect` you gave a message leads with it (`"cart shows the item" failed: …`). The verbatim error is one click away under **Raw error**: Piwi never rewrites it, it only leads with a readable summary. The same headline names the test on the run page, in [alerts](/features/notifications), in the [pull-request comment](/features/pr-feedback), in the MCP tools and in your terminal, so you recognize it everywhere.
+It is read from the action or matcher, the locator, the expected and received values and the timeout; an unknown error shape falls back to the error's first line. A failure in a hook or fixture says where it happened (`In beforeEach: …`), and an `expect` you gave a message leads with it (`"cart shows the item" failed: …`). The verbatim error is one click away under **Raw error**: Piwi never rewrites it, it only leads with a readable summary. The same headline names the test on the run page, in [alerts](/features/notifications), in the [pull-request comment](/features/pr-feedback), in the MCP tools and in your terminal.
 
 A smaller line under the headline says since when it fails, on which commit and by whom, and whether it **still fails**:
 
-> *New regression since a1b2c3d by Alice Chen, 1 day ago · Not the latest: failed again in run #2 and run #1, 53 minutes ago · Open the latest*
+> *New regression since a1b2c3d by Alice Chen, 1 day ago · Not the latest Chromium execution: failed again in run #1 and run #2, 51 minutes ago · Open the latest*
 
 *Latest execution of this test* means nothing ran it since; otherwise the line says what the newer runs did (failed again, with another error, or passed) and **Open the latest** goes to the newest execution. Only the same Playwright project counts, and the line names it when another project ran later: a Firefox pass does not clear a Chromium failure. An exceptional case (a new regression, a newly flaky test, an infrastructure failure) leads the line. A test that passed on retry reads *Passed on retry* in its status and leads with its failed attempt's error, and the line says which attempt failed (*Failed on attempt 1, passed on attempt 2*), with a link to it.
 
 ## 2. Most likely: why
 
-Under the headline, the **Most likely** line gives you the one explanation, not a pile of them. It is built from **[clues](/features/evidence#clues)**: deterministic, rule-based findings correlated from the evidence, with *no model involved*. When the clues match a known pattern (some patterns need only one clue), the line is a [story](./concepts#story), one sentence that chains them:
+Under the headline, the **Most likely** line gives one explanation. It is built from **[clues](/features/evidence#clues)**: deterministic, rule-based findings correlated from the evidence, with *no model involved*. When the clues match a known pattern (some patterns need only one clue), the line is a [story](./concepts#story), one sentence that chains them:
 
-> *"the Pay button stayed disabled because POST /api/checkout/quote was still in flight (28 s); the console said so 7.8 s before the click gave up"*
+> *The button "Pay" stayed disabled because POST /api/checkout/quote was still in flight (28.4 s); the console said so 7.8 s before the click gave up.*
 
-A strong or medium story leads; otherwise the cluster's completed [AI diagnosis](/features/ai-diagnosis) does, else a weak story, else the strongest clue. The [cluster page](/features/failure-clusters) follows the same rule, so both pages give the same explanation for the same failure. The line carries a strength (*Strong*, *Medium* or *Weak*, or the diagnosis's confidence) and how many clues **agree**; an **All clues** disclosure lists every clue, each with a **citation** to the evidence it came from. Click a citation and the page jumps to the proof. When no rule fires and no diagnosis completed, the line is absent. The [Clue rules](/reference/clues) page lists every rule.
+A strong or medium story leads; otherwise the cluster's completed [AI diagnosis](/features/ai-diagnosis) does, else a weak story, else the strongest clue. The [cluster page](/features/failure-clusters) follows the same rule. The line carries a strength (*Strong*, *Medium* or *Weak*, or the diagnosis's confidence) and how many clues **agree**; an **All clues** disclosure lists every clue, each with a **citation** to the evidence it came from. Click a citation and the page jumps to the proof. When no rule fires and no diagnosis completed, the line is absent. The [Clue rules](/reference/clues) page lists every rule.
 
 A test that did not run gets its reason here instead: the test that blocked it, or where the run stopped (*The run reached its maximum number of failures (3 failed) and stopped before this test started*), with a meta line when Playwright reported it.
 
@@ -174,7 +229,7 @@ The block closes on a **facts** line, one size smaller: the failing file and lin
 
 ## 5. The evidence: see it
 
-One **evidence card** with tabs (**Timeline, Screen, Source, Network, Console, State, Performance**, plus **Attempts** when the test retried) holds everything captured. It opens on **Timeline** when it can place two or more steps, requests or console entries, otherwise on the tab the leading clue cites, and a click on any citation switches tabs for you; a test that passed on retry opens on **Attempts**. The one to know first is **Timeline**: it places the test's steps, console entries, network requests and backend logs on a single clock and marks the **moment of failure**, so "console (1) / network (3)" becomes *what the app was doing when the test gave up*. **Screen** holds the failure screenshot, the visual diff against the last green run, and the failure-time page state; **Source** shows the test source as a real call stack, so a failure inside a helper shows the helper. Each tab is described on [Failure evidence](/features/evidence).
+One **evidence card** with tabs (**Timeline, Screen, Source, Locators, Network, Console, State, Performance**, plus **Attempts** when the test retried) holds everything captured. It opens on the tab a strong or medium clue cites when that is **Source** or **Performance**, else on **Timeline** when it can place two or more steps, requests or console entries, else on the cited tab; a click on any citation switches tabs for you, and a test that passed on retry opens on **Attempts**. The one to know first is **Timeline**: it places the test's steps, console entries, network requests and backend logs on a single clock and marks the **moment of failure**, so "console (1) / network (3)" becomes *what the app was doing when the test gave up*. **Screen** holds the failure screenshot, the visual diff against the last green run, and the failure-time page state; **Source** shows the test source as a real call stack, so a failure inside a helper shows the helper. Each tab is described on [Failure evidence](/features/evidence).
 
 ::: tip Most of this needs one file
 The error, trace, headline and clustering work with the reporter alone, and an uploaded trace recovers the console, network and failure-time snapshot. Web Vitals, page state and locator healing come from the [capture fixtures](./capture-fixtures), one file in your test setup. A tab that needs them and never received any data is left out, and until you decide on the fixtures one footer line names what they would add.
@@ -194,6 +249,10 @@ Below the toolbox, a **history** strip shows this test's recent executions and h
 
 This execution is one member of a **[failure cluster](/features/failure-clusters)**: Piwi groups every test that failed for the same reason, so forty red tests become three problems you triage once. Once a later run passes every test it covers, the cluster records [whether the fix held](/features/failure-clusters#did-the-fix-work).
 
+## Try it in the demo
+
+- [E2E Checkout › should complete checkout with credit card](https://piwitests.dev/demo/test-run-cases/37): The Pay click times out: the situation block says since when, ties it to the quote request still in flight, and offers the diagnosed patch.
+
 ## Related
 
 - [Failure evidence](/features/evidence): each evidence tab, attempts, the page diff and the trace views
@@ -212,14 +271,10 @@ test*. This page defines the words the rest of the documentation and the UI use.
 
 ## The object model
 
-```
-Project                      one test suite you submit results for
-└── Test run                 one `npx playwright test` (all shards merged)
-    └── Execution            one attempt of one test, on one browser
-        └── belongs to a Test case   the test's identity across all runs
-             │
-             └── Failure cluster     executions that failed the same way
-```
+<figure>
+  <img src="/diagrams/data-model-grid.svg" alt="A project as a grid: test runs are columns, test cases are rows, and each cell holds that test case's executions in that run; one failure cluster spans failed executions of two test cases across two runs">
+  <figcaption>A project holds one suite's results. A failure cluster groups executions, not test cases: it can span several of each.</figcaption>
+</figure>
 
 Read it in two directions:
 
@@ -680,9 +735,11 @@ command, `npx @piwitests/reporter init`; this page is the manual setup and the s
 npm install --save-dev @piwitests/reporter
 ```
 
+It needs `@playwright/test` 1.64.1 or later and Node.js 20 or later.
+
 ### Try it without editing your config
 
-On **Playwright 1.63 or later**, `--add-reporter` appends this reporter to whatever your config already uses (unlike `--reporter`, which replaces them), so you can send one run to a dashboard with no config edit. Most reporter options have a `PIWI_*` [environment variable](/reference/reporter-options), so point it at your dashboard that way:
+Playwright's `--add-reporter` appends this reporter to whatever your config already uses (unlike `--reporter`, which replaces them), so you can send one run to a dashboard with no config edit. Most reporter options have a `PIWI_*` [environment variable](/reference/reporter-options), so point it at your dashboard that way:
 
 ::: code-group
 
@@ -696,7 +753,7 @@ $env:PIWI_DASHBOARD_URL='http://localhost:3000'; $env:PIWI_API_KEY='your-api-key
 
 :::
 
-This is a trial path: you get results and your configured traces and screenshots, but not the [capture fixtures](#capture-fixtures) or [`wrapConfig`](#installing-via-wrapconfig)'s capture defaults. On Playwright before 1.63 the flag does not exist; configure the reporter normally instead. [`piwi run`](/reference/cli#select-run) makes the same append automatically when the config has no Piwi reporter.
+This is a trial path: you get results and your configured traces and screenshots, but not the [capture fixtures](#capture-fixtures) or [`wrapConfig`](#installing-via-wrapconfig)'s capture defaults. [`piwi run`](/reference/cli#select-run) makes the same append automatically when the config has no Piwi reporter.
 
 ## Installing via wrapConfig
 
@@ -720,7 +777,7 @@ export default wrapConfig(
 
 The first argument is your Playwright config; the second is the [Piwi options](#configuration-options). On top of injecting the reporter, `wrapConfig`:
 
-- Sets `screenshot: 'only-on-failure'` and `trace: 'retain-on-failure'` on the **top-level** `use` block when each is unset (a value you set, `'off'` included, and per-project `use` blocks are kept). They unlock the DOM snapshot, full call stack, full network with bodies and the visual diff **without** the capture fixtures. On Playwright 1.63 or later `trace` becomes `{ mode: 'retain-on-failure', snapshots: { dom: true, aria: true } }`, adding the per-action aria tree for the [Screen tab and the page diff](/features/evidence#aria-and-screen-snapshots). The `screen` snapshot kind stays opt-in; see [what `screen` adds per action](/operate/storage#trace-snapshots). Opt out with `defaultCapture: false` (or `PIWI_DEFAULT_CAPTURE=false`); the reporter logs one line at the start of the run naming whatever it defaulted.
+- Sets `screenshot: 'only-on-failure'` and `trace: { mode: 'retain-on-failure', snapshots: { dom: true, aria: true } }` on the **top-level** `use` block when each is unset (a value you set, `'off'` included, and per-project `use` blocks are kept). They unlock the DOM snapshot, full call stack, full network with bodies and the visual diff **without** the capture fixtures. The trace's aria snapshots feed the [Screen tab and the page diff](/features/evidence#aria-and-screen-snapshots). The `screen` snapshot kind stays opt-in; see [what `screen` adds per action](/operate/storage#trace-snapshots). Opt out with `defaultCapture: false` (or `PIWI_DEFAULT_CAPTURE=false`); the reporter logs one line at the start of the run naming whatever it defaulted.
 - Forwards the CI-gate option `failOnFlakyTests` into Playwright's native config so a flaky-only run exits non-zero locally.
 - Forwards the `PIWI_*` variables into the global setup process, so registering the run uses the reporter's server and credentials.
 
@@ -952,8 +1009,7 @@ Nothing breaks without the fixtures. This is what you give up:
 
 | Dashboard feature | Reporter only | Reporter + fixtures |
 |-------------------|:-:|:-:|
-| Run history, statuses, errors, traces, HTML reports | ✅ | ✅ |
-| Live streaming, sharding, CI/SCM metadata | ✅ | ✅ |
+| Run history, errors, traces, HTML reports, streaming, sharding, CI/SCM metadata | ✅ | ✅ |
 | Failure clustering & flaky-test analytics | ✅ | ✅ |
 | AI failure diagnosis | ✅ error + code-diff grounding | ✅ richer evidence: ARIA snapshot, console, network |
 | Slow API endpoints table | — | ✅ |
@@ -964,6 +1020,11 @@ Nothing breaks without the fixtures. This is what you give up:
 | Locator healing (ranked alternatives panel) | — | ✅ |
 | The page each locator was used on | — | ✅ |
 | Backend log correlation | — | ✅ with a [backend integration](./backend-logs) |
+
+<figure>
+  <img src="/screenshots/evidence-fixtures-footer-wide.png" alt="The evidence card of a project without the fixtures: the Source tab open and empty, the other tabs dimmed, and the footer says network, console, state and performance are not captured, with Add fixtures and two ways to decline">
+  <figcaption>Without the fixtures, the evidence card names what is missing; the line goes once a run brings them.</figcaption>
+</figure>
 
 ## Where capture works
 
@@ -1027,10 +1088,10 @@ variable: the test workers never see a plain reporter entry's options.
 
 ## Green page sampling on pass
 
-To power the [page diff](/features/evidence#page-diff), the fixtures also sample the ARIA snapshot at the end of a *passing* test, a "last known good" of the page to diff a later failure against. The server decides what to capture:
+For the [page diff](/features/evidence#page-diff), the fixtures also sample the ARIA snapshot at the end of a *passing* test, a "last known good" page to diff a later failure against. The server decides when:
 
 - At the start of every run the global setup makes **one extra request** for the tests whose newest green snapshot is older than 24 hours (or missing), and the reporter caches that set for the run's workers.
-- A passing test is sampled only when it is in that set, so in steady state nothing is captured.
+- A passing test is sampled only when in that set: in steady state, nothing is.
 - The server keeps at most one green snapshot per test per day.
 
 If that request fails, the set stays empty and **nothing is sampled**. Turn it off with `sampleAriaOnPass: false` (or `PIWI_SAMPLE_ARIA_ON_PASS=false`).
@@ -1091,14 +1152,16 @@ jobs:
           PIWI_API_KEY: ${{ secrets.PIWI_API_KEY }}
 ```
 
-The shallow clone `actions/checkout` makes is fine: Piwi reads diffs from your Git host's API
-([Source control](./source-control)), not from the checkout.
+The shallow clone `actions/checkout` makes is enough for the reporter: Piwi reads diffs from your Git host's API
+([Source control](./source-control)). [`run impact --base`](/reference/cli#select-run) and
+[`preflight --base`](/reference/cli#preflight) diff the checkout itself and need the base commit: set
+`fetch-depth: 0` on `actions/checkout`.
 
 ## GitLab CI
 
 ```yaml
 e2e:
-  image: mcr.microsoft.com/playwright:v1.61.1-noble   # at or above the reporter's peer range
+  image: mcr.microsoft.com/playwright:v1.64.1-noble   # the version of your @playwright/test
   script:
     - npm ci
     - npx playwright test
@@ -1153,7 +1216,7 @@ How the merge works:
 4. Counters accumulate across shards. The run is `failed` if any shard reported a failure, and the run page shows a
    shard progress badge (`2/3`) while shards are arriving.
 
-**All shards must use the same `projectName`.** That's the one requirement.
+**All shards must use the same `projectName`.**
 
 Jobs sharded with `piwi run --shard` merge the same way ([details](/features/test-selection#print-shard-and-reorder)).
 
@@ -1185,8 +1248,8 @@ ends ([Live streaming](./reporter#live-streaming)).
 
 ## Getting the run URL back out of CI
 
-Later pipeline steps can pick up the run URL. Every channel is best-effort: a failure is logged and never fails
-your run.
+Later pipeline steps can pick up the run URL. Every channel is best-effort: a failure is logged, never
+fatal.
 
 **Always** — one line per failed test, printed the moment its final attempt fails, then a
 `View run: <url>` line once the run lands:
@@ -1264,16 +1327,21 @@ the run history, so the dashboard evaluates it.
 
 The command reads the run id from `PIWI_OUTPUT_FILE` (or `--run-id`, or `./piwi-run.json`) and prints each violation.
 
-| Rule | Fails the build when |
-|---|---|
-| `--require-tag <tags>` | Any test carrying one of these tags failed |
-| `--max-failed <n>` | More than `n` tests failed |
-| `--max-new-regressions <n>` | More than `n` tests newly started failing versus the last green run |
-| `--max-new-flaky <n>` | More than `n` tests newly started passing only on retry |
-| `--max-quarantined <n>` | More than `n` tests are [quarantined](/features/flaky-tests#quarantine-with-a-way-out) — a ceiling on quarantine debt |
-| `--fail-on-new-cluster` | This run introduced a failure cluster never seen before |
-| `--fail-on-flaky` | Any test passed only after a retry — stricter than `--max-new-flaky`, which counts tests *newly* flaky |
-| `--max-leaks <n>`, `--max-new-leaks <n>` | More than `n` [leaks](/features/resource-leaks#in-ci), or new leaks |
+A failed gate exits 1 and prints:
+
+```txt
+✖ Piwi gate failed — checkout run #412
+  248 tests, 3 failed, 1 new, 0 newly flaky, 2 flaky
+  1 failing test is quarantined and did not count
+  ✖ 1 required @critical test failed: pays by card
+  ✖ 1 new regression (limit 0)
+  https://piwi.example.com/test-runs/412
+```
+
+Its rules bound the failing tests, the new regressions and newly flaky tests, the tests a tag or a
+[selection](/features/test-selection) requires, the [quarantine](/features/flaky-tests#quarantine-with-a-way-out)
+debt (`--max-quarantined`), new clusters and [leaks](/features/resource-leaks#in-ci): every flag is in the
+[CLI reference](/reference/cli#gate).
 
 At least one rule is required, or a [warn-only flag](/features/uncovered-changes#the-gate-flags). Exit codes are part
 of the contract:
@@ -1285,7 +1353,7 @@ Worth knowing:
 - **A quarantined test does not count** toward `--max-failed`, `--max-new-regressions`, `--max-new-flaky`,
   `--require-tag` or `--require-selection`, and the gate reports how many failures it excluded.
 
-- **A test that passed on retry satisfies `--require-tag`.** `--max-new-flaky` covers flakiness.
+- **A test that passed on retry satisfies `--require-tag`.**
 - **A required tag that matches no test is a violation**, so a typo cannot pass.
 - **The CI key's evaluations are stored**, so [merges overriding a failed gate](/features/pr-feedback#the-gate-verdict)
   are counted; a read-only key gets the verdict only.
@@ -1294,8 +1362,8 @@ Worth knowing:
 
 ## Notifying people instead
 
-To tell the team when main goes red, use a [notification subscription](/features/notifications): the rules live
-in one place, not in every pipeline.
+To tell the team when main goes red, use a [notification subscription](/features/notifications), whose rules
+live in one place.
 
 ## Troubleshooting
 
@@ -1457,10 +1525,10 @@ When a run finishes and `PIWI_AI_AUTO_DIAGNOSE` is on, the `PIWI_AI_AUTO_DIAGNOS
 
 A diagnosis streams: the model's reasoning appears in a live panel as it arrives, with a stage indicator (*Researching patterns* while a
 [research model](#model-roles) pre-analyzes the failure, when one is configured, then *Diagnosing root cause*), and turns
-into the result card when it completes. The [API docs](https://piwitests.dev/demo/docs) describe the streaming
-protocol (the in-app reference at `/docs` shows the same spec).
+into the result card when it completes. The [API docs](https://piwitests.dev/demo/docs), or `/docs` on your
+instance, describe the streaming protocol.
 
-To be told when a diagnosis finishes without watching the panel, turn on **Settings → AI → Diagnosis notifications**: a per-browser preference (stored on that device only) that shows a browser notification on completion once you grant the permission.
+To be told when a diagnosis finishes without watching the panel, turn on **Settings → AI → Diagnosis notifications**: a per-browser preference that shows a browser notification on completion once you grant the permission.
 
 ### Local Codex CLI
 
@@ -1544,6 +1612,11 @@ Diagnoses an agent recorded get their own row, under the model it named. Each di
 instructions it was written under (`promptSha` in its details), so diagnoses written before and after a change to
 the custom instructions or the language can be told apart. Piwi never switches models on these numbers; the
 [Analytics](/features/analytics#hand-back-outcomes) page shows the same ratings across projects.
+
+<figure>
+  <img src="/screenshots/ai-usage.png" alt="Settings → AI → AI usage over the last 30 days: diagnoses, failures, tokens and average duration per model, then each model's helpful ratings, patches that apply, diagnoses verified by the fix and regressions">
+  <figcaption>AI usage: what each model spent, then how its diagnoses fared.</figcaption>
+</figure>
 
 ## Related
 
@@ -2117,7 +2190,7 @@ Piwi is a reporter that uploads from your Playwright run, a server (or the [desk
 
 Piwi is Playwright-only by design, pre-1.0, and not an "ask AI" button. [Why Piwi?](./comparison#when-piwi-is-not-the-right-choice) states each limit and says which tool fits better when Piwi does not.
 
-## Where to go next
+## Related
 
 - [Getting started](./getting-started) — pick a path and land your first run
 - [Core concepts](./concepts) — the vocabulary (run, execution, cluster, fingerprint, baseline)
@@ -2202,6 +2275,12 @@ Modest; see [resource requirements](/operate/deployment#resource-requirements). 
 ### Where do I ask questions or propose features?
 
 [GitHub Discussions](https://github.com/PiwiTests/piwi/discussions) for questions and ideas, [issues](https://github.com/PiwiTests/piwi/issues) for bugs, and [ROADMAP.md](https://github.com/PiwiTests/piwi/blob/main/ROADMAP.md) for direction.
+
+## Related
+
+- [What Piwi does](./what-piwi-does): the jobs it does, and the pieces that do them
+- [All features](/reference/features): everything Piwi does, and what each feature needs
+- [Getting started](./getting-started): your first run reported to Piwi
 
 ---
 
@@ -2594,6 +2673,11 @@ breadcrumb, then the tab and the section it sits in, the ones the guide just ope
 When a stop explains several parts of the screen, it numbers them: each number on the page matches one line of the
 popover, and pointing at a line enlarges its number on the page.
 
+<figure>
+  <img src="/screenshots/guides-stop.png" alt="The first stop of the Run the Flake Lab guide: a card pointing at a project's flaky tests list, with where it is, what it shows, a link to the docs and Next">
+  <figcaption>A guide's stop: where you are, what the highlighted part shows, and the way on.</figcaption>
+</figure>
+
 ## The guides
 
 | Guide | What it shows | Listed for |
@@ -2698,6 +2782,11 @@ the sidebar when any of its runs started in the last ten days. Flake Lab and pro
 
 **Baselines are chosen within an environment and a branch.**
 
+<figure>
+  <img src="/diagrams/baseline-ladder.svg" alt="The baseline ladder: same branch, base branch, then any branch, first within the run's environment and then in any environment">
+  <figcaption>The run a branch's run is compared with.</figcaption>
+</figure>
+
 - **The run-level baseline**, what the Changes tab, the stored regression signals, the CI gate, pull-request feedback, the bisect window and the AI diagnosis all compare against, follows the [baseline rule](/guide/concepts#baseline-last-green-run): same environment first, then the same branch, the base branch, any branch. Two feature branches reporting interleaved runs never become each other's baseline. When no earlier full run passed, the Changes tab [falls back to the last failed run](./run-changes#when-no-earlier-run-passed).
 - **Choosing the base branch** — the Changes tab lets you take the baseline from any branch with an earlier full run, so a long-lived branch can be compared against `release/2` rather than `main`; the choice is in the URL (`?baseBranch=`) and on the API and MCP tool. See [What changed in a run](./run-changes#the-baseline).
 - **The visual-diff baseline** follows the same rule for one execution.
@@ -2715,7 +2804,7 @@ Notification subscriptions can filter by branch and alert only on the default br
 ## Limits
 
 - **Views read the default branch by default.** Analytics counts each project's default branch (plus runs with no branch) until you pick branches or *All branches* (see [Branch policy](./analytics#branch-policy)). The flaky leaderboard does the same unless you scope it, but only once the project's default branch is known (set on its Settings tab, or resolved from the SCM provider); until then it reads every branch.
-- **Branches are a run dimension, not yet entities.** There is no per-branch merge-readiness verdict, branch-class gate policy, or retention by branch class yet — those are the "branches as entities" work still under *Exploring* in the [roadmap](https://github.com/PiwiTests/piwi/blob/main/ROADMAP.md).
+- **Branches are a run dimension, not entities.** There is no per-branch merge-readiness verdict, branch-class gate policy, or retention by branch class.
 - **A run needs a resolvable branch.** A purely local run with no CI variables, a detached `HEAD`, and no `PIWI_BRANCH` records no branch at all, so it will not appear under any branch filter.
 
 ## Related
@@ -2736,6 +2825,11 @@ The **Changes** tab on a run compares it against **one baseline** and tells you 
 Every section reads the **same baseline**, so the "new failures" count is computed once and used throughout. The selector at the top says which run it is, which branch and environment that run is on, and **why it was chosen**.
 
 By default the baseline is the last passing full run chosen by the [baseline rule](/guide/concepts#baseline-last-green-run): same environment first, then same branch, base branch, any branch. The line under the selector spells out the rung that applied, for example _"No passing staging run exists on feature/x; the last passing run on the default branch main in staging."_
+
+<figure>
+  <img src="/diagrams/baseline-ladder.svg" alt="The baseline ladder: same branch, base branch, then any branch, first within the run's environment and then in any environment; with no passing run, the same rungs for the last failed run">
+  <figcaption>Six rungs, tried in order: the first with an earlier passing run gives the baseline.</figcaption>
+</figure>
 
 ### When no earlier run passed
 
@@ -2779,6 +2873,10 @@ compare. Playwright 1.64's `--shuffle` schedules test files, and the tests of fi
 order, and the run keeps its seed: the run's **Details** shows it as **Order**, and clicking the seed copies
 `--shuffle <seed>`, which runs the same tests on the same workers in the same order again. Against a baseline that was
 not shuffled, or the other way round, the Changes tab lists the **Test order** under Environment changes.
+
+## Try it in the demo
+
+- [E2E Checkout › a run’s Changes tab](https://piwitests.dev/demo/test-runs/2?tab=changes): A run read against its baseline: what failed, what passed only on retry, and the commits landed since.
 
 ## Related
 
@@ -3020,8 +3118,8 @@ green. Open the test case and read its **status history** and **stability trend*
 rate, and duration bucketed over time.
 
 <figure>
-  <img src="/screenshots/test-case-detail.png" alt="Test case detail page with summary stats, duration trend, status history, and recent executions">
-  <figcaption>Test case detail — the run-by-run status history is what separates "this has always been shaky" from "this broke on Tuesday".</figcaption>
+  <img src="/screenshots/tour-test-history.png" alt="A test case page: run stats, the duration trend with a status strip under it, and the recent executions">
+  <figcaption>Test case history: the status strip is what separates "this has always been shaky" from "this broke on Tuesday".</figcaption>
 </figure>
 
 Read it like this:
@@ -3207,7 +3305,7 @@ is excluded from the [CI gate](/guide/ci#blocking-a-merge)'s verdict and the run
 
 - Passing runs accumulate as a **streak**; one failure resets it.
 - After five consecutive passes the test is flagged **ready to release** — you're told, not asked.
-- **Candidates** (over the API) are flaky tests wasting 2+ CI minutes with a score of 40+, ranked by impact.
+- **Candidates** (**Proposed for quarantine** in the Flaky view) are flaky tests wasting 2+ CI minutes with a score of 40+, ranked by impact.
 - **Debt** is reported in aggregate: how many are in, how many are ready to leave, how long the oldest
   has been there.
 
@@ -3371,16 +3469,16 @@ A failing execution reads top to bottom in one column. It opens on the **situati
 cause, next step, cluster), described on [Your first failure, explained](/guide/first-failure).
 
 <figure>
-  <img src="/screenshots/gather-evidence.png" alt="A failing execution: one situation block, then one evidence card whose tabs (Timeline, Screen, Source, Network, Console, State, Performance) hold the captured evidence">
-  <figcaption>A failing execution: the situation block, then one evidence card whose tabs hold everything captured.</figcaption>
+  <img src="/screenshots/evidence-card.png" alt="The evidence card of a failing execution on its Timeline tab: calls, steps, network, console and dialogs on one axis, then each step with its offset and duration, the failing click with the page at the failure">
+  <figcaption>The evidence card on its Timeline tab: every step, request, console entry and dialog on one axis, the failure marked.</figcaption>
 </figure>
 
 Below the block, one **evidence card** holds tabs, a count on those that list items, empty ones dimmed. It opens on **Source** or
 **Performance** when a strong or medium leading clue cites it, else on **Timeline** when it can place two or more items,
 else on the cited tab, else on **Screen** when a screenshot or video exists, else on **Source**; never on **State**.
 
-- **Timeline**: one time axis for the steps, console entries, requests, their backend logs and (Playwright 1.63+)
-  browser dialogs, with the failure marked, over a table giving each step's and request's offset (`t-1.1s`) and
+- **Timeline**: one time axis for the steps, console entries, requests, their backend logs and browser
+  dialogs, with the failure marked, over a table giving each step's and request's offset (`t-1.1s`) and
   duration, colored only when it lasts at least 1 s and a third of the test, or twice its time in recent passing
   runs and 1 s more. **Around the failure** / **Whole test** and one chip per item type filter both. Hooks and fixtures fold into
   **Setup** and **Teardown** rows, open when the failure is there; a `test.step` holds its steps; the failing step
@@ -3388,13 +3486,14 @@ else on the cited tab, else on **Screen** when a screenshot or video exists, els
   [breakpoint](./editor-breakpoints)'s stop is a **Paused** band.
 - **Attempts**: shown when a test ran more than once, see [below](#attempts).
 - **Screen**: the page at the failure as views (**Screenshot**, **DOM**, **Accessibility tree**, **Visual diff**,
-  [**Page diff**](#page-diff), **Video**) over the trace and attachments. **DOM** renders it as recorded: field values
-  (passwords masked), scroll, open dialogs, shadow DOM, the action's target outlined, the mouse and what it hovers,
-  the focus. **Open in picker** finds a
+  [**Page diff**](#page-diff), **Video**) over the trace and attachments. **DOM** renders it as recorded (field values
+  with passwords masked, scroll, dialogs, shadow DOM, focus, the mouse), with the action's target outlined. **Open in picker** finds a
   locator on that DOM.
 - **Source**: the test source as a call stack (the line that threw, with [Debug in my editor](./debug-in-editor), plus its callers), deepened
   [with a trace](#trace-powered-deep-views), then, with [coverage](./code-reach#on-the-execution-page), what the test
   ran.
+- **Locators**: each locator the test used, in step order, with how many tests share it
+  ([Locator usage](./locator-usage#the-locators-tab)).
 - **Network**: the requests, API calls through Playwright's `request` fixture included, with inline
   [backend logs](/guide/backend-logs); one with no response shows the browser's error (`net::ERR_CONNECTION_RESET`). **Console**: the console output.
   **State**: the app state at test end and the environment diff against the last green run. **Performance**:
@@ -3412,12 +3511,11 @@ A **clue** is a one-line finding a deterministic rule draws from the evidence al
 involved. Each carries a **strength** (strong, medium or weak) and a **citation** that opens and marks the evidence it
 came from; the **Most likely** line leads with their strong or medium story, else a completed diagnosis, else a weak
 story or the strongest one, and marks the rows and tabs it cites. The AI diagnosis receives the clues as evidence.
-Every rule, and when it fires, is listed on [Clue rules](/reference/clues).
+Every rule is on [Clue rules](/reference/clues).
 
 ### Attempts
 
-When a test passed on retry, the **Attempts** tab lists every attempt (status and duration, the one you
-opened marked), then **what differed** between the failing attempt and the passing one, most diagnostic first:
+When a test passed on retry, the **Attempts** tab lists every attempt (status and duration), then **what differed** between the failing attempt and the passing one, most diagnostic first:
 
 - the **error** present on the failing attempt and gone on the pass;
 - a **request**, keyed by route (`GET /api/cart/:id`), that failed (5xx or no response) on one attempt only, or took
@@ -3429,6 +3527,11 @@ opened marked), then **what differed** between the failing attempt and the passi
 
 Each difference links to its evidence tab, a request that is one of the test's [suspects](./flaky-tests#suspects) to
 it. The comparison feeds the [root-cause classifier](./flaky-tests#root-cause-classification).
+
+<figure>
+  <img src="/screenshots/attempt-diff.png" alt="An execution's Attempts tab: the failed and the passed attempt, then what differed between them: an error only on the failing attempt, a request taking 1.8 s on the failing attempt against 97 ms on the passing one, a step that errored only there">
+  <figcaption>What differed between a failing attempt and the passing retry.</figcaption>
+</figure>
 
 ## Page diff
 
@@ -3447,6 +3550,11 @@ view says why (*not captured*, *no green sample yet* or *not applicable*). The p
 When the trace carries [aria snapshots](#aria-and-screen-snapshots), the view adds an **in-execution** page diff
 that needs no green baseline: the structure at the failure against the last different page before the failing action.
 
+<figure>
+  <img src="/screenshots/page-diff.png" alt="The Screen tab in its Page diff view: against the last green run, the Pay button of the Checkout form was renamed Pay now and became disabled, and the failing locator points there">
+  <figcaption>Page diff: the failing page against the last green run, one changed button.</figcaption>
+</figure>
+
 ## Trace-powered deep views
 
 ::: tip Where screenshots come from
@@ -3462,7 +3570,7 @@ With an uploaded trace (`trace: 'retain-on-failure'` or `'on-first-retry'`), two
 
 ### Aria and screen snapshots
 
-A Playwright 1.63 trace can record the page's **aria tree** and a **screenshot** before and after every action
+A Playwright trace can record the page's **aria tree** and a **screenshot** before and after every action
 (`trace: { snapshots: { dom, aria, screen } }`; [`wrapConfig`](/guide/reporter#installing-via-wrapconfig) turns `aria`
 on, `screen` stays [opt-in](/operate/storage#trace-snapshots)). Then the Screenshot view sets the page **before the
 failing action** beside the one at the failure, and the Timeline tab adds a **filmstrip** of the page before each
@@ -3495,9 +3603,13 @@ and last run, a duration trend, a status-history strip, and the recent execution
 A flaky test adds a **Flakiness** tab with its [suspects](./flaky-tests#suspects).
 
 <figure>
-  <img src="/screenshots/test-case-detail.png" alt="Test case page: run stats, a duration trend, a status strip and recent executions">
-  <figcaption>The test case page: stats, a duration trend and every recent execution.</figcaption>
+  <img src="/screenshots/tour-test-history.png" alt="A test case page: run stats, the duration trend with a status strip under it, and the recent executions">
+  <figcaption>The test case page: stats, a duration trend over the status strip, and every recent execution.</figcaption>
 </figure>
+
+## Try it in the demo
+
+- [E2E Checkout › should complete checkout with credit card](https://piwitests.dev/demo/test-run-cases/37): Every tab of the evidence card filled: the timeline marks the failing click, the Page diff shows the Pay button renamed and disabled.
 
 ## Related
 
@@ -3847,6 +3959,10 @@ have tools: `triage_cluster` sets the status (with a note), assigns, snoozes, qu
 `decide_merge_suggestion` decides a merge suggestion, `move_tests_to_new_cluster` moves tests out of a cluster,
 `rerun_cluster_in_ci` re-runs a cluster's tests in CI, and `link_issue` and `unlink_issue` manage tickets.
 
+## Try it in the demo
+
+- [E2E Checkout › the Pay button times out](https://piwitests.dev/demo/failure-clusters/1): Two checkout tests failing for one reason, in one cluster with its owner; a fix landed once and did not hold.
+
 ## Related
 
 - [Triage a run gone red](/recipes/mass-failure): the clusters, used to collapse a red run into a few causes
@@ -3863,7 +3979,10 @@ resolving, the browser crashes on a starved runner. None of those failures says 
 Piwi recognizes such a run as an **environment incident**, says so on the run page, and keeps it out of every verdict
 that compares runs.
 
-![A run flagged as an environment incident: the reason, the rule that decided, and the action to clear the flag](/screenshots/environment-incident.png)
+<figure>
+  <img src="/screenshots/environment-incident.png" alt="A run flagged as an environment incident: the reason, the rule that decided, and the action to clear the flag">
+  <figcaption>A run flagged as an environment incident, with the rule that decided.</figcaption>
+</figure>
 
 ## How a run is recognized
 
@@ -3993,12 +4112,17 @@ For the same signals aggregated across every project, see [Analytics](./analytic
 
 ## Flaky test detection
 
-A test is flaky when its result isn't deterministic. Piwi computes a **flakiness score** (0–100) per test from two signals, weighted 60/40:
+A test is flaky when its result isn't deterministic. Piwi computes a **flakiness score** (1–100) per test from two signals, weighted 60/40:
 
 - **Retry passes** — failed, then passed on retry (each `--repeat-each` repetition on its own).
 - **Status alternation** — flips between pass and fail across runs.
 
 The **failure rate** is shown but not scored.
+
+<figure>
+  <img src="/diagrams/flakiness-score.svg" alt="A test's last 10 runs with 2 retry passes and 4 flips give a score of 30; its impact is 0.7 times 3 wasted CI minutes plus 0.3 times a fixed weight of 30 times 2 retry passes, 20">
+  <figcaption>The score and the impact ranking, computed for one test.</figcaption>
+</figure>
 
 The project's **Failures** tab has a **Flaky** view with a **configurable lookback window**. Each flaky test links to its history and carries a **Quarantine** action.
 
@@ -4006,7 +4130,7 @@ The project's **Failures** tab has a **Flaky** view with a **configurable lookba
 
 <figure>
   <img src="/screenshots/flaky-detection.png" alt="Flaky tests tab listing tests with composite score, failure rate, retry passes, and flip counts">
-  <figcaption>The Flaky view of a project's Failures tab — each intermittent test scored, ranked by impact, filterable by root-cause category, with its top suspect.</figcaption>
+  <figcaption>The Flaky view: each intermittent test scored and ranked by impact, with its top suspect.</figcaption>
 </figure>
 
 ### Root-cause classification
@@ -4050,6 +4174,11 @@ without a condition. Nothing is stored.
 The flaky list names each test's top suspect (a reproduced one first), the [Attempts](./evidence#attempts) tab links
 requests to suspects, the clue `known-flake-suspect` marks failures showing one, and MCP's `get_flake_profile`
 returns it. The [Flake Lab](./flake-lab) tests each suspect against a control run.
+
+<figure>
+  <img src="/screenshots/flakiness-tab.png" alt="A flaky test's Flakiness tab: two suspects with their counts among failures and passes, the lab condition and result of each, the context a lab cannot apply, and the experiment that reproduced the flake">
+  <figcaption>A flaky test's suspects, and the experiments run on them.</figcaption>
+</figure>
 
 ### Verified fixed
 
@@ -4124,6 +4253,11 @@ The project's **Tests** tab has a **Group by File** view that groups tests by th
 ## Across every project
 
 Everything above is scoped to one project; [Analytics](./analytics) lifts the same signals across every project.
+
+## Try it in the demo
+
+- [E2E Checkout › Flaky tests](https://piwitests.dev/demo/projects/1?tab=flaky-tests): The project’s flaky tests, each scored, with its root cause, top suspect and Quarantine button.
+- [E2E Checkout › should apply discount code](https://piwitests.dev/demo/test-cases/9?tab=flakiness): A flaky test’s suspects: a slower cart request in all 7 failures, and the experiment that reproduced it.
 
 ## Related
 - [Regression or flake?](/recipes/regression-or-flaky): is one red test flaky?
@@ -4240,8 +4374,8 @@ still fails, or too few runs passed to say) · `2` error.
   arms to run; the `stabilize-flaky-tests` [agent skill](/features/agent-skills) follows this loop.
 
 <figure>
-  <img src="/screenshots/flake-lab.png" alt="The Flake Lab tab: counts by stage over each test and its next command">
-  <figcaption>The Flake Lab tab.</figcaption>
+  <img src="/screenshots/flake-lab-tab.png" alt="A project's Flake Lab tab: counts of flaky, untested, to-verify and verified-fixed tests, each test with its lab state and the command to run next, then the newest experiments with their verdicts">
+  <figcaption>The Flake Lab tab: each flaky test's lab state and next command, then the newest experiments.</figcaption>
 </figure>
 
 The lab's own runs are stamped as flake-lab runs, kept out of the flaky score, clusters, notifications, quarantine
@@ -4354,6 +4488,10 @@ This reads the per-test timeout the [reporter captures](/reference/test-metadata
 
 Both require the [capture fixtures](/guide/capture-fixtures) in your test setup — without them the reporter has no network timings or Web Vitals to aggregate.
 
+## Try it in the demo
+
+- [E2E Checkout › Performance](https://piwitests.dev/demo/projects/1?tab=performance): Duration trends with their markers, the slowest tests, and the timeouts worth tightening.
+
 ## Related
 
 - [Cut the time it costs](/recipes/faster-suite): the slowest tests and wasted time, cut in order of cost
@@ -4443,13 +4581,18 @@ A run whose reporter sent findings shows a **Resources** tab:
 
 - the counts of each kind of finding, the CPU the run's processes used and the machine's peak memory;
 - the findings, each with the line or fixture that opened it, one click from your editor;
-- a link to each worker's open pages over the run, on the run's [Timeline tab](./cpu-memory-disk#in-the-dashboard):
+- a switch drawing each worker's open pages on the run's [Timeline tab](./cpu-memory-disk#in-the-dashboard):
   a leak climbs test after test, a clean worker stays flat;
 - the machine each shard ran on, from the [CPU, memory & disk](./cpu-memory-disk#in-the-dashboard) panel;
 - the **costliest tests**, by the CPU of their worker and browser processes, with the pages each found already open.
 
 The execution page's Performance tab shows what that one test cost and what it left open. A project that declines the
 **Resources** capability on the Setup page hides both, and the reporter's summary stays as it is.
+
+<figure>
+  <img src="/screenshots/run-resources.png" alt="A run's Resources tab: counts of leaked, never-used, piling-up and left-running resources, the four findings, each with the fixture, file or test behind it, the machine's CPU, memory and disk, and the costliest tests">
+  <figcaption>A run's Resources tab.</figcaption>
+</figure>
 
 ## In CI
 
@@ -4530,7 +4673,7 @@ It follows the [resource leaks](./resource-leaks) summary when the run has any.
 | **Disk** | The files the tests attached (traces, videos, screenshots), the most disk the run's output folders and browser profiles took at once, and the lowest free space on their disks. Profiles and artifact folders earlier runs left in the temp folder are named from 10 MB. |
 | **Workers** | With the [capture fixtures](/guide/capture-fixtures): how busy each worker's event loop was, the worst p99 delay, and how often the worker was switched out of a CPU it still needed. A worker that drives the browser late makes actions slow and timeouts flaky. |
 
-The roles come from each process's command line: Playwright's **workers**, the **browsers** they launch with their
+The roles come from each command line: Playwright's **workers**, the **browsers** they launch with their
 **renderers** (the processes pages run in), **GPU** process and **browser utilities**, **ffmpeg** when videos are recorded,
 the **runner** (Playwright's main process, with the reporters), and the **web server**: whatever the runner starts that
 is none of these, `webServer` and `globalSetup` servers alike.
@@ -4544,8 +4687,7 @@ is none of these, `webServer` and `globalSetup` servers alike.
   the tests leave open.
 - **Most of the CPU in the GPU process or ffmpeg**: tracing screenshots and video frames are rendered in software on a
   machine without a GPU. `trace: 'on-first-retry'` and `video: 'on-first-retry'` record only what a retry needs.
-- **Disk in use far above the artifacts**: traces are written and zipped in place; a green `retain-on-failure` run
-  writes them all, then deletes them.
+- **Disk in use far above the artifacts**: a green `retain-on-failure` run writes every trace, then deletes them.
 - **A large web server share**: a development server compiles on demand; serve a production build in CI.
 
 ## Platforms
@@ -4572,8 +4714,12 @@ browser processes used the most CPU.
 
 The run's **Timeline** tab draws the same samples on the tests' time axis, above the worker rows: the machine's
 **CPU** busy share, the **memory** the run's processes held, and, with the capture fixtures, the **pages** open in the
-workers. Hover a track for its values and the tests running then; the **Resources** menu turns each track off, a
-choice kept per browser. A sharded run draws one set of tracks per shard, each from its own machine.
+workers. Hover a track for its values and the tests running then; the **Resources** menu turns each track off. A sharded run draws one set of tracks per shard, each from its own machine.
+
+<figure>
+  <img src="/screenshots/run-timeline-resources-hover.png" alt="A run's workers timeline with the CPU, memory and open-pages tracks above the rows, one moment hovered with its values">
+  <figcaption>The resource tracks above a run's timeline, one moment hovered.</figcaption>
+</figure>
 
 While someone watches a running run, the tracks fill in **live** every five seconds; leak verdicts wait for its end.
 
@@ -4586,6 +4732,7 @@ With the capture fixtures, each execution's Performance tab shows what its test 
 its browser processes, the largest of those, the worker's event loop, and the pages it found and left open. A
 failed execution's **Timeline** tab draws, behind its **Resources** switch, the CPU, memory and open pages of the
 test's worker under its lanes, with the failure line across them.
+
 
 ## Cost
 
@@ -4813,7 +4960,10 @@ From 1280 px wide the panel docks on the right and the page narrows beside it; b
 its icons until it closes. Drag its left edge to widen it, or float it over the page with the panel icon in its
 header; the browser remembers both. Narrower, it opens over the page, full screen on a phone.
 
-![The assistant docked beside Home, the field offering the next question](/screenshots/assistant-docked.png)
+<figure>
+  <img src="/screenshots/assistant-docked.png" alt="The assistant docked beside Home, the field offering the next question">
+  <figcaption>The assistant docked beside Home.</figcaption>
+</figure>
 
 Each question carries the page it was asked on: its address, tab, filters, project and the parts a guide can point
 at, so "Why did this fail?" on an execution needs no ids. The clock lists your conversations; the pen starts a new
@@ -4858,6 +5008,14 @@ Asked to do something ("resolve this cluster"), the assistant answers with a car
 and reloads the page. The card keeps what became of it, or why it was refused. A card can resolve, ignore or
 reopen a failure cluster, quarantine or release a test, start a diagnosis, keep a run or decline a capability, and
 shows only when you hold the permission it needs; to act on several tests, it first lets you tick them.
+
+<figure>
+  <div class="figure-pair">
+    <img src="/screenshots/assistant-proposal-wide.png" alt="An answer in the assistant panel proposing to resolve the cart cluster once the fix is in, with Dismiss and Apply">
+    <img src="/screenshots/assistant-proposal-wide-applied.png" alt="The same proposal after Apply, marked Applied">
+  </div>
+  <figcaption>A proposed change, before and after Apply.</figcaption>
+</figure>
 
 ## What it reads
 
@@ -4922,7 +5080,10 @@ The gauge under the question field opens the cap that binds first, yours or the 
 and with the Claude Code CLI on a Claude subscription its 5-hour or weekly window. A line warns from 80%; a spent cap
 stops the field from asking.
 
-![The question field warning at 85% of the daily allowance](/screenshots/assistant-input.png)
+<figure>
+  <img src="/screenshots/assistant-input.png" alt="The question field warning at 85% of the daily allowance">
+  <figcaption>The question field warns at 85% of the daily allowance.</figcaption>
+</figure>
 
 ## Turning it off
 
@@ -5083,7 +5244,7 @@ stored ones (an **element match**), matched by role, heading level and, on a tot
 elements of the same role.
 
 <figure>
-  <img src="/diagrams/locator-healing-resolution.svg" alt="Diagram of the healing resolution flow: the failing error is parsed into a locator signature and call site, matched through the stored history, checked against the failing page's ARIA snapshot, and shown in the Locator fix panel">
+  <img src="/diagrams/locator-healing-resolution.svg" alt="Diagram of the healing resolution flow: the failing error is parsed into a locator signature and call site; a rename in the run's diff is rewritten at once, otherwise a stored capture is matched and checked against the failing page's ARIA snapshot; the result shows in the Locator fix panel">
   <figcaption>Every stored match is checked against the failing page before anything is recommended.</figcaption>
 </figure>
 
@@ -5182,6 +5343,10 @@ CI, like the options above. The editor extensions set both from your [breakpoint
 - Capture reads each call site once per test, rarely twice. Negated assertions, absence checks (`toBeHidden`,
   `toBeDetached`) and multi-element checks (`toHaveCount`) are never probed. Turn it off with `captureLocators: false`
   or `PIWI_CAPTURE_LOCATORS=false`; it is also off whenever `collectPerformanceMetrics` is `false`.
+
+## Try it in the demo
+
+- [UI Components › Button primary variant renders correctly](https://piwitests.dev/demo/test-run-cases/533): A strict-mode violation: the locator matched several buttons, and the ranked replacements match one.
 
 ## Related
 
@@ -5288,6 +5453,13 @@ shows only what tests do on the page you are on. Without the fixtures a use has 
 - **Long and described chains.** Piwi keeps 500 steps of an execution (`PIWI_INGEST_MAX_STEPS`, the steps that failed first) and the first 200 characters of each step parameter (`PIWI_INGEST_MAX_STEP_PARAM_VALUE_CHARS`), and `locator.describe()` replaces the chain with its description. Chains cut short or described are skipped.
 - **Matching is by chain text.** Two different chains that happen to resolve to the same element count separately. The counts tell you where to look, not that a test will break. To match on the element itself, open the page and use the extension's [Tested elements](./tested-elements), which evaluates every chain there.
 - **The index fills itself.** New runs are indexed as they arrive. When the server starts, it indexes each project's stored history once: for every test, Playwright project and branch, the latest passed execution, or the latest one when none passed. The rebuild endpoint empties a project's index and indexes its stored history again, which also splits by branch the uses indexed before branches were recorded (until then they count as the default branch's): see the [API docs](https://piwitests.dev/demo/docs), or `/docs` on your own instance.
+
+## Related
+
+- [Tested elements](./tested-elements): the elements your tests reach, on the page itself
+- [Locator preflight](./preflight): the locators a change breaks, before you push it
+- [Locator healing](./locator-healing): the replacement when a locator breaks anyway
+- [Locator stability rules](/reference/locator-stability): what makes a locator brittle
 
 <!-- https://piwitests.dev/features/preflight -->
 
@@ -5512,6 +5684,11 @@ strongest thing the dashboard does, so the posture is conservative by design.
   their PR is open, however long it stays open; an attempt that failed or was skipped is retried by the next run that
   qualifies.
 
+<figure>
+  <img src="/screenshots/heal-pr.png" alt="The body of an auto-heal pull request: two broken locators replaced, each with its file, line, change, score and where the replacement came from, then the failure clusters, the owners and the command that verifies the fix">
+  <figcaption>An auto-heal pull request's body: one row per replaced locator.</figcaption>
+</figure>
+
 ## After the PR opens
 
 - **Closed without merging** — Piwi takes that as a no. An edit the closed PR carried (the same file, failing locator
@@ -5562,6 +5739,12 @@ Settings → Auto-heal (administrator only):
 - Retries use progressive backoff and record the provider's own error on the action, so a failure is visible rather
   than silent.
 
+## Related
+
+- [Locator healing](./locator-healing): how the replacement locator is chosen
+- [Source control](/guide/source-control): the token Piwi opens the pull request with
+- [Failure clusters](./failure-clusters#did-the-fix-work): how the next run confirms the fix
+
 <!-- https://piwitests.dev/features/issue-tracking -->
 
 # Issue tracking (Jira)
@@ -5572,9 +5755,10 @@ is linked back as the cluster's *known issue*, and the key travels wherever the 
 
 It is **off until an [administrator connects Jira](/operate/integrations#connecting-jira-cloud)**.
 
-<div class="doc-screenshot">
+<figure>
   <img src="/screenshots/create-issue-modal.png" alt="The Create issue modal on a failure cluster: an editable title, the Jira project and issue-type fields, include toggles, and a preview of the fix-plan body">
-</div>
+  <figcaption>The Create issue modal on a failure cluster.</figcaption>
+</figure>
 
 ## What it does, exactly
 
@@ -5607,9 +5791,10 @@ A cluster's **known issue** is its most recently linked ticket; earlier ones sta
 - the **pull-request feedback** comment says *tracked in PROJ-123* on each failure whose cluster has one;
 - the **fix plan** lists it under *Links*, and the `get_cluster` / `get_fix_plan` MCP tools return it.
 
-<div class="doc-screenshot">
+<figure>
   <img src="/screenshots/cluster-issue-line.png" alt="A failure cluster's situation block with its Issue line naming the Jira issue the cluster is tracked in">
-</div>
+  <figcaption>The cluster's Issue line names the Jira issue that tracks it.</figcaption>
+</figure>
 
 ## Keep the ticket honest
 
@@ -5643,9 +5828,10 @@ type, default labels and assignee, the [ticket language](#language), what a tick
 **owner routes** — mapping a cluster's owner (`@acme/checkout`, an email) to a Jira project, component, assignee and
 labels. The create-issue draft picks the first matching route.
 
-<div class="doc-screenshot">
+<figure>
   <img src="/screenshots/project-integration-binding.png" alt="The project's Issue tracker settings: connection, Jira project and issue type, labels, the runs that write to the ticket, sync-policy switches, an owner-routes table, and automatic creation with one rule">
-</div>
+  <figcaption>A project's Issue tracker settings.</figcaption>
+</figure>
 
 ## Required Jira fields
 
@@ -5664,9 +5850,10 @@ transitions an issue offers and asks for their required fields, such as a *Resol
 empty fails at once, naming it. A requirement no screen shows, such as a workflow validator, comes back as Jira's
 refusal naming the field, which the modal then asks for.
 
-<div class="doc-screenshot">
+<figure>
   <img src="/screenshots/create-issue-required-fields.png" alt="The Create issue modal's Required by Jira block: Severity Major, from the project settings, Team empty, Found in on Jira's default, and the footer saying Jira still needs Team">
-</div>
+  <figcaption>The Required by Jira block: each field Jira requires, and where its value comes from.</figcaption>
+</figure>
 
 ## Requirements
 
@@ -5721,9 +5908,10 @@ them: after each run, Piwi files an issue for every failure that a project's **r
 the branches and environments that matter, and keeps the issue's comments and description current as the failure
 evolves. Everything is **off by default** and set per project, under **Project → Settings → Issue tracker**.
 
-<div class="doc-screenshot">
-  <img src="/screenshots/project-integration-auto-create.png" alt="The Automatic creation block of a project's issue tracker settings: two rules, one for release branches at the first occurrence and one for the default branch in staging after three occurrences in two runs over a day, the guards, and a preview listing one open failure filed at its next occurrence and one waiting on a threshold">
-</div>
+<figure>
+  <img src="/screenshots/project-integration-auto-create.png" alt="The Automatic creation block of a project's issue tracker settings: two rules, one for release branches at the first occurrence and one for the default branch in staging after three occurrences in two runs over a day, the guards, and a preview listing the open failure the second rule files at its next occurrence">
+  <figcaption>Automatic creation: the rules, the guards, and a preview of what they would file.</figcaption>
+</figure>
 
 ## Automatic creation
 
@@ -5882,6 +6070,11 @@ translation the diff removes or renames, matched against the base branch's locat
 already listed with its failure, a passing one was updated), so it names what the run did not exercise: tests outside
 the selection, on another shard set, or in a nightly suite. Each comes with its call site and, for a rename, the
 rewritten locator.
+
+<figure>
+  <img src="/screenshots/pr-comment.png" alt="The summary comment on a pull request: the run's counts, one new failure with its headline, owner and suggested locator, a pre-existing failure tracked in Jira, a flaky test also flaky on main, a new cluster, a cluster this change fixed, and the CI minutes wasted">
+  <figcaption>The summary comment on a pull request.</figcaption>
+</figure>
 
 ## The gate verdict
 
@@ -6316,7 +6509,7 @@ An AI step moves through three modes, set with the `ai.mode` option or `PIWI_AI`
 |------|--------------|
 | `replay` *(default)* | Executes the committed artifact read-only. **Never** calls the model. Fails closed on a missing entry. |
 | `resolve` | Authors any missing entry by driving the model, verifies it against the live page, and writes it to disk. |
-| `heal` | Not available yet: currently behaves exactly like `resolve` — committed entries are replayed as they are, and missing ones are authored. |
+| `heal` | Behaves exactly like `resolve`: committed entries are replayed as they are, and missing ones are authored. |
 
 The intended workflow:
 
@@ -6386,7 +6579,7 @@ Parameter values are **masked out of everything sent to the model**, with one ex
 
 `piwi ai check` is offline and fits a CI lint step: it exits `1` on an entry whose prompt was deleted or renamed, or a
 file that isn't in canonical form, and reports two prompts that collide as a warning that does not fail it.
-`piwi ai prune` is not available yet (it exits `2`): delete an orphaned entry's file by hand, and re-author a
+`piwi ai prune` deletes nothing and exits `2`: delete an orphaned entry's file by hand, and re-author a
 non-canonical one with `piwi ai resolve --update-ai`. Every subcommand and flag is in the
 [CLI reference](/reference/cli#ai).
 
@@ -7036,7 +7229,7 @@ answers it is the one that served the run's first requests.
 
 - **The server's own code only:** the files the build bundles, under the repository, outside `node_modules`. A
   dependency Nitro keeps external is not covered. A Nuxt application's `server/` code is; its pages and components
-  rendered on the server are not yet.
+  rendered on the server are not.
 - **Lines are the statements' first lines**, as Istanbul and Vitest count them: a statement spanning several lines
   counts its first one. A class field's initializer is not instrumented.
 - **Callbacks that lose the request's async context**, such as those a library queues without `AsyncResource`, count
@@ -7084,6 +7277,13 @@ npx @piwitests/reporter coverage upload coverage/cobertura-coverage.xml --suite 
 ```bash
 dotnet test --collect "XPlat Code Coverage"
 npx @piwitests/reporter coverage upload "**/TestResults/*/coverage.cobertura.xml" --suite unit-back
+```
+
+Each upload says what it sent:
+
+```txt
+Uploaded unit-front for a1b2c3d (main): 214 files from 1 report, 388 tracked files in scope.
+12 files are outside the project's coverage scope.
 ```
 
 The command reads the project, the dashboard URL and the API key (Uploader role) as the reporter does
@@ -7572,6 +7772,11 @@ nothing.
 **Buckets** decide how the trends and the heatmap cut the period: automatic (about 31 buckets), daily,
 weekly or monthly. Buckets start at UTC midnight, so a heatmap cell is one UTC day.
 
+<figure>
+  <img src="/screenshots/analytics-scope-bar.png" alt="The Analytics page's Filters block with the period picker open: rolling, calendar and release periods, a custom range, since a marker, a sprint, then the comparison and the buckets">
+  <figcaption>The scope of the Analytics page, its period picker open.</figcaption>
+</figure>
+
 ### Branch policy
 
 By default only runs on each project's **default branch** count, so a broken feature branch does not
@@ -7632,7 +7837,10 @@ the period, one line per kind:
 - **Flaky tests**: fixes a [Flake Lab](./flake-lab) verify run proved, and those that flaked again.
 - **Fix attempts**: fixes a person or an agent reported, and what the runs made of them.
 
-![Hand-back outcomes: locator heals, AI diagnoses, the CI gate and a verified flaky test](/screenshots/analytics-handbacks.png)
+<figure>
+  <img src="/screenshots/analytics-handbacks.png" alt="Hand-back outcomes: locator heals, AI diagnoses, the CI gate and a verified flaky test">
+  <figcaption>Hand-back outcomes: what became of each fix Piwi handed back.</figcaption>
+</figure>
 
 A rate needs 10 ratings, pull requests or fixes; below that the line says the sample is too small. The counts
 survive retention, and are kept per project and day, so branch and environment filters do not narrow them. A
@@ -7652,6 +7860,11 @@ as an image, ready to paste into a slide; a browser that cannot copy images down
 **Download Excel** saves the numbers behind the chart as an .xlsx workbook, one row per bucket or group:
 numbers and dates are real cells, and a test title is never run as a formula. To send a whole
 dashboard, export it as a [quality report](./quality-reports) instead.
+
+<figure>
+  <img src="/screenshots/chart-export-menu.png" alt="A chart's export menu open on the Analytics page: copy the chart as an image, or download its data as Excel">
+  <figcaption>A chart's export menu.</figcaption>
+</figure>
 
 ## Targets
 
@@ -7693,15 +7906,18 @@ A **dashboard** is a named arrangement of [analytics](./analytics) widgets in ba
 **Overview** dashboard; anyone can keep their own dashboards, share them with the team, schedule them
 as a [quality report](./quality-reports), and put them on a wall screen.
 
-![A shared dashboard: the checkout smoke tests over the current sprint, with a list, the period's releases and a note](/screenshots/saved-dashboard.png)
+<figure>
+  <img src="/screenshots/saved-dashboard.png" alt="A shared dashboard: the checkout smoke tests over the current sprint, with a list, the period's releases and a note">
+  <figcaption>A shared dashboard over the current sprint.</figcaption>
+</figure>
 
 ## Built-in and saved dashboards
 
 The header's switcher lists every dashboard you can open, with a search:
 
-- **Built-in**: Overview (the analytics page, four bands and fifteen widgets), and the report dashboards
-  Executive, Engineering and Gaps digest (the last one only where the [Test Map](./scenario-gaps) is not
-  declined). A built-in dashboard cannot be changed, only duplicated.
+- **Built-in**: Overview (the analytics page, four bands and sixteen widgets), and the report dashboards
+  Executive, Engineering and Gaps digest (only where the [Test Map](./scenario-gaps) is not declined). The Team
+  dashboard is a [quality report](./quality-reports) only, offered when the report's tests have an owner. A built-in dashboard cannot be changed, only duplicated.
 - **Shared**: saved dashboards someone shared with every signed-in user.
 - **Personal**: your private dashboards.
 - **Unused**: shared dashboards nobody opened for 90 days, where their owner or an administrator can
@@ -7732,7 +7948,10 @@ saw.
 - The **Filters** block, titled *Default filters*, sets the scope the dashboard opens with.
 - Widgets preview from your unsaved changes. *Save* writes them; *Save as…* writes a new dashboard.
 
-![The dashboard editor: band title and description, Add widget, and a widget's menu](/screenshots/dashboard-editor.png)
+<figure>
+  <img src="/screenshots/dashboard-editor.png" alt="The dashboard editor: band title and description, Add widget, and a widget's menu">
+  <figcaption>The dashboard editor: a band, Add widget, and a widget's menu.</figcaption>
+</figure>
 
 If someone saved the dashboard while you were editing it, *Save* says so and offers to reload their
 version or save yours as a copy; nothing is overwritten.
@@ -7832,7 +8051,7 @@ into something you can send.
 
 A report renders a **dashboard**, an arrangement of analytics widgets in bands, over a **scope**: the
 projects, branches, environments, test filter and period of the analytics **Filters** block. Any
-[saved dashboard](./dashboards) can be exported and scheduled; two built-in dashboards exist for
+[saved dashboard](./dashboards) can be exported and scheduled; four built-in dashboards exist for
 reports:
 
 - **Executive**, for stakeholders, in plain words with no locators and no stack traces: a verdict,
@@ -7843,7 +8062,6 @@ reports:
 - **Engineering**, for the team that owns the suite: the executive report, then the flakiest tests,
   the failure clusters, wasted CI time, regressions, CI time, the [combined coverage](./combined-coverage) trend
   (left out when no project in scope has coverage), the browser matrix and slow endpoints.
-
 - **Team**, the engineering report for the tests one owner holds (`piwi:owner` or CODEOWNERS), offered
   when a test in scope has an owner.
 - **Gaps digest**, the [Test Map](./scenario-gaps)'s weekly digest: the top five new gaps of each
@@ -7886,7 +8104,10 @@ A **report schedule** sends a quality report on its own. **Schedule…** on the 
 project page's menu opens the form with the filters on screen; **New schedule** on the **Quality
 reports** page starts an empty one. A Contributor or above on the project, or an administrator, creates schedules.
 
-![The Quality reports page: report snapshots and schedules](/screenshots/report-schedules.png)
+<figure>
+  <img src="/screenshots/report-schedules.png" alt="The Quality reports page: report snapshots and schedules">
+  <figcaption>The Quality reports page: snapshots and schedules.</figcaption>
+</figure>
 
 - **When**: daily, weekly, every other week or monthly, at a time in the instance time zone (UTC when
   that setting follows each browser).
@@ -7907,9 +8128,15 @@ before you save, as its email and as the full report, and sends nothing. **Mute*
 and sends nothing; **Pause** stops the schedule. Each firing uses its owner's current roles. A **global**
 schedule covers every project, goes to global channels and needs an administrator.
 
+<figure>
+  <img src="/screenshots/report-schedule-preview.png" alt="The schedule form's preview: the email the Weekly executive report schedule would send now">
+  <figcaption>Preview in the schedule form: the email the schedule would send now.</figcaption>
+</figure>
+
 The server checks schedules every five minutes; a firing missed while it was down happens at the next
 check, for its own period. The [desktop app](./desktop) fires them while it runs; the demo
 has no scheduler.
+
 
 ### Report snapshots
 
@@ -7919,6 +8146,11 @@ March reads the same in June, whatever [retention](/operate/storage#data-retenti
 [share](./share-links#report-share-links). You see a snapshot
 when you can open every project it covers. Snapshots go after `PIWI_RETENTION_REPORT_DAYS` days (365; 0
 keeps them).
+
+<figure>
+  <img src="/screenshots/report-snapshot.png" alt="A stored report snapshot: when it was generated and delivered, then the report: the verdict, the headline numbers, the pass rate over time, what changed, what is being done and the risks">
+  <figcaption>A report snapshot: the report as it was generated.</figcaption>
+</figure>
 
 ## Language
 
@@ -7952,6 +8184,13 @@ the *Export* and *Schedule…* actions and the *Quality reports* page, and drops
 the MCP tools; the analytics page and the metric tools stay, since analytics is core. A schedule or a
 snapshot counts as use, so the capability stays on while one exists: delete them first.
 
+## Related
+
+- [Analytics](./analytics): the same metrics, explored on the page
+- [Dashboards](./dashboards): a page of widgets kept for a team or a screen
+- [Notifications](./notifications): the channels a scheduled report is sent through
+- [Piwi CLI](/reference/cli#report): a report from CI or a script
+
 <!-- https://piwitests.dev/features/timeline-markers -->
 
 # Timeline markers
@@ -7970,6 +8209,11 @@ Each marker belongs to one project and carries:
 - **Run** _(optional, API only)_ — the id of one of the project's runs the event belongs to.
 
 ## Where markers show up
+
+<figure>
+  <img src="/screenshots/run-trend-marker-tooltip.png" alt="A project's Run trend with markers drawn as dashed vertical lines, one hovered: a Release marker named v2.3.0 with its date, environments and description">
+  <figcaption>Markers on the Run trend; hovering one shows its details.</figcaption>
+</figure>
 
 - **Project charts** — the **Run trend** and **Performance trend** charts render each marker as a dashed vertical line with a colored flag handle. Hover the line or its flag for the marker's details (category, label, date, environment, linked run, description); click it to open the marker in the **Markers** panel, in its edit form when you can edit markers.
 - **Markers panel** — a **Markers** button beside the **Run trend** chart (on the project's Runs tab) opens a panel listing the project's markers, newest first. **Add marker** and each marker's edit button open the form in the panel itself; **Delete** is on each marker and in the edit form.
@@ -8090,6 +8334,11 @@ needs `PIWI_SECRET_KEY`. A refusal names Slack's error code (`not_in_channel`, `
 
 Through either, a delivery Slack rate-limits retries after its `Retry-After`, up to an hour.
 
+<figure>
+  <img src="/screenshots/channel-form-slack.png" alt="The new channel form for Slack: incoming webhook or bot token, the three steps to create the Slack app, a pasted webhook URL recognized as a Slack incoming webhook, Send test and Save channel">
+  <figcaption>Adding a Slack channel: the URL is recognized before you save it.</figcaption>
+</figure>
+
 ### Microsoft Teams
 
 In the Teams channel's **⋯** menu, open **Workflows**, pick the template *Send webhook alerts to a channel*, choose the
@@ -8155,7 +8404,7 @@ PIWI_SMTP_FROM=noreply@example.com
 PIWI_SMTP_FROM_NAME=Piwi Dashboard   # optional display name
 PIWI_SMTP_USER=apikey         # only when the server requires authentication
 PIWI_SMTP_PASS=••••••••        # only when the server requires authentication; never returned by the API
-PIWI_SMTP_SECURE=false        # true for port 465 (implicit TLS)
+PIWI_SMTP_SECURE=false        # implicit TLS, default on for 465
 PIWI_SITE_URL=https://piwi.example.com   # base URL used in email links
 ```
 
@@ -8201,6 +8450,11 @@ them. They return compact JSON, list tools page with `{ items, nextCursor }` (`g
 with `offset`/`nextOffset`), and a tool that fails returns a normal result with `isError: true` and a readable
 message (one whose SCM or AI provider is not configured returns `{ error }`).
 
+<figure>
+  <img src="/screenshots/mcp-tool-details.png" alt="The MCP server page with the get_fix_plan tool opened: its description and its parameters">
+  <figcaption>One tool on the MCP server page, opened: what it does and the parameters it takes.</figcaption>
+</figure>
+
 **Modules.** Every tool belongs to one module, `core`, `workflow`, `healing` or `agents`, the groups the Setup page
 asks about. Declining a capability drops the tools that depend on it. Append `?modules=core` (comma-separated) to the
 MCP URL to narrow the list further; narrowing never re-enables a declined tool.
@@ -8220,6 +8474,7 @@ the result; read tools never are. A cluster's **Activity** section shows the cal
 
 **Transport.** Streamable HTTP: JSON-RPC 2.0 over `POST /mcp`, with no SSE or WebSocket. Protocol versions
 `2025-06-18`, `2025-03-26` and `2024-11-05` are supported.
+
 
 ## Authentication
 
@@ -8433,6 +8688,11 @@ The skills ship inside the reporter package. `npx @piwitests/reporter init` inst
 of setup (everything but `setup-piwi`, which an agent runs before the reporter exists). The **MCP server** page of the
 dashboard (`/mcp`) lists them next to the tools.
 
+<figure>
+  <img src="/screenshots/mcp-agent-skills.png" alt="The agent skills section of the MCP server page, with the command that installs the skills">
+  <figcaption>The agent skills on the MCP server page, with the command that installs them.</figcaption>
+</figure>
+
 ## Use it
 
 ```bash
@@ -8530,16 +8790,20 @@ its local runs here with
 [`desktopApp: 'prefer'`](/guide/reporter#local-runs-to-the-desktop-app-ci-to-a-team-server), which the snippets on
 **Setup** carry once you turn on **CI reports to a team server**.
 
-When the tests run as another user or in a container, **Setup → Send results to this app** gives the
-address (port 3000 unless taken) and the token to configure by hand. Keep the token in `PIWI_API_KEY`, not the
-config.
+<figure>
+  <img src="/screenshots/setup-connect-desktop.png" alt="The connect wizard in the desktop app: the one init command with no server URL, the fixtures import and the test command, and the CI reports to a team server switch, off">
+  <figcaption>The desktop app's connect wizard: no URL to set.</figcaption>
+</figure>
 
-A dashboard link opened in your browser opens in the app; a tab opened for it closes.
+When the tests run as another user or in a container, **Setup → Send results to this app** gives the
+address (port 3000 unless taken) and the token to configure by hand. Keep the token in `PIWI_API_KEY`.
+
+A dashboard link opened in your browser opens in the app, and its tab closes.
 
 ## Projects from local folders
 
-**Projects → New project → Choose folder…** creates a project from a checkout on this machine. The app detects the
-name it would report under and checks the setup (a Playwright config, Playwright, the reporter):
+**Projects → New project → Choose folder…** creates a project from a checkout on this machine, named as it would report, and
+checks the setup (a Playwright config, Playwright, the reporter):
 `npx @piwitests/reporter init` in the folder fixes what is missing. The link to the folder
 stays on this machine, under **project page → Settings → Local folder**, with the same checks and **Change** and
 **Unlink**. Linking a folder offers to import the runs already in its `blob-report/` and `test-results/` folders;
@@ -8707,6 +8971,11 @@ your file:
 Each code shows the line it goes above, and its import lines apart, each with **Copy**. The code is made from the file
 as it is on disk, in the folder linked to the project.
 
+<figure>
+  <img src="/screenshots/desktop-run-live-code.png" alt="Code from the runs in the desktop app's tray: a mocked request, the page.route call to write above tests/checkout.spec.ts:18, with Copy">
+  <figcaption>A mocked request, as code to copy above the stopped line.</figcaption>
+</figure>
+
 ## Share live
 
 A run that reports to your team's Piwi instance, as a **Re-run** in a folder whose `.env` or Playwright config
@@ -8872,7 +9141,8 @@ project** select overrides both for the session. See [Extension connection](./ex
   there picks its host element. The recorder records the fields of open shadow roots, and from a closed one only the
   keys of a password field (Enter, Escape, the arrows).
 - **Recording covers one origin.** On another site it stops capturing: stop and review, or start again there.
-- **No aria-snapshot copier** yet for `toMatchAriaSnapshot()`.
+- **No ARIA snapshot from a plain pick.** `toMatchAriaSnapshot()` code comes from **Assert a region**, at a stopped
+  test in the [Runs window](./runs-window).
 
 ## Related
 
@@ -8902,6 +9172,11 @@ the button), and ↑/↓ walk the DOM tree, showing the locator each step would 
 brittle already finds the element alone, the results open at once, and **Scope to a parent…** in them opens the
 **anchors** step: stable parents to scope the locator to, with a live match count, after which the results show again
 with the scoped locators. When none finds it alone, the anchors step comes first.
+
+<figure>
+  <video src="/videos/picker-pick-loop.mp4" autoplay loop muted playsinline controls aria-label="Picking on a shop page: the outline and the locator follow the pointer, the arrow keys walk up to the parents and back, and a click on Checkout opens its ranked locators"></video>
+  <figcaption>Hover, walk the tree with ↑ and ↓, click: the ranked locators open.</figcaption>
+</figure>
 
 **Enter** picks too: the highlighted element when the pointer is on one, otherwise the element that has the keyboard
 focus, so a control reached with Tab is picked without the mouse. **Esc** cancels the pick.
@@ -8987,6 +9262,11 @@ TypeScript** for a runnable spec that waits for each page it opens,
 [**Replay**](./replay-a-bug-report) to play the steps again in the tab and see that each still finds its element, or
 **Discard**. Passwords are never captured, nor a card number, its security code or a one-time code in a field whose
 `autocomplete` names it: the spec reads them from `process.env`.
+
+<figure>
+  <video src="/videos/picker-record-loop.mp4" autoplay loop muted playsinline controls aria-label="Recording on a shop page: a search typed, a mug added to the cart, a coupon applied, each counted on the bar as a step, then Stop opens the review with the seven steps"></video>
+  <figcaption>Each action becomes a step on the bar; Stop opens the review.</figcaption>
+</figure>
 
 <figure>
   <img src="/screenshots/picker-record.png" alt="The review panel after a recording: seven steps, Copy as TypeScript">
@@ -9301,15 +9581,26 @@ the panel's **Refresh** downloads it now.
 A green box says a test reached the element, not that the test checks what matters about it. Use
 it to find what nothing reaches, and to see which tests to read before changing an element.
 
+## Related
+
+- [Who uses a locator](./locator-usage): the same index, read from a locator rather than a page
+- [Browser extension](./extension): install Piwi Picker and connect it
+- [Locator stability rules](/reference/locator-stability): what makes a locator brittle
+
 <!-- https://piwitests.dev/features/report-a-bug -->
 
 # Report a bug
 
 Reproduce a bug in your browser, say what the page should show, and get the test that proves it. **Report a bug** is
 a tool of the [Piwi Picker extension](./extension): it records your steps with the recorder, lets you mark what is
-wrong ("this should read Total: 45"), collects evidence from the page, and hands you a failing Playwright test, a
+wrong ("this should read Total: 36.00"), collects evidence from the page, and hands you a failing Playwright test, a
 Markdown report and a `.piwibug` file for the developer. Everything is built in your browser; nothing is sent anywhere unless you
 send it to your [Piwi instance](./bug-reports).
+
+<figure>
+  <video src="/videos/picker-report-loop.mp4" autoplay loop muted playsinline controls aria-label="Reporting a bug on a cart page: a coupon applied, the total marked as wrong with what it should read, then Finish opens the report with its five steps, its evidence and a failing test to copy"></video>
+  <figcaption>Reproduce it, mark what's wrong, finish: the report and its failing test.</figcaption>
+</figure>
 
 ## Recording the steps
 
@@ -9382,8 +9673,8 @@ tab and choose **Take a screenshot**.
   test.fail(); // passes while the bug exists; remove this line with the fix
   await page.goto('/cart');
   await page.getByRole('textbox', { name: 'Coupon' }).fill('SPRING10');
-  await page.getByRole('button', { name: 'Apply' }).click();
-  await expect(page.getByTestId('cart-total')).toHaveText('Total: 45'); // recorded: 'Total: 50'
+  await page.getByRole('button', { name: 'Apply coupon' }).click();
+  await expect(page.getByTestId('cart-total')).toHaveText('Total: 36.00'); // recorded: 'Total: 40.00'
   ```
 
   When the bug is fixed, the test passes and Playwright reports the expected failure as a failure: remove
@@ -9430,6 +9721,11 @@ caption saying what it does, then says whether the bug shows there. It suits the
 open the app on your own dev server, and the steps run there, with your session and your browser's developer tools at
 hand.
 
+<figure>
+  <video src="/videos/picker-replay-loop.mp4" autoplay loop muted playsinline controls aria-label="Replaying a bug report on a cart page: the cursor fills the coupon, clicks Apply and checks the total, and the verdict says the bug shows here, the total reading 50 instead of 45"></video>
+  <figcaption>The report's four steps played again, then the verdict: reproduced.</figcaption>
+</figure>
+
 ## Choosing a report
 
 - From the finished report, **Replay** plays it at once on the same site. The review of a
@@ -9451,9 +9747,9 @@ one finds nothing for two seconds, finds several elements, or finds one the othe
 most of them agree on is used, and the step says which locator found it: a label that changed or an id made up on each load does not stop
 the replay. The element is then waited for as Playwright waits: visible, enabled and still, for as long as Playwright
 waits or, when you waited longer for it while recording (a reply that takes the server fifteen seconds), that long and
-a few seconds more, up to a minute. The replay ends with one of three answers:
+a few seconds more, up to a minute. The replay ends with one of four answers:
 
-- **Reproduced**: an expected result does not hold, such as a total that still reads "Total: 50", and the panel says
+- **Reproduced**: an expected result does not hold, such as a total that still reads "Total: 40.00", and the panel says
   whether that is the value reported.
 - **Not reproduced**: every expected result holds here.
 - **Could not reach the bug**: a step could not be played (it found no element, several, or a disabled one, or the
@@ -9504,6 +9800,11 @@ never in the report: the step asks for it.
 A test run does not keep the page each step happened on once a click may have opened another, so Replay does not
 follow such a step into a new tab: it stays in the tab it started in, and a step the test played in a popup is handed
 to you.
+
+<figure>
+  <img src="/screenshots/execution-replay-export.png" alt="A failed execution's Export menu: downloads as HTML, ZIP, PDF, Markdown or JSON, the bug report to replay in a browser with its 6 steps, a Perfetto trace, and the report or the steps to copy">
+  <figcaption>The Export menu of a failed execution: its steps as a bug report to replay.</figcaption>
+</figure>
 
 ## Trusted input
 
@@ -9608,8 +9909,8 @@ test('bug: coupon not applied to the total', {
   test.fail(); // passes while the bug exists; remove this line with the fix
   await page.goto('/cart');
   await page.getByLabel('Coupon').fill('SPRING10');
-  await page.getByRole('button', { name: 'Apply' }).click();
-  await expect(page.getByTestId('cart-total')).toHaveText('Total: 42'); // recorded: 'Total: 40'
+  await page.getByRole('button', { name: 'Apply coupon' }).click();
+  await expect(page.getByTestId('cart-total')).toHaveText('Total: 36.00'); // recorded: 'Total: 40.00'
 });
 ```
 
@@ -9618,6 +9919,11 @@ tab: the folder bug specs go to (`tests/bugs` by default) and the module `test` 
 `../fixtures` when your tests use fixtures of their own.
 
 From a terminal, [`piwi bug 37 --write`](/reference/cli#bug) writes the spec into that folder and runs it once.
+
+<figure>
+  <img src="/screenshots/bug-report-spec.png" alt="A bug report's Spec tab: the failing Playwright test written from the report's steps, ready to commit">
+  <figcaption>A report's Spec tab: the failing test, written with the project's settings.</figcaption>
+</figure>
 
 ## From report to fix
 
@@ -9710,9 +10016,9 @@ lists its locators, ranked and checked against the page as it is, the same list 
 shows:
 
 ```
-getByRole('button', { name: 'Apply coupon' })     ✓ unique · stable
-getByTestId('apply-coupon')                        ✓ unique · stable
-locator('.btn').nth(2)                             ⚠ unique by position · brittle: position, CSS class
+getByTestId('cart-button')                        ✓ unique · stable
+getByRole('button', { name: 'Cart, 2 items' })    ✓ unique · could break: number in text
+getByText('🛒 2')                                 ✓ unique · stable
 ```
 
 <figure>
@@ -9808,6 +10114,13 @@ too closely for that, the labels left over are not drawn and the panel says how 
 each kind, and **Role** shows the labels of one role only. Hidden elements get no label, as `getByRole` does not find them. Press
 **Esc** or `V` again to turn it off. The [lint overlay](./lint-overlay) stays for suggesting the test ids to
 add.
+
+## Related
+
+- [Browser extension](./extension): install Piwi Picker and connect it
+- [Pick an element](./pick-an-element): the ranked locators of any element on the page
+- [Mock and slow down requests](./mock-requests): answer, slow down or fail the page's requests
+- [Lint overlay](./lint-overlay): the elements a test would struggle to find
 
 <!-- https://piwitests.dev/features/mock-requests -->
 
@@ -10361,10 +10674,17 @@ with the browser: [Editor connection](./editor-connection).
 The first trusted project with a Playwright config that nothing connects yet shows one notification, once per
 installation, with **Connect…**, **Open the Failures** and **Learn More**.
 
+
 ## Where things are
 
-The IDE's LSP client shows warnings, quick fixes (Alt+Enter) and hover in open files; the rest is native, and every
-action is under **Tools → Piwi**:
+The IDE's LSP client shows warnings, quick fixes (Alt+Enter) and hover in open files.
+
+<figure>
+  <img src="/screenshots/jetbrains-heal.png" alt="WebStorm: a broken locator's failure at its line, and Alt+Enter offering the heal that replaces it">
+  <figcaption>The heal of a broken locator, offered with Alt+Enter.</figcaption>
+</figure>
+
+The rest is native, and every action is under **Tools → Piwi**:
 
 - **The Piwi tool window** names the connection and holds the [failures view](./editor-failures#the-failures-view),
   since the IDE highlights open files only.
@@ -10449,6 +10769,11 @@ On a failure, the quick fixes are:
 Hover for the error message, its call chain, the failure screenshot, and the tickets linked to its cluster or
 test. Without one, **File an issue** opens the cluster in the dashboard.
 
+<figure>
+  <img src="/screenshots/vscode-hover.png" alt="VS Code: the hover on a failing line, dragged taller: the CI failure with its error, its call log and the chain of calls that reached the line, then the failure screenshot of the checkout page">
+  <figcaption>The hover on a failing line: the error, how the test got there, and the page at the failure.</figcaption>
+</figure>
+
 A failure of a run on the checked-out branch is an error; one from another branch, such as the default branch's while
 yours has no run yet, is a warning; one whose line you changed since the run is an information (a weak warning in a
 JetBrains IDE). The `piwi.failureSeverity` setting (**Settings → Tools → Piwi → Runs** in a JetBrains IDE) chooses
@@ -10516,8 +10841,9 @@ By default, failures are read against the checked-out branch's latest complete r
 Compare with…** (**Tools → Piwi → Compare With…** in a JetBrains IDE, and the failures view's title bar) chooses another
 run to compare with: a branch's latest complete run, a run by its id, or **My local runs only**, your runs from this
 machine, the desktop app or an editor, without CI. Your runs since are laid over each. The status bar tooltip and the
-failures view name it (`Baseline: CI run #120 on feature/x`), ending with `(no run)` when it found none. The choice is
-kept on this machine, per Playwright config.
+failures view name it (`Baseline: CI run #120 on feature/x`), ending with `(no run)` when it found none. That run need
+not have passed: it is not the dashboard's [baseline](/guide/concepts#baseline-last-green-run), the last passing run.
+The choice is kept on this machine, per Playwright config.
 
 ## Related
 
@@ -10655,7 +10981,7 @@ a line lists them.
 
 The marks show what the reporter records, per test:
 
-- **Server code**: an ASP.NET Core backend built for coverage, with the reporter's `coverage.server` set to `lines`, or
+- **Server code**: an ASP.NET Core or Nitro backend built for coverage, with the reporter's `coverage.server` set to `lines`, or
   `PIWI_COVERAGE_SERVER=lines`: [Server coverage](./server-coverage) has the steps. With `functions`,
   every line of a function that ran is marked run, and no line is marked as not run.
 - **Browser code**: recorded per file ([code reach](./code-reach#turn-it-on)), so such a file lists its tests in its
@@ -10964,7 +11290,7 @@ the arrow's click lists the controls, and the color is **Settings → Editor →
 stopped at**. The mark goes when the test goes on (from the editor or the bar), ends, or closes its page.
 
 <figure>
-  <img src="/screenshots/vscode-run-control.png" alt="VS Code: a test paused at a page object's line, the controls above it and in the status bar">
+  <img src="/screenshots/vscode-run-control-hover.png" alt="VS Code: a test paused at a page object's line, its hover naming the call that runs next with Resume, Step, Run to cursor and Finish, the same controls above the line and in the status bar">
   <figcaption>A run paused before it types the coupon.</figcaption>
 </figure>
 
@@ -10981,6 +11307,11 @@ has none.
 A run Piwi starts with breakpoints is headed, with a pause bar. Without breakpoints it follows your config, headless
 by default. A headless stop opens **Piwi: paused page** beside VS Code's editor, or **Paused Page** in the JetBrains
 Piwi tool window. **Piwi: Show the paused page** (**Tools → Piwi → Show the Paused Page**) opens it at any stop.
+
+<figure>
+  <img src="/screenshots/vscode-run-control-paused-page.png" alt="VS Code: a headless test paused before it clicks Apply, and beside the editor the Piwi: paused page tab showing the cart page with the coupon typed in">
+  <figcaption>A headless run paused before it clicks Apply: the page at the stop, beside the editor.</figcaption>
+</figure>
 
 Clicking the image picks a locator when the reporter supports it: the locator replaces the one on the stopped line,
 and the tab shows the result or refusal.
@@ -11494,6 +11825,11 @@ as you do it: steps inside a test, a page object's method or a helper function, 
 works in VS Code (and Cursor, VSCodium) and in the JetBrains IDEs with the
 [Piwi plugin](./jetbrains), and needs no instance, no desktop app and no browser extension.
 
+<figure>
+  <video src="/videos/editor-recording-loop.mp4" autoplay loop muted playsinline controls aria-label="VS Code beside the browser the project's Playwright opened: Piwi: Record here at a blank line of a test, then a coupon typed and applied and the total checked in the browser, each step written in the test as it is made, the coupon's two steps becoming a call to the page object's applyCoupon, and Stop ending the recording with Run and Verify ×3 offered"></video>
+  <figcaption>Record here: the steps written as you go, folded into your page object's method.</figcaption>
+</figure>
+
 ## Start a recording
 
 | Editor | Record at the cursor | Record a new test file |
@@ -11787,11 +12123,22 @@ the instance refuses still reads **Piwi: connect**, since only signing in again 
 
 **Piwi: Open settings** in VS Code opens the extension's settings.
 
+## Related
+
+- [Editor extensions](./editors): what the extensions show once connected
+- [API keys](/operate/api-keys): the key the editor signs in with, and how to revoke it
+- [Desktop app](/features/desktop): the local instance the editor finds by itself
+
 <!-- https://piwitests.dev/operate/deployment -->
 
 # Deployment
 
 Piwi is one Node.js server with its data in one directory. Run it as a Docker container (recommended), with Docker Compose, on Kubernetes or with `npx`, then put an HTTPS proxy in front of it.
+
+<figure>
+  <img src="/diagrams/production-topology.svg" alt="CI runners, your team and coding agents reach one Piwi container through an HTTPS reverse proxy; its data sits on the /app/.data volume, or in PostgreSQL and an S3-compatible bucket; outbound calls go only to the services you configure">
+  <figcaption>One replica behind a TLS proxy, with persistent data.</figcaption>
+</figure>
 
 ## Docker (recommended)
 
@@ -11878,7 +12225,7 @@ The server reads three process-level variables directly:
 | `HOST` | `0.0.0.0` | Listen on all interfaces. The Docker image sets `NITRO_HOST=0.0.0.0`, which takes precedence — override the bind address there with `NITRO_HOST`. `npx @piwitests/server` defaults to `127.0.0.1` |
 | `PORT` | `3000` | Application port |
 
-Everything else is a `PIWI_*` variable, listed with its default and whether the Settings UI can override it in the generated [configuration reference](/reference/configuration). The [configuration generator](/reference/configuration/generator) turns your choices into a ready-to-paste block from the same registry.
+Everything else is a `PIWI_*` variable, listed with its default and the Settings page that names it in the generated [configuration reference](/reference/configuration). The [configuration generator](/reference/configuration/generator) turns your choices into a ready-to-paste block from the same registry.
 
 ## One-click deploy
 
@@ -11947,7 +12294,8 @@ docker compose up -d
 
 ## Kubernetes
 
-Example deployment manifest:
+Example deployment manifest. It reads its variables from the `piwi-config` ConfigMap and the `piwi-secrets` Secret
+that the [configuration generator](/reference/configuration/generator)'s Kubernetes output creates: apply that first.
 
 ```yaml
 apiVersion: apps/v1
@@ -11966,11 +12314,19 @@ spec:
       labels:
         app: piwi-dashboard
     spec:
+      securityContext:
+        fsGroup: 1001   # the image's non-root user, so it can write the volume
       containers:
       - name: piwi-dashboard
-        image: phenx/piwitests-server:latest
+        image: phenx/piwitests-server:0.63.0 # x-release-please-version
         ports:
         - containerPort: 3000
+        envFrom:
+        - configMapRef:
+            name: piwi-config
+        - secretRef:
+            name: piwi-secrets
+            optional: true
         readinessProbe:
           httpGet:
             path: /api/health
@@ -12012,8 +12368,11 @@ spec:
   ports:
   - port: 80
     targetPort: 3000
-  type: LoadBalancer
+  type: ClusterIP
 ```
+
+The Service stays inside the cluster: publish it through your Ingress with TLS, rather than as a plain-HTTP
+`LoadBalancer`, with the proxy settings of [Reverse proxy (HTTPS)](#reverse-proxy-https).
 
 ## npm / npx (quick local run)
 
@@ -12044,8 +12403,9 @@ $env:PORT='8080'; npx @piwitests/server
 :::
 
 It listens on `127.0.0.1` only, so other machines cannot reach it: with authentication off, the default, anyone who
-reaches the port is an administrator. To serve other machines, turn [authentication](./authentication) on and set
-`HOST=0.0.0.0`.
+reaches the port is an administrator. To serve other machines, turn [authentication](./authentication) on, set
+`HOST=0.0.0.0` and put [HTTPS](#reverse-proxy-https) in front: the session cookie is `Secure`, so sign-in over plain
+`http://` works only on `localhost`.
 
 Docker remains the recommended path for production: it ships a pinned Node runtime, runs as a non-root user and
 isolates the environment.
@@ -12169,7 +12529,7 @@ choices of variables.
 
 | Provider | How | Persistent volume | Notes |
 |---|---|---|---|
-| [Railway](#railway) | Button | Yes | Managed PostgreSQL available alongside |
+| [Railway](#railway) | A service from the image | Yes | Managed PostgreSQL available alongside |
 | [Render](#render) | Button | Yes, on a paid instance | Repo-driven; only `PIWI_SITE_URL` is set by hand |
 | [Fly.io](#fly-io) | `fly launch` | Yes | One command rather than a button; cheapest always-on option |
 | [Koyeb](#koyeb) | Button | Volume attached afterwards | Starts once you set its secrets; see the warning below |
@@ -12187,7 +12547,7 @@ template's exact contents live in
 and the repo ships a [`railway.json`](https://github.com/PiwiTests/piwi/blob/main/railway.json) pinning
 the health check to `/api/health` and the replica count to 1.
 
-> **No button yet.** Until the template is published on Railway, create a service from the
+> **No button.** Railway lists no published Piwi template: create a service from the
 > `phenx/piwitests-server:latest` image, add a volume mounted at `/app/.data`, and copy the variables from
 > `deploy/railway/template.md`.
 
@@ -12298,7 +12658,7 @@ A fresh Piwi instance starts as an **open dashboard with authentication off** �
 
 ## Before you expose it
 
-1. **Turn authentication on.** Set `PIWI_AUTH_ENABLED=true` and a strong `PIWI_AUTH_SECRET` (session-cookie signing key). The server refuses to start with auth enabled and no secret, so this can't half-apply. Then create the first administrator account before you share the URL. See [Authentication](./authentication).
+1. **Turn authentication on.** Set `PIWI_AUTH_ENABLED=true` and a strong `PIWI_AUTH_SECRET` (session-cookie signing key). The server refuses to start with auth enabled and no secret, so this can't half-apply. Set `PIWI_SETUP_TOKEN` to a random value too: the first-administrator form asks for it, so whoever reaches the URL before you cannot make themselves administrator. Then create that account before you share the URL. See [Authentication](./authentication#initial-setup).
 2. **Set the encryption key.** Set `PIWI_SECRET_KEY` so the credentials you store in the dashboard — AI API keys, SCM tokens, webhook secrets — are encrypted with **your** key. Unset, the dashboard refuses to save them. Generate either secret with:
 
    ```bash
@@ -12306,7 +12666,7 @@ A fresh Piwi instance starts as an **open dashboard with authentication off** �
    ```
 
 3. **Terminate TLS.** Always put the dashboard behind an HTTPS reverse proxy. Mind the two things a proxy gets wrong by default: **upload size** (trace and report uploads reach hundreds of MB) and **SSE buffering** (live runs and browser notifications use long-lived `text/event-stream` responses that must not be buffered). With authentication on, browser sign-in needs HTTPS in any case: the session cookie is `Secure`, so over plain `http://` it only works on `localhost`. See [Deployment → Reverse proxy (HTTPS)](./deployment#reverse-proxy-https).
-4. **Tell Piwi it's behind a proxy.** Set `PIWI_TRUST_PROXY=true` so the per-client rate limits on the auth endpoints key on the real client address from `X-Forwarded-For` instead of pooling every request into the proxy's one address. Leave it off when clients connect directly — see the [configuration reference](/reference/configuration#authentication).
+4. **Tell Piwi its address and that it is behind a proxy.** Set `PIWI_SITE_URL` to the public HTTPS address: the links in emails, notifications and pull-request comments, and the OAuth callbacks, are built from it. Unset, emails and notifications link to `http://localhost:3000`, no pull-request comment is posted, and OAuth callbacks follow the request's host. Set `PIWI_TRUST_PROXY=true` so the per-client rate limits on the auth endpoints key on the real client address from `X-Forwarded-For` instead of pooling every request into the proxy's one address. Leave it off when clients connect directly — see the [configuration reference](/reference/configuration#authentication).
 5. **Persist and back up the data.** Mount `/app/.data` (or your configured database and storage paths) on a persistent volume, and set up a backup before you accumulate history you care about. See [Backup & restore](./backup-restore).
 6. **Pin a version.** Running `latest` lets an unattended `docker pull` move you across a breaking change. Pin an exact tag and bump it deliberately — migrations are forward-only, so the rollback path is *restore a backup*, not "pull the old tag." See [Upgrading](./upgrading).
 
@@ -12355,7 +12715,7 @@ Every account holds one **instance role**:
 | **Administrator** | Everything, on every project: users, groups, instance settings, AI providers, Jira connections, storage, tags, creating and deleting projects. Never restricted by project roles. |
 | **Member** | Signs in and manages their own profile, API keys, dashboards, notification channels and subscriptions. Everything else comes from their project roles. |
 
-What a Member can do inside a project comes from the **project roles** (Viewer, Contributor, Maintainer, Project admin, Uploader) granted to them or to one of their groups, on that project or on all projects: see [Access, roles and groups](./project-access). The Administrator role is granted to a user, never to a group.
+What a Member can do inside a project comes from the **project roles** granted to them or to their groups: see [Access, roles and groups](./project-access). The Administrator role is granted to a user, never to a group.
 
 ## Enabling authentication
 
@@ -12406,7 +12766,8 @@ Sign in at `/login`. A session is an encrypted cookie that lasts 7 days. It is m
 
 ## OAuth (Google, GitHub)
 
-Users can sign in with Google or GitHub instead of a username and password.
+Users can sign in with Google or GitHub instead of a username and password. These are the two providers: there is no
+generic OpenID Connect or SAML sign-in.
 
 ### Configuring OAuth
 
@@ -12429,17 +12790,15 @@ Users can sign in with Google or GitHub instead of a username and password.
    PIWI_OAUTH_GITHUB_CLIENT_SECRET=your-github-client-secret
    ```
 
-   Only configure the providers you actually want to use. OAuth buttons appear automatically on the login page when both a provider's `CLIENT_ID` and `CLIENT_SECRET` are set.
+3. **Restart the server.** The login page shows a **Sign in with …** button, above the password form, for each provider whose `CLIENT_ID` and `CLIENT_SECRET` are both set.
 
-3. **Restart the server.** The login page now shows **Sign in with Google** and/or **Sign in with GitHub** buttons above the password form.
-
-> **Behind a reverse proxy:** set `PIWI_SITE_URL` to your public URL (e.g. `https://piwi.example.com`). The OAuth `redirect_uri` is built from it, so it stays consistent with the value you registered even when the proxy rewrites the request host. Without it the redirect URI is inferred from the incoming request.
+> **Behind a reverse proxy:** set `PIWI_SITE_URL` to your public URL (e.g. `https://piwi.example.com`): the OAuth `redirect_uri` is built from it, else from the request's host, which a proxy may rewrite.
 
 ### Restricting who can sign in (allowlists)
 
 By default any account at a configured provider can sign in (and a new **Member** account with no access is created). To restrict access:
 
-- **`PIWI_OAUTH_ALLOWED_DOMAINS`** — comma-separated email domains (e.g. `example.com,acme.org`). Only **verified** provider emails in these domains may sign in. Applies to all providers — ideal for limiting Google Workspace sign-in to your company domain.
+- **`PIWI_OAUTH_ALLOWED_DOMAINS`** — comma-separated email domains (e.g. `example.com,acme.org`). Only **verified** provider emails in these domains may sign in. Applies to all providers.
 - **`PIWI_OAUTH_GITHUB_ALLOWED_ORGS`** — comma-separated GitHub org logins. The user must be a member of at least one. Enabling this requests the `read:org` scope so membership (including private) can be checked.
 
 Rejected sign-ins are returned to the login page with an explanatory message.
@@ -12448,12 +12807,12 @@ Rejected sign-ins are returned to the login page with an explanatory message.
 
 A first sign-in with a provider either links an existing account or creates a new one. Email addresses are compared ignoring case, so `Bob@corp.com` and `bob@corp.com` are the same address, and an address belongs to at most one account.
 
-- If a user with the same **verified** email exists (and isn't already linked to a *different* provider), the existing account is linked to the provider. Linking needs proof on both sides: the provider must assert the email is verified, **and** the local account must have verified it too (through the verification link, an accepted invite, or an earlier provider sign-in). This stops an attacker-controlled public email, or an address someone typed into their own profile, from capturing another person's sign-in.
+- If a user with the same **verified** email exists (and isn't already linked to a *different* provider), the existing account is linked to the provider. Linking needs proof on both sides: the provider must assert the email is verified, **and** the local account must have verified it too (through the verification link, an accepted invite, or an earlier provider sign-in). This stops an address someone typed into their own profile from capturing another person's sign-in.
 - If the matching account has **not** verified the address, the sign-in is refused with an explanatory message instead of being linked. The account's owner signs in with its password (or accepts their invite first) and connects the provider from **Settings → Account**.
 - If the matching account is **already linked to a different provider**, the sign-in is refused: one provider is linked per account, so sign in with the original method instead.
 - Otherwise, a new user is created as a **Member** with no project role and no password, so it always signs in through its provider and sees nothing until it is [granted a role](./project-access#default-is-no-access). An email the provider has not verified never links an account, so GitHub accounts with no verified primary email always get a new account.
 
-The new account stores the provider's email, unverified unless the provider verified it, or **no email** when another account already uses that address. Its username is its email, else the GitHub login, else `<provider>-<id>`; a taken one gets the first free number appended (`octocat-2`, `octocat-3`, …).
+The new account stores the provider's email, unverified unless the provider verified it, or **no email** when another account already uses that address. Its username is its email, else the GitHub login, else `<provider>-<id>`; a taken one gets a number appended (`octocat-2`).
 
 Each later sign-in updates the account's name, avatar and email from the provider. The email stays as it is when the provider sends none, or one another account already uses.
 
@@ -12464,12 +12823,13 @@ The dashboard does not keep the provider's tokens: the access token is used once
 Signed-in users can link a provider explicitly from **Settings → Account → Connected accounts**:
 
 - **Connect** starts the OAuth flow in "link" mode and attaches the provider identity to the current account (rather than creating a new one). A provider identity already linked to another account is refused. An account without an email address takes the provider's, unless another account already uses it.
-- **Disconnect** removes the link. It's only allowed when the account also has a password set, so a provider-only user can't lock themselves out — set a password first.
+- **Disconnect** removes the link. It's only allowed when the account also has a password set, so a provider-only user can't lock themselves out.
 
 ## User management
 
 Administrators manage accounts under **Settings → Users** (`/settings/users`). **Add user** creates one with a
-username, password, instance role and optional display name and email. Each row shows the user's instance role and the
+username, an instance role, an optional display name and email, and a password. Without one, the row's **Send invite email**
+button mails the user a link to set their own. Each row shows the user's instance role and the
 [groups](./project-access#groups) they belong to.
 
 An email address belongs to one account, ignoring letter case: creating or editing an account with an address another
@@ -12481,11 +12841,19 @@ A link Piwi emails, to verify an address, accept an invite or reset a password, 
 holds the address it was sent to. Once the address changes, by its owner, an administrator or a provider sign-in, the
 links already sent are refused: send a new one to the new address.
 
+### Email and account recovery
+
+Invitations, address verification and **Forgot password?** send email, so they need
+[SMTP](/features/notifications#smtp-configuration). Without it, invites and verification links are refused, and
+**Forgot password?** says a link was sent but sends nothing.
+
+No administrator can set another account's password: a locked-out account recovers through **Forgot password?**, which
+needs SMTP and an email address on the account. Give every administrator an email address, or keep two, so one can
+set the other's address to one that receives mail.
+
 ### Changing a role
 
-Each row's **Role** column is an inline selector for the instance role: pick **Administrator** or **Member** to change it immediately (the user's active sessions are revoked so the change takes effect at once). This is the only way to make an account an administrator, including accounts created through [OAuth](#oauth-google-github), which always start as a **Member** with no access. The **last remaining administrator cannot be demoted**, so an instance can never be left without one.
-
-What a Member can do in each project is set by [project roles](./project-access), and the keys that let CI and scripts sign in are [API keys](./api-keys).
+Each row's **Role** column is an inline selector for the instance role: pick **Administrator** or **Member** to change it immediately, revoking the user's sessions. This is the only way to make an account an administrator, including accounts created through [OAuth](#oauth-google-github), which always start as a **Member** with no access. The **last remaining administrator cannot be demoted**, so an instance can never be left without one.
 
 ## Disabling authentication
 
@@ -12596,9 +12964,10 @@ Scripts read and change the same grants, called role bindings, through the API; 
 users; columns are projects, after an **All projects** column. Each cell is a role selector: pick a role to grant it
 there, or none to remove it.
 
-<div class="doc-screenshot">
+<figure>
   <img src="/screenshots/permission-grid.png" alt="Settings → Permissions: groups above users down the side, projects across the top, and a role selector in each cell">
-</div>
+  <figcaption>The permissions grid: a role in each cell, for a group or a user on a project.</figcaption>
+</figure>
 
 - **Every change saves at once.** A change the server refuses is rolled back and reported.
 - **Inherited roles show faint.** A role a user holds only through a group or All projects appears faint, and its
@@ -12688,22 +13057,30 @@ Connecting the [browser extension](/features/extension-connection) creates a key
 **Allow** on the page it opens: it is named after the browser ("Piwi Picker in Chrome on Windows") and listed with the
 others.
 
+<figure>
+  <img src="/screenshots/user-api-keys.png" alt="A user's API keys dialog: one key named GitHub Actions CI with its prefix, creation date and Never used, a revoke button, and Create API key">
+  <figcaption>A user's API keys: each shown by its prefix, with its last use.</figcaption>
+</figure>
+
 ## Revoking an API key
 
 Click the trash icon next to the key, in the same place you created it. The key stops working immediately.
 
 ## Using the API key in the reporter
 
+The reporter reads the key from `PIWI_API_KEY`, in the environment or in the `.env` beside the Playwright config
+(`init --api-key` writes it), so the config needs no change: store the key as a CI secret under that name. To read it from
+another variable, pass it in the [`wrapConfig`](/guide/reporter#installing-via-wrapconfig) options:
+
 ```typescript
 // playwright.config.ts
-export default defineConfig({
-  reporter: [
-    ['@piwitests/reporter', {
-      serverUrl: 'https://your-dashboard.example.com',
-      projectName: 'my-project',
-      apiKey: process.env.PIWI_API_KEY,
-    }],
-  ],
+import { defineConfig } from '@playwright/test'
+import { wrapConfig } from '@piwitests/reporter'
+
+export default wrapConfig(defineConfig({ testDir: './tests' }), {
+  serverUrl: 'https://your-dashboard.example.com',
+  projectName: 'my-project',
+  apiKey: process.env.MY_DASHBOARD_KEY,
 })
 ```
 
@@ -12713,16 +13090,10 @@ export default defineConfig({
 
 ```bash [Linux / macOS]
 # Authorization: Bearer header (recommended)
-curl -X POST https://your-dashboard.example.com/api/test-runs/submit \
-  -H "Authorization: Bearer pd_<your-key>" \
-  -H "Content-Type: application/json" \
-  -d '{ ... }'
+curl -X POST https://your-dashboard.example.com/api/test-runs/submit -H "Authorization: Bearer pd_<your-key>" -H "Content-Type: application/json" -d '{ ... }'
 
 # X-API-Key header (alternative)
-curl -X POST https://your-dashboard.example.com/api/test-runs/submit \
-  -H "X-API-Key: pd_<your-key>" \
-  -H "Content-Type: application/json" \
-  -d '{ ... }'
+curl -X POST https://your-dashboard.example.com/api/test-runs/submit -H "X-API-Key: pd_<your-key>" -H "Content-Type: application/json" -d '{ ... }'
 ```
 
 ```powershell [Windows (PowerShell)]
@@ -12742,25 +13113,10 @@ Invoke-RestMethod -Method Post -Uri https://your-dashboard.example.com/api/test-
 ## Using the reporter with a username and password
 
 As an alternative to API keys, give the reporter the credentials of a dedicated Member with the **Uploader** role,
-created in **Settings → Users**:
-
-```typescript
-// playwright.config.ts
-export default defineConfig({
-  reporter: [
-    ['@piwitests/reporter', {
-      serverUrl: 'https://your-dashboard.example.com',
-      projectName: 'my-project',
-      username: process.env.PIWI_USERNAME,
-      password: process.env.PIWI_PASSWORD,
-    }],
-  ],
-})
-```
-
-Add `PIWI_USERNAME` and `PIWI_PASSWORD` as secrets in your CI provider. The reporter signs in before each upload and
-uses the resulting session for the requests that follow. API keys are still preferred for CI: they need no sign-in
-round-trip, and each one can be revoked on its own.
+created in **Settings → Users**: set `PIWI_USERNAME` and `PIWI_PASSWORD` as secrets in your CI provider (or the
+`username` and `password` options). The reporter signs in before each upload and uses the resulting session for the
+requests that follow. API keys are still preferred for CI: they need no sign-in round-trip, and each one can be revoked
+on its own.
 
 ## Related
 
@@ -12838,7 +13194,12 @@ The **Setup** page (`/setup`, administrators only) is the permanent home for "ho
 
 Not every team uses every capability. Any optional one can be **declined** so the dashboard stops showing it everywhere: the evidence tabs, empty panels, settings page, sidebar entry, project actions and MCP tools it owns all go, rather than lingering half-visible. Decline instance-wide from the Setup ladder (*Not for this instance*) or the presets, or per project from the **Capabilities** section of the project's **Settings** tab and the places the capability appears (for example the execution page's evidence footer, *Not for this project*). A project override can also **enable** a capability the instance declined.
 
-Declining is administrator-only and never final: each declined capability keeps a *Reconsider* link on the Setup ladder that clears the decision, and because data always wins, a declined capability that starts receiving data reads as active again with the stored decision shown next to it. See [Why a card is empty](/features/evidence#why-a-card-is-empty) for how this reads on the execution page.
+Declining instance-wide is for administrators, and per project for the project's [Project admin](./project-access#project-roles) role. It is never final: each declined capability keeps a *Reconsider* link on the Setup ladder that clears the decision, and because data always wins, a declined capability that starts receiving data reads as active again with the stored decision shown next to it. See [Why a card is empty](/features/evidence#why-a-card-is-empty) for how this reads on the execution page.
+
+<figure>
+  <img src="/screenshots/setup-ladder-declined-wide.png" alt="The Setup page's list of what is switched on, Notifications among the active capabilities with Declined on Setup and a Reconsider link beside its docs link">
+  <figcaption>A declined capability that still receives data reads as active, its decision and Reconsider link beside it.</figcaption>
+</figure>
 
 ## Related
 
@@ -12852,16 +13213,17 @@ Declining is administrator-only and never final: each declined capability keeps 
 
 Connect an issue tracker and the external links you pin to a run, execution or failure cluster stop being
 dead URLs: Piwi fetches the ticket's title and status through the connection and keeps the badge current
-when you refresh. Jira Cloud is the supported tracker. This page sets up the connection; filing and syncing
+when you refresh. Jira Cloud is the supported tracker, not Jira Server or Data Center. This page sets up the connection; filing and syncing
 issues from a failure is [Issue tracking (Jira)](/features/issue-tracking).
 
 A connection is instance infrastructure — one row per external system, managed by an administrator, shared
 by every project. Nothing is sent to Jira until a connection exists, and credentials are encrypted at rest
 with `PIWI_SECRET_KEY`.
 
-<div class="doc-screenshot">
+<figure>
   <img src="/screenshots/integrations-settings.png" alt="Settings → Integrations: a Jira card with a connected system, its verified status, and a test-connection button">
-</div>
+  <figcaption>Settings → Integrations: one card per connected tracker.</figcaption>
+</figure>
 
 ## Connecting Jira Cloud
 
@@ -12877,12 +13239,13 @@ Connect Jira** (administrator only) walks through it:
 4. **Check sign-in** calls `GET /rest/api/3/myself` without saving and shows the account, the token kind and the
    projects the account sees, or what to fix. Then **Connect**.
 
-<div class="doc-screenshot">
+<figure>
   <img src="/screenshots/jira-connect-form.png" alt="The Jira connect form: a pasted board URL read down to the site, the scoped-token steps and a passed sign-in check">
-</div>
+  <figcaption>The Jira connect form: paste a board URL, then sign in with a scoped token.</figcaption>
+</figure>
 
-Once connected, a Jira link — `https://your-team.atlassian.net/browse/PROJ-123`, including a self-hosted
-host once its connection exists — is recognized as a Jira issue, unfurls with the summary and a status
+Once connected, a Jira link — `https://your-team.atlassian.net/browse/PROJ-123`, including a Cloud site on its
+own domain once its connection exists — is recognized as a Jira issue, unfurls with the summary and a status
 badge (colored by the issue's status category), and refreshes through the connection.
 
 ## Permissions the token needs
@@ -13007,6 +13370,11 @@ webhook off.
 # Configuration generator
 
 Build a ready-to-paste configuration for a self-hosted Piwi Dashboard — as a `.env` file, systemd unit or shell exports; a Docker Compose service, `docker run` command or Kubernetes ConfigMap + Secret; or a hosting-platform manifest for [Railway, Render, Fly.io, Koyeb or Coolify](/operate/deployment#one-click-deploy). Everything below is driven by the same typed registry as the [configuration reference](../configuration), so options, defaults and validation always match your server.
+
+## Related
+
+- [Configuration reference](../configuration): every variable, its default and its limits
+- [Deployment](/operate/deployment): where the generated configuration goes
 
 <!-- https://piwitests.dev/operate/database -->
 
@@ -13195,8 +13563,13 @@ PIWI_S3_SECRET_ACCESS_KEY=your-r2-secret-key
 
 The **Settings › Storage** page (`/settings/storage`) provides administrators with:
 
-- **Storage analysis** — total storage used and file count, the projects that consume the most space, a breakdown by file kind (traces, screenshots, videos, reports, attachments, visual diffs), storage growth over time, and the actual on-disk storage size (local only) — which also surfaces any untracked files lingering on disk.
+- **Storage analysis** — total storage and file count, the projects that take the most, a breakdown by file kind, growth over time, and the on-disk size (local only), which also surfaces untracked files left on disk.
 - **Cleanup** — permanently delete all test runs older than a configurable number of days (7, 14, 30, 60, 90, 180, or 365 days). [Kept runs](#keeping-runs-forever) are skipped, and so are each project's newest runs when `PIWI_RETENTION_MIN_RUNS` is set. A confirmation dialog is shown before any data is deleted, and the result says how many runs were skipped.
+
+<figure>
+  <img src="/screenshots/storage-analysis.png" alt="Settings, Storage: the total storage and its growth, storage over time, the space taken by each file kind, and the projects that take the most">
+  <figcaption>Settings → Storage: how much is stored, how it grows, and where it goes.</figcaption>
+</figure>
 
 Project admins can also delete runs by hand:
 
@@ -13208,6 +13581,7 @@ The dialog lists each run as it is deleted. **Stop**, or leaving the page, ends 
 a run that could not be deleted stays listed with its error.
 
 A kept run cannot be deleted until it is released; a selection skips kept runs.
+
 
 ### Data retention
 
@@ -13288,10 +13662,12 @@ Piwi's migrations are **forward-only** — once a new version has migrated your 
 
 ## What to back up
 
-Everything lives in two places — back up both, together:
+The data lives in two places — back up both, together:
 
 1. **The database** — the SQLite file `.data/piwi.db` (the default), or your PostgreSQL database.
 2. **File storage** — `.data/storage/` (HTML reports, traces, attachments), unless you keep artifacts in [S3](./storage#s3-compatible-storage), in which case the bucket is your storage backup.
+
+Keep the server's `PIWI_SECRET_KEY` as well, stored apart from the backups (a password manager, your secret store): the AI keys, SCM and Jira tokens and webhook secrets in the database are encrypted with it. Restored under another key, they cannot be read, and each must be entered again. `PIWI_AUTH_SECRET` only signs session cookies: a new one signs everyone out.
 
 The two must be consistent with each other: a database row points at a stored trace, so a backup that captures one without the other can dangle. The simplest way to guarantee consistency is to stop the container before copying; the online methods below avoid the downtime.
 
@@ -13325,7 +13701,7 @@ Restoring is also how you roll back after an upgrade goes wrong — the rollback
 
 1. **Stop the container.**
 2. **Restore the database and `.data/storage/`** from a backup pair taken at the same time. For SQLite, delete any leftover `.data/piwi.db-wal` and `.data/piwi.db-shm` files (the server runs SQLite in write-ahead-log mode, and a stale log would be replayed onto the restored file), put `piwi-backup.db` back as `.data/piwi.db` and unpack the storage archive; on a Linux host, hand the restored files back to the container's user with `sudo chown -R 1001:1001 .data`. For PostgreSQL, restore the dump into an empty database (`psql "$PIWI_DATABASE_URL" < piwi-db.sql`).
-3. **Start the version the backup was taken on.** A backup from version *N* must be restored under version *N* (or newer, which will migrate it forward) — not an older one.
+3. **Start the version the backup was taken on**, with the same `PIWI_SECRET_KEY`. A backup from version *N* must be restored under version *N* (or newer, which will migrate it forward) — not an older one.
 
 Then confirm the running version at **Settings → About**, and that recent runs are present. See [Upgrading](./upgrading) for the full version-change story and the checks that tell you a migration landed.
 
@@ -13369,6 +13745,26 @@ telemetry" promise.
   change that, with the scope keys of the analytics page.
 - Answers are cached for 60 seconds, so a scrape interval under a minute reads the same numbers.
 
+An answer, cut to three metrics and two projects:
+
+```txt
+# TYPE piwi_test_pass_rate_percent gauge
+# UNIT piwi_test_pass_rate_percent percent
+# HELP piwi_test_pass_rate_percent Test pass rate, last 7 days: Tests passed divided by tests run, summed over the runs of the period.
+piwi_test_pass_rate_percent{project="checkout",project_id="1"} 97.8
+piwi_test_pass_rate_percent{project="search",project_id="2"} 99.4
+# TYPE piwi_runs gauge
+# HELP piwi_runs Runs, last 7 days: Finished runs in the period.
+piwi_runs{project="checkout",project_id="1"} 42
+piwi_runs{project="search",project_id="2"} 31
+# TYPE piwi_wasted_ci_minutes_minutes gauge
+# UNIT piwi_wasted_ci_minutes_minutes minutes
+# HELP piwi_wasted_ci_minutes_minutes Wasted CI minutes, last 7 days: Minutes spent inside wait steps plus minutes spent executing attempts that ended failed or timed out.
+piwi_wasted_ci_minutes_minutes{project="checkout",project_id="1"} 18.5
+piwi_wasted_ci_minutes_minutes{project="search",project_id="2"} 2
+# EOF
+```
+
 With [authentication](./authentication) on, the scraper sends an [API key](./api-keys), and the
 samples cover the projects that key's user can open; a browser session is refused. Create a key for a Member
 with the Viewer role on the projects you want to chart. A Prometheus scrape job:
@@ -13377,6 +13773,7 @@ with the Viewer role on the projects you want to chart. A Prometheus scrape job:
 scrape_configs:
   - job_name: piwi
     metrics_path: /api/metrics
+    scheme: https   # the key travels in a header: never over plain HTTP
     scrape_interval: 5m
     authorization:
       credentials: pd_your_api_key
@@ -13461,6 +13858,12 @@ docker run --rm -p 16686:16686 -p 4318:4318 jaegertracing/all-in-one:latest
 ```
 
 Start Piwi with `OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318` and open `http://localhost:16686`.
+
+## Related
+
+- [Metrics and rollup export](./metrics): the numbers Piwi serves to Prometheus
+- [Deployment](./deployment): where the variables are set
+- [Configuration reference](/reference/configuration): every variable Piwi reads
 
 <!-- https://piwitests.dev/operate/upgrading -->
 
@@ -13726,6 +14129,12 @@ measurable test time either. Per call, the Nitro recorder costs 5 to 13 ns, abou
 - **Browser coverage** belongs in a scheduled run on a large application served by a dev server, where it adds 40 to
   50% to the UI tests. Files and functions cost about the same, so a scheduled run may as well record functions. On an
   application that loads its modules once, it costs little enough to stay on.
+
+## Related
+
+- [Code reach](/features/code-reach): the browser coverage these numbers measure
+- [Server coverage](/features/server-coverage): the backend lines each test runs
+- [CSS coverage](/features/css-coverage): the style rules a run uses
 
 <!-- https://piwitests.dev/reference/test-metadata -->
 
@@ -14268,6 +14677,7 @@ npx @piwitests/reporter <command> [options]
 | [`skills`](#skills) | Install the Piwi agent skills into this project |
 | [`gate`](#gate) | Fail a CI job on the dashboard's analysis of a run |
 | [`report`](#report) | Print a [quality report](/features/quality-reports) as Markdown, PDF, HTML, CSV or JSON |
+| [`coverage`](#coverage) | Upload another tool's coverage report of a commit, for [combined coverage](/features/combined-coverage) |
 | [`select`](#select-run) | Print the Playwright args for a saved test selection |
 | [`run`](#select-run) | Run a saved test selection with `playwright test` |
 | [`probe`](#probe) | Run the dashboard's probe plan and record what the suite noticed |
@@ -14299,7 +14709,7 @@ npx @piwitests/reporter init --server-url http://localhost:3000 --project my-pro
 | `--desktop-app <mode>` | Write [`desktopApp`](/guide/reporter#local-runs-to-the-desktop-app-ci-to-a-team-server) into the config: `prefer` sends local runs to the desktop app while it runs, and CI runs to `--server-url`; `fallback` or `off` |
 | `--api-key <key>` | API key to write into `.env` (env `PIWI_API_KEY`), where the reporter reads it. Omit to leave a `.env.example` placeholder you fill in yourself |
 | `--cwd <path>` | Project root to operate on (default: current directory) |
-| `--skills <list>` | Comma-separated skills to install, or `all` / `none` (default: the four workflow skills) |
+| `--skills <list>` | Comma-separated skills to install, or `all` / `none` (default: the six workflow skills) |
 | `--skills-dir <path>` | Directory to install skills into (default: `.claude/skills`) |
 | `--skills-only` | Only install skills; do not touch the config or env |
 | `--no-skills` | Configure the project but install no skills |
@@ -14848,6 +15258,13 @@ holds its steps, so a reader that only knows version 1 refuses a file using the 
 `toContainText`, `toHaveCount` and `toBeChecked` matchers with a message naming the version, and reads every other
 file as it did.
 
+## Related
+
+- [Record actions](/features/record-actions): the recorder that writes these files
+- [Report a bug](/features/report-a-bug): a report's steps, in the same format
+- [Replay a bug report](/features/replay-a-bug-report): how the steps play back
+- [Piwi CLI](/reference/cli#codegen): `piwi codegen`, from steps to a spec
+
 <!-- https://piwitests.dev/reference/bug-report-file -->
 
 # Bug report file format
@@ -14967,24 +15384,24 @@ The Test Map is recomputed after every run, nightly, and on demand. Every detect
 [capture fixtures](/guide/capture-fixtures) record; **Needs** names what else it reads, and a detector stays silent
 without it.
 
-| Detector | Class | Finds | Needs | Example evidence |
-|---|---|---|---|---|
-| **Success only** | blind-spot | a route observed at least five times, always with a 2xx or 3xx status: its error paths never ran | nothing more | `Observed 412 times over the last 30 runs, always 200` |
-| **Declared, never hit** | blind-spot | a route or page the application declares that no test reaches | a [declared surface](/features/scenario-gaps#declared-surface) | `Declared in OpenAPI · 0 tests in 30 runs · documents 200, 404` |
-| **Surface drift** | blind-spot | a route, page, control, link, handler or dependency first seen in the latest run that no test reaches; never a feature, and nothing in the run that built the graph first | nothing more | `Appeared in run #830; no test reaches it yet` |
-| **Control nobody exercises** | blind-spot | a control on a page that no test's locator targets | the page inventory and the [locator index](/features/locator-usage) | `On 12 page(s) · no locator targets it` |
-| **Reachable, unvisited** | blind-spot | a page other pages link to that no test navigates to | the page inventory | `Linked from 7 page(s) · never navigated to` |
-| **Escaped defect** | blind-spot | a page with [bug reports](/features/bug-reports) no test names yet, one gap per page | Piwi Picker sending reports | `Bug report #37: Coupon not applied to the total — no test names it yet` |
-| **Changed, unreached** | blind-spot | an [uncovered change](/features/uncovered-changes#one-rule-for-every-changed-file), at pull-request time: a changed file Piwi can observe that no test reached, in the run or the last 30, and no suite ran a changed line of | an SCM token | `+41 −3 · no test in run #812 or in the last 30 runs` |
-| **Single covering test** | fragile | a node exactly one trusted test reaches, or that only untrusted tests reach | nothing more | `Only checkout › coupon reaches this`; `Only toggles dark mode (flaky) reaches this` |
-| **Orphan test** | fragile | a test whose every reached node disappeared from the last 30 runs | nothing more | `All 3 node(s) it reaches disappeared from recent runs` |
-| **Fix did not hold** | fragile | a failure cluster whose fix later regressed | nothing more | `Fixed in a1b2c3d · regressed 6 days later` |
-| **Not noticed** | false-comfort | a route a probe broke while no test noticed | [probes](/features/probes) | `A probe (status-500) on POST /api/orders did not make checkout › pay fail` |
-| **Passed with errors** | false-comfort | a test whose newest execution in the default branch's last 30 runs passed while the application reported an error: a 5xx from one of its routes, a backend log at error level, or a console error from its own origin | nothing more; backend logs need the [instrumentation](/guide/backend-logs) | `Passed · run #73 · the backend logged an error on PATCH /api/orgs/current` |
-| **Assertion-light** | false-comfort | a page some test asserts on, every check there only that an element is visible, hidden, attached or in the viewport | the locator index | `2 tests assert on this page, only that elements are present` |
-| **Catalog method, no test calls** | blind-spot | a page-object method or helper on a reached page that no test runs | the [test functions catalog](/features/test-functions) | `./pages/UsersPage · goToNextPage · page reached by 3, called by 0` |
-| **Unprobed dependency** | false-comfort | a dependency a route's handler calls that no probe has failed | server spans | `Called by 4 route(s) · no probe has checked what happens when it fails` |
-| **Not handled** | unhandled, degraded | the application did not cope with a server probe's fault; a finding, not a gap | [server probes](/features/probes#server-probes) | `A server probe made POST /api/orders fail; the application did not handle it` |
+| Detector | Class | Finds | Needs | Confidence | Example evidence |
+|---|---|---|---|---|---|
+| **Success only**<br>`success-only` | blind-spot | a route observed at least five times, always with a 2xx or 3xx status: its error paths never ran | nothing more | observations ÷ 20, plus 0.3 when the route documents an error status; at most 1 | `Observed 412 times over the last 30 runs, always 200` |
+| **Declared, never hit**<br>`declared-never-hit` | blind-spot | a route or page the application declares that no test reaches | a [declared surface](/features/scenario-gaps#declared-surface) | 0.7 | `Declared in OpenAPI · 0 tests in 30 runs · documents 200, 404` |
+| **Surface drift**<br>`surface-drift` | blind-spot | a route, page, control, link, handler or dependency first seen in the latest run that no test reaches; never a feature, and nothing in the run that built the graph first | nothing more | 0.4 | `Appeared in run #830; no test reaches it yet` |
+| **Control nobody exercises**<br>`control-nobody-exercises` | blind-spot | a control on a page that no test's locator targets | the page inventory and the [locator index](/features/locator-usage) | 0.3 plus 0.1 per page, at most 0.8 | `On 12 page(s) · no locator targets it` |
+| **Reachable, unvisited**<br>`reachable-unvisited` | blind-spot | a page other pages link to that no test navigates to | the page inventory | 0.4 plus 0.1 per linking page, at most 0.8 | `Linked from 7 page(s) · never navigated to` |
+| **Escaped defect**<br>`escaped-defect` | blind-spot | a page with [bug reports](/features/bug-reports) no test names yet, one gap per page | Piwi Picker sending reports | 0.6 plus 0.1 per further report, at most 1 | `Bug report #37: Coupon not applied to the total — no test names it yet` |
+| **Changed, unreached**<br>`changed-unreached` | blind-spot | an [uncovered change](/features/uncovered-changes#one-rule-for-every-changed-file), at pull-request time: a changed file Piwi can observe that no test reached, in the run or the last 30, and no suite ran a changed line of | an SCM token | 0.9 | `+41 −3 · no test in run #812 or in the last 30 runs` |
+| **Single covering test**<br>`single-covering-test` | fragile | a node exactly one trusted test reaches, or that only untrusted tests reach | nothing more | 0.5; 0.6 when only untrusted tests reach it | `Only checkout › coupon reaches this`; `Only toggles dark mode (flaky) reaches this` |
+| **Orphan test**<br>`orphan-test` | fragile | a test whose every reached node disappeared from the last 30 runs | nothing more | 0.4 | `All 3 node(s) it reaches disappeared from recent runs` |
+| **Fix did not hold**<br>`fix-did-not-hold` | fragile | a failure cluster whose fix later regressed | nothing more | 0.6 | `Fixed in a1b2c3d · regressed 6 days later` |
+| **Not noticed**<br>`not-noticed` | false-comfort | a route a probe broke while no test noticed | [probes](/features/probes) | 0.8 | `A probe (status-500) on POST /api/orders did not make checkout › pay fail` |
+| **Passed with errors**<br>`passed-with-errors` | false-comfort | a test whose newest execution in the default branch's last 30 runs passed while the application reported an error: a 5xx from one of its routes, a backend log at error level, or a console error from its own origin | nothing more; backend logs need the [instrumentation](/guide/backend-logs) | 0.6 | `Passed · run #73 · the backend logged an error on PATCH /api/orgs/current` |
+| **Assertion-light**<br>`assertion-light` | false-comfort | a page some test asserts on, every check there only that an element is visible, hidden, attached or in the viewport | the locator index | 0.4 | `2 tests assert on this page, only that elements are present` |
+| **Catalog method, no test calls**<br>`catalog-method-no-test-calls` | blind-spot | a page-object method or helper on a reached page that no test runs | the [test functions catalog](/features/test-functions) | 0.5 | `./pages/UsersPage · goToNextPage · page reached by 3, called by 0` |
+| **Unprobed dependency**<br>`unprobed-dependency` | false-comfort | a dependency a route's handler calls that no probe has failed | server spans | 0.3 plus 0.1 per calling route, at most 0.7 | `Called by 4 route(s) · no probe has checked what happens when it fails` |
+| **Not handled**<br>`not-handled` | unhandled, degraded | the application did not cope with a server probe's fault; a finding, not a gap | [server probes](/features/probes#server-probes) | 1 unhandled, 0.5 degraded | `A server probe made POST /api/orders fail; the application did not handle it` |
 
 *Passed with errors* leaves out a console line from another origin's script and the browser's own *Failed to load
 resource* line. A response no server sent, such as one the test's route handler fulfilled, is no 5xx of the
@@ -15014,7 +15431,7 @@ covering test* raises those controls.
 
 ## Exposure
 
-A gap's score is its detector's confidence times its **exposure**, the geometric mean of four factors. Each factor is
+A gap's score is its detector's confidence (the table above) times its **exposure**, the geometric mean of four factors. Each factor is
 kept between 0.1 and 1, so a missing input lowers the score without zeroing it.
 
 | Factor | From | Reaches 1 at |
@@ -15231,9 +15648,27 @@ A `cluster.*` event also carries `knownIssue` (`{ key, url }`) when the cluster 
 
 ## Verifying a webhook
 
-Each request is signed with an HMAC-SHA256 `X-Piwi-Signature` header derived from the channel's secret, so you can
-verify that Piwi sent it. To check the HMAC, sign the exact bytes you received, never a re-serialized payload. Webhook
-secrets are encrypted at rest.
+When the channel has a secret, each request carries an `X-Piwi-Signature` header, so you can verify that Piwi sent
+it. Its value is `sha256=` followed by the hex HMAC-SHA256 of the raw request body, keyed with the secret:
+
+```
+X-Piwi-Signature: sha256=5d41402abc4b2a76b9719d911017c592...
+```
+
+To check it, compute the HMAC over the exact bytes you received, never a re-serialized payload, and compare the two in
+constant time. In Node.js:
+
+```typescript
+import { createHmac, timingSafeEqual } from 'node:crypto'
+
+function isFromPiwi(rawBody: Buffer, header: string | undefined, secret: string): boolean {
+  const expected = Buffer.from(`sha256=${createHmac('sha256', secret).update(rawBody).digest('hex')}`)
+  const received = Buffer.from(header ?? '')
+  return received.length === expected.length && timingSafeEqual(received, expected)
+}
+```
+
+A channel with no secret sends no header. Webhook secrets are encrypted at rest.
 
 ## Related
 
