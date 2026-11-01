@@ -3875,8 +3875,8 @@ Every row can be triaged in place. Select a row with the mouse or `j` / `k`, the
 tracker is connected). `x` selects rows for a **bulk bar** that applies the same actions to all of them. Resolve, ignore, snooze and assign on
 one row can be undone for a few seconds. [Keyboard shortcuts](/reference/keyboard-shortcuts#failure-inbox) lists every key.
 
-Linking a known issue (`l`) pins a URL; with an [issue tracker connected](/operate/integrations), Jira links unfurl
-and stay in sync (see [issue tracking](/features/issue-tracking)).
+Linking a known issue (`l`) pins a URL; with the project bound to an [issue tracker](/operate/integrations), Jira links
+to its site unfurl and stay in sync (see [issue tracking](/features/issue-tracking)).
 
 ## Owners and assignees
 
@@ -5769,6 +5769,8 @@ It is **off until an [administrator connects Jira](/operate/integrations#connect
   *Create issues* button in the inbox bulk bar), and on a [bug report](./bug-reports#filing-it-in-jira). The cluster's
   **Issue** line and an execution's **Cluster** line offer *Create issue* and *Link an issue* until the cluster has a
   ticket, then name it, its summary on hover; the ⋮ menu offers *Open PROJ-123*.
+- **Link an issue** pins an existing ticket: one on the site of the [bound connection](#the-project-binding) shows its
+  live status; any other stays a plain link, read through no connection.
 - The issue **body is the fix plan**, rendered to Atlassian Document Format: *What happened*, *Most likely*, *Evidence*,
   *What to do* (patch, locator replacement, verify command, reproduce steps), *Related issues* fixed before and *Links*
   back to Piwi. Every section degrades independently.
@@ -5831,6 +5833,9 @@ type, default labels and assignee, the [ticket language](#language), what a tick
 **owner routes** — mapping a cluster's owner (`@acme/checkout`, an email) to a Jira project, component, assignee and
 labels. The create-issue draft picks the first matching route.
 
+Tickets linked through a connection the project is no longer bound to keep their last status; the sync and the
+policies skip them.
+
 <figure>
   <img src="/screenshots/project-integration-binding.png" alt="The project's Issue tracker settings: connection, Jira project and issue type, labels, the runs that write to the ticket, sync-policy switches, an owner-routes table, and automatic creation with one rule">
   <figcaption>A project's Issue tracker settings.</figcaption>
@@ -5861,8 +5866,8 @@ refusal naming the field, which the modal then asks for.
 ## Requirements
 
 - A connected **Jira Cloud** site — see [Operate → Integrations](/operate/integrations#connecting-jira-cloud).
-- A [project binding](#the-project-binding) naming the connection: a project's issues are filed through that one
-  connection, never through another.
+- A [project binding](#the-project-binding) naming the connection: a project's issues are filed, read and written
+  back through that one connection, never through another.
 - **`PIWI_SITE_URL`** set, so the issue body's links resolve back to the dashboard.
 - The **Contributor** [role](/operate/project-access#what-each-role-can-do) or above to create or link an issue; anyone
   who reads the project sees the key and status.
@@ -13222,9 +13227,8 @@ Declining instance-wide is for administrators, and per project for the project's
 
 # Integrations
 
-Connect an issue tracker and the external links you pin to a run, execution or failure cluster stop being
-dead URLs: Piwi fetches the ticket's title and status through the connection and keeps the badge current
-when you refresh. Jira Cloud is the supported tracker, not Jira Server or Data Center. This page sets up the connection; filing and syncing
+Connect an issue tracker, bind a project to it, and the project's links to the tracker stop being dead URLs: Piwi
+fetches the ticket's title and status through the connection and keeps the badge current when you refresh. Jira Cloud is the supported tracker, not Jira Server or Data Center. This page sets up the connection; filing and syncing
 issues from a failure is [Issue tracking (Jira)](/features/issue-tracking).
 
 A connection is instance infrastructure — one row per external system, managed by an administrator, shared
@@ -13255,9 +13259,9 @@ Connect Jira** (administrator only) walks through it:
   <figcaption>The Jira connect form: paste a board URL, then sign in with a scoped token.</figcaption>
 </figure>
 
-Once connected, a Jira link — `https://your-team.atlassian.net/browse/PROJ-123`, including a Cloud site on its
-own domain once its connection exists — is recognized as a Jira issue, unfurls with the summary and a status
-badge (colored by the issue's status category), and refreshes through the connection.
+Once a project is bound to the connection, its links to that site — `https://your-team.atlassian.net/browse/PROJ-123`
+or a Cloud site's own domain — are recognized as Jira issues, unfurl with the summary and a status badge (colored by
+the issue's status category), and refresh through it.
 
 ## Permissions the token needs
 
@@ -13345,8 +13349,8 @@ projects, users and issues through that connection only; Project admins, through
 
 ## Status sync
 
-A background task reads every tracked issue back through its connection and caches the status, title and assignee, so a
-closed ticket stops showing as open in the dashboard. It runs **every 15 minutes by default**; set
+A background task reads every tracked issue back through its project's connection and caches the status, title and
+assignee, so a closed ticket stops showing as open in the dashboard. It runs **every 15 minutes by default**; set
 [`PIWI_INTEGRATIONS_SYNC_MINUTES`](/reference/configuration) (1–1440) to change the cadence; a value of 60 or more is
 rounded to whole hours. Each sweep refreshes up to 100 links. Links on an open cluster refresh every sweep; links on
 a resolved or ignored cluster refresh at most once a day. A connection that fails to
@@ -13366,7 +13370,8 @@ register a webhook so a close or reopen reflects immediately instead of within t
    `PIWI_SITE_URL` when Piwi sits behind another address than the one in your browser.
 2. In Jira, go to **Settings → System → Webhooks → Create a webhook**, paste the URL, and subscribe it to
    **issue updated** events (optionally scoped by a JQL filter to the bound projects).
-3. Piwi looks the issue up by its id in its links and refreshes just that one, applying the resolve/reopen policies.
+3. Piwi looks the issue up by its id in the bound projects' links and refreshes those, applying the resolve/reopen
+   policies.
 
 The webhook is **public but secret-in-path** and rate-limited, and it can only ever *refresh a link* — it can never
 create or transition anything. **Regenerate webhook** invalidates the old URL, and **Disable webhook** turns the
