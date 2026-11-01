@@ -3854,7 +3854,8 @@ With an embedding model configured, near-duplicate clusters that the fingerprint
 The **Failure inbox** on Home lists up to 50 open failure clusters across the projects you can see, most
 recently seen first. Each row shows the cluster's **headline**, its **top clue**, the **owner or assignee**, the
 **affected-test count**, when it was **last seen**, and only the exceptional **badges**, such as a regression on the
-default branch.
+default branch. A cluster seen in developers' local runs and never in CI, in a project that runs in CI, stays out: the
+inbox says how many, and **Show them** lists them.
 
 ### Queues
 
@@ -8477,6 +8478,1241 @@ Send a test email from **Settings → Notifications** to confirm delivery.
 - [Quality reports](./quality-reports#report-schedules): scheduled quality reports sent to these channels
 - [Failure clusters & the inbox](./failure-clusters): what triggers the cluster events
 
+<!-- https://piwitests.dev/features/write-run-fix -->
+
+# Write, run and fix a test
+
+This page takes a new test from an empty spec to a passing run, and names the tool for each step. Each step has a page
+of its own; this one is the map. The editor does most of it, in VS Code or a JetBrains IDE; Piwi Picker, the browser
+extension, does the same steps from the browser, and the desktop app runs them on your machine without an editor.
+
+## Before the first test
+
+- **The capture fixtures** in your specs: a test that imports `test` from `@playwright/test` runs, but never stops at a
+  breakpoint, and the run says so ([Capture fixtures](/guide/capture-fixtures)).
+- **The editor extension**, connected to your instance or to the desktop app ([Editor extensions](./editors),
+  [Editor connection](./editor-connection)).
+- **Optional:** [Piwi Picker](./extension), paired with the editor, to pick and record in your everyday browser and
+  follow runs in its [Runs window](./runs-window).
+
+## The steps
+
+| Step | In the editor | Outside the editor | Read on |
+|---|---|---|---|
+| Write the test | **Record a new test file**, or **Record here** at the cursor | Piwi Picker's **Record actions**, then **Send to editor** | [Record tests from the editor](./editor-recording), [Recorded code](./recorded-code) |
+| Run it | **Run with Piwi** from the gutter, the Testing view or the test at the cursor; **Verify ×3** | the desktop app's **Re-run** of tests | [Runs from the editor](./editor-runs), [Desktop app runs](./desktop-runs) |
+| Watch it | the status bar, and the run's page on the instance | the Runs window, and the page itself once you **Watch live** at a stop | [Live view of a run](./live-view), [Runs window](./runs-window) |
+| Stop it | a breakpoint, **Pause**, **Step**, **Run to cursor** | the pause bar in the test's page | [Breakpoints in the browser](./editor-breakpoints), [Pause and step from the editor](./editor-run-control) |
+| Fix it at the stop | **Pick a locator**, **Record here**, **Assert**, **Mock a request** | **Pick a locator** and **Record here** from the pause bar; all four from the Runs window | [Code from a pause](./editor-stop-code) |
+| Debug a failure | **Debug in my editor**, from the failure's page | the failure page's Locator fix | [Debug in my editor](./debug-in-editor), [Locator healing](./locator-healing) |
+
+## Write it
+
+**Record a new test file** offers the spec beside the one you are in, else in the config's `testDir`, and writes what
+you do in the browser as a test, with locators verified on the page and the page objects of your suite where they
+match. **Record here** writes steps at the cursor, in a test, a page object or a helper. A flow recorded in Piwi Picker
+lands at the cursor the same way through **Send to editor**: at the top level of a spec, as a new test.
+
+## Run and watch it
+
+A run Piwi starts reports to the instance like any other, with the run's origin. In a project that runs in CI, a
+failure seen only in developers' own runs stays out of the team's inbox until someone shows it; one that fingerprints
+like a failure CI saw joins that cluster ([Failure clusters & the inbox](./failure-clusters)). A run you start in a
+terminal is followed too, when the editor is open: [Runs started outside Piwi](./terminal-runs).
+
+## Stop it and write the fix there
+
+Set a breakpoint on the line you are working on and run the test. It stops before that line's call, in a headed
+browser with Piwi's pause bar, or, headless, with the page shown in the editor. **Pick a locator**, **Record here**,
+**Assert** and **Mock a request** write their code where the stopped statement stands now, after the edits you made
+since the run started ([Code from a pause](./editor-stop-code)); **End the test** skips the rest of it
+([End the test](./end-the-test)).
+
+## When it fails
+
+In a run Piwi started, a failing test holds its page where someone can see it (a headed browser, or while the Runs
+window is open), and the editor shows the failure as a stop, with the same actions. Otherwise its page on the
+instance explains it: the clues rank the likely cause, and the Locator fix panel offers the replacement locator.
+**Debug in my editor** on that page runs the failing test again from the editor and stops at the line it failed on.
+
+## Related
+
+- [Editor extensions](./editors): what the editor shows from your suite.
+- [Failure clusters & the inbox](./failure-clusters): where failures land once they reach the team's runs.
+- [Run control for agents](./agent-run-control): the same stops, steered by an agent.
+
+<!-- https://piwitests.dev/features/editor-recording -->
+
+# Record tests from the editor
+
+**Piwi: Record here** opens a browser through your project's own Playwright and writes what you do there at the cursor,
+as you do it: steps inside a test, a page object's method or a helper function, a new test anywhere else in a spec. It
+works in VS Code (and Cursor, VSCodium) and in the JetBrains IDEs with the
+[Piwi plugin](./jetbrains), and needs no instance, no desktop app and no browser extension.
+
+<figure>
+  <video src="/videos/editor-recording-loop.mp4" autoplay loop muted playsinline controls aria-label="VS Code beside the browser the project's Playwright opened: Piwi: Record here at a blank line of a test, then a coupon typed and applied and the total checked in the browser, each step written in the test as it is made, the coupon's two steps becoming a call to the page object's applyCoupon, and Stop ending the recording with Run and Verify ×3 offered"></video>
+  <figcaption>Record here: the steps written as you go, folded into your page object's method.</figcaption>
+</figure>
+
+## Start a recording
+
+| Editor | Record at the cursor | Record a new test file |
+|---|---|---|
+| VS Code | **Piwi: Record here**, from the command palette or the editor's context menu | **Piwi: Record a new test file** |
+| JetBrains IDE | **Tools → Piwi → Record Here**, **Alt+Enter** or **Alt+Insert** (Generate), or the editor's context menu | **File → New → Record a New Test File…** |
+
+Before the browser opens, the editor asks for:
+
+1. **The start page**: a path on the project's `baseURL`, or an address; left empty, the browser opens the `baseURL`.
+2. **The page the steps run on**, when the code around the cursor offers several: `page`, a fixture such as
+   `adminPage`, or `this.page` in a page object. A fixture named like a page object (`todoPage`) comes after `page`
+   until the test calls a page method on it. Any other expression can be typed.
+3. **The Playwright project**, when the config has several. The browser gets its `use` options: `baseURL`,
+   `storageState`, the viewport and device, the locale, the extra headers and `testIdAttribute`.
+
+The editor offers your last answers. A new spec goes beside the one at hand, else in `testDir`, and receives the whole
+recording.
+
+## While it records
+
+- **The block** the recording writes is tinted, and written again as each step arrives: a run of steps becomes one call
+  to your own page object or helper once its last step is recorded. Started on a line inside a call that spans several
+  lines, the block goes after that statement.
+- **The controls**: the step count, **Stop** and **Pause** (**Resume** while paused), above the block in VS Code and in
+  a banner above the editor in a JetBrains IDE, and **Pause**, **Stop** and the checks in the browser's recording bar. The status
+  bar shows the recording too. While paused, from the editor or the browser, what you do in the browser is not
+  recorded: use it to reach a page or set up data without writing those steps; **Resume** continues from there.
+- **Checks**: **Check an element** in the browser's recording bar lets you pick an element and check its text, its
+  value, its accessible name or its state, starting from what it shows now; **Check the address** checks the page's
+  address. Each is written as an `await expect(…)` where you added it.
+- **Typing in the block** pauses the recording. **Resume** writes the block again from the recorded steps, over your
+  edits; **Keep my edits** stops the recording and keeps the code as you changed it.
+- **Warnings** (a brittle locator, a password read from the environment, a file to upload) are on their lines. They stay
+  after the recording, each until its line is edited.
+
+What the code holds, from locators to imports, and the options in the Playwright config that shape it:
+[Recorded code](./recorded-code).
+
+## Stop and undo
+
+**Stop** in the editor or in the browser's recording bar, or closing the browser, ends the recording, and the code stays.
+Closing the file ends it too. One **Undo** then removes the whole recording, imports included. In VS Code, a save or an
+edit of the file during the recording starts a new undo step, so your own changes stay undoable on their own; in a
+JetBrains IDE, that Undo also takes back the edits you made in the file meanwhile, and Redo brings everything back.
+
+### Run it, or verify it three times
+
+Once the recording stopped, a notification says what it wrote, `Recorded 6 steps into checkout.spec.ts.`, with two
+actions for the test that holds the block, the new test or the test you recorded steps into:
+
+- **Run** runs that test, with your breakpoints, as **Piwi: Run the test at the cursor** does.
+- **Verify ×3** runs it three times, without retries and without the breakpoints, as **Piwi: Verify the test at the
+  cursor ×3** does, and says how it went: `Passed 3 of 3`, or `Failed 1 of 3` with **Open the failures** and **Open
+  in dashboard**.
+
+Both save the file, then run the test by the line of its `test(…)` call
+(`npx playwright test tests/checkout.spec.ts:42`), so neither needs an instance:
+[When your run ends](./editor-runs#when-your-run-ends) says how a run without one is counted. Steps recorded into a
+page object or a helper offer neither action: no test holds them.
+
+### Choose another locator
+
+The recorder keeps up to five locators for each element it acts on, each verified to find that element alone on the
+page, and writes the best one. Once the recording stopped, a warning on a step that has other locators offers each of
+them as a quick fix, best first: **Use getByTestId('pay')** in the light bulb menu in VS Code, with **Alt+Enter** in a
+JetBrains IDE. It puts that locator in place of the one written on the line, as one edit that **Undo** takes back, and
+the line's warning goes. While the recording runs, none is offered: each step writes the block again.
+
+The quick fix replaces the locator only where the line holds it once, as it was written: a line that calls your own
+page object or helper has none of its own, and offers none.
+
+## Send from Piwi Picker
+
+A locator picked with the [Piwi Picker](./extension) browser extension in your everyday browser, or a flow it
+recorded, lands at the editor's cursor too:
+
+1. In the editor, run **Piwi: Pair with Piwi Picker** (**Tools → Piwi → Pair with Piwi Picker** in a JetBrains IDE).
+   It copies a pairing address, `http://127.0.0.1:<port>/…#<token>`.
+2. In Piwi Picker's settings, paste it under **Send to editor** and click **Pair**; the browser asks once for access to
+   that local address.
+3. A picked locator's row, the top locator of the [Elements sidebar](./devtools#the-elements-sidebar), the
+   [Locators console](./devtools#the-piwi-panel) in DevTools and the recording review then show **Send to editor**. A
+   locator is inserted in the copy form you chose; a recording is rendered as the body of a test, like
+   [`piwi codegen --body`](/reference/cli#codegen), or as a new test outside one.
+
+The editor listens on the loopback interface only, answers only a request addressed to `127.0.0.1` or `localhost` at
+its port, and accepts one only with the token. Before Piwi Picker sends the token, the editor proves it holds it, so
+another program that took the port is sent nothing; the settings ask for that proof as they open and after
+**Pair**. With several VS Code windows open, the one that paired receives.
+With no editor open, a JetBrains IDE puts it in a new scratch file. In a remote window (Remote SSH, WSL, Dev
+Containers), the pairing address is the local end of a port VS Code forwards to the listener, listed in the Ports
+view, and Piwi Picker's Runs window lists that window's runs: [Remote development](/guide/remote-development).
+
+Every test run Piwi starts gets the pairing address and token as `PIWI_EDITOR_SEND`, so a locator picked at one of its
+stops reaches the editor: such a run starts the listener and creates the token if there is none. The capture fixtures
+hide it from the processes a test starts; the Playwright runner and its `webServer` still have it, and programs
+running as your user are not kept out.
+
+## Limits
+
+- The browser is the one your tests use, installed by Playwright (`npx playwright install chromium`).
+- Your project's Playwright runs with the first `node` on the editor's `PATH` in VS Code (when it is Node 20 or later,
+  else with the editor's own runtime), and with the project's Node.js interpreter in a JetBrains IDE.
+- The recording does not start your `webServer`: start the application first.
+- It records the top-level page: clicks inside an iframe, and steps in a popup or a new tab, are not recorded yet. The
+  editor says so when the application opens a tab or a popup.
+- A file takes one recording at a time.
+- A recording starts on a fresh page. To record where a test already is (signed in, halfway through a flow), pause the
+  test there and [record from the pause](./editor-breakpoints#record-from-a-pause).
+
+## Related
+
+- [Recorded code](./recorded-code): what a recording writes, and the options that shape it.
+- [Editor extensions](./editors): everything else the editor shows from your suite.
+- [Piwi Picker](./extension): records in your everyday browser, for a bug report or a steps file.
+- [Test functions](./test-functions): the page objects and helpers a recording calls.
+
+<!-- https://piwitests.dev/features/recorded-code -->
+
+# Recorded code
+
+A [recording from the editor](./editor-recording), and a flow [sent from Piwi Picker](./editor-recording#send-from-piwi-picker),
+are written as the code your suite would hold: locators verified on the page, calls to your own page objects and
+helpers, no password in the file. The Playwright config sets how that code looks for everyone who records in the
+repository.
+
+## What a recording writes
+
+- **Locators** come from the same converter as Piwi Picker's recordings and [`piwi codegen`](/reference/cli#codegen):
+  each is verified to find the element alone on the page, the stable ones first and those your tests already use
+  preferred. A check of the element's text takes a locator that does not find it by that text, when one is not
+  brittle. A `getByTestId` uses the attribute your config sets.
+- **Pages**: an address on the project's `baseURL` is written as a path, and the step that leads to another page is
+  followed by a wait for it, except next to a call to your own code, which waits for its pages itself.
+- **Imports**: a call to your own code, and `expect` when a step checks something, are imported at the top of the file
+  when it lacks them: `expect` from `@playwright/test`, or from your fixtures module when the file or a spec beside it
+  imports `expect` from there. A new test in a file that imports no `test` imports it as the specs beside it do. A spec
+  that loads `test` with `require` gets `require` lines after its last one.
+- **Titles**: a new test is titled `recorded flow`, numbered (`recorded flow 2`) when the file has one already.
+- **Your own code**: when the editor is connected to an instance or the [desktop app](./desktop), steps that match one
+  of your [test functions](./test-functions) become a call to it, as soon as the last of those steps is recorded.
+- **Passwords** are never recorded: the code reads them from an environment variable named after the field, such as
+  `process.env.E2E_PASSWORD`, including in a call to a page object.
+
+## Code options in the Playwright config
+
+How the recorded code looks is set for the whole repository in `playwright.config.ts`, under the `'@piwi'` key at the
+top level, next to `testDir` and `use`. Everyone who records in the repository from the editor gets the same code,
+with or without an instance; [`piwi codegen`](/reference/cli#codegen) reads its own flags instead:
+
+```ts
+import { defineConfig } from '@playwright/test';
+import type {} from '@piwitests/reporter'; // declares '@piwi' on the config; already there with wrapConfig
+
+export default defineConfig({
+  testDir: './tests',
+  '@piwi': {
+    codegen: {
+      testSteps: 'page',
+      tags: ['@recorded'],
+      annotations: [{ type: 'piwi:owner', description: '@shop-team' }],
+    },
+  },
+});
+```
+
+| Option | Default | What it does |
+|---|---|---|
+| `pageWaits` | `true` | `false` leaves out the wait for the next page after a step that leads to it |
+| `values` | `'literal'` | `'env'` reads every typed value from an environment variable named after its field, not only passwords |
+| `envPrefix` | `'E2E_'` | What those variables start with, as in `E2E_PASSWORD`: upper-case letters, digits and underscores |
+| `testSteps` | `'none'` | `'page'` wraps the steps of each page in `await test.step('/cart', …)`, so the report reads like the scenario; in a test only, not in a page object or a helper |
+| `tags` | none | Tags a new test gets |
+| `annotations` | none | Annotations a new test gets, `{ type, description? }` |
+
+The editor reads the section through your project's own Playwright, so it applies to the recordings started after the
+config is saved, and to what Piwi Picker sends to the editor. An unknown option or a value of the wrong kind is left
+out, and the recording says so when it starts.
+
+## Related
+
+- [Record tests from the editor](./editor-recording): start a recording, and what happens while it runs.
+- [Test functions](./test-functions): the page objects and helpers a recording calls.
+- [Piwi Picker](./extension): records in your everyday browser, for a bug report or a steps file.
+
+<!-- https://piwitests.dev/features/editor-runs -->
+
+# Runs from the editor
+
+The [editor extensions](./editors) run your tests where you edit them, then show what the run changed: its progress
+in the status bar while it executes, and its results over the latest CI run's [failures](./editor-failures) within a
+second of its end.
+
+## Run tests
+
+- The lines above a locator line, an application file or a page file (CodeLens in VS Code, Code Vision in a JetBrains
+  IDE) run the tests they name when clicked; those of a server file record its
+  [coverage](./editor-coverage#refresh-the-marks-with-a-local-run).
+- **Piwi: Run the test at the cursor** (`Ctrl+Shift+Alt+K`, `Cmd+Shift+Alt+K` on macOS) runs the test whose
+  `test(…)` call holds the cursor, and **Piwi: Run this spec** the spec's tests Piwi knows; both in the editor's
+  context menu of a spec (**Run the Test at the Caret** and **Run This Spec** in a JetBrains IDE). In VS Code, **Run**
+  in the hover of a test's line runs that test, and so does [the Testing view](#the-testing-view-vs-code). A test the instance does not know yet, such as one you just
+  [recorded](./editor-recording#run-it-or-verify-it-three-times), runs by the line of its `test(…)` call
+  (`npx playwright test tests/checkout.spec.ts:42`), with or without an instance. Both save the spec first.
+- **Piwi: Verify the test at the cursor ×3** (**Verify the Test at the Caret ×3**) runs that test three times, without
+  retries and without the breakpoints (`--repeat-each=3 --retries=0`), and says how many of the runs passed:
+  [When your run ends](#when-your-run-ends).
+- **Piwi: Run the tests that reach this file** runs every test reaching the active file through
+  [code reach](/features/code-reach); also in the editor's context menu.
+- **Piwi: Run selection…** runs a saved [selection](/features/test-selection).
+
+The command, `npx playwright test` with the arguments `piwi run` would pass, runs from the Playwright config's
+folder: as a task in VS Code, in a terminal of its own (**Tasks: Rerun Last Task** starts it again), in the Run tool
+window in a JetBrains IDE (**Rerun** starts it again), or in the IDE's Playwright runner (test tree, Debug, **Rerun
+Failed Tests**), a choice of **Settings → Tools → Piwi**. It sets `PIWI_ORIGIN=editor` and its own `PIWI_ORIGIN_REF`
+([run origin](/reference/test-metadata#run-origin)), by which the editor finds its run. Breakpoints pause it in the
+browser, with Piwi's picker one click away: [Breakpoints in the browser](./editor-breakpoints); the editor pauses,
+steps and resumes it too: [Pause and step from the editor](./editor-run-control).
+
+## The Testing view (VS Code)
+
+VS Code's Testing view lists Piwi's tests: the specs your instance knows, as they stand in the editor, under their
+folders and `test.describe` blocks, each test with its latest result, and for a failure why and where it failed
+(**Peek Error**). The results are published as a test run (`Piwi: run #120 on main`) when the latest run, its baseline
+or the runs laid over it change, and a run in progress is a test run of its own, each test shown as it begins and
+ends. The view's gutter shows each test's result in place of Piwi's icon; the line keeps Piwi's hover.
+
+<figure>
+  <img src="/screenshots/vscode-testing.png" alt="VS Code: the Testing view lists the spec's tests with their latest results, and a failing test's error is peeked at its line in the spec">
+  <figcaption>The Testing view with the latest run's results, and why <strong>pays by card</strong> failed, at its line.</figcaption>
+</figure>
+
+**Run with Piwi**, the view's run profile, runs the tests you pick as the commands above do, one command per
+Playwright config with your breakpoints, and **Verify ×3 with Piwi** runs them three times. A test the run gave Piwi no
+result for, such as one the instance does not know yet, passes when the command exited with 0 and is an error
+otherwise. The view shows results; it does not discover tests nor debug them: a spec the instance has not seen joins
+the tree once you open it. The `piwi.testExplorer` setting turns the view's Piwi tests off.
+
+## Re-run the failing tests
+
+**Piwi: Re-run the failing tests** (`Ctrl+Shift+Alt+F`, `Cmd+Shift+Alt+F` on macOS; **Tools → Piwi → Re-run the
+Failing Tests**) runs every test still failing, or edited since its run, one command per Playwright config, or those
+of one config from its node in the [failures view](./editor-failures#the-failures-view); when none fails, it says so.
+
+## After a run
+
+The editor listens to the instance's event stream: within a second of a run of the project ending, it reads the
+branch's latest run and its failures again, and every five minutes with the stream, every minute without. A checkout
+or a commit is noticed within seconds: the editor reads the branch's latest run again, and compares your application
+files with the new `HEAD`.
+
+A run started from the editor is its own wherever it runs: the status bar follows it, the gutter shows each test as
+running, then its result, and its failures read *your run #124* once it ends. When the command ends and no run on the
+instance carries its ref, the editor says so: `The run ended (exit code 1) but did not reach
+https://piwi.example.com: is the Piwi reporter in the Playwright config?` The editor learns the command's end and its
+exit code from the process it started, in every shell, a rerun included.
+
+## When your run ends
+
+Once a run you started from the editor ends and the editor has read it, a notification (a balloon in a JetBrains IDE)
+says what it changed: `Piwi: run #124 · 1 of 3 CI failures fixed, 2 still failing (login.spec.ts › logs in,
+checkout.spec.ts › pays)`, then the tests it failed that were not failing before. It offers **Open the failures**,
+**Open in dashboard** and, when something fails, **Re-run failing**. The `piwi.runNotifications` setting (**Settings →
+Tools → Piwi** in a JetBrains IDE) shows it always, only when something fails, or never.
+
+A verification (**Verify ×3**) says how many of its runs passed instead, whatever the setting: `Piwi: run #124 ·
+Passed 3 of 3`, or `Failed 1 of 3`. Each run is a result of its own on the instance, and the editor counts them from
+the results the run streams as it executes; when it missed some, a failing verification says `Failed at least 1 of 3`.
+When its run never reached an instance, the exit code says it, which cannot tell a pass from a skip:
+`None of 3 runs failed: tests/checkout.spec.ts:42`, or
+`Failed at least 1 of 3: tests/checkout.spec.ts:42 (exit code 1)`.
+
+## The status bar
+
+The latest complete run on the branch: how many tests passed, failed and were flaky, or what still fails and what your
+local runs fixed (`2 failing · 1 fixed locally`). While a run started from this editor, or another run of the branch,
+is in progress, the item counts it instead (`4/9 · 1 failing · your run`) and returns to the latest run when it ends.
+
+With several Playwright configs, the item speaks for the config of the file you are editing, the deepest config folder
+that holds it, and follows you from file to file; outside every config folder, it shows the first connected config.
+Its tooltip names the config (`The active file's Playwright config, in apps/admin (one of 3)`), then holds the run's
+counts, the baseline, your local runs since, the run in progress, and when the run was read (`Updated 12 s ago · live`
+while the event stream is connected, `· read every minute` without it).
+
+In VS Code, a click reads the latest run and its failures again (**Piwi: Refresh the latest run**), without the
+indexes **Piwi: Refresh** fetches, and the tooltip ends with **Open run #120**, **Open in dashboard**, **Compare
+with…** and **Connect**. When the extension is not connected, the item says why, and a click runs **Piwi: Connect**,
+or retries an [unreachable instance](./editor-connection#an-unreachable-instance).
+
+In a JetBrains IDE, an icon before the text shows the state of the run the item counts (running, failing, passed) or
+of the connection, and the text takes the theme's error color while tests of that run fail, a run in progress
+included. A click opens a menu of the **Tools → Piwi** actions that apply, led by what the item calls for: **Read the
+Latest Run Again**, **Refresh** for an unreachable instance, **Connect…** while not connected, **Node.js Settings…**
+when Node.js is missing or too old, or **Go to the Recorded Lines** while a recording runs, with **Pause Recording**,
+**Resume Recording** and **Stop Recording**.
+
+## Related
+
+- [Failures in the editor](./editor-failures): the failures a run leaves, at their lines and in the failures view.
+- [Editor extensions](./editors): what the editor shows from your suite.
+- [Editor connection](./editor-connection): the instance the editor reads, and its key.
+- [Test selection](/features/test-selection): the saved selections **Run selection…** runs.
+
+<!-- https://piwitests.dev/features/terminal-runs -->
+
+# Runs started outside Piwi
+
+A run you start yourself follows the VS Code or JetBrains window whose workspace holds it: `npx playwright test` in a
+terminal, with a reporter and an editor extension newer than 0.62.0, or a JetBrains IDE's own Playwright run (the
+gutter's **Run** and **Debug**, a Playwright run configuration), with a reporter newer than 0.63.0. It stops at the
+editor's breakpoints, shows in the editor and in Piwi Picker's [Runs window](./runs-window), marked **Terminal** or
+**Test runner**, and takes the same controls ([Pause and step from the editor](./editor-run-control)) but **Stop**: its
+process is the terminal's or the IDE's. It says so as it starts:
+
+```text
+[Piwi Dashboard] Following this run in Visual Studio Code (pid 41230), whose breakpoints stop it: PIWI_EDITOR=off runs it alone.
+```
+
+It runs as its config says, headless by default, so the editor shows a stop as
+[a headless run's](./editor-run-control#a-headless-run): an image of its page, which Piwi Picker can watch live. To see
+the browser, add `--headed` to the command, or to the Playwright options of the run configuration.
+
+## Which editor
+
+Each editor window's Piwi service writes a file in `~/.piwi/editors` (`PIWI_EDITORS_DIR` names another folder) with
+its workspace folders and where its runs connect. The run follows the window one of whose folders holds its Playwright
+config's folder or its working directory, links resolved: the most specific folder wins, then the window that started
+last. A window of another machine, another user's, or one whose process ended is never followed, nor is a file
+written before the machine last started, any file of a folder another user can open, or (but on Windows) a window
+whose runs would connect through a folder another user can open.
+
+## When it follows one
+
+- **Only a run whose output goes to a terminal, or that a test runner started**: one that names its reporter's file
+  in `PW_TEST_REPORTER`, as a JetBrains IDE's Playwright runner does. Any other, whose output goes to a file or a pipe,
+  runs alone unless it sets `PIWI_EDITOR=on`.
+- **Never** under CI, with Playwright's own debugger (`--debug`, `PWDEBUG=1`) or UI mode, when the run names its own
+  `PIWI_RUN_CHANNEL`, or when the desktop app or another launcher started it.
+- **`PIWI_EDITOR=off`** runs it alone.
+
+## What it takes from the editor
+
+- **The breakpoints.** It starts with the editor's breakpoints as they are, then takes them as you change them, while
+  `piwi.breakpoints` (**Pause the runs Piwi starts at the editor's breakpoints** in a JetBrains IDE) is on. Without
+  any, it runs as it would, and **Pause** stops it.
+- **The controls**: Pause, Resume, Step, Run to cursor, Finish and [End the test](./end-the-test), and the code a stop
+  makes, Assert a region and Mock a request, written in the editor ([Code from a pause](./editor-stop-code)).
+- **Failures.** A failure is held only while the Runs window follows the editor's runs as the worker starts: nobody
+  may be there to answer it otherwise, and it goes on, as without Piwi.
+
+When the editor closes, or its service stops, the connection closes, and a stop with no pause bar goes on. The token
+of the editor's connection reaches the run's workers alone, out of the tests' environment while they run, as for a run
+the editor starts.
+
+## Limits
+
+- **No Pick, Record or Assert in the test's window.** They need the pairing a run Piwi starts carries: start the test
+  from the editor to use them. Pick on the image (Playwright 1.60 or later) names the locator, for you to copy,
+  without writing it.
+- **No Stop.** End the run in its terminal, or with the IDE's own **Stop**.
+- **Debug stops twice.** Under a JetBrains IDE's **Debug**, a breakpoint stops the test in the debugger, then at Piwi's
+  stop, whose controls take no key while the debug session runs. `PIWI_EDITOR=off` in the run configuration's
+  environment leaves the breakpoints to the debugger.
+- **Piwi's reporter in the config.** The run looks for an editor as the reporter starts (`wrapConfig` adds it): with
+  the capture fixtures alone, it runs alone.
+- **Your machine.** A run in a dev container or over SSH follows an editor whose service runs there too.
+
+## Related
+
+- [Pause and step from the editor](./editor-run-control): the controls, and the paused line.
+- [Breakpoints in the browser](./editor-breakpoints): the breakpoints a run takes.
+- [Runs from the editor](./editor-runs): the runs Piwi starts.
+- [Runs window](./runs-window): the same runs, in Piwi Picker.
+
+<!-- https://piwitests.dev/features/runs-window -->
+
+# Runs window
+
+Piwi Picker's Runs window follows the test runs VS Code or a JetBrains IDE starts, from a window of its own beside
+the test's browser. It pauses, steps and resumes them, writes code from a stop through the editor, and, for a test
+that runs headless or in a remote container, shows its page live, takes your clicks and keys on it, and picks a
+locator on its image. The editor shows the same stops: [Pause and step from the editor](./editor-run-control).
+
+## Open it
+
+With Piwi Picker [paired with VS Code or a JetBrains IDE](./editor-recording#send-from-piwi-picker), or with the
+[desktop app](./bug-reports#running-it-with-playwright-in-the-desktop-app), the popup shows a **Runs** tile under
+**More tools** while one of them answers. It opens the Runs window, to keep beside the test's
+browser. For each run the editor [started](./editor-runs), it shows the folder and the command, then each worker's test
+and whether it runs or where it stopped: the file and line, the call about to run, and an image of the page. While
+none of its tests is stopped, the run says how one stops: at a breakpoint, a `page.pause()` or **Pause**. A run
+[started outside Piwi](./terminal-runs) shows too, marked **Terminal** or **Test runner**.
+
+## The controls
+
+**Pause** stops a running test before its next call. At a stop, **Resume**, **Step**, **Finish** and
+[**End the test**](./end-the-test) do what they do [in the editor](./editor-run-control#the-controls); Run to cursor
+stays in the editor.
+
+A failing test is held at its line, a headless one only while a Runs window is open: **Failed at** in red, its error
+under it. **Resume** lets it end as it failed; **Pick** replaces the failing locator.
+
+**Share live**, under the run's name, lets a teammate watch the run from its page on your team's instance, in a
+project whose live view is on. The first time in a window, it says what goes out and to whom; shared, the run says
+how many views are open, with its page's link to copy, until **Stop sharing**. A run that cannot be shared says why in
+its place: [Share a run from your machine](./live-view#share-a-run-from-your-machine).
+
+## Code from a stop
+
+The other actions send code to the editor, which writes it at the stopped line, when its Piwi extension and your
+reporter take them. **Pick** and **Record** start the pause bar's **Pick a locator** and **Record here**, **Assert**
+the recorder's **Check an element**, and **Assert a region** a pick whose ARIA snapshot becomes `toMatchAriaSnapshot`.
+They run in the test's page: where the pause bar shows, or, at a headless stop, once you [watch it
+live](#watch-live), driven through the view. **Mock a request** lists the page's fetch and XHR requests, credentials
+hidden: the one you choose becomes a `page.route`. Under the test, the window says the code went to the editor, with
+what to review in it, or why not.
+
+<figure>
+  <img src="/screenshots/picker-runs.png" alt="The Runs window beside a shop page stopped before a click on Checkout: the test, its place, an image of the page, its controls and code actions">
+  <figcaption>The Runs window, beside a test stopped at a breakpoint.</figcaption>
+</figure>
+
+## Watch live
+
+A stop has **Watch live** above its image, with a reporter newer than 0.61.0. It shows the page as it paints, in place
+of the image, at most ten frames a second, at the window's width, with a red **Live** badge. Only the window that asked
+gets the frames, and nothing stores them: they go from the test's worker to the editor service and the extension's
+background worker, on your machine or through the port your IDE forwards from a [remote
+window](/guide/remote-development).
+
+The view ends with the stop, when you turn **Watch live** off, minimize the window, or close it. Left on, it starts
+again at the worker's next stop, and as the window shows again.
+
+At a headless stop, nobody sees the test's page: **Pick**, **Record**, **Assert** and **Assert a region** show once you
+watch it. The picker, the recorder's panel and the check panel appear in the view, and you answer them there as in a
+headed browser; their code reaches the editor the same way.
+
+<figure>
+  <img src="/screenshots/picker-runs-live.png" width="488" alt="The Runs window at a headless stop, watching the shop page live: Watch live pressed, the Live badge on the view, the picker over the page, and Pick, Record, Assert and Assert a region among the controls">
+  <figcaption>A headless test's page watched live, with Pick started in it.</figcaption>
+</figure>
+
+## Click and type on the view
+
+While you watch, your input on the view goes to the page as a person's would, the picker and the recorder included:
+
+- **The pointer**: moves, left and right clicks, double and triple clicks as your system counts them, drags, and the
+  wheel once the view has the focus. `Ctrl`, `Alt` and `⌘` held with a click are held in the page too.
+- **The keys**, while the view has the focus (a focus ring around it): characters are typed, named keys (Enter, the
+  arrows, Backspace, Delete, Home, End) pressed, with Shift, and `Ctrl` (`⌘` on macOS) with A, Z, Y, Enter and the
+  editing keys. A paste types the clipboard's text.
+- **What stays the window's**: the browser's other shortcuts, the function keys, and `Esc`, which gives the keys
+  back to the window and moves the focus to **Watch live**. `Tab` moves the focus on past the view, unless you
+  clicked into it: then `Tab` and `Shift+Tab` go to the page too, until `Esc`.
+
+A hint under the view says so the first time. What you hold down is let go before the test goes on.
+
+## Pick on the image
+
+**Pick on the image**, beside **Watch live**, or a `Shift`+click on the image or the view, names the element a click
+under the pointer would reach (a dialog or a banner over the page included), without touching the page: the locator
+the pause bar's **Pick a locator** would rank first for it, sent to the editor in place of the stopped line's. The window shows that locator, or why there is none. It works on a headed stop's image too. `Esc`
+turns it off. It needs Playwright 1.60 or later, and says so on an older one.
+
+## The run shortcut
+
+The run shortcut resumes the stopped tests, else pauses every run. It has no key until you set one: **Set a
+shortcut** opens the browser's shortcuts page, where you give it a key and, in Chrome and Edge, the **Global** scope.
+In Firefox, it works while Firefox has the focus.
+
+## The desktop app's runs
+
+[Paired](./bug-reports#running-it-with-playwright-in-the-desktop-app) with the [desktop app](./desktop), the window
+lists the runs the app starts beside your editor's, marked **Desktop app**: reproductions, bisect steps and bug reports
+included, with the same controls and live view. With no editor paired, it follows the app alone. The app holds no
+editor, so **Pick**, **Record** and **Assert** in the test's window are not offered; the code **Assert a region** and
+**Mock a request** make goes to the app's window, to copy there, and the window here says so: [Desktop app
+runs](./desktop-runs).
+
+## How it connects
+
+The background worker reaches the editor's services on `127.0.0.1` only once the paired port proves it holds the
+pairing's token ([how the pieces connect](./editor-run-control#how-it-works)), as the desktop app proves it holds its
+own. The window talks to that worker alone, and makes no network call of its own. An older editor extension gives the
+image and the controls alone.
+
+## Limits
+
+- **The top frame.** Pick on the image refuses an element inside an iframe.
+- **A test's own screencast.** When the test records its own (a video, a trace with screenshots), the view takes its
+  size and quality; when none can start, it is an image of the page twice a second.
+- **A heavy page.** A frame over 384 KB gives way to a lighter image of the page, twice a
+  second; when even that is too heavy, the window says so under the stop's image.
+- **The browser's keys stay its own.** A shortcut of the browser, a function key and `Esc` never reach the page.
+- **No input method.** Characters an input method composes (Chinese, Japanese, Korean) do not reach the page; paste
+  them instead.
+- **The test's own page alone.** A popup the page opens is not shown.
+  A download your click starts and a dialog the page opens go to the test as its own would: Playwright deletes the
+  download with the test's context, and dismisses the dialog unless the test handles it.
+- **The middle button stays the window's.** It would open a link in a tab the view does not show; `Shift`+click picks
+  instead of clicking.
+
+## Related
+
+- [Pause and step from the editor](./editor-run-control): the controls and the paused line, in the editor.
+- [Code from a pause](./editor-stop-code): what each action writes, and where.
+- [Browser extension](./extension): Piwi Picker's other tools, and its permissions.
+- [Remote development](/guide/remote-development): the runs of a dev container or a remote window.
+- [Desktop app runs](./desktop-runs): the same runs, in the desktop app's window.
+
+<!-- https://piwitests.dev/features/editor-breakpoints -->
+
+# Breakpoints in the browser
+
+A breakpoint you set with the editor's own gutter click pauses the next test run the [editor extensions](./editors)
+start, in the browser, right before the call on its line that acts on, reads or checks the page: a navigation, a
+click, a key press, an assertion. Piwi's bar at the top of the page lets you look at the page, step through the calls,
+or pick a better locator, which lands back on that line in the editor. The stop is Playwright's own debugger
+(`context.debugger`) without its Inspector: Piwi's bar answers it, and no JavaScript debugger attaches.
+
+## Pause a run
+
+1. Set a line breakpoint on a line with a Playwright call, in a spec or a page object:
+   `await page.getByText('Pay now').click();`, `await page.goto('/checkout');`, `await page.keyboard.press('Tab');`
+   or `await expect(page).toHaveURL(/cart/);`. On a statement broken over lines, any of its lines will do.
+2. Run the test from Piwi: **Run this test**, or any command of [Runs from the editor](./editor-runs#run-tests).
+3. The run opens a headed browser. Before the call on your line runs, the pause bar appears with the call as
+   Playwright names it, `Paused at login.spec.ts:42 · Click getByText('Pay now')`, and a locator call's element is
+   highlighted.
+
+| Button | What it does |
+|---|---|
+| **Resume** (<kbd>Esc</kbd>) | Runs on to the next breakpoint |
+| **Step** | Pauses again before the next call that acts on, reads or checks the page, breakpoint or not |
+| **Pick a locator** | Opens Piwi's [element picker](/features/locator-healing#pick-a-replacement-locator-on-the-failing-page-local-runs): pick the element, choose stable parents, confirm a ranked locator; the bar comes back after |
+| **Record here** | Records what you do in the page into the editor, above the paused line: [Record from a pause](#record-from-a-pause) |
+| **Finish** | Runs on without pausing again in this test |
+| **End the test** | [Skips the rest of the test](./end-the-test) |
+
+<figure>
+  <img src="/screenshots/picker-pause.png" alt="A shop page in the browser, paused before a click on Checkout: the button highlighted, Piwi's pause bar at the top with Resume, Step, Pick a locator, Record here and Finish">
+  <figcaption>A run paused before the click on <strong>Checkout</strong>: the element highlighted, and Piwi's bar at the top of the page.</figcaption>
+</figure>
+
+The page under the bar stays live: scroll it, open the browser's developer tools, or click through it before you
+resume. The test timeout stops while the test is paused, and so does the paused call's own budget (`actionTimeout`, or
+`expect.timeout` for an assertion on that line). A wait the test started before the stop keeps its own deadline:
+`expect.poll`, `toPass`, or a `waitForRequest`, `waitForResponse` or `waitForEvent` around the paused call can run out
+while you look and fail the test: the bar then goes away, before Playwright's failure screenshot and the `afterEach`
+hooks. The test's duration leaves the time paused out, and every step keeps its clock time: the dashboard's timelines
+draw each stop as a **Paused** band, and its step statistics (slowest step, wasted time) leave it out.
+
+## Where the pick lands
+
+A locator you confirm replaces the locator chain on the breakpoint's line, in the file as it stands, saved or not:
+`page.getByText('Pay now').click()` becomes `page.getByRole('button', { name: 'Pay now' }).click()`, and a
+notification says so. When the line holds no locator, because you edited it during the pause or it takes its locator
+from a page object (`checkout.payButton().click()`), the locator is inserted at the cursor instead, and the
+notification says why.
+
+The pick is also printed in the run's terminal (`[piwi] Locator picked at tests/login.spec.ts:42: getByRole(…)`) and
+recorded in the run's locator snapshots, so the [Locator fix](/features/locator-healing) panel shows it as **Your
+pick** once the run uploads.
+
+The pick reaches the editor through the address [Piwi Picker sends to](./editor-recording#send-from-piwi-picker);
+nothing is copied to the clipboard.
+
+## Record from a pause
+
+**Record here** hands the paused page to the editor's [recorder](./editor-recording): the steps you take from there
+are written into the file on a new line above the paused statement (the first line of a statement broken over lines),
+on the page expression in scope there, as **Record here** in the editor writes them, but with no `page.goto`: the page
+is where the test left it, signed in and filled in as the test made it. The editor opens the file at that line and
+starts recording. Pause and Stop are in the recorder's bar in the page and in the editor; once you stop, the pause bar
+comes back, and **Resume** runs the rest of the test from the page as you left it, which checks that the new steps fit
+what follows.
+
+`await page.pause()` in a test does the same without a breakpoint: in a run Piwi starts or
+[that follows your editor](./terminal-runs), or any headed run with breakpoints, it stops there under Piwi's pause bar
+in place of Playwright's Inspector (headless, in the editor), with **Record here** among its
+buttons in a run Piwi starts, and Piwi adds `--headed` to a run whose spec holds a `page.pause()` call. The
+`page.pause()` line stays, so the next run can record from there again; remove it when the test is done. In any other
+run, outside a test (a `beforeAll` or `afterAll`) and on a page of a browser the
+test launched itself, `page.pause()` is Playwright's own, with its Inspector; in a headless browser it returns at
+once.
+**Record here** records http(s) pages: on a page the test made with `setContent`, or a `file:` page, the editor says
+so and nothing is recorded.
+
+The test reaches the editor through `PIWI_RECORD_CHANNEL`, the socket of
+[the run's connection](./editor-run-control#how-it-works); a recording not started within 30 seconds is refused, and
+the test goes on.
+
+## The setting
+
+Breakpoints are on by default. Turn them off with the `piwi.breakpoints` setting in VS Code, or **Pause the runs Piwi
+starts at the editor's breakpoints** under **Settings → Tools → Piwi** in a JetBrains IDE, kept on your machine only.
+
+## What it needs
+
+- **`@piwitests/reporter` 0.48.0 or later**, with the [capture fixtures](/guide/capture-fixtures) in your tests: the
+  pause runs in them. With an older one, the run starts anyway and the editor warns once. A reporter of 0.59.0 or
+  older pauses before locator actions and assertions only. A spec that imports `test` from `@playwright/test` never
+  stops, and the run's output names it once.
+- **A run started from Piwi**, or [started outside Piwi](./terminal-runs). The editor passes the breakpoints under the
+  Playwright config's folder to the run as `PIWI_PAUSE_AT` (`tests/login.spec.ts:42;tests/pages/checkout.page.ts:9`,
+  relative to that folder), with its pairing address as `PIWI_EDITOR_SEND`, and adds `--headed` to the command unless it
+  already has `--headed`, `--ui` or `--debug`. Set `PIWI_PAUSE_AT` yourself to
+  [pause a run you start](/features/locator-healing#pause-at-a-breakpoint-local-runs).
+
+## Limits
+
+- **Headed and local only.** Under CI (`CI` set to anything but empty or `false`), or under Playwright's own debugger
+  (`--debug`, `--debug=cli`, `PWDEBUG`), the run ignores the breakpoints and says why once; so does a headless run
+  of yours with `PIWI_PAUSE_AT`. One Piwi starts stops with no bar, and the editor shows its page
+  ([A headless run](./editor-run-control#a-headless-run)).
+- **Only the calls Playwright's debugger stops at pause**: navigations, actions, key presses and mouse moves,
+  assertions, `evaluate`, `waitForFunction`, screenshots and an element's reads (`textContent`, `inputValue`,
+  `getAttribute`, `isVisible`, `count`). `waitForTimeout`, `waitForSelector`, `waitForURL`, `waitForEvent`, `title()`
+  and `ariaSnapshot()` never do, so a breakpoint on such a line, on a helper call or on a line with no Playwright call
+  does nothing. A breakpoint in a page object method pauses every test that calls it.
+- **A run with breakpoints stops before every call** and lets those off your lines go on at once, which costs about a
+  millisecond a call.
+- **The paused call lasts as long as you looked** at the page, in Playwright's trace, its HTML report and the
+  dashboard's steps; only the statistics leave it out.
+- **A call the test ended under runs** as the bar goes away, during teardown, when the test fails under the bar or does
+  not await the call; the call is waited for, up to two seconds, so its requests stay the test's.
+- **One Inspector switch per worker.** While Playwright's own `page.pause()` runs, a stop in another context opens its
+  Inspector too, and a context that opened one keeps it. A `page.pause()` on a browser launched through a second copy
+  of Playwright shows neither bar nor Inspector and waits until the test's timeout.
+- **Every attempt pauses.** With retries, a test pauses again on its retry, and the bar says `attempt 2`.
+- **Each worker pauses its own browser.** When several tests reach a breakpoint, run `--workers=1` to pause one at a
+  time.
+- **Record here** is offered from Piwi's pause bar only, never from a debugger paused in your code.
+- **Record here** records the paused page alone: a tab or a popup it opens is not recorded, as in any recording.
+
+## Related
+
+- [Runs from the editor](./editor-runs): the commands that start a run, and how the editor follows it.
+- [Pause and step from the editor](./editor-run-control): the same stops, answered from the editor.
+- [Locator healing](/features/locator-healing): the picker, and the panel a pick shows in.
+- [Editor extensions](./editors): the failures, lenses and quick fixes the editor shows from your suite.
+
+<!-- https://piwitests.dev/features/editor-run-control -->
+
+# Pause and step from the editor
+
+A test run the [editor extensions](./editors) start can be paused, stepped and resumed from the editor, with Piwi's own
+commands: no debug session starts, and the IDE's debugger works as usual beside it; so can
+[one started outside Piwi](./terminal-runs). The editor marks the line the test stopped at, as a debugger does, and
+the breakpoints you set or remove reach the run while it goes on. The [pause bar](./editor-breakpoints#pause-a-run) in
+the page answers the same stops, as does Piwi Picker's [Runs window](./runs-window). At a stop, the editor also writes
+code from the page: [Code from a pause](./editor-stop-code).
+
+## The controls
+
+| Control | What it does | VS Code | JetBrains IDEs |
+|---|---|---|---|
+| **Pause** | Stops a running test before its next call that acts on, reads or checks the page | none | Resume Program's, `F9` |
+| **Resume** | Runs the stopped test on to the next breakpoint | `F5` | Resume Program's, `F9` |
+| **Step** | Runs the call and stops before the next one, breakpoint or not | `F10` | Step Over's, `F8` |
+| **Run to cursor** | Stops at the first call on the cursor's line (on a statement broken over lines, at its call), or at a breakpoint before it | `Ctrl+F10` | Run to Cursor's, `Alt+F9` |
+| **Finish** | Runs the test on without stopping at a breakpoint again in this attempt | `Shift+F11` | Step Out's, `Shift+F8` |
+| **End the test** | [Skips the rest of the test](./end-the-test), and a stopped locator call from Playwright 1.62 | none | none |
+| **Stop** | Ends the run's process | `Shift+F5` | **Stop the Run**, or the Run tool window's Stop |
+
+The keys are the IDE's own debugger keys (in a JetBrains IDE, your keymap's), Piwi's only while their control applies
+and no debug session runs, and first where a JetBrains keymap gives one to another action too. On macOS, `Cmd+F10`
+runs to the cursor in VS Code. **Pause** and **End the test** have no key in VS Code: bind one in
+**Preferences: Open Keyboard Shortcuts** (search `piwi`). There, `F5` pressed again within two seconds of an answer
+waits for the next stop rather than start a debug session.
+
+- **In VS Code**, the controls sit in the status bar beside the run's progress while they apply (`Pausing…` until a
+  paused test stops), and in the palette (**Piwi: Pause the run** and its kin, **Piwi: Show the paused page**).
+- **In a JetBrains IDE**, they are under **Tools → Piwi**, enabled while they apply, and first in the status bar
+  item's menu, which reads `Piwi: paused · checkout.page.ts:12` while a test is stopped.
+
+**Pause** stops every run Piwi started in this window (in a JetBrains IDE, this project), each worker before its next
+call that Playwright's debugger stops at ([which calls](./editor-breakpoints#limits)): a long call or a `waitForTimeout`
+finishes first, and a worker between tests stops at the next test's first call. A test that never stops, under CI or
+Playwright's own debugger, says why.
+
+## Where the test stands
+
+When a test stops, at a breakpoint, after **Step** or **Pause**, on the line it was run to, at `page.pause()`, or at
+[a failure](./editor-stop-code#a-failure), the editor opens the file of the call about to run, with the cursor on its
+line, and marks it:
+an arrow in the gutter, the debugger's execution point color, and above it the call, as Playwright names it, with the
+controls:
+
+`Paused · Fill "MORNING10" getByLabel('Coupon code') · attempt 2`  Resume  Step  Run to cursor  Finish  End test
+
+`attempt 2` shows on a retry. In VS Code the line is a CodeLens, the marked line's hover holding the controls;
+the color is `piwi.executionPointBackground`. In a JetBrains IDE the line is an inlay whose words are links,
+the arrow's click lists the controls, and the color is **Settings → Editor → Color Scheme → Piwi → Line a run is
+stopped at**. The mark goes when the test goes on (from the editor or the bar), ends, or closes its page.
+
+<figure>
+  <img src="/screenshots/vscode-run-control-hover.png" alt="VS Code: a test paused at a page object's line, its hover naming the call that runs next with Resume, Step, Run to cursor and Finish, the same controls above the line and in the status bar">
+  <figcaption>A run paused before it types the coupon.</figcaption>
+</figure>
+
+With several workers stopped, each has its own mark, and the controls above a line act on its worker; a key or command
+acts on the one at the cursor's line, else asks which. A control answers the stop it was shown for: when the test went
+on meanwhile, it says so and asks nothing.
+
+The run's code is your files as they stood when it started. The mark follows lines you add or remove above it, and
+**Run to cursor** in an edited file runs to the run's line for the cursor's; on a line written since, it says the test
+has none.
+
+## A headless run
+
+A run Piwi starts with breakpoints is headed, with a pause bar. Without breakpoints it follows your config, headless
+by default. A headless stop opens **Piwi: paused page** beside VS Code's editor, or **Paused Page** in the JetBrains
+Piwi tool window. **Piwi: Show the paused page** (**Tools → Piwi → Show the Paused Page**) opens it at any stop.
+
+<figure>
+  <img src="/screenshots/vscode-run-control-paused-page.png" alt="VS Code: a headless test paused before it clicks Apply, and beside the editor the Piwi: paused page tab showing the cart page with the coupon typed in">
+  <figcaption>A headless run paused before it clicks Apply: the page at the stop, beside the editor.</figcaption>
+</figure>
+
+Clicking the image picks a locator when the reporter supports it, on Playwright 1.60 or later: the locator replaces
+the one on the stopped line, and the tab shows the result or refusal.
+
+**Watch live** updates the paused page in the same tab. Choose **Interact** separately to click, scroll or type on
+the page; **Escape** releases the keyboard, and **Shift+click** picks a locator. Watching stops when you hide or close
+the tab, resume the test or switch stops. Interact starts off at each stop. No Picker installation, pairing, project
+live-view setting or extra port forwarding is needed: the preview uses the editor's existing connection. Reporters
+without live-view support keep the still image.
+
+## Breakpoints while the run goes on
+
+A breakpoint you add, remove or toggle applies to the run from its next call, in each of its workers, later ones
+included. One that only moves because you edited the lines above it keeps the line the run has, and one you set in an
+edited file applies to that line of the run's code. The breakpoints that count are those a run's start reads: line
+breakpoints in script files under a Playwright config's folder, while `piwi.breakpoints` (**Pause the runs Piwi starts
+at the editor's breakpoints** in a JetBrains IDE) is on. A logpoint, or a breakpoint that does not suspend, never stops
+the test; a condition is not read, so a conditional breakpoint stops at each pass.
+
+## Share live
+
+**Share live** lets a teammate watch the run from its page on your team's instance: **Piwi: Share the run live on the
+team instance** in VS Code, **Tools → Piwi → Share the Run Live** in a JetBrains IDE, any time. It first says what goes
+out and to whom (once a VS Code window, once a JetBrains project); shared, the status bar counts its views, until
+**Stop sharing**: [Share a run from your machine](./live-view#share-a-run-from-your-machine).
+
+## How it works
+
+<figure>
+  <img src="/diagrams/run-control.svg" alt="A test run's workers report to the editor service through the run channel, which the IDE and Piwi Picker (over a WebSocket) steer; the pause bar shows in the test's browser only at a stop">
+</figure>
+
+With a reporter newer than 0.59.0, each worker of a Piwi run stays connected to the editor service, through a socket on
+your machine only you can read (`PIWI_RUN_CHANNEL`): it says which test it runs and where it stops, and the editor
+answers. Closing the IDE closes the connections: a stop with no pause bar then goes on, one the bar shows waits there.
+
+## Limits
+
+- **The IDE's own runs** (the gutter's Run, a run configuration) are [runs started outside Piwi](./terminal-runs): no
+  Stop, and no Pick, Record or Assert in the test's window. With **Run the tests in the IDE's Playwright runner** on,
+  Piwi's commands run there with every control, the runner's Rerun and Debug included.
+- **No mark on a breakpoint that never stops.** One on a line with no call Playwright's debugger stops at looks like
+  any other and does nothing.
+- **Playwright calls, not JavaScript.** **Step** goes from one Playwright call to the next; stepping through the
+  test's own code stays with the IDE's debugger.
+- **No image when the page is unknown.** A stop at a call other than a locator's (a navigation, a key press) in a
+  browser context with several pages has no image, and refuses Piwi Picker's **Pick** and **Record**: the worker
+  cannot tell its page. Any page of that context closing ends it.
+
+## Related
+
+- [Breakpoints in the browser](./editor-breakpoints): the breakpoints a run starts with, and the pause bar.
+- [Runs from the editor](./editor-runs): the commands that start a run, and how the editor follows it.
+- [Debug in my editor](./debug-in-editor): such a run, started from a failure's page.
+- [Editor extensions](./editors): what the editor shows from your suite, in both editors.
+- [Remote development](/guide/remote-development): remote windows and JetBrains Gateway.
+
+<!-- https://piwitests.dev/features/editor-stop-code -->
+
+# Code from a pause
+
+When a test stops in a run the [editor extensions](./editors) started, at a breakpoint, after **Pause** or **Step**,
+or at a failure, the editor offers code written from the page as it stands: an assertion of what you see, a mock of a
+request the page made, a better locator, the missing steps. The work on the page happens in the test's own browser;
+the editor service writes the code, and the editor puts it above the stopped line. The controls that move the test
+are on [Pause and step from the editor](./editor-run-control).
+
+## The actions
+
+| Action | What is written | Where it runs |
+|---|---|---|
+| **Pick a locator** | The locator of the element you pick, in place of the locator chain on the stopped line | The test's window, as the pause bar's [Pick a locator](./editor-breakpoints#where-the-pick-lands) |
+| **Record here** | The steps you take, above the stopped line | The test's window, as the bar's [Record here](./editor-breakpoints#record-from-a-pause) |
+| **Assert** | The check you choose in the recorder's check panel, `await expect(…).toHaveText(…)` and the like | The test's window |
+| **Assert a region** | `await expect(…).toMatchAriaSnapshot(…)` with the ARIA snapshot of the region you pick | The test's window |
+| **Mock a request** | `await page.route(…)` that answers as the server answered a request the page made | The editor alone, at any stop |
+
+The first four need the pause bar, so a headed browser: a run Piwi starts with breakpoints is headed. **Mock a
+request** works headless too.
+
+- **In VS Code**, they are in the line above the stopped line, after the controls (named **Pick**, **Record**,
+  **Assert**, **Assert region** and **Mock** there), in its hover, in the palette while a stop offers them (**Piwi:
+  Assert in the stopped test's page**, **Piwi: Mock a request of the stopped test**…), and behind the status bar's
+  `</>` item, **Piwi: Write code at the stop…**.
+- **In a JetBrains IDE**, they are links in the inlay above the stopped line (by the same short names), in the
+  gutter icon's menu, first in the status bar item's menu, and under **Tools → Piwi** (**Assert at the Stop**, **Mock
+  a Request at the Stop**…).
+
+None has a default key: bind one in **Preferences: Open Keyboard Shortcuts** or **Settings → Keymap** (search
+`piwi`). A stop offers only the actions its reporter takes: with one that predates them, none.
+
+<figure>
+  <img src="/screenshots/vscode-run-control-code.png" alt="VS Code: a test paused before it types a coupon; above the line, the controls then Pick, Record, Assert, Assert region and Mock; at the line's end, Piwi: 1 match; at the top, the list of the requests the test made, to mock one">
+  <figcaption>Mock a request lists the answers the test received; the line's locator matches one element on the paused page.</figcaption>
+</figure>
+
+## Where the code goes
+
+The code goes on a new line above the stopped statement (the first line of a statement broken over lines), indented
+for it, on the page in scope there (`this.page` in a page object), with the import of `expect` the file lacks, as one
+edit that one undo takes away. A second action at the same stop goes above the same statement, under the first.
+The running test goes on with the code it started with: the new lines run next time, which the first code of a run
+says.
+
+Nothing is written, and the editor says why, at a stop:
+
+- outside a test's or a function's body, such as a test timeout stopped at its `test(` line;
+- as the body of an `if`, `else`, `for`, `while`, `do` or arrow function (`() => page.click(…)`) without braces,
+  or on a line where no statement starts;
+- in a file written on disk since the run started, or unsaved as it started: Piwi follows a file through the edits
+  the editor makes, not through another program's;
+- that the test went on from: an action answers the stop it was offered at.
+
+Assert and Assert a region check this before anything opens in the test's window. Code that arrives while you type in
+its file is not written into the changed text: a warning offers **Copy the code**.
+
+## Mock a request
+
+In a run Piwi started, each worker keeps the text answers its test's pages received for `fetch` and
+XHR requests, the latest 50, 256 KB each at most, in its memory only. **Mock a request** lists them, the latest first,
+by method and URL (type to filter on the URL), with the status, the type, the size (`no size` when the response did
+not say) and when it finished in the test. Only the answer you choose is read whole:
+
+```ts
+await page.route('**/api/shipping?country=FR', (route) =>
+  route.fulfill({
+    json: {
+      "price": 4.9,
+      "token": "<hidden>"
+    },
+  }),
+);
+```
+
+It is written as [Piwi Picker's Network tab](./mock-requests#mock-this-response) writes one, the body inline whatever
+its size, with what it hides:
+
+- **Credentials.** A field named like a password, a token, a key, a signature or a session is written as `<hidden>`,
+  whatever it holds, and so is a value shaped like a credential anywhere in the body, by the
+  [rule Piwi Picker's mocks follow](./mock-requests#mock-this-response): ids, hashes and cursors stay. The URL pattern
+  matches such a value with a wildcard, and keeps the host. The list hides them too. Headers, cookies included, are
+  never written.
+- **Warnings.** The editor says how many values it wrote as `<hidden>`, that a body neither JSON nor a form was
+  written as it came (read it before you commit it), and that a body seems to hold an email address or a phone
+  number (replace it with made-up data).
+
+## The locator at the cursor
+
+While a test is stopped, put the cursor on a line of the stopped file: its end says how many elements the line's
+locator matches on the stopped page, `Piwi: 3 matches`, `1 match` or `no match`, and where the pause bar shows, the
+matches are outlined in the page. Edit the locator and it is counted again. The outline goes
+when the cursor leaves the file or the test goes on.
+
+The locator must start from the page the test stopped on, as the code written there would: a line of `adminPage` at a
+stop on `page` may be another page, and says so for a moment instead of a count. Only the stopped file's lines are
+counted, and a line without a locator says nothing.
+
+## A failure
+
+In a run Piwi started, a failing test holds its page once the test function, its hooks and its fixtures are done,
+instead of closing it, when someone can see it: in a headed browser, where the pause bar shows the failure (a run
+started with breakpoints, or for a spec with `page.pause()`, is headed), or while Piwi Picker's
+[Runs window](./runs-window) is open. The editor shows it as a stop of its own, at the
+line where the error entered the test's code, or at the call a test timeout cut short:
+
+`Failed · Timed out 5000ms waiting for getByRole('button', { name: 'Apply' }) · attempt 2`  Resume  Pick  Record …
+
+**Resume** lets the test end as it failed (**Step** and **Finish** do the same); **Pick** replaces the failing
+locator, **Record** writes the steps that were missing above the failing line, and the code actions work as at any
+stop. Every attempt that fails is held, never an expected failure. A headless failure in any other run, such as a
+plain **Run**, goes on at once, and the editor shows nothing of it.
+
+The run reports the failure as it happened. Piwi's evidence of it is the page at the failure: the requests, console
+entries and dialogs of the hold are not recorded. Playwright's own trace and video go on through it.
+
+## Limits
+
+- **Runs Piwi started only**, with a reporter that takes the actions; an editor extension older than the reporter
+  holds no failure.
+- **Assert offers what a recording's check panel offers**: a value, a text, a name, visible or hidden, enabled or
+  disabled, with no `toBeChecked` or `toHaveCount` choice.
+- **Assert a region** leaves out the value of a password, one-time code or card field, in a shadow root too, and a link
+  whose URL holds a credential.
+- **Mock a request** knows `fetch` and XHR answers with a text body only; one the browser no longer holds cannot be
+  mocked, which the editor says.
+- **The count needs a locator Piwi reads**: literal arguments, starting from a page in scope on the line.
+
+## Related
+
+- [Pause and step from the editor](./editor-run-control): the controls, the paused line, a headless test's page.
+- [Breakpoints in the browser](./editor-breakpoints): the pause bar, Pick a locator and Record here.
+- [Mock and slow down requests](./mock-requests): the same mocks from Piwi Picker's Network tab.
+- [Recorded code](./recorded-code): what a recording writes, and how the config shapes it.
+
+<!-- https://piwitests.dev/features/end-the-test -->
+
+# End the test
+
+At a stop, **End the test** ends the test there, as if it had called `test.skip()` at that line: the locator call it
+stopped before never runs (Playwright 1.62 or later), nor the rest of the test, and Playwright reports it as skipped,
+its `skip` annotation reading `Ended from Piwi`. The run goes on with its next test. Use it once you have seen what you stopped for, or recorded the
+steps you were missing, and the rest of the test has nothing to show you.
+
+## Where it is
+
+It is offered at any stop but a failure, with a reporter newer than 0.62.0:
+
+- **VS Code**: **End test** on the stopped line's CodeLens and in its hover, the status bar beside **Finish**, and
+  **Piwi: End the test here, skipping the rest of it** in the palette. It has no key: bind one in **Preferences: Open
+  Keyboard Shortcuts** (search `piwi`).
+- **A JetBrains IDE**: **End Test** in the stopped line's inlay and the arrow's menu, **Tools → Piwi → End the Test**
+  and the status bar item's menu. Give it a key in **Settings → Keymap**.
+- **The [pause bar](./editor-breakpoints#pause-a-run)**: **End the test**.
+- **Piwi Picker's [Runs window](./runs-window)** and the desktop app's [Local runs tray](./desktop-runs): **End the
+  test**, beside **Finish**.
+- **An [agent](./agent-run-control)**: `run_control` with `end`, answered as the test ends.
+
+## What runs, and what does not
+
+- **At a locator call or an assertion** (`click`, `fill`, `expect(locator).toBeVisible()`), the call is given up
+  before it runs, with Playwright 1.62 or later; an older one runs it first, and the editor says so. At a
+  `page.pause()`, nothing after it runs.
+- **At another call** (a navigation, a key press on the page, `page.evaluate`), the call runs first: Piwi does not
+  hold it. The test is skipped at its next locator call, or as its function ends, and the editor says so.
+- **At a failure**, it is not offered: **Resume** lets the test end as it failed, and the failure is kept.
+- **In a `beforeEach` hook**, it skips the test. **In an `afterEach` hook or a fixture's teardown**, the test's
+  function already ended: it goes on as **Resume** does, keeping the test's result, and says so. Piwi never stops in a
+  `beforeAll` or `afterAll` hook.
+- **After it**, the test's `afterEach` hooks and its fixtures' teardown run as after any skip, so its page closes as
+  usual, with nothing of Piwi left in it.
+- **A retry** is an attempt of its own. Playwright does not retry a skipped test; a failure you let end runs the next
+  attempt, which stops at your breakpoints as the first did.
+
+## Limits
+
+- **Playwright's calls alone.** The test's own code between two calls, a loop or a helper, runs until its next call.
+- **One test.** It ends the stopped worker's test; the run's other tests run. To end the run, **Stop** it (one Piwi
+  started) or end it in its terminal.
+
+## Related
+
+- [Pause and step from the editor](./editor-run-control): the other controls at a stop.
+- [Breakpoints in the browser](./editor-breakpoints): the pause bar.
+- [Runs window](./runs-window): the same controls from Piwi Picker.
+- [Run control for agents](./agent-run-control): `run_control` and the other tools.
+
+<!-- https://piwitests.dev/features/debug-in-editor -->
+
+# Debug in my editor
+
+On a failed execution's page, **Debug in my editor** takes you from the failure to the same test, stopped at the
+failing line in your editor, on your machine. It sits on the **Source** tab, beside the open link of the frame where
+the failure enters your code (a page object's line included), in the captured frames and in the full stack alike.
+
+1. Click it. The dashboard hands your editor its [open link](./ide-integration) with `debug=1`: the Piwi plugin of a
+   JetBrains IDE, or the Piwi extension in VS Code, Cursor or VSCodium, as your **Open in IDE** method picks
+   ([Auto](./ide-integration#auto-the-first-method-that-works) asks the plugin first).
+2. The editor opens the failing line, then asks in a notification, never a dialog: **Debug this test here? Piwi runs
+   “Checkout › pays” in the Playwright project “chromium”, headed, one worker, and stops at line 16.** Nothing runs
+   until you click **Debug**.
+3. Piwi runs that test alone, found in its spec by its title, in the Playwright project it failed in, headed, with
+   `--workers=1` and your breakpoints, and stops at the failing line. From there the
+   [controls](./editor-run-control) apply, and so does [Code from a pause](./editor-stop-code).
+4. When the instance holds a [locator healing](./locator-healing) for the failure, the **Locator fix** panel's
+   recommended locator is counted on the stopped page and outlined there, and the editor says so:
+   **Piwi's suggested locator: getByTestId('pay') (outlined on the page).** While the cursor stays on the stopped line,
+   its end says the same, and the outline stays. Without an instance, or a recommendation, the run only stops.
+
+## The stop is the run's alone
+
+The failing line is a breakpoint of that one run, never one of your editor's: your breakpoint list stays as it was.
+Once the test stopped there, the run drops it, so a retry, or a later call on that line, runs on. Breakpoints you set
+or remove meanwhile apply as in any run, the failing line kept until the stop.
+
+## What a link may ask
+
+A link is anyone's to write, so the editor reads it as data, never as a command:
+
+- The files must be in the window's folders (VS Code) or an open project (JetBrains IDE) once every symbolic link is
+  followed, and under a Playwright config's folder: the failing line's a script file, the test's a spec.
+- The line and the execution are positive whole numbers. The title and the project are plain text: no control
+  character, no `[`, `]`, `<`, `>`, backtick or backslash, and a project name no shell expands. A field named twice
+  refuses the link.
+- A refused link opens and runs nothing, and says why. The command is built by the editor service from the test it
+  finds in your spec, as for every run Piwi starts.
+
+A JetBrains IDE also answers only a page of the instance a project is connected to, or of the desktop app, as for
+Open in IDE.
+
+## Limits
+
+- **The test as your spec has it.** The title must name one test of the spec as saved: a test renamed since the run is
+  not found, and two of that title in describe blocks the dashboard does not name are refused. A title written with
+  `${…}` parts matches with any text in their place, but one made of such parts alone matches nothing; Piwi passes the
+  run's title as `--grep` too, so of the tests the line declares, only those whose title holds it run.
+- **The line as your file has it.** The failing line is the run's: when the file changed since, the run stops at that
+  line's number, or not at all when nothing there stops; a failure before it holds the test, as in any run with
+  breakpoints.
+- **Piwi's own editor clients.** The `vscode://file` and `jetbrains://` links, and IDE Remote Control, carry no
+  `debug=1`. VS Code hands the link to its window focused last.
+- **Not on a phone.** The button is hidden below the tablet width.
+
+## Privacy
+
+The link carries the failing file and line, the test's spec and title, its Playwright project and the execution's id,
+from your browser to your editor on the same machine: through your operating system (VS Code), or the IDE's built-in
+server on `127.0.0.1` (JetBrains). The suggested locator comes from the instance the editor is connected to.
+
+## Related
+
+- [Open in IDE](./ide-integration): the two links this one extends, and the method that picks between them.
+- [Pause and step from the editor](./editor-run-control): the controls at the stop.
+- [Locator healing](./locator-healing): where the suggested locator comes from.
+- [Failure evidence](./evidence): the Source tab and the rest of the failure's page.
+
+<!-- https://piwitests.dev/features/agent-run-control -->
+
+# Run control for agents
+
+A coding agent on your machine (Claude Code, Copilot, Cursor, the JetBrains AI Assistant) can work with a test run
+the way you do with [Pause and step from the editor](./editor-run-control) and the [Runs window](./runs-window): follow
+the run, stop it, look at the stopped page, act on it, and have the code written at the stopped line. The editor
+service serves the runs of its window (in a JetBrains IDE, its project) as an MCP server of its own, apart from Piwi's
+[MCP server](./mcp), which reads your suite's history on an instance; the [desktop app](#in-the-desktop-app) serves
+its own.
+
+## Connect your agent
+
+The server listens on `127.0.0.1` once the editor extension starts, at a port and behind a token the extension keeps
+for this workspace (in a JetBrains IDE, this project): a configuration you copy once keeps working after a restart. If
+another program holds that port, the server moves, with a new token, and says so.
+
+| Agent                                                                          | What it takes                                                                           |
+| ------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------- |
+| VS Code's own agent (1.101 and later)                                          | Nothing to set: the extension lists the server as **Piwi runs**, beside **Piwi**        |
+| Claude Code, Cursor and other agents that connect over HTTP                    | The `mcpServers` entry of type `http` below, with the token as a bearer header          |
+| The JetBrains AI Assistant, Claude Desktop and agents that only start commands | An `mcpServers` entry that runs `mcp-remote`, a small Node bridge, at one exact release |
+
+- **From VS Code**: **Piwi: Copy the runs' MCP server configuration for agents** asks which, then copies the entry:
+
+  ```json
+  {
+    "mcpServers": {
+      "piwi-runs": { "type": "http", "url": "http://127.0.0.1:41234/mcp", "headers": { "Authorization": "Bearer …" } }
+    }
+  }
+  ```
+
+  Claude Code reads it in your user settings (`claude mcp add-json` with `--scope user`), Cursor in
+  `~/.cursor/mcp.json`; the other choice is VS Code's own `mcp.json`.
+
+- **From a JetBrains IDE**: **Tools → Piwi → Copy the Runs' MCP Server Configuration for Claude Code or Cursor**
+  copies the same entry; **…for Agents** copies one that runs `npx -y mcp-remote@0.14.3 <url> --transport http-only`,
+  the token in `env`, for the AI Assistant (**Settings → Tools → AI Assistant → Model Context Protocol**), which has no
+  public way for a plugin to add a server.
+
+**The configuration holds the token.** Keep it in your user settings, never in a file of the repository such as a
+project's `.mcp.json`: whoever reads it can drive your runs while the editor is open. **Reset the token** (**Piwi:
+Reset the runs' MCP server token**; **Tools → Piwi → Reset the Runs' MCP Server Token**) gives the server a new one:
+an agent with the old one is refused until you copy the configuration again. `piwi.serveRunsToAgents` in VS Code, and
+**Settings → Tools → Piwi** in a JetBrains IDE, turn the server off.
+
+## The tools
+
+| Tool            | What it does                                                                                                                                                                                                                                                                                                                  |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `run_list`      | The runs of the window, their workers, the test each one runs and where it stands stopped                                                                                                                                                                                                                                     |
+| `run_follow`    | The run's events since a cursor: each test's start and end, each call with its place in your code and its result, the stops, and the page's navigations, console errors, uncaught errors and failed requests. It waits up to 25 seconds, and answers at once while the run is stopped or ended                                |
+| `run_control`   | Pause, Step, Run to a line, Resume, Finish or [End the test](./end-the-test), answered when the run stops again, with the page's snapshot, when the test it ended ends, or when the run ends                                                                                                                                  |
+| `page_snapshot` | The stopped page's ARIA snapshot in AI mode, a ref per element (`[ref=e5]`), to a depth you choose, with an image of the page when asked                                                                                                                                                                                      |
+| `page_act`      | Click, fill, press a key, check, uncheck or select an option on an element by its ref, answered with the page's change                                                                                                                                                                                                        |
+| `page_locator`  | Piwi's locators for an element by its ref, ranked as [Pick a locator](./pick-an-element) ranks them, each checked to find it alone                                                                                                                                                                                            |
+| `code_write`    | The steps `page_act` took, the element's locator in place of the stopped line's, or an assertion on it, written by the editor                                                                                                                                                                                                 |
+
+An agent reads the page as text: the first snapshot whole (or to a depth), then what each stop and action changed. An
+image costs more, and comes only when asked.
+
+**The steps the agent takes** are kept as yours are when you record: each with the element's best locator, the
+project's test id attribute first and the suite's own locators preferred. `code_write` renders them with Piwi's
+generator, as [Code from a pause](./editor-stop-code) does, and the editor writes them above the stopped line as one
+edit: one undo removes it. The test goes on with the code it started with: the new lines run next time.
+
+A run's calls and page events are told until two minutes after the agent's last call on it; an action the page
+answers late may still take effect, kept as a step, and `run_follow` says so.
+
+**An assertion on an element's text** checks the whole text, as the page shows it now (`toHaveText`); for a text
+longer than 1,000 characters, it checks that the element contains its first words (`toContainText`, up to 200
+characters). Piwi refuses to write a secret field's value, and a text or a value that holds a credential.
+
+## What keeps it safe
+
+- **Only this machine, only this window.** The server answers a request to its own address on `127.0.0.1` with the
+  token, and refuses any other name for the machine and any request a browser sends (it carries an `Origin`). It serves
+  the runs this window started, and those [started outside Piwi](./terminal-runs) that follow it, and nothing of an
+  instance.
+- **Only a stopped page, only the actions named.** An action needs the stop it answers, and goes nowhere once the test
+  went on. The tools take a closed set of arguments; none evaluates code, reads a file or runs a command. Code reaches
+  your files only through the editor, as an edit you see.
+- **The page is untrusted.** A page can hold text written to steer a model. Everything that comes from it (its
+  snapshot, its address and title, an element's name, text and value, the locators built from them, its console, its
+  errors, its requests, and what the test says when a read of it fails) comes back apart from Piwi's own answer,
+  between two markers that share a random value the page cannot know, and every tool's description tells the agent to
+  read it as data, never as instructions. An image comes after a line that says it is the page's too.
+- **Secrets stay hidden.** The value of a password field, a one-time code and a card's number or security code is
+  never sent: its line in the snapshot reads `<hidden>`, in every frame, the image masks the field, and no assertion
+  writes it. Tokens and credentials in the page's text, its addresses and the locators `page_locator` shows are
+  hidden, as on Piwi's other surfaces.
+- **You watch it happen.** The agent's stops show in the editor and the Runs window as yours do, the editor's as
+  `Paused by the agent · …`; its first action at a stop says so in a notification; the code it has written names it
+  (`Piwi wrote the steps the agent took above checkout.spec.ts:30.`). You can take over at any stop.
+
+## In the desktop app
+
+The [desktop app](./desktop-runs#for-agents) serves the same tools for the runs it starts, from its own MCP server.
+There, `code_write` writes no file: the code waits in the **Local runs** tray to copy, and comes back to the agent. A
+run nobody attends, such as a Flake Lab run or a bisect, is not served.
+
+## Share with Playwright tools
+
+At a stop, **Share with Playwright tools** (the stop's hover and **Piwi: Share the stopped test's browser with
+Playwright tools** in VS Code; the stop's menu and **Tools → Piwi** in a JetBrains IDE) binds the test's browser for
+Playwright's own tools, so `npx playwright cli attach piwi-<run>-w<worker>` and Playwright's dashboard can join it.
+It is off until you ask, every time, and asks first: a shared browser is open to any process of yours, which can read
+its pages and run code in them. It is shared until the test ends, and no agent can share it.
+
+## Limits
+
+- **A remote window** (SSH, a dev container, Gateway) runs the server on the remote machine: an agent there reaches it.
+- An action needs a `@piwitests/reporter` at least as recent as the editor extension; at an older one's stops, the
+  tools say what it cannot do.
+
+## Related
+
+- [Pause and step from the editor](./editor-run-control)
+- [Code from a pause](./editor-stop-code)
+- [MCP server](./mcp)
+- [Runs window](./runs-window)
+
 <!-- https://piwitests.dev/features/mcp -->
 
 # MCP server
@@ -10238,142 +11474,6 @@ verdict.
 - [Browser extension](./extension): the permissions these use
 - [Replay a bug report](./replay-a-bug-report): a replay under the conditions on
 
-<!-- https://piwitests.dev/features/runs-window -->
-
-# Runs window
-
-Piwi Picker's Runs window follows the test runs VS Code or a JetBrains IDE starts, from a window of its own beside
-the test's browser. It pauses, steps and resumes them, writes code from a stop through the editor, and, for a test
-that runs headless or in a remote container, shows its page live, takes your clicks and keys on it, and picks a
-locator on its image. The editor shows the same stops: [Pause and step from the editor](./editor-run-control).
-
-## Open it
-
-With Piwi Picker [paired with VS Code or a JetBrains IDE](./editor-recording#send-from-piwi-picker), or with the
-[desktop app](./bug-reports#running-it-with-playwright-in-the-desktop-app), the popup shows a **Runs** tile under
-**More tools** while one of them answers. It opens the Runs window, to keep beside the test's
-browser. For each run the editor [started](./editor-runs), it shows the folder and the command, then each worker's test
-and whether it runs or where it stopped: the file and line, the call about to run, and an image of the page. While
-none of its tests is stopped, the run says how one stops: at a breakpoint, a `page.pause()` or **Pause**. A run
-[started outside Piwi](./terminal-runs) shows too, marked **Terminal** or **Test runner**.
-
-## The controls
-
-**Pause** stops a running test before its next call. At a stop, **Resume**, **Step**, **Finish** and
-[**End the test**](./end-the-test) do what they do [in the editor](./editor-run-control#the-controls); Run to cursor
-stays in the editor.
-
-A failing test is held at its line, a headless one only while a Runs window is open: **Failed at** in red, its error
-under it. **Resume** lets it end as it failed; **Pick** replaces the failing locator.
-
-**Share live**, under the run's name, lets a teammate watch the run from its page on your team's instance, in a
-project whose live view is on. The first time in a window, it says what goes out and to whom; shared, the run says
-how many views are open, with its page's link to copy, until **Stop sharing**. A run that cannot be shared says why in
-its place: [Share a run from your machine](./live-view#share-a-run-from-your-machine).
-
-## Code from a stop
-
-The other actions send code to the editor, which writes it at the stopped line, when its Piwi extension and your
-reporter take them. **Pick** and **Record** start the pause bar's **Pick a locator** and **Record here**, **Assert**
-the recorder's **Check an element**, and **Assert a region** a pick whose ARIA snapshot becomes `toMatchAriaSnapshot`.
-They run in the test's page: where the pause bar shows, or, at a headless stop, once you [watch it
-live](#watch-live), driven through the view. **Mock a request** lists the page's fetch and XHR requests, credentials
-hidden: the one you choose becomes a `page.route`. Under the test, the window says the code went to the editor, with
-what to review in it, or why not.
-
-<figure>
-  <img src="/screenshots/picker-runs.png" alt="The Runs window beside a shop page stopped before a click on Checkout: the test, its place, an image of the page, its controls and code actions">
-  <figcaption>The Runs window, beside a test stopped at a breakpoint.</figcaption>
-</figure>
-
-## Watch live
-
-A stop has **Watch live** above its image, with a reporter newer than 0.61.0. It shows the page as it paints, in place
-of the image, at most ten frames a second, at the window's width, with a red **Live** badge. Only the window that asked
-gets the frames, and nothing stores them: they go from the test's worker to the editor service and the extension's
-background worker, on your machine or through the port your IDE forwards from a [remote
-window](/guide/remote-development).
-
-The view ends with the stop, when you turn **Watch live** off, minimize the window, or close it. Left on, it starts
-again at the worker's next stop, and as the window shows again.
-
-At a headless stop, nobody sees the test's page: **Pick**, **Record**, **Assert** and **Assert a region** show once you
-watch it. The picker, the recorder's panel and the check panel appear in the view, and you answer them there as in a
-headed browser; their code reaches the editor the same way.
-
-<figure>
-  <img src="/screenshots/picker-runs-live.png" width="488" alt="The Runs window at a headless stop, watching the shop page live: Watch live pressed, the Live badge on the view, the picker over the page, and Pick, Record, Assert and Assert a region among the controls">
-  <figcaption>A headless test's page watched live, with Pick started in it.</figcaption>
-</figure>
-
-## Click and type on the view
-
-While you watch, your input on the view goes to the page as a person's would, the picker and the recorder included:
-
-- **The pointer**: moves, left and right clicks, double and triple clicks as your system counts them, drags, and the
-  wheel once the view has the focus. `Ctrl`, `Alt` and `⌘` held with a click are held in the page too.
-- **The keys**, while the view has the focus (a focus ring around it): characters are typed, named keys (Enter, the
-  arrows, Backspace, Delete, Home, End) pressed, with Shift, and `Ctrl` (`⌘` on macOS) with A, Z, Y, Enter and the
-  editing keys. A paste types the clipboard's text.
-- **What stays the window's**: the browser's other shortcuts, the function keys, and `Esc`, which gives the keys
-  back to the window and moves the focus to **Watch live**. `Tab` moves the focus on past the view, unless you
-  clicked into it: then `Tab` and `Shift+Tab` go to the page too, until `Esc`.
-
-A hint under the view says so the first time. What you hold down is let go before the test goes on.
-
-## Pick on the image
-
-**Pick on the image**, beside **Watch live**, or a `Shift`+click on the image or the view, names the element a click
-under the pointer would reach (a dialog or a banner over the page included), without touching the page: the locator
-the pause bar's **Pick a locator** would rank first for it, sent to the editor in place of the stopped line's. The window shows that locator, or why there is none. It works on a headed stop's image too. `Esc`
-turns it off. It needs Playwright 1.60 or later, and says so on an older one.
-
-## The run shortcut
-
-The run shortcut resumes the stopped tests, else pauses every run. It has no key until you set one: **Set a
-shortcut** opens the browser's shortcuts page, where you give it a key and, in Chrome and Edge, the **Global** scope.
-In Firefox, it works while Firefox has the focus.
-
-## The desktop app's runs
-
-[Paired](./bug-reports#running-it-with-playwright-in-the-desktop-app) with the [desktop app](./desktop), the window
-lists the runs the app starts beside your editor's, marked **Desktop app**: reproductions, bisect steps and bug reports
-included, with the same controls and live view. With no editor paired, it follows the app alone. The app holds no
-editor, so **Pick**, **Record** and **Assert** in the test's window are not offered; the code **Assert a region** and
-**Mock a request** make goes to the app's window, to copy there, and the window here says so: [Desktop app
-runs](./desktop-runs).
-
-## How it connects
-
-The background worker reaches the editor's services on `127.0.0.1` only once the paired port proves it holds the
-pairing's token ([how the pieces connect](./editor-run-control#how-it-works)), as the desktop app proves it holds its
-own. The window talks to that worker alone, and makes no network call of its own. An older editor extension gives the
-image and the controls alone.
-
-## Limits
-
-- **The top frame.** Pick on the image refuses an element inside an iframe.
-- **A test's own screencast.** When the test records its own (a video, a trace with screenshots), the view takes its
-  size and quality; when none can start, it is an image of the page twice a second.
-- **A heavy page.** A frame over 384 KB gives way to a lighter image of the page, twice a
-  second; when even that is too heavy, the window says so under the stop's image.
-- **The browser's keys stay its own.** A shortcut of the browser, a function key and `Esc` never reach the page.
-- **No input method.** Characters an input method composes (Chinese, Japanese, Korean) do not reach the page; paste
-  them instead.
-- **The test's own page alone.** A popup the page opens is not shown.
-  A download your click starts and a dialog the page opens go to the test as its own would: Playwright deletes the
-  download with the test's context, and dismisses the dialog unless the test handles it.
-- **The middle button stays the window's.** It would open a link in a tab the view does not show; `Shift`+click picks
-  instead of clicking.
-
-## Related
-
-- [Pause and step from the editor](./editor-run-control): the controls and the paused line, in the editor.
-- [Code from a pause](./editor-stop-code): what each action writes, and where.
-- [Browser extension](./extension): Piwi Picker's other tools, and its permissions.
-- [Remote development](/guide/remote-development): the runs of a dev container or a remote window.
-- [Desktop app runs](./desktop-runs): the same runs, in the desktop app's window.
-
 <!-- https://piwitests.dev/features/test-functions -->
 
 # Test functions catalog
@@ -10647,9 +11747,9 @@ a warning, with the chains it breaks on hover, and one quick fix that rewrites e
 ## Piwi's MCP server for the agent
 
 In VS Code 1.101 and later, the extension provides Piwi's [MCP server](/features/mcp) to the editor's agent with the
-connection it already has. Elsewhere, **Piwi: Copy the MCP server configuration** puts an entry on the clipboard: for
-`mcp.json` in VS Code, for the AI Assistant's MCP settings in a JetBrains IDE (an `mcpServers` entry running
-`mcp-remote`). It holds your API key: keep it out of the repository.
+connection it already has. Elsewhere, **Piwi: Copy the MCP server configuration** puts an entry on the clipboard: VS Code's
+`mcp.json` or Cursor's `mcpServers`, as you choose; the AI Assistant's in a JetBrains IDE, an `mcpServers` entry
+running `mcp-remote`. It holds your API key: keep it out of the repository.
 
 The key carries your whole role, write tools included. For a token of the agent's own, set `piwi.mcpAuthorization`
 to `sign-in` (**Settings → Tools → Piwi → AI Assistant** in a JetBrains IDE): the server comes without a key, and the
@@ -10746,7 +11846,8 @@ The rest is native, and every action is under **Tools → Piwi**:
 - **The Piwi tool window** names the connection and holds the [failures view](./editor-failures#the-failures-view),
   since the IDE highlights open files only.
 - **Code Vision** shows the lines above files, locators and failing lines; each test's result is in the gutter, and a
-  click on its icon opens the test in the dashboard.
+  click on its icon opens the test in the dashboard. Its right-click menu holds **Run with Piwi** and **Verify ×3 with
+  Piwi**, which report to the instance as Piwi's own runs do.
 - **The status bar** shows the latest run, or the run in progress, of the selected file's Playwright config, with an
   icon for its state and the error color while its tests fail; a click opens a menu of the actions, led by what the
   item calls for: [the status bar](./editor-runs#the-status-bar).
@@ -10909,124 +12010,6 @@ The choice is kept on this machine, per Playwright config.
 - [Runs from the editor](./editor-runs): run the failing tests again, and follow the run in the status bar.
 - [Locator healing](/features/locator-healing): where the heal quick fix comes from.
 
-<!-- https://piwitests.dev/features/editor-runs -->
-
-# Runs from the editor
-
-The [editor extensions](./editors) run your tests where you edit them, then show what the run changed: its progress
-in the status bar while it executes, and its results over the latest CI run's [failures](./editor-failures) within a
-second of its end.
-
-## Run tests
-
-- The lines above a locator line, an application file or a page file (CodeLens in VS Code, Code Vision in a JetBrains
-  IDE) run the tests they name when clicked; those of a server file record its
-  [coverage](./editor-coverage#refresh-the-marks-with-a-local-run).
-- **Piwi: Run the test at the cursor** (`Ctrl+Shift+Alt+K`, `Cmd+Shift+Alt+K` on macOS) runs the test whose
-  `test(…)` call holds the cursor, and **Piwi: Run this spec** the spec's tests Piwi knows; both in the editor's
-  context menu of a spec (**Run the Test at the Caret** and **Run This Spec** in a JetBrains IDE). In VS Code, **Run**
-  in the hover of a test's line runs that test, and so does [the Testing view](#the-testing-view-vs-code). A test the instance does not know yet, such as one you just
-  [recorded](./editor-recording#run-it-or-verify-it-three-times), runs by the line of its `test(…)` call
-  (`npx playwright test tests/checkout.spec.ts:42`), with or without an instance. Both save the spec first.
-- **Piwi: Verify the test at the cursor ×3** (**Verify the Test at the Caret ×3**) runs that test three times, without
-  retries and without the breakpoints (`--repeat-each=3 --retries=0`), and says how many of the runs passed:
-  [When your run ends](#when-your-run-ends).
-- **Piwi: Run the tests that reach this file** runs every test reaching the active file through
-  [code reach](/features/code-reach); also in the editor's context menu.
-- **Piwi: Run selection…** runs a saved [selection](/features/test-selection).
-
-The command, `npx playwright test` with the arguments `piwi run` would pass, runs from the Playwright config's
-folder: as a task in VS Code, in a terminal of its own (**Tasks: Rerun Last Task** starts it again), in the Run tool
-window in a JetBrains IDE (**Rerun** starts it again), or in the IDE's Playwright runner (test tree, Debug, **Rerun
-Failed Tests**), a choice of **Settings → Tools → Piwi**. It sets `PIWI_ORIGIN=editor` and its own `PIWI_ORIGIN_REF`
-([run origin](/reference/test-metadata#run-origin)), by which the editor finds its run. Breakpoints pause it in the
-browser, with Piwi's picker one click away: [Breakpoints in the browser](./editor-breakpoints); the editor pauses,
-steps and resumes it too: [Pause and step from the editor](./editor-run-control).
-
-## The Testing view (VS Code)
-
-VS Code's Testing view lists Piwi's tests: the specs your instance knows, as they stand in the editor, under their
-folders and `test.describe` blocks, each test with its latest result, and for a failure why and where it failed
-(**Peek Error**). The results are published as a test run (`Piwi: run #120 on main`) when the latest run, its baseline
-or the runs laid over it change, and a run in progress is a test run of its own, each test shown as it begins and
-ends. The view's gutter shows each test's result in place of Piwi's icon; the line keeps Piwi's hover.
-
-<figure>
-  <img src="/screenshots/vscode-testing.png" alt="VS Code: the Testing view lists the spec's tests with their latest results, and a failing test's error is peeked at its line in the spec">
-  <figcaption>The Testing view with the latest run's results, and why <strong>pays by card</strong> failed, at its line.</figcaption>
-</figure>
-
-**Run with Piwi**, the view's run profile, runs the tests you pick as the commands above do, one command per
-Playwright config with your breakpoints, and **Verify ×3 with Piwi** runs them three times. A test the run gave Piwi no
-result for, such as one the instance does not know yet, passes when the command exited with 0 and is an error
-otherwise. The view shows results; it does not discover tests nor debug them: a spec the instance has not seen joins
-the tree once you open it. The `piwi.testExplorer` setting turns the view's Piwi tests off.
-
-## Re-run the failing tests
-
-**Piwi: Re-run the failing tests** (`Ctrl+Shift+Alt+F`, `Cmd+Shift+Alt+F` on macOS; **Tools → Piwi → Re-run the
-Failing Tests**) runs every test still failing, or edited since its run, one command per Playwright config, or those
-of one config from its node in the [failures view](./editor-failures#the-failures-view); when none fails, it says so.
-
-## After a run
-
-The editor listens to the instance's event stream: within a second of a run of the project ending, it reads the
-branch's latest run and its failures again, and every five minutes with the stream, every minute without. A checkout
-or a commit is noticed within seconds: the editor reads the branch's latest run again, and compares your application
-files with the new `HEAD`.
-
-A run started from the editor is its own wherever it runs: the status bar follows it, the gutter shows each test as
-running, then its result, and its failures read *your run #124* once it ends. When the command ends and no run on the
-instance carries its ref, the editor says so: `The run ended (exit code 1) but did not reach
-https://piwi.example.com: is the Piwi reporter in the Playwright config?` The editor learns the command's end and its
-exit code from the process it started, in every shell, a rerun included.
-
-## When your run ends
-
-Once a run you started from the editor ends and the editor has read it, a notification (a balloon in a JetBrains IDE)
-says what it changed: `Piwi: run #124 · 1 of 3 CI failures fixed, 2 still failing (login.spec.ts › logs in,
-checkout.spec.ts › pays)`, then the tests it failed that were not failing before. It offers **Open the failures**,
-**Open in dashboard** and, when something fails, **Re-run failing**. The `piwi.runNotifications` setting (**Settings →
-Tools → Piwi** in a JetBrains IDE) shows it always, only when something fails, or never.
-
-A verification (**Verify ×3**) says how many of its runs passed instead, whatever the setting: `Piwi: run #124 ·
-Passed 3 of 3`, or `Failed 1 of 3`. Each run is a result of its own on the instance, and the editor counts them from
-the results the run streams as it executes; when it missed some, a failing verification says `Failed at least 1 of 3`.
-When its run never reached an instance, the exit code says it, which cannot tell a pass from a skip:
-`None of 3 runs failed: tests/checkout.spec.ts:42`, or
-`Failed at least 1 of 3: tests/checkout.spec.ts:42 (exit code 1)`.
-
-## The status bar
-
-The latest complete run on the branch: how many tests passed, failed and were flaky, or what still fails and what your
-local runs fixed (`2 failing · 1 fixed locally`). While a run started from this editor, or another run of the branch,
-is in progress, the item counts it instead (`4/9 · 1 failing · your run`) and returns to the latest run when it ends.
-
-With several Playwright configs, the item speaks for the config of the file you are editing, the deepest config folder
-that holds it, and follows you from file to file; outside every config folder, it shows the first connected config.
-Its tooltip names the config (`The active file's Playwright config, in apps/admin (one of 3)`), then holds the run's
-counts, the baseline, your local runs since, the run in progress, and when the run was read (`Updated 12 s ago · live`
-while the event stream is connected, `· read every minute` without it).
-
-In VS Code, a click reads the latest run and its failures again (**Piwi: Refresh the latest run**), without the
-indexes **Piwi: Refresh** fetches, and the tooltip ends with **Open run #120**, **Open in dashboard**, **Compare
-with…** and **Connect**. When the extension is not connected, the item says why, and a click runs **Piwi: Connect**,
-or retries an [unreachable instance](./editor-connection#an-unreachable-instance).
-
-In a JetBrains IDE, an icon before the text shows the state of the run the item counts (running, failing, passed) or
-of the connection, and the text takes the theme's error color while tests of that run fail, a run in progress
-included. A click opens a menu of the **Tools → Piwi** actions that apply, led by what the item calls for: **Read the
-Latest Run Again**, **Refresh** for an unreachable instance, **Connect…** while not connected, **Node.js Settings…**
-when Node.js is missing or too old, or **Go to the Recorded Lines** while a recording runs, with **Pause Recording**,
-**Resume Recording** and **Stop Recording**.
-
-## Related
-
-- [Failures in the editor](./editor-failures): the failures a run leaves, at their lines and in the failures view.
-- [Editor extensions](./editors): what the editor shows from your suite.
-- [Editor connection](./editor-connection): the instance the editor reads, and its key.
-- [Test selection](/features/test-selection): the saved selections **Run selection…** runs.
-
 <!-- https://piwitests.dev/features/editor-coverage -->
 
 # Coverage in the editor
@@ -11164,924 +12147,6 @@ finds a Playwright config in the solution's folder or its Git repository.
 - [Editor extensions](./editors): what else the editors show
 - [Runs from the editor](./editor-runs): running the tests a lens names
 - [Uncovered changes](./uncovered-changes): the changed files no test reaches, on a pull request
-
-<!-- https://piwitests.dev/features/editor-breakpoints -->
-
-# Breakpoints in the browser
-
-A breakpoint you set with the editor's own gutter click pauses the next test run the [editor extensions](./editors)
-start, in the browser, right before the call on its line that acts on, reads or checks the page: a navigation, a
-click, a key press, an assertion. Piwi's bar at the top of the page lets you look at the page, step through the calls,
-or pick a better locator, which lands back on that line in the editor. The stop is Playwright's own debugger
-(`context.debugger`) without its Inspector: Piwi's bar answers it, and no JavaScript debugger attaches.
-
-## Pause a run
-
-1. Set a line breakpoint on a line with a Playwright call, in a spec or a page object:
-   `await page.getByText('Pay now').click();`, `await page.goto('/checkout');`, `await page.keyboard.press('Tab');`
-   or `await expect(page).toHaveURL(/cart/);`. On a statement broken over lines, any of its lines will do.
-2. Run the test from Piwi: **Run this test**, or any command of [Runs from the editor](./editor-runs#run-tests).
-3. The run opens a headed browser. Before the call on your line runs, the pause bar appears with the call as
-   Playwright names it, `Paused at login.spec.ts:42 · Click getByText('Pay now')`, and a locator call's element is
-   highlighted.
-
-| Button | What it does |
-|---|---|
-| **Resume** (<kbd>Esc</kbd>) | Runs on to the next breakpoint |
-| **Step** | Pauses again before the next call that acts on, reads or checks the page, breakpoint or not |
-| **Pick a locator** | Opens Piwi's [element picker](/features/locator-healing#pick-a-replacement-locator-on-the-failing-page-local-runs): pick the element, choose stable parents, confirm a ranked locator; the bar comes back after |
-| **Record here** | Records what you do in the page into the editor, above the paused line: [Record from a pause](#record-from-a-pause) |
-| **Finish** | Runs on without pausing again in this test |
-| **End the test** | [Skips the rest of the test](./end-the-test) |
-
-<figure>
-  <img src="/screenshots/picker-pause.png" alt="A shop page in the browser, paused before a click on Checkout: the button highlighted, Piwi's pause bar at the top with Resume, Step, Pick a locator, Record here and Finish">
-  <figcaption>A run paused before the click on <strong>Checkout</strong>: the element highlighted, and Piwi's bar at the top of the page.</figcaption>
-</figure>
-
-The page under the bar stays live: scroll it, open the browser's developer tools, or click through it before you
-resume. The test timeout stops while the test is paused, and so does the paused call's own budget (`actionTimeout`, or
-`expect.timeout` for an assertion on that line). A wait the test started before the stop keeps its own deadline:
-`expect.poll`, `toPass`, or a `waitForRequest`, `waitForResponse` or `waitForEvent` around the paused call can run out
-while you look and fail the test: the bar then goes away, before Playwright's failure screenshot and the `afterEach`
-hooks. The test's duration leaves the time paused out, and every step keeps its clock time: the dashboard's timelines
-draw each stop as a **Paused** band, and its step statistics (slowest step, wasted time) leave it out.
-
-## Where the pick lands
-
-A locator you confirm replaces the locator chain on the breakpoint's line, in the file as it stands, saved or not:
-`page.getByText('Pay now').click()` becomes `page.getByRole('button', { name: 'Pay now' }).click()`, and a
-notification says so. When the line holds no locator, because you edited it during the pause or it takes its locator
-from a page object (`checkout.payButton().click()`), the locator is inserted at the cursor instead, and the
-notification says why.
-
-The pick is also printed in the run's terminal (`[piwi] Locator picked at tests/login.spec.ts:42: getByRole(…)`) and
-recorded in the run's locator snapshots, so the [Locator fix](/features/locator-healing) panel shows it as **Your
-pick** once the run uploads.
-
-The pick reaches the editor through the address [Piwi Picker sends to](./editor-recording#send-from-piwi-picker);
-nothing is copied to the clipboard.
-
-## Record from a pause
-
-**Record here** hands the paused page to the editor's [recorder](./editor-recording): the steps you take from there
-are written into the file on a new line above the paused statement (the first line of a statement broken over lines),
-on the page expression in scope there, as **Record here** in the editor writes them, but with no `page.goto`: the page
-is where the test left it, signed in and filled in as the test made it. The editor opens the file at that line and
-starts recording. Pause and Stop are in the recorder's bar in the page and in the editor; once you stop, the pause bar
-comes back, and **Resume** runs the rest of the test from the page as you left it, which checks that the new steps fit
-what follows.
-
-`await page.pause()` in a test does the same without a breakpoint: in a run Piwi starts or
-[that follows your editor](./terminal-runs), or any headed run with breakpoints, it stops there under Piwi's pause bar
-in place of Playwright's Inspector (headless, in the editor), with **Record here** among its
-buttons in a run Piwi starts, and Piwi adds `--headed` to a run whose spec holds a `page.pause()` call. The
-`page.pause()` line stays, so the next run can record from there again; remove it when the test is done. In any other
-run, outside a test (a `beforeAll` or `afterAll`) and on a page of a browser the
-test launched itself, `page.pause()` is Playwright's own, with its Inspector; in a headless browser it returns at
-once.
-**Record here** records http(s) pages: on a page the test made with `setContent`, or a `file:` page, the editor says
-so and nothing is recorded.
-
-The test reaches the editor through `PIWI_RECORD_CHANNEL`, the socket of
-[the run's connection](./editor-run-control#how-it-works); a recording not started within 30 seconds is refused, and
-the test goes on.
-
-## The setting
-
-Breakpoints are on by default. Turn them off with the `piwi.breakpoints` setting in VS Code, or **Pause the runs Piwi
-starts at the editor's breakpoints** under **Settings → Tools → Piwi** in a JetBrains IDE, kept on your machine only.
-
-## What it needs
-
-- **`@piwitests/reporter` 0.48.0 or later**, with the [capture fixtures](/guide/capture-fixtures) in your tests: the
-  pause runs in them. With an older one, the run starts anyway and the editor warns once. A reporter of 0.59.0 or
-  older pauses before locator actions and assertions only. A spec that imports `test` from `@playwright/test` never
-  stops, and the run's output names it once.
-- **A run started from Piwi**, or [started outside Piwi](./terminal-runs). The editor passes the breakpoints under the
-  Playwright config's folder to the run as `PIWI_PAUSE_AT` (`tests/login.spec.ts:42;tests/pages/checkout.page.ts:9`,
-  relative to that folder), with its pairing address as `PIWI_EDITOR_SEND`, and adds `--headed` to the command unless it
-  already has `--headed`, `--ui` or `--debug`. Set `PIWI_PAUSE_AT` yourself to
-  [pause a run you start](/features/locator-healing#pause-at-a-breakpoint-local-runs).
-
-## Limits
-
-- **Headed and local only.** Under CI (`CI` set to anything but empty or `false`), or under Playwright's own debugger
-  (`--debug`, `--debug=cli`, `PWDEBUG`), the run ignores the breakpoints and says why once; so does a headless run
-  of yours with `PIWI_PAUSE_AT`. One Piwi starts stops with no bar, and the editor shows its page
-  ([A headless run](./editor-run-control#a-headless-run)).
-- **Only the calls Playwright's debugger stops at pause**: navigations, actions, key presses and mouse moves,
-  assertions, `evaluate`, `waitForFunction`, screenshots and an element's reads (`textContent`, `inputValue`,
-  `getAttribute`, `isVisible`, `count`). `waitForTimeout`, `waitForSelector`, `waitForURL`, `waitForEvent`, `title()`
-  and `ariaSnapshot()` never do, so a breakpoint on such a line, on a helper call or on a line with no Playwright call
-  does nothing. A breakpoint in a page object method pauses every test that calls it.
-- **A run with breakpoints stops before every call** and lets those off your lines go on at once, which costs about a
-  millisecond a call.
-- **The paused call lasts as long as you looked** at the page, in Playwright's trace, its HTML report and the
-  dashboard's steps; only the statistics leave it out.
-- **A call the test ended under runs** as the bar goes away, during teardown, when the test fails under the bar or does
-  not await the call; the call is waited for, up to two seconds, so its requests stay the test's.
-- **One Inspector switch per worker.** While Playwright's own `page.pause()` runs, a stop in another context opens its
-  Inspector too, and a context that opened one keeps it. A `page.pause()` on a browser launched through a second copy
-  of Playwright shows neither bar nor Inspector and waits until the test's timeout.
-- **Every attempt pauses.** With retries, a test pauses again on its retry, and the bar says `attempt 2`.
-- **Each worker pauses its own browser.** When several tests reach a breakpoint, run `--workers=1` to pause one at a
-  time.
-- **Record here** is offered from Piwi's pause bar only, never from a debugger paused in your code.
-- **Record here** records the paused page alone: a tab or a popup it opens is not recorded, as in any recording.
-
-## Related
-
-- [Runs from the editor](./editor-runs): the commands that start a run, and how the editor follows it.
-- [Pause and step from the editor](./editor-run-control): the same stops, answered from the editor.
-- [Locator healing](/features/locator-healing): the picker, and the panel a pick shows in.
-- [Editor extensions](./editors): the failures, lenses and quick fixes the editor shows from your suite.
-
-<!-- https://piwitests.dev/features/editor-run-control -->
-
-# Pause and step from the editor
-
-A test run the [editor extensions](./editors) start can be paused, stepped and resumed from the editor, with Piwi's own
-commands: no debug session starts, and the IDE's debugger works as usual beside it; so can
-[one started outside Piwi](./terminal-runs). The editor marks the line the test stopped at, as a debugger does, and
-the breakpoints you set or remove reach the run while it goes on. The [pause bar](./editor-breakpoints#pause-a-run) in
-the page answers the same stops, as does Piwi Picker's [Runs window](./runs-window). At a stop, the editor also writes
-code from the page: [Code from a pause](./editor-stop-code).
-
-## The controls
-
-| Control | What it does | VS Code | JetBrains IDEs |
-|---|---|---|---|
-| **Pause** | Stops a running test before its next call that acts on, reads or checks the page | none | Resume Program's, `F9` |
-| **Resume** | Runs the stopped test on to the next breakpoint | `F5` | Resume Program's, `F9` |
-| **Step** | Runs the call and stops before the next one, breakpoint or not | `F10` | Step Over's, `F8` |
-| **Run to cursor** | Stops at the first call on the cursor's line (on a statement broken over lines, at its call), or at a breakpoint before it | `Ctrl+F10` | Run to Cursor's, `Alt+F9` |
-| **Finish** | Runs the test on without stopping at a breakpoint again in this attempt | `Shift+F11` | Step Out's, `Shift+F8` |
-| **End the test** | [Skips the rest of the test](./end-the-test), and a stopped locator call from Playwright 1.62 | none | none |
-| **Stop** | Ends the run's process | `Shift+F5` | **Stop the Run**, or the Run tool window's Stop |
-
-The keys are the IDE's own debugger keys (in a JetBrains IDE, your keymap's), Piwi's only while their control applies
-and no debug session runs, and first where a JetBrains keymap gives one to another action too. On macOS, `Cmd+F10`
-runs to the cursor in VS Code. **Pause** and **End the test** have no key in VS Code: bind one in
-**Preferences: Open Keyboard Shortcuts** (search `piwi`). There, `F5` pressed again within two seconds of an answer
-waits for the next stop rather than start a debug session.
-
-- **In VS Code**, the controls sit in the status bar beside the run's progress while they apply (`Pausing…` until a
-  paused test stops), and in the palette (**Piwi: Pause the run** and its kin, **Piwi: Show the paused page**).
-- **In a JetBrains IDE**, they are under **Tools → Piwi**, enabled while they apply, and first in the status bar
-  item's menu, which reads `Piwi: paused · checkout.page.ts:12` while a test is stopped.
-
-**Pause** stops every run Piwi started in this window (in a JetBrains IDE, this project), each worker before its next
-call that Playwright's debugger stops at ([which calls](./editor-breakpoints#limits)): a long call or a `waitForTimeout`
-finishes first, and a worker between tests stops at the next test's first call. A test that never stops, under CI or
-Playwright's own debugger, says why.
-
-## Where the test stands
-
-When a test stops, at a breakpoint, after **Step** or **Pause**, on the line it was run to, at `page.pause()`, or at
-[a failure](./editor-stop-code#a-failure), the editor opens the file of the call about to run, with the cursor on its
-line, and marks it:
-an arrow in the gutter, the debugger's execution point color, and above it the call, as Playwright names it, with the
-controls:
-
-`Paused · Fill "MORNING10" getByLabel('Coupon code') · attempt 2`  Resume  Step  Run to cursor  Finish  End test
-
-`attempt 2` shows on a retry. In VS Code the line is a CodeLens, the marked line's hover holding the controls;
-the color is `piwi.executionPointBackground`. In a JetBrains IDE the line is an inlay whose words are links,
-the arrow's click lists the controls, and the color is **Settings → Editor → Color Scheme → Piwi → Line a run is
-stopped at**. The mark goes when the test goes on (from the editor or the bar), ends, or closes its page.
-
-<figure>
-  <img src="/screenshots/vscode-run-control-hover.png" alt="VS Code: a test paused at a page object's line, its hover naming the call that runs next with Resume, Step, Run to cursor and Finish, the same controls above the line and in the status bar">
-  <figcaption>A run paused before it types the coupon.</figcaption>
-</figure>
-
-With several workers stopped, each has its own mark, and the controls above a line act on its worker; a key or command
-acts on the one at the cursor's line, else asks which. A control answers the stop it was shown for: when the test went
-on meanwhile, it says so and asks nothing.
-
-The run's code is your files as they stood when it started. The mark follows lines you add or remove above it, and
-**Run to cursor** in an edited file runs to the run's line for the cursor's; on a line written since, it says the test
-has none.
-
-## A headless run
-
-A run Piwi starts with breakpoints is headed, with a pause bar. Without breakpoints it follows your config, headless
-by default. A headless stop opens **Piwi: paused page** beside VS Code's editor, or **Paused Page** in the JetBrains
-Piwi tool window. **Piwi: Show the paused page** (**Tools → Piwi → Show the Paused Page**) opens it at any stop.
-
-<figure>
-  <img src="/screenshots/vscode-run-control-paused-page.png" alt="VS Code: a headless test paused before it clicks Apply, and beside the editor the Piwi: paused page tab showing the cart page with the coupon typed in">
-  <figcaption>A headless run paused before it clicks Apply: the page at the stop, beside the editor.</figcaption>
-</figure>
-
-Clicking the image picks a locator when the reporter supports it, on Playwright 1.60 or later: the locator replaces
-the one on the stopped line, and the tab shows the result or refusal.
-
-**Watch live** updates the paused page in the same tab. Choose **Interact** separately to click, scroll or type on
-the page; **Escape** releases the keyboard, and **Shift+click** picks a locator. Watching stops when you hide or close
-the tab, resume the test or switch stops. Interact starts off at each stop. No Picker installation, pairing, project
-live-view setting or extra port forwarding is needed: the preview uses the editor's existing connection. Reporters
-without live-view support keep the still image.
-
-## Breakpoints while the run goes on
-
-A breakpoint you add, remove or toggle applies to the run from its next call, in each of its workers, later ones
-included. One that only moves because you edited the lines above it keeps the line the run has, and one you set in an
-edited file applies to that line of the run's code. The breakpoints that count are those a run's start reads: line
-breakpoints in script files under a Playwright config's folder, while `piwi.breakpoints` (**Pause the runs Piwi starts
-at the editor's breakpoints** in a JetBrains IDE) is on. A logpoint, or a breakpoint that does not suspend, never stops
-the test; a condition is not read, so a conditional breakpoint stops at each pass.
-
-## Share live
-
-**Share live** lets a teammate watch the run from its page on your team's instance: **Piwi: Share the run live on the
-team instance** in VS Code, **Tools → Piwi → Share the Run Live** in a JetBrains IDE, any time. It first says what goes
-out and to whom (once a VS Code window, once a JetBrains project); shared, the status bar counts its views, until
-**Stop sharing**: [Share a run from your machine](./live-view#share-a-run-from-your-machine).
-
-## How it works
-
-<figure>
-  <img src="/diagrams/run-control.svg" alt="A test run's workers report to the editor service through the run channel, which the IDE and Piwi Picker (over a WebSocket) steer; the pause bar shows in the test's browser only at a stop">
-</figure>
-
-With a reporter newer than 0.59.0, each worker of a Piwi run stays connected to the editor service, through a socket on
-your machine only you can read (`PIWI_RUN_CHANNEL`): it says which test it runs and where it stops, and the editor
-answers. Closing the IDE closes the connections: a stop with no pause bar then goes on, one the bar shows waits there.
-
-## Limits
-
-- **The IDE's own runs** (the gutter's Run, a run configuration) are [runs started outside Piwi](./terminal-runs): no
-  Stop, and no Pick, Record or Assert in the test's window. With **Run the tests in the IDE's Playwright runner** on,
-  Piwi's commands run there with every control, the runner's Rerun and Debug included.
-- **No mark on a breakpoint that never stops.** One on a line with no call Playwright's debugger stops at looks like
-  any other and does nothing.
-- **Playwright calls, not JavaScript.** **Step** goes from one Playwright call to the next; stepping through the
-  test's own code stays with the IDE's debugger.
-- **No image when the page is unknown.** A stop at a call other than a locator's (a navigation, a key press) in a
-  browser context with several pages has no image, and refuses Piwi Picker's **Pick** and **Record**: the worker
-  cannot tell its page. Any page of that context closing ends it.
-
-## Related
-
-- [Breakpoints in the browser](./editor-breakpoints): the breakpoints a run starts with, and the pause bar.
-- [Runs from the editor](./editor-runs): the commands that start a run, and how the editor follows it.
-- [Debug in my editor](./debug-in-editor): such a run, started from a failure's page.
-- [Editor extensions](./editors): what the editor shows from your suite, in both editors.
-- [Remote development](/guide/remote-development): remote windows and JetBrains Gateway.
-
-<!-- https://piwitests.dev/features/end-the-test -->
-
-# End the test
-
-At a stop, **End the test** ends the test there, as if it had called `test.skip()` at that line: the locator call it
-stopped before never runs (Playwright 1.62 or later), nor the rest of the test, and Playwright reports it as skipped,
-its `skip` annotation reading `Ended from Piwi`. The run goes on with its next test. Use it once you have seen what you stopped for, or recorded the
-steps you were missing, and the rest of the test has nothing to show you.
-
-## Where it is
-
-It is offered at any stop but a failure, with a reporter newer than 0.62.0:
-
-- **VS Code**: **End test** on the stopped line's CodeLens and in its hover, the status bar beside **Finish**, and
-  **Piwi: End the test here, skipping the rest of it** in the palette. It has no key: bind one in **Preferences: Open
-  Keyboard Shortcuts** (search `piwi`).
-- **A JetBrains IDE**: **End Test** in the stopped line's inlay and the arrow's menu, **Tools → Piwi → End the Test**
-  and the status bar item's menu. Give it a key in **Settings → Keymap**.
-- **The [pause bar](./editor-breakpoints#pause-a-run)**: **End the test**.
-- **Piwi Picker's [Runs window](./runs-window)** and the desktop app's [Local runs tray](./desktop-runs): **End the
-  test**, beside **Finish**.
-- **An [agent](./agent-run-control)**: `run_control` with `end`, answered as the test ends.
-
-## What runs, and what does not
-
-- **At a locator call or an assertion** (`click`, `fill`, `expect(locator).toBeVisible()`), the call is given up
-  before it runs, with Playwright 1.62 or later; an older one runs it first, and the editor says so. At a
-  `page.pause()`, nothing after it runs.
-- **At another call** (a navigation, a key press on the page, `page.evaluate`), the call runs first: Piwi does not
-  hold it. The test is skipped at its next locator call, or as its function ends, and the editor says so.
-- **At a failure**, it is not offered: **Resume** lets the test end as it failed, and the failure is kept.
-- **In a `beforeEach` hook**, it skips the test. **In an `afterEach` hook or a fixture's teardown**, the test's
-  function already ended: it goes on as **Resume** does, keeping the test's result, and says so. Piwi never stops in a
-  `beforeAll` or `afterAll` hook.
-- **After it**, the test's `afterEach` hooks and its fixtures' teardown run as after any skip, so its page closes as
-  usual, with nothing of Piwi left in it.
-- **A retry** is an attempt of its own. Playwright does not retry a skipped test; a failure you let end runs the next
-  attempt, which stops at your breakpoints as the first did.
-
-## Limits
-
-- **Playwright's calls alone.** The test's own code between two calls, a loop or a helper, runs until its next call.
-- **One test.** It ends the stopped worker's test; the run's other tests run. To end the run, **Stop** it (one Piwi
-  started) or end it in its terminal.
-
-## Related
-
-- [Pause and step from the editor](./editor-run-control): the other controls at a stop.
-- [Breakpoints in the browser](./editor-breakpoints): the pause bar.
-- [Runs window](./runs-window): the same controls from Piwi Picker.
-- [Run control for agents](./agent-run-control): `run_control` and the other tools.
-
-<!-- https://piwitests.dev/features/terminal-runs -->
-
-# Runs started outside Piwi
-
-A run you start yourself follows the VS Code or JetBrains window whose workspace holds it: `npx playwright test` in a
-terminal, with a reporter and an editor extension newer than 0.62.0, or a JetBrains IDE's own Playwright run (the
-gutter's **Run** and **Debug**, a Playwright run configuration), with a reporter newer than 0.63.0. It stops at the
-editor's breakpoints, shows in the editor and in Piwi Picker's [Runs window](./runs-window), marked **Terminal** or
-**Test runner**, and takes the same controls ([Pause and step from the editor](./editor-run-control)) but **Stop**: its
-process is the terminal's or the IDE's. It says so as it starts:
-
-```text
-[Piwi Dashboard] Following this run in Visual Studio Code (pid 41230), whose breakpoints stop it: PIWI_EDITOR=off runs it alone.
-```
-
-It runs as its config says, headless by default, so the editor shows a stop as
-[a headless run's](./editor-run-control#a-headless-run): an image of its page, which Piwi Picker can watch live. To see
-the browser, add `--headed` to the command, or to the Playwright options of the run configuration.
-
-## Which editor
-
-Each editor window's Piwi service writes a file in `~/.piwi/editors` (`PIWI_EDITORS_DIR` names another folder) with
-its workspace folders and where its runs connect. The run follows the window one of whose folders holds its Playwright
-config's folder or its working directory, links resolved: the most specific folder wins, then the window that started
-last. A window of another machine, another user's, or one whose process ended is never followed, nor is a file
-written before the machine last started, any file of a folder another user can open, or (but on Windows) a window
-whose runs would connect through a folder another user can open.
-
-## When it follows one
-
-- **Only a run whose output goes to a terminal, or that a test runner started**: one that names its reporter's file
-  in `PW_TEST_REPORTER`, as a JetBrains IDE's Playwright runner does. Any other, whose output goes to a file or a pipe,
-  runs alone unless it sets `PIWI_EDITOR=on`.
-- **Never** under CI, with Playwright's own debugger (`--debug`, `PWDEBUG=1`) or UI mode, when the run names its own
-  `PIWI_RUN_CHANNEL`, or when the desktop app or another launcher started it.
-- **`PIWI_EDITOR=off`** runs it alone.
-
-## What it takes from the editor
-
-- **The breakpoints.** It starts with the editor's breakpoints as they are, then takes them as you change them, while
-  `piwi.breakpoints` (**Pause the runs Piwi starts at the editor's breakpoints** in a JetBrains IDE) is on. Without
-  any, it runs as it would, and **Pause** stops it.
-- **The controls**: Pause, Resume, Step, Run to cursor, Finish and [End the test](./end-the-test), and the code a stop
-  makes, Assert a region and Mock a request, written in the editor ([Code from a pause](./editor-stop-code)).
-- **Failures.** A failure is held only while the Runs window follows the editor's runs as the worker starts: nobody
-  may be there to answer it otherwise, and it goes on, as without Piwi.
-
-When the editor closes, or its service stops, the connection closes, and a stop with no pause bar goes on. The token
-of the editor's connection reaches the run's workers alone, out of the tests' environment while they run, as for a run
-the editor starts.
-
-## Limits
-
-- **No Pick, Record or Assert in the test's window.** They need the pairing a run Piwi starts carries: start the test
-  from the editor to use them. Pick on the image (Playwright 1.60 or later) names the locator, for you to copy,
-  without writing it.
-- **No Stop.** End the run in its terminal, or with the IDE's own **Stop**.
-- **Debug stops twice.** Under a JetBrains IDE's **Debug**, a breakpoint stops the test in the debugger, then at Piwi's
-  stop, whose controls take no key while the debug session runs. `PIWI_EDITOR=off` in the run configuration's
-  environment leaves the breakpoints to the debugger.
-- **Piwi's reporter in the config.** The run looks for an editor as the reporter starts (`wrapConfig` adds it): with
-  the capture fixtures alone, it runs alone.
-- **Your machine.** A run in a dev container or over SSH follows an editor whose service runs there too.
-
-## Related
-
-- [Pause and step from the editor](./editor-run-control): the controls, and the paused line.
-- [Breakpoints in the browser](./editor-breakpoints): the breakpoints a run takes.
-- [Runs from the editor](./editor-runs): the runs Piwi starts.
-- [Runs window](./runs-window): the same runs, in Piwi Picker.
-
-<!-- https://piwitests.dev/features/editor-stop-code -->
-
-# Code from a pause
-
-When a test stops in a run the [editor extensions](./editors) started, at a breakpoint, after **Pause** or **Step**,
-or at a failure, the editor offers code written from the page as it stands: an assertion of what you see, a mock of a
-request the page made, a better locator, the missing steps. The work on the page happens in the test's own browser;
-the editor service writes the code, and the editor puts it above the stopped line. The controls that move the test
-are on [Pause and step from the editor](./editor-run-control).
-
-## The actions
-
-| Action | What is written | Where it runs |
-|---|---|---|
-| **Pick a locator** | The locator of the element you pick, in place of the locator chain on the stopped line | The test's window, as the pause bar's [Pick a locator](./editor-breakpoints#where-the-pick-lands) |
-| **Record here** | The steps you take, above the stopped line | The test's window, as the bar's [Record here](./editor-breakpoints#record-from-a-pause) |
-| **Assert** | The check you choose in the recorder's check panel, `await expect(…).toHaveText(…)` and the like | The test's window |
-| **Assert a region** | `await expect(…).toMatchAriaSnapshot(…)` with the ARIA snapshot of the region you pick | The test's window |
-| **Mock a request** | `await page.route(…)` that answers as the server answered a request the page made | The editor alone, at any stop |
-
-The first four need the pause bar, so a headed browser: a run Piwi starts with breakpoints is headed. **Mock a
-request** works headless too.
-
-- **In VS Code**, they are in the line above the stopped line, after the controls (named **Pick**, **Record**,
-  **Assert**, **Assert region** and **Mock** there), in its hover, in the palette while a stop offers them (**Piwi:
-  Assert in the stopped test's page**, **Piwi: Mock a request of the stopped test**…), and behind the status bar's
-  `</>` item, **Piwi: Write code at the stop…**.
-- **In a JetBrains IDE**, they are links in the inlay above the stopped line (by the same short names), in the
-  gutter icon's menu, first in the status bar item's menu, and under **Tools → Piwi** (**Assert at the Stop**, **Mock
-  a Request at the Stop**…).
-
-None has a default key: bind one in **Preferences: Open Keyboard Shortcuts** or **Settings → Keymap** (search
-`piwi`). A stop offers only the actions its reporter takes: with one that predates them, none.
-
-<figure>
-  <img src="/screenshots/vscode-run-control-code.png" alt="VS Code: a test paused before it types a coupon; above the line, the controls then Pick, Record, Assert, Assert region and Mock; at the line's end, Piwi: 1 match; at the top, the list of the requests the test made, to mock one">
-  <figcaption>Mock a request lists the answers the test received; the line's locator matches one element on the paused page.</figcaption>
-</figure>
-
-## Where the code goes
-
-The code goes on a new line above the stopped statement (the first line of a statement broken over lines), indented
-for it, on the page in scope there (`this.page` in a page object), with the import of `expect` the file lacks, as one
-edit that one undo takes away. A second action at the same stop goes above the same statement, under the first.
-The running test goes on with the code it started with: the new lines run next time, which the first code of a run
-says.
-
-Nothing is written, and the editor says why, at a stop:
-
-- outside a test's or a function's body, such as a test timeout stopped at its `test(` line;
-- as the body of an `if`, `else`, `for`, `while`, `do` or arrow function (`() => page.click(…)`) without braces,
-  or on a line where no statement starts;
-- in a file written on disk since the run started, or unsaved as it started: Piwi follows a file through the edits
-  the editor makes, not through another program's;
-- that the test went on from: an action answers the stop it was offered at.
-
-Assert and Assert a region check this before anything opens in the test's window. Code that arrives while you type in
-its file is not written into the changed text: a warning offers **Copy the code**.
-
-## Mock a request
-
-In a run Piwi started, each worker keeps the text answers its test's pages received for `fetch` and
-XHR requests, the latest 50, 256 KB each at most, in its memory only. **Mock a request** lists them, the latest first,
-by method and URL (type to filter on the URL), with the status, the type, the size (`no size` when the response did
-not say) and when it finished in the test. Only the answer you choose is read whole:
-
-```ts
-await page.route('**/api/shipping?country=FR', (route) =>
-  route.fulfill({
-    json: {
-      "price": 4.9,
-      "token": "<hidden>"
-    },
-  }),
-);
-```
-
-It is written as [Piwi Picker's Network tab](./mock-requests#mock-this-response) writes one, the body inline whatever
-its size, with what it hides:
-
-- **Credentials.** A field named like a password, a token, a key, a signature or a session is written as `<hidden>`,
-  whatever it holds, and so is a value shaped like a credential anywhere in the body, by the
-  [rule Piwi Picker's mocks follow](./mock-requests#mock-this-response): ids, hashes and cursors stay. The URL pattern
-  matches such a value with a wildcard, and keeps the host. The list hides them too. Headers, cookies included, are
-  never written.
-- **Warnings.** The editor says how many values it wrote as `<hidden>`, that a body neither JSON nor a form was
-  written as it came (read it before you commit it), and that a body seems to hold an email address or a phone
-  number (replace it with made-up data).
-
-## The locator at the cursor
-
-While a test is stopped, put the cursor on a line of the stopped file: its end says how many elements the line's
-locator matches on the stopped page, `Piwi: 3 matches`, `1 match` or `no match`, and where the pause bar shows, the
-matches are outlined in the page. Edit the locator and it is counted again. The outline goes
-when the cursor leaves the file or the test goes on.
-
-The locator must start from the page the test stopped on, as the code written there would: a line of `adminPage` at a
-stop on `page` may be another page, and says so for a moment instead of a count. Only the stopped file's lines are
-counted, and a line without a locator says nothing.
-
-## A failure
-
-In a run Piwi started, a failing test holds its page once the test function, its hooks and its fixtures are done,
-instead of closing it, when someone can see it: in a headed browser, where the pause bar shows the failure (a run
-started with breakpoints, or for a spec with `page.pause()`, is headed), or while Piwi Picker's
-[Runs window](./runs-window) is open. The editor shows it as a stop of its own, at the
-line where the error entered the test's code, or at the call a test timeout cut short:
-
-`Failed · Timed out 5000ms waiting for getByRole('button', { name: 'Apply' }) · attempt 2`  Resume  Pick  Record …
-
-**Resume** lets the test end as it failed (**Step** and **Finish** do the same); **Pick** replaces the failing
-locator, **Record** writes the steps that were missing above the failing line, and the code actions work as at any
-stop. Every attempt that fails is held, never an expected failure. A headless failure in any other run, such as a
-plain **Run**, goes on at once, and the editor shows nothing of it.
-
-The run reports the failure as it happened. Piwi's evidence of it is the page at the failure: the requests, console
-entries and dialogs of the hold are not recorded. Playwright's own trace and video go on through it.
-
-## Limits
-
-- **Runs Piwi started only**, with a reporter that takes the actions; an editor extension older than the reporter
-  holds no failure.
-- **Assert offers what a recording's check panel offers**: a value, a text, a name, visible or hidden, enabled or
-  disabled, with no `toBeChecked` or `toHaveCount` choice.
-- **Assert a region** leaves out the value of a password, one-time code or card field, in a shadow root too, and a link
-  whose URL holds a credential.
-- **Mock a request** knows `fetch` and XHR answers with a text body only; one the browser no longer holds cannot be
-  mocked, which the editor says.
-- **The count needs a locator Piwi reads**: literal arguments, starting from a page in scope on the line.
-
-## Related
-
-- [Pause and step from the editor](./editor-run-control): the controls, the paused line, a headless test's page.
-- [Breakpoints in the browser](./editor-breakpoints): the pause bar, Pick a locator and Record here.
-- [Mock and slow down requests](./mock-requests): the same mocks from Piwi Picker's Network tab.
-- [Recorded code](./recorded-code): what a recording writes, and how the config shapes it.
-
-<!-- https://piwitests.dev/features/debug-in-editor -->
-
-# Debug in my editor
-
-On a failed execution's page, **Debug in my editor** takes you from the failure to the same test, stopped at the
-failing line in your editor, on your machine. It sits on the **Source** tab, beside the open link of the frame where
-the failure enters your code (a page object's line included), in the captured frames and in the full stack alike.
-
-1. Click it. The dashboard hands your editor its [open link](./ide-integration) with `debug=1`: the Piwi plugin of a
-   JetBrains IDE, or the Piwi extension in VS Code, Cursor or VSCodium, as your **Open in IDE** method picks
-   ([Auto](./ide-integration#auto-the-first-method-that-works) asks the plugin first).
-2. The editor opens the failing line, then asks in a notification, never a dialog: **Debug this test here? Piwi runs
-   “Checkout › pays” in the Playwright project “chromium”, headed, one worker, and stops at line 16.** Nothing runs
-   until you click **Debug**.
-3. Piwi runs that test alone, found in its spec by its title, in the Playwright project it failed in, headed, with
-   `--workers=1` and your breakpoints, and stops at the failing line. From there the
-   [controls](./editor-run-control) apply, and so does [Code from a pause](./editor-stop-code).
-4. When the instance holds a [locator healing](./locator-healing) for the failure, the **Locator fix** panel's
-   recommended locator is counted on the stopped page and outlined there, and the editor says so:
-   **Piwi's suggested locator: getByTestId('pay') (outlined on the page).** While the cursor stays on the stopped line,
-   its end says the same, and the outline stays. Without an instance, or a recommendation, the run only stops.
-
-## The stop is the run's alone
-
-The failing line is a breakpoint of that one run, never one of your editor's: your breakpoint list stays as it was.
-Once the test stopped there, the run drops it, so a retry, or a later call on that line, runs on. Breakpoints you set
-or remove meanwhile apply as in any run, the failing line kept until the stop.
-
-## What a link may ask
-
-A link is anyone's to write, so the editor reads it as data, never as a command:
-
-- The files must be in the window's folders (VS Code) or an open project (JetBrains IDE) once every symbolic link is
-  followed, and under a Playwright config's folder: the failing line's a script file, the test's a spec.
-- The line and the execution are positive whole numbers. The title and the project are plain text: no control
-  character, no `[`, `]`, `<`, `>`, backtick or backslash, and a project name no shell expands. A field named twice
-  refuses the link.
-- A refused link opens and runs nothing, and says why. The command is built by the editor service from the test it
-  finds in your spec, as for every run Piwi starts.
-
-A JetBrains IDE also answers only a page of the instance a project is connected to, or of the desktop app, as for
-Open in IDE.
-
-## Limits
-
-- **The test as your spec has it.** The title must name one test of the spec as saved: a test renamed since the run is
-  not found, and two of that title in describe blocks the dashboard does not name are refused. A title written with
-  `${…}` parts matches with any text in their place, but one made of such parts alone matches nothing; Piwi passes the
-  run's title as `--grep` too, so of the tests the line declares, only those whose title holds it run.
-- **The line as your file has it.** The failing line is the run's: when the file changed since, the run stops at that
-  line's number, or not at all when nothing there stops; a failure before it holds the test, as in any run with
-  breakpoints.
-- **Piwi's own editor clients.** The `vscode://file` and `jetbrains://` links, and IDE Remote Control, carry no
-  `debug=1`. VS Code hands the link to its window focused last.
-- **Not on a phone.** The button is hidden below the tablet width.
-
-## Privacy
-
-The link carries the failing file and line, the test's spec and title, its Playwright project and the execution's id,
-from your browser to your editor on the same machine: through your operating system (VS Code), or the IDE's built-in
-server on `127.0.0.1` (JetBrains). The suggested locator comes from the instance the editor is connected to.
-
-## Related
-
-- [Open in IDE](./ide-integration): the two links this one extends, and the method that picks between them.
-- [Pause and step from the editor](./editor-run-control): the controls at the stop.
-- [Locator healing](./locator-healing): where the suggested locator comes from.
-- [Failure evidence](./evidence): the Source tab and the rest of the failure's page.
-
-<!-- https://piwitests.dev/features/agent-run-control -->
-
-# Run control for agents
-
-A coding agent on your machine (Claude Code, Copilot, Cursor, the JetBrains AI Assistant) can work with a test run
-the way you do with [Pause and step from the editor](./editor-run-control) and the [Runs window](./runs-window): follow
-the run, stop it, look at the stopped page, act on it, and have the code written at the stopped line. The editor
-service serves the runs of its window (in a JetBrains IDE, its project) as an MCP server of its own, apart from Piwi's
-[MCP server](./mcp), which reads your suite's history on an instance; the [desktop app](#in-the-desktop-app) serves
-its own.
-
-## Connect your agent
-
-The server listens on `127.0.0.1` once the editor extension starts, at a port and behind a token the extension keeps
-for this workspace (in a JetBrains IDE, this project): a configuration you copy once keeps working after a restart. If
-another program holds that port, the server moves, with a new token, and says so.
-
-| Agent                                                                          | What it takes                                                                           |
-| ------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------- |
-| VS Code's own agent (1.101 and later)                                          | Nothing to set: the extension lists the server as **Piwi runs**, beside **Piwi**        |
-| Claude Code, Cursor and other agents that connect over HTTP                    | The `mcpServers` entry of type `http` below, with the token as a bearer header          |
-| The JetBrains AI Assistant, Claude Desktop and agents that only start commands | An `mcpServers` entry that runs `mcp-remote`, a small Node bridge, at one exact release |
-
-- **From VS Code**: **Piwi: Copy the runs' MCP server configuration for agents** asks which, then copies the entry:
-
-  ```json
-  {
-    "mcpServers": {
-      "piwi-runs": { "type": "http", "url": "http://127.0.0.1:41234/mcp", "headers": { "Authorization": "Bearer …" } }
-    }
-  }
-  ```
-
-  Claude Code reads it in your user settings (`claude mcp add-json` with `--scope user`), Cursor in
-  `~/.cursor/mcp.json`; the other choice is VS Code's own `mcp.json`.
-
-- **From a JetBrains IDE**: **Tools → Piwi → Copy the Runs' MCP Server Configuration for Claude Code or Cursor**
-  copies the same entry; **…for Agents** copies one that runs `npx -y mcp-remote@0.14.3 <url> --transport http-only`,
-  the token in `env`, for the AI Assistant (**Settings → Tools → AI Assistant → Model Context Protocol**), which has no
-  public way for a plugin to add a server.
-
-**The configuration holds the token.** Keep it in your user settings, never in a file of the repository such as a
-project's `.mcp.json`: whoever reads it can drive your runs while the editor is open. **Reset the token** (**Piwi:
-Reset the runs' MCP server token**; **Tools → Piwi → Reset the Runs' MCP Server Token**) gives the server a new one:
-an agent with the old one is refused until you copy the configuration again. `piwi.serveRunsToAgents` in VS Code, and
-**Settings → Tools → Piwi** in a JetBrains IDE, turn the server off.
-
-## The tools
-
-| Tool            | What it does                                                                                                                                                                                                                                                                                                                  |
-| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `run_list`      | The runs of the window, their workers, the test each one runs and where it stands stopped                                                                                                                                                                                                                                     |
-| `run_follow`    | The run's events since a cursor: each test's start and end, each call with its place in your code and its result, the stops, and the page's navigations, console errors, uncaught errors and failed requests. It waits up to 25 seconds, and answers at once while the run is stopped or ended                                |
-| `run_control`   | Pause, Step, Run to a line, Resume, Finish or [End the test](./end-the-test), answered when the run stops again, with the page's snapshot, when the test it ended ends, or when the run ends                                                                                                                                  |
-| `page_snapshot` | The stopped page's ARIA snapshot in AI mode, a ref per element (`[ref=e5]`), to a depth you choose, with an image of the page when asked                                                                                                                                                                                      |
-| `page_act`      | Click, fill, press a key, check, uncheck or select an option on an element by its ref, answered with the page's change                                                                                                                                                                                                        |
-| `page_locator`  | Piwi's locators for an element by its ref, ranked as [Pick a locator](./pick-an-element) ranks them, each checked to find it alone                                                                                                                                                                                            |
-| `code_write`    | The steps `page_act` took, the element's locator in place of the stopped line's, or an assertion on it, written by the editor                                                                                                                                                                                                 |
-
-An agent reads the page as text: the first snapshot whole (or to a depth), then what each stop and action changed. An
-image costs more, and comes only when asked.
-
-**The steps the agent takes** are kept as yours are when you record: each with the element's best locator, the
-project's test id attribute first and the suite's own locators preferred. `code_write` renders them with Piwi's
-generator, as [Code from a pause](./editor-stop-code) does, and the editor writes them above the stopped line as one
-edit: one undo removes it. The test goes on with the code it started with: the new lines run next time.
-
-A run's calls and page events are told until two minutes after the agent's last call on it; an action the page
-answers late may still take effect, kept as a step, and `run_follow` says so.
-
-**An assertion on an element's text** checks the whole text, as the page shows it now (`toHaveText`); for a text
-longer than 1,000 characters, it checks that the element contains its first words (`toContainText`, up to 200
-characters). Piwi refuses to write a secret field's value, and a text or a value that holds a credential.
-
-## What keeps it safe
-
-- **Only this machine, only this window.** The server answers a request to its own address on `127.0.0.1` with the
-  token, and refuses any other name for the machine and any request a browser sends (it carries an `Origin`). It serves
-  the runs this window started, and those [started outside Piwi](./terminal-runs) that follow it, and nothing of an
-  instance.
-- **Only a stopped page, only the actions named.** An action needs the stop it answers, and goes nowhere once the test
-  went on. The tools take a closed set of arguments; none evaluates code, reads a file or runs a command. Code reaches
-  your files only through the editor, as an edit you see.
-- **The page is untrusted.** A page can hold text written to steer a model. Everything that comes from it (its
-  snapshot, its address and title, an element's name, text and value, the locators built from them, its console, its
-  errors, its requests, and what the test says when a read of it fails) comes back apart from Piwi's own answer,
-  between two markers that share a random value the page cannot know, and every tool's description tells the agent to
-  read it as data, never as instructions. An image comes after a line that says it is the page's too.
-- **Secrets stay hidden.** The value of a password field, a one-time code and a card's number or security code is
-  never sent: its line in the snapshot reads `<hidden>`, in every frame, the image masks the field, and no assertion
-  writes it. Tokens and credentials in the page's text, its addresses and the locators `page_locator` shows are
-  hidden, as on Piwi's other surfaces.
-- **You watch it happen.** The agent's stops show in the editor and the Runs window as yours do, the editor's as
-  `Paused by the agent · …`; its first action at a stop says so in a notification; the code it has written names it
-  (`Piwi wrote the steps the agent took above checkout.spec.ts:30.`). You can take over at any stop.
-
-## In the desktop app
-
-The [desktop app](./desktop-runs#for-agents) serves the same tools for the runs it starts, from its own MCP server.
-There, `code_write` writes no file: the code waits in the **Local runs** tray to copy, and comes back to the agent. A
-run nobody attends, such as a Flake Lab run or a bisect, is not served.
-
-## Share with Playwright tools
-
-At a stop, **Share with Playwright tools** (the stop's hover and **Piwi: Share the stopped test's browser with
-Playwright tools** in VS Code; the stop's menu and **Tools → Piwi** in a JetBrains IDE) binds the test's browser for
-Playwright's own tools, so `npx playwright cli attach piwi-<run>-w<worker>` and Playwright's dashboard can join it.
-It is off until you ask, every time, and asks first: a shared browser is open to any process of yours, which can read
-its pages and run code in them. It is shared until the test ends, and no agent can share it.
-
-## Limits
-
-- **A remote window** (SSH, a dev container, Gateway) runs the server on the remote machine: an agent there reaches it.
-- An action needs a `@piwitests/reporter` at least as recent as the editor extension; at an older one's stops, the
-  tools say what it cannot do.
-
-## Related
-
-- [Pause and step from the editor](./editor-run-control)
-- [Code from a pause](./editor-stop-code)
-- [MCP server](./mcp)
-- [Runs window](./runs-window)
-
-<!-- https://piwitests.dev/features/editor-recording -->
-
-# Record tests from the editor
-
-**Piwi: Record here** opens a browser through your project's own Playwright and writes what you do there at the cursor,
-as you do it: steps inside a test, a page object's method or a helper function, a new test anywhere else in a spec. It
-works in VS Code (and Cursor, VSCodium) and in the JetBrains IDEs with the
-[Piwi plugin](./jetbrains), and needs no instance, no desktop app and no browser extension.
-
-<figure>
-  <video src="/videos/editor-recording-loop.mp4" autoplay loop muted playsinline controls aria-label="VS Code beside the browser the project's Playwright opened: Piwi: Record here at a blank line of a test, then a coupon typed and applied and the total checked in the browser, each step written in the test as it is made, the coupon's two steps becoming a call to the page object's applyCoupon, and Stop ending the recording with Run and Verify ×3 offered"></video>
-  <figcaption>Record here: the steps written as you go, folded into your page object's method.</figcaption>
-</figure>
-
-## Start a recording
-
-| Editor | Record at the cursor | Record a new test file |
-|---|---|---|
-| VS Code | **Piwi: Record here**, from the command palette or the editor's context menu | **Piwi: Record a new test file** |
-| JetBrains IDE | **Tools → Piwi → Record Here**, **Alt+Enter** or **Alt+Insert** (Generate), or the editor's context menu | **File → New → Record a New Test File…** |
-
-Before the browser opens, the editor asks for:
-
-1. **The start page**: a path on the project's `baseURL`, or an address; left empty, the browser opens the `baseURL`.
-2. **The page the steps run on**, when the code around the cursor offers several: `page`, a fixture such as
-   `adminPage`, or `this.page` in a page object. A fixture named like a page object (`todoPage`) comes after `page`
-   until the test calls a page method on it. Any other expression can be typed.
-3. **The Playwright project**, when the config has several. The browser gets its `use` options: `baseURL`,
-   `storageState`, the viewport and device, the locale, the extra headers and `testIdAttribute`.
-
-The editor offers your last answers again. A new test file is offered next to the file you are in, and the recording
-writes a whole spec into it.
-
-## While it records
-
-- **The block** the recording writes is tinted, and written again as each step arrives: a run of steps becomes one call
-  to your own page object or helper once its last step is recorded. Started on a line inside a call that spans several
-  lines, the block goes after that statement.
-- **The controls**: the step count, **Stop** and **Pause** (**Resume** while paused), above the block in VS Code and in
-  a banner above the editor in a JetBrains IDE, and **Pause**, **Stop** and the checks in the browser's recording bar. The status
-  bar shows the recording too. While paused, from the editor or the browser, what you do in the browser is not
-  recorded: use it to reach a page or set up data without writing those steps; **Resume** continues from there.
-- **Checks**: **Check an element** in the browser's recording bar lets you pick an element and check its text, its
-  value, its accessible name or its state, starting from what it shows now; **Check the address** checks the page's
-  address. Each is written as an `await expect(…)` where you added it.
-- **Typing in the block** pauses the recording. **Resume** writes the block again from the recorded steps, over your
-  edits; **Keep my edits** stops the recording and keeps the code as you changed it.
-- **Warnings** (a brittle locator, a password read from the environment, a file to upload) are on their lines. They stay
-  after the recording, each until its line is edited.
-
-What the code holds, from locators to imports, and the options in the Playwright config that shape it:
-[Recorded code](./recorded-code).
-
-## Stop and undo
-
-**Stop** in the editor or in the browser's recording bar, or closing the browser, ends the recording, and the code stays.
-Closing the file ends it too. One **Undo** then removes the whole recording, imports included. In VS Code, a save or an
-edit of the file during the recording starts a new undo step, so your own changes stay undoable on their own; in a
-JetBrains IDE, that Undo also takes back the edits you made in the file meanwhile, and Redo brings everything back.
-
-### Run it, or verify it three times
-
-Once the recording stopped, a notification says what it wrote, `Recorded 6 steps into checkout.spec.ts.`, with two
-actions for the test that holds the block, the new test or the test you recorded steps into:
-
-- **Run** runs that test, with your breakpoints, as **Piwi: Run the test at the cursor** does.
-- **Verify ×3** runs it three times, without retries and without the breakpoints, as **Piwi: Verify the test at the
-  cursor ×3** does, and says how it went: `Passed 3 of 3`, or `Failed 1 of 3` with **Open the failures** and **Open
-  in dashboard**.
-
-Both save the file, then run the test by the line of its `test(…)` call
-(`npx playwright test tests/checkout.spec.ts:42`), so neither needs an instance:
-[When your run ends](./editor-runs#when-your-run-ends) says how a run without one is counted. Steps recorded into a
-page object or a helper offer neither action: no test holds them.
-
-### Choose another locator
-
-The recorder keeps up to five locators for each element it acts on, each verified to find that element alone on the
-page, and writes the best one. Once the recording stopped, a warning on a step that has other locators offers each of
-them as a quick fix, best first: **Use getByTestId('pay')** in the light bulb menu in VS Code, with **Alt+Enter** in a
-JetBrains IDE. It puts that locator in place of the one written on the line, as one edit that **Undo** takes back, and
-the line's warning goes. While the recording runs, none is offered: each step writes the block again.
-
-The quick fix replaces the locator only where the line holds it once, as it was written: a line that calls your own
-page object or helper has none of its own, and offers none.
-
-## Send from Piwi Picker
-
-A locator picked with the [Piwi Picker](./extension) browser extension in your everyday browser, or a flow it
-recorded, lands at the editor's cursor too:
-
-1. In the editor, run **Piwi: Pair with Piwi Picker** (**Tools → Piwi → Pair with Piwi Picker** in a JetBrains IDE).
-   It copies a pairing address, `http://127.0.0.1:<port>/…#<token>`.
-2. In Piwi Picker's settings, paste it under **Send to editor** and click **Pair**; the browser asks once for access to
-   that local address.
-3. A picked locator's row, the top locator of the [Elements sidebar](./devtools#the-elements-sidebar), the
-   [Locators console](./devtools#the-piwi-panel) in DevTools and the recording review then show **Send to editor**. A
-   locator is inserted in the copy form you chose; a recording is rendered as the body of a test, like
-   [`piwi codegen --body`](/reference/cli#codegen), or as a new test outside one.
-
-The editor listens on the loopback interface only, answers only a request addressed to `127.0.0.1` or `localhost` at
-its port, and accepts one only with the token. Before Piwi Picker sends the token, the editor proves it holds it, so
-another program that took the port is sent nothing; the settings ask for that proof as they open and after
-**Pair**. With several VS Code windows open, the one that paired receives.
-With no editor open, a JetBrains IDE puts it in a new scratch file. In a remote window (Remote SSH, WSL, Dev
-Containers), the pairing address is the local end of a port VS Code forwards to the listener, listed in the Ports
-view, and Piwi Picker's Runs window lists that window's runs: [Remote development](/guide/remote-development).
-
-Every test run Piwi starts gets the pairing address and token as `PIWI_EDITOR_SEND`, so a locator picked at one of its
-stops reaches the editor: such a run starts the listener and creates the token if there is none. The capture fixtures
-hide it from the processes a test starts; the Playwright runner and its `webServer` still have it, and programs
-running as your user are not kept out.
-
-## Limits
-
-- The browser is the one your tests use, installed by Playwright (`npx playwright install chromium`).
-- Your project's Playwright runs with the first `node` on the editor's `PATH` in VS Code (when it is Node 20 or later,
-  else with the editor's own runtime), and with the project's Node.js interpreter in a JetBrains IDE.
-- The recording does not start your `webServer`: start the application first.
-- It records the top-level page: clicks inside an iframe, and steps in a popup or a new tab, are not recorded yet. The
-  editor says so when the application opens a tab or a popup.
-- A file takes one recording at a time.
-- A recording starts on a fresh page. To record where a test already is (signed in, halfway through a flow), pause the
-  test there and [record from the pause](./editor-breakpoints#record-from-a-pause).
-
-## Related
-
-- [Recorded code](./recorded-code): what a recording writes, and the options that shape it.
-- [Editor extensions](./editors): everything else the editor shows from your suite.
-- [Piwi Picker](./extension): records in your everyday browser, for a bug report or a steps file.
-- [Test functions](./test-functions): the page objects and helpers a recording calls.
-
-<!-- https://piwitests.dev/features/recorded-code -->
-
-# Recorded code
-
-A [recording from the editor](./editor-recording), and a flow [sent from Piwi Picker](./editor-recording#send-from-piwi-picker),
-are written as the code your suite would hold: locators verified on the page, calls to your own page objects and
-helpers, no password in the file. The Playwright config sets how that code looks for everyone who records in the
-repository.
-
-## What a recording writes
-
-- **Locators** come from the same converter as Piwi Picker's recordings and [`piwi codegen`](/reference/cli#codegen):
-  each is verified to find the element alone on the page, the stable ones first and those your tests already use
-  preferred. A check of the element's text takes a locator that does not find it by that text, when one is not
-  brittle. A `getByTestId` uses the attribute your config sets.
-- **Pages**: an address on the project's `baseURL` is written as a path, and the step that leads to another page is
-  followed by a wait for it, except next to a call to your own code, which waits for its pages itself.
-- **Imports**: a call to your own code, and `expect` when a step checks something, are imported at the top of the file
-  when it lacks them: `expect` from `@playwright/test`, or from your fixtures module when the file or a spec beside it
-  imports `expect` from there. A new test in a file that imports no `test` imports it as the specs beside it do. A spec
-  that loads `test` with `require` gets `require` lines after its last one.
-- **Titles**: a new test is titled `recorded flow`, numbered (`recorded flow 2`) when the file has one already.
-- **Your own code**: when the editor is connected to an instance or the [desktop app](./desktop), steps that match one
-  of your [test functions](./test-functions) become a call to it, as soon as the last of those steps is recorded.
-- **Passwords** are never recorded: the code reads them from an environment variable named after the field, such as
-  `process.env.E2E_PASSWORD`, including in a call to a page object.
-
-## Code options in the Playwright config
-
-How the recorded code looks is set for the whole repository in `playwright.config.ts`, under the `'@piwi'` key at the
-top level, next to `testDir` and `use`. Everyone who records in the repository from the editor gets the same code,
-with or without an instance; [`piwi codegen`](/reference/cli#codegen) reads its own flags instead:
-
-```ts
-import { defineConfig } from '@playwright/test';
-import type {} from '@piwitests/reporter'; // declares '@piwi' on the config; already there with wrapConfig
-
-export default defineConfig({
-  testDir: './tests',
-  '@piwi': {
-    codegen: {
-      testSteps: 'page',
-      tags: ['@recorded'],
-      annotations: [{ type: 'piwi:owner', description: '@shop-team' }],
-    },
-  },
-});
-```
-
-| Option | Default | What it does |
-|---|---|---|
-| `pageWaits` | `true` | `false` leaves out the wait for the next page after a step that leads to it |
-| `values` | `'literal'` | `'env'` reads every typed value from an environment variable named after its field, not only passwords |
-| `envPrefix` | `'E2E_'` | What those variables start with, as in `E2E_PASSWORD`: upper-case letters, digits and underscores |
-| `testSteps` | `'none'` | `'page'` wraps the steps of each page in `await test.step('/cart', …)`, so the report reads like the scenario; in a test only, not in a page object or a helper |
-| `tags` | none | Tags a new test gets |
-| `annotations` | none | Annotations a new test gets, `{ type, description? }` |
-
-The editor reads the section through your project's own Playwright, so it applies to the recordings started after the
-config is saved, and to what Piwi Picker sends to the editor. An unknown option or a value of the wrong kind is left
-out, and the recording says so when it starts.
-
-## Related
-
-- [Record tests from the editor](./editor-recording): start a recording, and what happens while it runs.
-- [Test functions](./test-functions): the page objects and helpers a recording calls.
-- [Piwi Picker](./extension): records in your everyday browser, for a bug report or a steps file.
 
 <!-- https://piwitests.dev/features/editor-connection -->
 
