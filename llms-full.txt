@@ -577,9 +577,10 @@ Two answers to "what do the tests miss", each with its own number. **Coverage** 
 functions ran, as a ratio over the lines that can run; the lines no test or suite ran are **lines not run**. The
 **Test Map** measures the application: which routes, pages and controls the tests reach and would notice breaking;
 what they miss becomes a [scenario gap](#scenario-gap), a test to write, ranked by exposure and never a percentage.
-They meet at the file: a file's [coverage page](/features/combined-coverage) lists the file's nodes in the Test Map
-with their open gaps and opens the [Gaps tab](/features/scenario-gaps) on one, and the Gaps tab's graph links a file or
-a route handler to its coverage. Neither fails a build.
+They meet on a project's [Coverage tab](/features/scenario-gaps#the-coverage-tab), whose views hold the gaps, the map
+and the code, and at the file: a file's [coverage page](/features/code-reach#which-tests-run-a-file) lists the file's
+nodes in the Test Map with their open gaps and opens the Map view on one, and the Map view's graph links a file or a
+route handler to its coverage. Neither fails a build.
 
 ### Uncovered change
 
@@ -684,7 +685,7 @@ is not in it. Off by default: turn it on with `capturePageInventory`.
 
 How complete a project's Test Map is, per input: the page inventory, the pages of locator calls, route handlers,
 probes, the declared surface, change history and the function catalog, each against what it could hold, with the
-detectors it wakes. A detector stays silent without its input, so a quiet Gaps tab can mean a map that cannot see; the
+detectors it wakes. A detector stays silent without its input, so a quiet Gaps view can mean a map that cannot see; the
 panel under the gap list names the step behind each input that is short. See
 [Scenario gaps & the Test Map](/features/scenario-gaps#map-health).
 
@@ -2545,8 +2546,10 @@ note counts the runs it hides. The **More** menu holds Edit, [Test functions](./
   [quarantine](./flaky-tests#quarantine-with-a-way-out) list.
 - **Flake Lab**: where each flaky test stands in the [Flake Lab](./flake-lab) and the command it needs next, and the
   project's newest experiments. Hidden when the Flake Lab is switched off.
-- **Gaps**: the tests the suite does not have yet, proposed from the Test Map, with the feature map and the graph view
-  ([Scenario gaps & the Test Map](./scenario-gaps)). Hidden when the Test Map is switched off.
+- **Coverage**: what the suite does not test, in three views: **Gaps**, the tests to write, proposed from the Test Map
+  ([Scenario gaps & the Test Map](./scenario-gaps)); **Map**, the feature map and the graph view; **Code**, every
+  suite's [combined coverage](./combined-coverage) of a commit. Hidden when both the Test Map and coverage are switched
+  off.
 - **Performance**: duration trends, the slowest tests, timeout opportunities and the slow endpoints
   ([Slow tests & wasted time](./slow-tests)).
 - **Settings**: one section at a time, picked from a menu beside it: the label and tags, the project's
@@ -6666,19 +6669,20 @@ the application itself did not cope with the fault, whatever the tests saw.
 Gaps are ranked by **[exposure](/guide/concepts#exposure)**, a score from how often the code behind a node changes,
 whether it was part of an earlier escaped failure and the priority of the tests that reach it, and, for a changed file,
 how long it has been changing. The score and its factors show on every gap, and
-[which gaps get which factors](/reference/gap-detectors#exposure) varies: a gap on a page or a control ranks by
-priority and its detector alone. Counts are per class, never a coverage percentage: a percentage over an observed
+[which gaps get which factors](/reference/gap-detectors#exposure) varies. Counts are per class, never a coverage percentage: a percentage over an observed
 surface looks complete exactly when that surface is sparse.
 
 An [uncovered change](/features/uncovered-changes) is a gap too, raised at pull-request time, and so is a page with
-open [bug reports](/features/bug-reports).
+open [bug reports](/features/bug-reports), and code no suite runs, error paths no suite runs, or code only one test runs.
 
-## The Gaps tab
+## The Coverage tab
 
-The project's **Gaps** tab lists gaps and findings by feature, ranked, each with its class, score factors and
-evidence: the top 200 of the status picked, so a large map is read one status or one feature at a time.
+The project's **Coverage** tab has three views. **Gaps** lists gaps and findings by feature, ranked, each with its
+class, score factors and evidence: the top 200 of the status picked, so a large map is read one status or one feature
+at a time. A gap on a file, a handler or a route names the files behind it with the lines the suites ran. **Code** is
+the [combined coverage](/features/combined-coverage) of a commit.
 
-The tab opens on the **feature map**: one circle per feature (from the
+**Map** opens on the **feature map**: one circle per feature (from the
 [`piwi:feature` tag](/reference/test-metadata)), sized by the routes, pages and controls it groups, colored by its
 worst open gap, and linked to the features it shares nodes with. A feature also groups what its tests miss nearby,
 such as the controls on its pages, and a **hub** most tests reach links no features
@@ -6730,8 +6734,7 @@ week after their acceptance: the tests not yet written.
 
 Every verdict is also a labeled example that counts
 [for or against its detector](/reference/gap-detectors#precision). A detector below 60% precision on a project with twenty or more verdicts **mutes itself**
-there: its rows leave the pull-request comment, the Gaps digest, the feature map and graph, its gaps sort last in the Gaps
-tab and in the MCP tools, and the Gaps tab and **Settings → About** say so.
+there ([what muting changes](/reference/gap-detectors#precision)).
 
 The top new gaps of each project are the **Gaps digest**
 [quality report](/features/quality-reports#what-a-report-contains); [schedule it](/features/quality-reports#report-schedules)
@@ -6805,8 +6808,8 @@ project or for the instance, and these surfaces disappear.
 A pull request that changes `server/api/orders/[id].patch.ts` while no test ever requests that route passes CI and
 proves nothing about the change. When a run finishes, Piwi joins the files its change touched to the tests that
 [observably reach](/guide/concepts#reach) them, and names the changed files nothing reaches: the **uncovered
-changes**. Each one is a *changed, unreached* [scenario gap](/features/scenario-gaps); its draft holds the file and
-the evidence, and no steps, since no test leads to it. When the head commit has
+changes**. Each one is a *changed, unreached* [scenario gap](/features/scenario-gaps). Its draft starts from the route or
+page the file serves, or the nearest one a test reaches under the same path, with that test named. When the head commit has
 [combined coverage](/features/combined-coverage), the same section counts the changed lines too, and names those no
 suite ran, in every file.
 
@@ -6844,8 +6847,10 @@ Before the pull request, the [editor extensions](./editor-coverage#uncovered-cha
 change of a page or a server route in the file itself, by a rule of their own: no coverage scope, no window of runs,
 and a page counts as reached only when a test's locator acted on it.
 
-The diff comes from the [source control](/guide/source-control) connection: a pull-request run is compared with its
-base branch, any other run with the commit of the last passing run. A public repository is read without a token, so
+The diff comes from the [source control](/guide/source-control) connection. A run of a pull request is compared
+with the branch it merges into, so every push reports the whole pull request: the one its CI names, else the one
+open on its branch, so a push-triggered workflow reads its pull request too. Any other run is compared with the
+commit of the last passing run. A public repository is read without a token, so
 its uncovered changes and their gaps appear in Piwi, though nothing is posted; a private one needs a
 [token](/guide/source-control#set-the-token). With no diff, nothing appears.
 
@@ -6860,7 +6865,7 @@ Changed files no test reached, in this run or the last 30 runs. Observed reach, 
 
 **PROJ-418**
 - `server/api/orders/[id].patch.ts` · changed (+41 −3) · 0 tests in 30 runs
-  → *a scenario that exercises [id].patch.ts* · draft
+  → [open its gap](https://piwi.example.com/projects/4?tab=coverage&gap=31): **Accept** copies a draft test
 ```
 
 When the head commit has [combined coverage](/features/combined-coverage), the section also counts the change's lines
@@ -6877,6 +6882,11 @@ visiting a file is not a test running the change.
 The section ends with what it did not count: *Not counted: 2 files Piwi cannot observe, 1 file outside the coverage
 scope.*
 
+Three more detectors read the whole pull request at each run: an error status a route's handler gains that no run
+answered with, a control a page gains, and a title no test's words match ([the detectors](/reference/gap-detectors#detectors)).
+Their gaps carry the pull request's number, close when a later run no longer raises them, and the section counts them
+with a link to the pull request's gaps, where the change-coverage status leads too.
+
 <figure>
   <img src="/screenshots/uncovered-changes.png" alt="The Uncovered changes section of a pull-request comment">
   <figcaption>Patch coverage, the changed files no test reaches, and the changed lines no suite ran.</figcaption>
@@ -6887,7 +6897,8 @@ comment again a few seconds later; a later push's comment is never overwritten b
 
 When commit statuses are on too, a second status joins the run's own: `piwi/tests/change-coverage` with the default
 status context, described as *3 of 7 changed files no test reached*, with the patch coverage when there is one. It is
-always **success**, so it informs a reviewer without blocking the merge.
+always **success**, so it informs a reviewer without blocking the merge, and it leads to the pull request's gaps on the
+Coverage tab.
 
 The files no test reached are the Test Map's part: they are left out while the *changed, unreached* detector is
 [muted](/features/scenario-gaps#triage) on the project, or where the Test Map is declined. The changed lines are
@@ -6909,6 +6920,7 @@ Two flags of [`piwi gate`](/guide/ci#blocking-a-merge) read the same rule, one p
   none of them (the line form). Run it after the unit-test jobs uploaded their reports.
 
 Both are **warn-only**: they never change the verdict or the exit code, because the numbers inform rather than prove.
+The first names up to five of the files, and a stored evaluation keeps its warnings.
 Either warns too when the run has no source control diff to count. Without them, the gate ignores uncovered changes.
 
 ## Limits
@@ -7400,10 +7412,11 @@ coverage of the commit's complete Playwright runs (never a partial, probe or fla
   the commit's branch then on the default branch, file by file where the file's version is unchanged.
 - **A run whose backend restarted** still joins `e2e`, adding only lines that ran; alone, it marks `e2e` incomplete.
 
-The project's **Coverage** page shows the commit whose coverage arrived last, and a run's header links its commit's.
+The **Code** view of the project's **Coverage** tab shows the commit whose coverage arrived last, and a run's header
+links its commit's.
 
 <figure>
-  <img src="/screenshots/combined-coverage.png" alt="A project's combined coverage page">
+  <img src="/screenshots/combined-coverage.png" alt="A project's combined coverage in the Code view">
   <figcaption>Three suites of one commit, counted on the same lines.</figcaption>
 </figure>
 
@@ -7422,11 +7435,14 @@ not count.
 
 ## Find what is not covered
 
-Every bar on the coverage page splits lines by class, as a file's marks do. **Files** is a foldable tree, each
-folder and file with its bar, sortable by lines not run; beside it, the selected folder's suites and least-covered
+Every bar in the Code view splits lines by class, as a file's marks do. **Files** is a foldable tree, each
+folder and file with its bar and its open [scenario gaps](./scenario-gaps), sortable by lines not run; beside it, the selected folder's suites and least-covered
 files. A file opens on its source, through the
 [source control](/guide/source-control) connection, each line marked by the suites that ran it; **Next range** jumps to
-the next lines no suite ran. **In the Test Map** lists its routes and pages with their [scenario gaps](./scenario-gaps).
+the next lines no suite ran. **In the Test Map** lists its routes and pages with their [scenario gaps](./scenario-gaps), each with its
+**Accept**, **Snooze**, **Covered by** and **Dismiss**. The functions no suite ran, the error paths no suite ran in code that ran, and the
+functions only one test runs are gaps of their own ([the detectors](/reference/gap-detectors#detectors)). The view reads the branch the project's filters pick, or the
+default branch when they pick none or several.
 
 <figure>
   <img src="/screenshots/combined-coverage-file.png" alt="A file's lines marked by suite">
@@ -7455,7 +7471,7 @@ one counting an incomplete `e2e` says so.
 
 ## Export
 
-The coverage page's card menu downloads the commit's combined coverage as LCOV or Cobertura, for Sonar, Codecov or an
+The Code view's card menu downloads the commit's combined coverage as LCOV or Cobertura, for Sonar, Codecov or an
 IDE (`coverage-export?format=` in the API). A line any suite ran has 1 hit, else 0, an undetermined line included:
 Piwi keeps no hit counts and no branches.
 
@@ -7471,7 +7487,7 @@ inventory: its tracked files in scope and their blob ids.
 ## Areas
 
 Name the parts of the code in the same settings (`coverageAreas` in the API): `front: apps/web/`, `back: src/Api/`. A
-file belongs to the first area whose patterns match it, and every suite splits the same way: the coverage page gives
+file belongs to the first area whose patterns match it, and every suite splits the same way: the Code view gives
 each area its totals and each suite's share, the coverage trend a line per area, and the pull-request comment the
 changed lines per area. A change recounts the commits that keep their reports; a removed area
 leaves the trend.
@@ -11176,7 +11192,9 @@ lists them, and the owner is the one of the spec file whose tests visit the page
 CODEOWNERS). It needs the [capture fixtures](/guide/capture-fixtures), which record the page each locator ran on.
 
 Until a test names it, an open report is also an **escaped defect** on the [Test Map](./scenario-gaps): one blind spot
-per page with open reports, ranked like any gap.
+per page with open reports, ranked like any gap. A report closed while no test names it becomes a gap of its own,
+*fixed without a regression test*, and every report of the last 180 days raises the escape history of the gaps on its
+page ([exposure](/reference/gap-detectors#exposure)).
 
 ## The failing test
 
@@ -12084,7 +12102,8 @@ no test's locator acts on, requests or runs. The rule is close to the pull reque
 coverage scope and no window of runs, and a page a test only visited reads as unreached. Its lines changed since the default branch are marked orange: those added since
 the commit your branch left it at (the merge base with `origin/main`, else `main`), uncommitted changes included,
 blank lines left out. The file's top lens says `Uncovered changes: 12 lines changed since main, and no test reaches
-this file`, and so does the hover on a marked line. A test that reaches the file, or the change reaching the default
+this file`, and opens the file's gaps on the dashboard's Coverage tab, where **Accept** copies a draft test once a
+pull-request run has raised one. The hover on a marked line says the same. A test that reaches the file, or the change reaching the default
 branch, takes the marks away. A file nothing can observe, and a project whose code reach is missing or cut short, show
 nothing.
 
@@ -15536,16 +15555,28 @@ without it.
 | **Control nobody exercises**<br>`control-nobody-exercises` | blind-spot | a control on a page that no test's locator targets | the page inventory and the [locator index](/features/locator-usage) | 0.3 plus 0.1 per page, at most 0.8 | `On 12 page(s) · no locator targets it` |
 | **Reachable, unvisited**<br>`reachable-unvisited` | blind-spot | a page other pages link to that no test navigates to | the page inventory | 0.4 plus 0.1 per linking page, at most 0.8 | `Linked from 7 page(s) · never navigated to` |
 | **Escaped defect**<br>`escaped-defect` | blind-spot | a page with [bug reports](/features/bug-reports) no test names yet, one gap per page | Piwi Picker sending reports | 0.6 plus 0.1 per further report, at most 1 | `Bug report #37: Coupon not applied to the total — no test names it yet` |
+| **Fixed without a regression test**<br>`fixed-without-test` | blind-spot | a [bug report](/features/bug-reports) closed in the last 180 days while no test names it | Piwi Picker sending reports | 0.7 | `Bug report #2 was fixed without a regression test: Gift card balance shown twice` |
 | **Changed, unreached**<br>`changed-unreached` | blind-spot | an [uncovered change](/features/uncovered-changes#one-rule-for-every-changed-file), at pull-request time: a changed file Piwi can observe that no test reached, in the run or the last 30, and no suite ran a changed line of | an SCM token | 0.9 | `+41 −3 · no test in run #812 or in the last 30 runs` |
+| **New error path**<br>`new-error-path` | blind-spot | at pull-request time, an error status (400 to 599) the change makes a route's handler answer with or throw, which no run of the route answered with, this one included | an SCM token and a pull request | 0.55 | `Adds 422 to POST /api/orders · never observed` |
+| **New control**<br>`new-control` | blind-spot | at pull-request time, a button, field, select or switch the change adds to a page file, on a page a test reaches, named by its static label, placeholder, name or text | an SCM token and a pull request | 0.5 | `Adds button "Apply promo" on /checkout` |
+| **Intent without a test**<br>`intent-without-test` | blind-spot | at pull-request time, a pull request whose title's words (half of them at least) no test's title, describe path, tags or feature holds | an SCM token and a pull request | 0.4 | `feat: apply a promo discount · no test title, tag or feature matches` |
 | **Single covering test**<br>`single-covering-test` | fragile | a node exactly one trusted test reaches, or that only untrusted tests reach | nothing more | 0.5; 0.6 when only untrusted tests reach it | `Only checkout › coupon reaches this`; `Only toggles dark mode (flaky) reaches this` |
 | **Orphan test**<br>`orphan-test` | fragile | a test whose every reached node went unseen through the default branch's last 30 complete runs | nothing more | 0.4 | `All 3 node(s) it reaches disappeared from recent runs` |
 | **Fix did not hold**<br>`fix-did-not-hold` | fragile | a failure cluster whose fix later regressed | nothing more | 0.6 | `Fixed in a1b2c3d · regressed 6 days later` |
+| **Incidental catch**<br>`incidental-catch` | fragile | a failure cluster whose recorded fix changed one to three files, no test file among them, that none of the tests it failed is about by name or reaches | [source control](/guide/source-control) | 0.45 | `src/pricing/rounding.ts is caught only incidentally` |
 | **Not noticed**<br>`not-noticed` | false-comfort | a route a probe broke while no test noticed (a delay never counts) | [probes](/features/probes) | 0.8 | `A probe (status-500) on POST /api/orders did not make checkout › pay fail` |
 | **Passed with errors**<br>`passed-with-errors` | false-comfort | a test whose newest execution in the default branch's last 30 runs passed while the application reported an error: a 5xx from one of its routes, a backend log at error level, or a console error from its own origin | nothing more; backend logs need the [instrumentation](/guide/backend-logs) | 0.6 | `Passed · run #73 · the backend logged an error on PATCH /api/orgs/current` |
 | **Assertion-light**<br>`assertion-light` | false-comfort | a page some test asserts on, every check there only that an element is visible, hidden, attached or in the viewport | the locator index | 0.4 | `2 tests assert on this page, only that elements are present` |
 | **Catalog method, no test calls**<br>`catalog-method-no-test-calls` | blind-spot | a page-object method or helper on a reached page that no test runs | the [test functions catalog](/features/test-functions) | 0.5 | `./pages/UsersPage · goToNextPage · page reached by 3, called by 0` |
+| **Code nobody executes**<br>`code-not-executed` | blind-spot | the functions of a file no suite ran in the default branch's newest [combined coverage](/features/combined-coverage), or a file recorded by line none of whose lines ran; the 30 files with the most, one gap each | a coverage report or run coverage | 0.4 plus 0.3 times the share of its functions not run; 0.6 for a whole file | `Functions at lines 12–20, 22–30 · no suite ran them at 9a8b7c6` |
+| **Single covering function**<br>`single-covering-function` | fragile | the functions of a file exactly one test runs in the tests' latest coverage on the default branch, quarantined tests left out, or that only quarantined tests run; the 30 files with the most, one gap each | per-test [code reach](/features/code-reach) | 0.5 | `Only checkout pays runs the functions at lines 7–9` |
+| **Error path never executed**<br>`error-path-not-executed` | blind-spot | a `catch` block, a `throw`, or a statement answering with an error status (`TypedResults.NotFound()`, `res.status(409)`) that no suite ran, inside a function that ran (inside a file that ran, when the coverage records it by line): the code-level form of *Success only*. The 30 files that ran with the most lines not run, read at the commit's version | a coverage report or run coverage, and the [source control](/guide/source-control) connection to read the files | 0.7 | `Line 59 · return TypedResults.NotFound(); · its function ran, this never did` |
 | **Unprobed dependency**<br>`unprobed-dependency` | false-comfort | a dependency a route's handler calls that no probe has decided | server spans | 0.3 plus 0.1 per calling route, at most 0.7 | `Called by 4 route(s) · no probe has checked what happens when it fails` |
 | **Not handled**<br>`not-handled` | unhandled, degraded | the application did not cope with a server probe's fault; a finding, not a gap | [server probes](/features/probes#server-probes) | 1 unhandled, 0.5 degraded | `A server probe made POST /api/orders fail; the application did not handle it` |
+
+*Error path never executed* scans brace-syntax source (TypeScript, JavaScript, C#, Java): a comment line is skipped,
+and a brace inside a string can end a `catch` block early. It runs on **Recompute** and the nightly sweep, which read
+the files through the source control connection; a file the provider cannot serve keeps its gap as it was.
 
 *Passed with errors* leaves out a console line from another origin's script and the browser's own *Failed to load
 resource* line. A response no server sent, such as one the test's route handler fulfilled, is no 5xx of the
@@ -15588,12 +15619,12 @@ kept between 0.1 and 1, so a missing input lowers the score without zeroing it.
 |---|---|---|
 | **Churn** | commits touching the files: on a pull request, among the base branch's newest twelve in the last 90 days | 12 commits |
 | **Age** | on a pull request, the days since the oldest of those commits; older weighs more, since escaped defects concentrate there. The 90-day scan stops it near 0.25 | one year |
-| **Escape history** | whether a file was part of a failure cluster's fixing commit | yes, else 0.1 |
+| **Escape history** | whether a file was part of a failure cluster's fixing commit, or a bug report from the last 180 days names the gap's page (the page holding its control) | yes, else 0.1 |
 | **Priority** | the highest [`piwi:priority`](/reference/test-metadata#ownership-metadata-piwi-annotations) of the tests reaching the node: critical 1, high 0.7, medium 0.4, low 0.2 | critical |
 
 Churn, age and escape history come from the [source control](/guide/source-control) connection and apply to the
 files a pull request changed. A gap on a route, a handler or a dependency draws churn and escape history from the
-handler files behind it, read from the diffs default-branch runs recorded over the last 90 days. Each run diffs from
+handler files behind it, and a gap on a file's code from that file, read from the diffs default-branch runs recorded over the last 90 days. Each run diffs from
 its last green run, so churn counts distinct diffs, and the runs of a red streak count once. Escape history marks the
 files in the diff that ended on a fixing commit, which holds every change since the last green run. Age needs each
 file's history, so it stays at 0.1 there. The other detectors
@@ -15611,7 +15642,26 @@ Each verdict on a gap counts for or against its detector, on that project:
 - **Neither**: dismissed as *not worth testing*, or with no reason, and never accepted.
 
 A detector's precision is its share of verdicts *for*. Below 60%, on a project with twenty or more verdicts, the
-detector [mutes itself](/features/scenario-gaps#triage) there.
+detector [mutes itself](/features/scenario-gaps#triage) there: its rows leave the pull-request comment, the Gaps digest,
+the feature map and graph, its gaps sort last in the Gaps view and in the MCP tools, and the Gaps view and
+**Settings → About** say so.
+
+### Close reasons and acted on
+
+A closed gap keeps why it closed, shown after its status in the Gaps view:
+
+| Reason | Closed when |
+|---|---|
+| Acted on in its pull request | A run of the pull request that raised it answered it: reached its changed file, answered with its new status, or a test names its intent |
+| A test reached it | A test reached its changed file, outside the pull request that raised it |
+| No longer detected | Its detector no longer raises it |
+| Covered by a test | Someone closed it with **Covered by** |
+| Merged into another gap | Its subject merged into another one's |
+| Detector retired | Its detector no longer runs |
+| Out of the coverage scope, file deleted, not observable | The [change coverage](/features/uncovered-changes) read of its file |
+
+Beside each detector's precision, Settings › About counts the gaps it raised on a pull request and how many that pull
+request acted on. No one triages that number: it says how often a gap led to a test before the change merged.
 
 ## Features
 
@@ -15655,7 +15705,7 @@ The graph stays proportional to the application's surface, not its data volume:
 
 ## Related
 
-- [Scenario gaps & the Test Map](/features/scenario-gaps): the Gaps tab and triage
+- [Scenario gaps & the Test Map](/features/scenario-gaps): the Coverage tab and triage
 - [Probes](/features/probes): the source of the false-comfort and resilience classes
 - [Core concepts](/guide/concepts#test-map): the Test Map vocabulary
 
