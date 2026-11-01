@@ -1224,9 +1224,12 @@ How the merge works:
    (`GITHUB_RUN_ID` with `GITHUB_RUN_ATTEMPT`, `CI_PIPELINE_ID`, `CIRCLE_WORKFLOW_ID` and their equivalents on the
    systems listed above). A re-run of a GitHub Actions workflow is a new attempt, so it starts a new run.
 2. Shards sharing a run label **and** a `projectName` resolve to the same run, streamed or batched.
-3. The run stays `running` until the **last** shard reports; batched shards may arrive an hour apart.
+3. The run stays `running` until the **last** shard reports. While none of its shards is running, it waits up to an
+   hour for the next one, streamed or batched, so a shard may start an hour after the others ended.
 4. Counters accumulate across shards. The run is `failed` if any shard reported a failure, and the run page shows a
    shard progress badge (`2/3`) while shards are arriving.
+5. The run lasts from the first shard's start to the last shard's end, whether the shards run side by side or one
+   after another. Its metadata keeps each shard's start, end and worker count under `shards`.
 
 **All shards must use the same `projectName`.**
 
@@ -14387,7 +14390,8 @@ What each origin feeds:
 
 ### Playwright configuration
 
-The reporter also records browser project configs, worker count, the global timeout, and parallel settings.
+The reporter also records browser project configs, worker count, the global timeout, and parallel settings. A sharded
+run keeps the configuration of the shard that began it, and each shard's own worker count under `shards`.
 
 ### Browser configuration per test case
 
@@ -15731,7 +15735,7 @@ one fires and what a webhook channel receives; channels, subscriptions and deliv
 | `run.finished` | A run completes (any status) |
 | `run.failed` | A run completes with failures |
 | `run.failed.default_branch` | A run fails on the repository's default branch |
-| `run.interrupted` | A run stops reporting before its end and the stale-run sweep marks it interrupted (two minutes without activity, an hour for a sharded run whose shards send their results in one batch). The payload is a run event's, with `status: "interrupted"` and the results stored so far; Flake Lab and probe runs send none |
+| `run.interrupted` | A run stops reporting before its end and the stale-run sweep marks it interrupted (two minutes without activity, an hour for a sharded run waiting for a shard that has not started, once every shard that started has ended). The payload is a run event's, with `status: "interrupted"` and the results stored so far; Flake Lab and probe runs send none |
 | `cluster.new` | A new failure cluster appears |
 | `cluster.fixed` | A run passes every test a cluster covers: the fix landed (a filtered re-run of just those tests counts). The payload's `verification` says whether the diagnosis was corroborated (`diagnosis-verified`) or the tests merely stopped failing, and `resolved` whether the triage status was closed automatically |
 | `cluster.regressed` | A cluster with a recorded fix fails again; `reopened` says whether a *resolved* cluster was set back to open |
