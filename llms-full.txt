@@ -5334,7 +5334,8 @@ With `PIWI_PAUSE_AT=tests/login.spec.ts:42` (semicolon-separated `file:line`, re
 absolute: `tests/login.spec.ts:42;tests/pages/checkout.page.ts:9`; an entry without a line is skipped, and the output
 says so), a call on a listed line that acts on, reads or checks the page (a navigation, an action, an assertion) waits
 before it runs, with a bar at the top of the page: **Resume**, **Step** (pause at the next call), **Pick a locator**
-(the picker above) and **Finish** (no more pauses); <kbd>Esc</kbd> resumes. A pick is recorded and printed like the
+(the picker above) and **Finish** (no more pauses); <kbd>Esc</kbd> resumes, unless the page takes it to close a
+dialog or an open list. A pick is recorded and printed like the
 failure-time one, and posted to `PIWI_EDITOR_SEND`, an editor's pairing address, with its line. Headed and never under
 CI, like the options above. The editor extensions set both from your [breakpoints](./editor-breakpoints).
 
@@ -8885,8 +8886,8 @@ The [reproduce and bisect](/features/fix-plans#reproduce-and-bisect) recipe of a
 linked folder, **without touching your checkout**:
 
 - **Reproduce here** checks out the failing commit in a throwaway
-  [`git worktree`](https://git-scm.com/docs/git-worktree), installs its dependencies (reusing your `node_modules`
-  when the lockfile is unchanged) and the browser if missing, and runs the failing test with that commit's own
+  [`git worktree`](https://git-scm.com/docs/git-worktree), installs its dependencies (reusing yours on an
+  unchanged lockfile outside a workspace) and any missing browser, and runs the failing test with that commit's own
   Playwright.
 - **Find the breaking commit here** bisects between the last green commit and the failing one, with live
   progress and a **Stop** that kills the test and what it started, resets the bisect and removes the worktree. The
@@ -9426,7 +9427,7 @@ with Playwright**: another program on the app's port receives nothing, after **U
 key instead**, the address must use `127.0.0.1`, since `localhost` may reach another program.
 
 While an instance is connected and no app is paired, the settings point to the pairing. The shared address stays
-granted: **Disconnect** leaves it to the app, and **Unpair** to the instance.
+granted: **Disconnect** leaves it to the app, and **Unpair** to the instance or the editor.
 
 ## URL patterns
 
@@ -10248,8 +10249,9 @@ locator on its image. The editor shows the same stops: [Pause and step from the 
 
 ## Open it
 
-With Piwi Picker [paired with VS Code or a JetBrains IDE](./editor-recording#send-from-piwi-picker), the popup shows a
-**Runs** tile under **More tools** while the editor answers. It opens the Runs window, to keep beside the test's
+With Piwi Picker [paired with VS Code or a JetBrains IDE](./editor-recording#send-from-piwi-picker), or with the
+[desktop app](./bug-reports#running-it-with-playwright-in-the-desktop-app), the popup shows a **Runs** tile under
+**More tools** while one of them answers. It opens the Runs window, to keep beside the test's
 browser. For each run the editor [started](./editor-runs), it shows the folder and the command, then each worker's test
 and whether it runs or where it stopped: the file and line, the call about to run, and an image of the page. While
 none of its tests is stopped, the run says how one stops: at a breakpoint, a `page.pause()` or **Pause**. A run
@@ -10657,6 +10659,9 @@ your API keys. The desktop app keeps its own token. For the runs the editor star
 
 ## Commands
 
+VS Code's names; a JetBrains IDE has its own under **Tools → Piwi**, and no **Open the log**, **Get started** or
+**Refresh the latest run**.
+
 | Command | What it does |
 |---|---|
 | Piwi: Connect, Disconnect | See [Editor connection](./editor-connection) |
@@ -10987,7 +10992,8 @@ Tools → Piwi** in a JetBrains IDE) shows it always, only when something fails,
 A verification (**Verify ×3**) says how many of its runs passed instead, whatever the setting: `Piwi: run #124 ·
 Passed 3 of 3`, or `Failed 1 of 3`. Each run is a result of its own on the instance, and the editor counts them from
 the results the run streams as it executes; when it missed some, a failing verification says `Failed at least 1 of 3`.
-When its run never reached an instance, the exit code says it: `Passed 3 of 3: tests/checkout.spec.ts:42`, or
+When its run never reached an instance, the exit code says it, which cannot tell a pass from a skip:
+`None of 3 runs failed: tests/checkout.spec.ts:42`, or
 `Failed at least 1 of 3: tests/checkout.spec.ts:42 (exit code 1)`.
 
 ## The status bar
@@ -11173,7 +11179,7 @@ or pick a better locator, which lands back on that line in the editor. The stop 
 
 1. Set a line breakpoint on a line with a Playwright call, in a spec or a page object:
    `await page.getByText('Pay now').click();`, `await page.goto('/checkout');`, `await page.keyboard.press('Tab');`
-   or `await expect(page).toHaveURL(/cart/);`.
+   or `await expect(page).toHaveURL(/cart/);`. On a statement broken over lines, any of its lines will do.
 2. Run the test from Piwi: **Run this test**, or any command of [Runs from the editor](./editor-runs#run-tests).
 3. The run opens a headed browser. Before the call on your line runs, the pause bar appears with the call as
    Playwright names it, `Paused at login.spec.ts:42 · Click getByText('Pay now')`, and a locator call's element is
@@ -11226,11 +11232,12 @@ starts recording. Pause and Stop are in the recorder's bar in the page and in th
 comes back, and **Resume** runs the rest of the test from the page as you left it, which checks that the new steps fit
 what follows.
 
-`await page.pause()` in a test does the same without a breakpoint: in a run Piwi starts, or any headed run with
-breakpoints, it shows Piwi's pause bar there in place of Playwright's Inspector, with **Record here** among its
+`await page.pause()` in a test does the same without a breakpoint: in a run Piwi starts or
+[that follows your editor](./terminal-runs), or any headed run with breakpoints, it stops there under Piwi's pause bar
+in place of Playwright's Inspector (headless, in the editor), with **Record here** among its
 buttons in a run Piwi starts, and Piwi adds `--headed` to a run whose spec holds a `page.pause()` call. The
-`page.pause()` line stays, so the next run can record from there again; remove it when the test is done. In a run
-without breakpoints Piwi did not start, outside a test (a `beforeAll` or `afterAll`) and on a page of a browser the
+`page.pause()` line stays, so the next run can record from there again; remove it when the test is done. In any other
+run, outside a test (a `beforeAll` or `afterAll`) and on a page of a browser the
 test launched itself, `page.pause()` is Playwright's own, with its Inspector; in a headless browser it returns at
 once.
 **Record here** records http(s) pages: on a page the test made with `setContent`, or a `file:` page, the editor says
@@ -11249,7 +11256,8 @@ starts at the editor's breakpoints** under **Settings → Tools → Piwi** in a 
 
 - **`@piwitests/reporter` 0.48.0 or later**, with the [capture fixtures](/guide/capture-fixtures) in your tests: the
   pause runs in them. With an older one, the run starts anyway and the editor warns once. A reporter of 0.59.0 or
-  older pauses before locator actions and assertions only.
+  older pauses before locator actions and assertions only. A spec that imports `test` from `@playwright/test` never
+  stops, and the run's output names it once.
 - **A run started from Piwi**, or [started outside Piwi](./terminal-runs). The editor passes the breakpoints under the
   Playwright config's folder to the run as `PIWI_PAUSE_AT` (`tests/login.spec.ts:42;tests/pages/checkout.page.ts:9`,
   relative to that folder), with its pairing address as `PIWI_EDITOR_SEND`, and adds `--headed` to the command unless it
@@ -11307,10 +11315,10 @@ code from the page: [Code from a pause](./editor-stop-code).
 | **Pause** | Stops a running test before its next call that acts on, reads or checks the page | none | Resume Program's, `F9` |
 | **Resume** | Runs the stopped test on to the next breakpoint | `F5` | Resume Program's, `F9` |
 | **Step** | Runs the call and stops before the next one, breakpoint or not | `F10` | Step Over's, `F8` |
-| **Run to cursor** | Stops at the first call on the cursor's line, or at a breakpoint before it | `Ctrl+F10` | Run to Cursor's, `Alt+F9` |
+| **Run to cursor** | Stops at the first call on the cursor's line (on a statement broken over lines, at its call), or at a breakpoint before it | `Ctrl+F10` | Run to Cursor's, `Alt+F9` |
 | **Finish** | Runs the test on without stopping at a breakpoint again in this attempt | `Shift+F11` | Step Out's, `Shift+F8` |
 | **End the test** | [Skips the rest of the test](./end-the-test), and a stopped locator call from Playwright 1.62 | none | none |
-| **Stop** | Ends the run's process | `Shift+F5` | the Run tool window's Stop |
+| **Stop** | Ends the run's process | `Shift+F5` | **Stop the Run**, or the Run tool window's Stop |
 
 The keys are the IDE's own debugger keys (in a JetBrains IDE, your keymap's), Piwi's only while their control applies
 and no debug session runs, and first where a JetBrains keymap gives one to another action too. On macOS, `Cmd+F10`
@@ -11382,7 +11390,8 @@ A breakpoint you add, remove or toggle applies to the run from its next call, in
 included. One that only moves because you edited the lines above it keeps the line the run has, and one you set in an
 edited file applies to that line of the run's code. The breakpoints that count are those a run's start reads: line
 breakpoints in script files under a Playwright config's folder, while `piwi.breakpoints` (**Pause the runs Piwi starts
-at the editor's breakpoints** in a JetBrains IDE) is on.
+at the editor's breakpoints** in a JetBrains IDE) is on. A logpoint, or a breakpoint that does not suspend, never stops
+the test; a condition is not read, so a conditional breakpoint stops at each pass.
 
 ## Share live
 
@@ -11728,7 +11737,9 @@ Open in IDE.
 ## Limits
 
 - **The test as your spec has it.** The title must name one test of the spec as saved: a test renamed since the run is
-  not found, and two of that title in describe blocks the dashboard does not name are refused.
+  not found, and two of that title in describe blocks the dashboard does not name are refused. A title written with
+  `${…}` parts matches with any text in their place, but one made of such parts alone matches nothing; Piwi passes the
+  run's title as `--grep` too, so of the tests the line declares, only those whose title holds it run.
 - **The line as your file has it.** The failing line is the run's: when the file changed since, the run stops at that
   line's number, or not at all when nothing there stops; a failure before it holds the test, as in any run with
   breakpoints.
@@ -11970,11 +11981,12 @@ recorded, lands at the editor's cursor too:
 3. A picked locator's row, the top locator of the [Elements sidebar](./devtools#the-elements-sidebar), the
    [Locators console](./devtools#the-piwi-panel) in DevTools and the recording review then show **Send to editor**. A
    locator is inserted in the copy form you chose; a recording is rendered as the body of a test, like
-   [`piwi codegen --body`](/reference/cli#codegen).
+   [`piwi codegen --body`](/reference/cli#codegen), or as a new test outside one.
 
 The editor listens on the loopback interface only, answers only a request addressed to `127.0.0.1` or `localhost` at
 its port, and accepts one only with the token. Before Piwi Picker sends the token, the editor proves it holds it, so
-another program that took the port is sent nothing. With several VS Code windows open, the one that paired receives.
+another program that took the port is sent nothing; the settings ask for that proof as they open and after
+**Pair**. With several VS Code windows open, the one that paired receives.
 With no editor open, a JetBrains IDE puts it in a new scratch file. In a remote window (Remote SSH, WSL, Dev
 Containers), the pairing address is the local end of a port VS Code forwards to the listener, listed in the Ports
 view, and Piwi Picker's Runs window lists that window's runs: [Remote development](/guide/remote-development).
@@ -12016,12 +12028,15 @@ repository.
 
 - **Locators** come from the same converter as Piwi Picker's recordings and [`piwi codegen`](/reference/cli#codegen):
   each is verified to find the element alone on the page, the stable ones first and those your tests already use
-  preferred. A `getByTestId` uses the attribute your config sets.
+  preferred. A check of the element's text takes a locator that does not find it by that text, when one is not
+  brittle. A `getByTestId` uses the attribute your config sets.
 - **Pages**: an address on the project's `baseURL` is written as a path, and the step that leads to another page is
   followed by a wait for it, except next to a call to your own code, which waits for its pages itself.
 - **Imports**: a call to your own code, and `expect` when a step checks something, are imported at the top of the file
   when it lacks them: `expect` from `@playwright/test`, or from your fixtures module when the file or a spec beside it
-  imports `expect` from there. A spec that loads `test` with `require` gets `require` lines after its last one.
+  imports `expect` from there. A new test in a file that imports no `test` imports it as the specs beside it do. A spec
+  that loads `test` with `require` gets `require` lines after its last one.
+- **Titles**: a new test is titled `recorded flow`, numbered (`recorded flow 2`) when the file has one already.
 - **Your own code**: when the editor is connected to an instance or the [desktop app](./desktop), steps that match one
   of your [test functions](./test-functions) become a call to it, as soon as the last of those steps is recorded.
 - **Passwords** are never recorded: the code reads them from an environment variable named after the field, such as
@@ -12030,8 +12045,8 @@ repository.
 ## Code options in the Playwright config
 
 How the recorded code looks is set for the whole repository in `playwright.config.ts`, under the `'@piwi'` key at the
-top level, next to `testDir` and `use`. Everyone who records in the repository gets the same code, with or without an
-instance:
+top level, next to `testDir` and `use`. Everyone who records in the repository from the editor gets the same code,
+with or without an instance; [`piwi codegen`](/reference/cli#codegen) reads its own flags instead:
 
 ```ts
 import { defineConfig } from '@playwright/test';
@@ -14620,11 +14635,12 @@ after it.
 | Element renamed<br>`element-renamed` | strong | [Locator healing](/features/locator-healing) found the element under a new identity, or flagged the stored name as stale while still recommending a fix. |
 | Page structure changed near the failing locator<br>`page-structure-changed` | strong when the locator never resolved, else medium | The [page diff](/features/evidence#page-diff) against the last green sample shows the element the locator names was removed or renamed. |
 | Element present but blocked<br>`element-present-but-blocked` | strong | The call log says the element resolved but was disabled, hidden, not visible or covered by another element, and the ARIA snapshot still shows it. |
+| Locator matched nothing<br>`locator-matched-nothing` | strong when [locator healing](/features/locator-healing) names, from the failure-time ARIA snapshot, the element the page had instead, else medium | The call log says the locator never found an element, and no clue says the element was renamed or removed, the page was the wrong one, a lock holder failed or a request around the failure was slow, failed or erred on the backend: a locator written wrong, as in a test being written, or an element that never showed. A crash or a failed navigation is not one. A flaky test's clue names no replacement. |
 | Wrong page<br>`wrong-page` | strong | The page ended on a login, sign-in, auth, error, 404 or not-found route, or somewhere other than the last navigation the test asked for. The end URL comes from the captured app state, else from the last navigation step. |
 | Worker pollution<br>`worker-pollution` | medium | The previous test on the same worker failed, timed out or was interrupted. |
 | Previous lock holder failed<br>`lock-holder-failed` | strong | The execution that held the same [lock](/reference/test-metadata#test-locks) just before this test, in this run, failed or timed out. |
 | Lock held on two shards<br>`lock-cross-shard` | medium | A lock this test held overlapped in time with a holder on another shard. Locks serialize only within one `playwright test` process. |
-| Timeout budget<br>`timeout-budget` | medium | The failed step used at least 80 % of the test timeout, or the execution used at least 95 %. |
+| Timeout budget<br>`timeout-budget` | medium; weak when the failed step itself spent the time waiting for a locator that matched nothing | The failed step used at least 80 % of the test timeout, or the execution used at least 95 %. |
 | Environment changed<br>`environment-changed` | medium when the browser, channel, viewport, locale, timezone, base URL or environment label changed, else weak | The environment differs from the same test's last green run in the same environment. Tool versions and color scheme alone stay weak. |
 | Browser-specific<br>`browser-specific` | medium | The same test passed on at least one other browser in this run. |
 | Known flake suspect<br>`known-flake-suspect` | strong when a [Flake Lab](/features/flake-lab) experiment reproduced the suspect, else weak | This failure shows one of its test's [suspects](/features/flaky-tests#suspects), when it shows several, the one an experiment reproduced, else the highest ranked: a slow or failed route, a test alongside or just before, load or a browser. The detail gives this failure's value and the suspect's counts, and, once reproduced, the arm against its control ("3 of 4 under delay GET /api/cart 1.8 s, against 0 of 10 without"). |
