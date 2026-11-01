@@ -538,7 +538,8 @@ A test **reaches** a route or a page when a real run observes it doing so: a req
 on the page or the test ending there. A control or a link is reached when one of the test's locators names it, or when
 triage records a covering test for it. Reach is measured from runs, never from instrumented code coverage, which is
 why the docs and the dashboard say *observed reach* rather than *coverage*.
-A flaky, quarantined or skipped test's reach does not count as trusted.
+The reach of a test flaky or failing in the default branch's recent runs, quarantined or skipped does not count as
+trusted.
 
 ### Feature and hub
 
@@ -654,9 +655,10 @@ lists them all.
 
 ### Exposure
 
-The score that ranks gaps: the geometric mean of four factors (how often the files involved change, how old they are,
-whether they were part of an earlier escaped failure, and the `piwi:priority` of the tests around them), multiplied by
-the detector's confidence. See [Gap detectors & exposure](/reference/gap-detectors#exposure).
+The score that ranks gaps: the geometric mean of four factors (how often the files involved change, how long a changed
+file has been changing, whether they were part of an earlier escaped failure, and the `piwi:priority` of the tests
+that reach the node), multiplied by the detector's confidence. A factor with no input counts as 0.1. See
+[Gap detectors & exposure](/reference/gap-detectors#exposure).
 
 ### Probe
 
@@ -674,8 +676,9 @@ is a *declared, never hit* gap.
 ### Page inventory
 
 The controls (role and accessible name) and links the reporter records on each visited page of a passing run, so the
-Test Map knows what a page offers beyond what the tests clicked. Field values are never recorded. Off by default:
-turn it on with `capturePageInventory`.
+Test Map knows what a page offers beyond what the tests clicked: at most 200 of each per page, never a field value.
+It reads a page when its URL changes, once per page per worker, so a control that renders later, or only in a dialog,
+is not in it. Off by default: turn it on with `capturePageInventory`.
 
 ### Map health
 
@@ -6045,16 +6048,20 @@ start the CI run that proves it.
 
 ## What gets posted
 
-Two things get posted when a run finishes, unless it is a run from an editor, a bisect step, a reproduction, or a
+A comment and a commit status get posted when a run finishes, unless it is a run from an editor, a bisect step, a reproduction, or a
 partial run from a developer's machine or the desktop app ([run origin](/reference/test-metadata#run-origin)):
 
-- **A summary comment** on the branch's open pull request: one comment per pull request, edited on each later run rather than appended, so a busy
+- **A summary comment** on the run's open pull request (the one its CI names when the CI runs in the repository Piwi
+  posts to, a pull request from a fork included, else the one open on its branch): one comment per pull request, edited on each later run rather than appended, so a busy
   branch doesn't collect a comment per push.
 - **A commit status**: passed or failed against the run's commit, pull request or not, so a pull request shows the result in its checks
   list. Required for a branch-protection rule. A run whose only failures are [quarantined](./flaky-tests#quarantine-with-a-way-out)
   tests passes, and the status says how many (`118/120 passed, 2 quarantined`); turn on **Quarantined failures fail
   the commit status** under the project's **Settings → Source control** to fail it on any failure. **Only comment on
-  failures** follows the same rule: such a run gets no comment.
+  failures** follows the same rule: such a run gets no comment, unless its change left a file no test reached, which
+  the [uncovered changes](./uncovered-changes) section names. When the run has a
+  diff to read, a second status that never fails joins it, `/change-coverage`
+  ([what it counts](./uncovered-changes#on-the-pull-request)).
 
 What the comment says, in this order:
 
@@ -6433,7 +6440,8 @@ never narrowed. Added, deleted and
 renamed files count as whole files.
 
 A changed line inside a function no test ran selects nothing from that file: no test can catch a mistake there. The
-answer names it as `notRun`, the line a new test should cover.
+answer names it as `notRun`, the line a new test should cover, numbered as in the file before the change: the version
+the tests' coverage recorded.
 
 The rule assumes a line a test did not run cannot change that test's path, as every coverage-based selection does,
 and it reads each test's latest recorded coverage. Keep running the full suite on a schedule: it stays the reference.
@@ -6640,10 +6648,10 @@ and page visits of every run.
 
 ## What a gap is
 
-A **[detector](/guide/concepts#detector)** reads the Test Map and the last 30 runs and reports one kind of gap: a
-route observed only with success statuses, a node exactly one test reaches, a new page no test reaches yet, a declared
-route nothing requests. [Gap detectors & exposure](/reference/gap-detectors) lists every detector with its
-evidence. Each gap names its detector and its **[class](/guide/concepts#gap-class)**:
+A **[detector](/guide/concepts#detector)** reads the Test Map and the default branch's last 30 runs and reports one
+kind of gap: a route observed only with success statuses, a node exactly one test reaches, a new page no test reaches
+yet, a declared route nothing requests. [Gap detectors & exposure](/reference/gap-detectors) lists every detector
+with its evidence. Each gap names its detector and its **[class](/guide/concepts#gap-class)**:
 
 | Class | Meaning | Example |
 |---|---|---|
@@ -6654,9 +6662,11 @@ evidence. Each gap names its detector and its **[class](/guide/concepts#gap-clas
 [Server probes](/features/probes#server-probes) add **findings** in two more classes, **unhandled** and **degraded**:
 the application itself did not cope with the fault, whatever the tests saw.
 
-Gaps are ranked by **[exposure](/guide/concepts#exposure)**, a score from how often the code around a node changes,
-how old it is, whether it was part of an earlier escaped failure, and the priority of the tests near it. The score
-and its factors show on every gap. Counts are per class, never a coverage percentage: a percentage over an observed
+Gaps are ranked by **[exposure](/guide/concepts#exposure)**, a score from how often the code behind a node changes,
+whether it was part of an earlier escaped failure and the priority of the tests that reach it, and, for a changed file,
+how long it has been changing. The score and its factors show on every gap, and
+[which gaps get which factors](/reference/gap-detectors#exposure) varies: a gap on a page or a control ranks by
+priority and its detector alone. Counts are per class, never a coverage percentage: a percentage over an observed
 surface looks complete exactly when that surface is sparse.
 
 An [uncovered change](/features/uncovered-changes) is a gap too, raised at pull-request time, and so is a page with
@@ -6665,7 +6675,7 @@ open [bug reports](/features/bug-reports).
 ## The Gaps tab
 
 The project's **Gaps** tab lists gaps and findings by feature, ranked, each with its class, score factors and
-evidence.
+evidence: the top 200 of the status picked, so a large map is read one status or one feature at a time.
 
 The tab opens on the **feature map**: one circle per feature (from the
 [`piwi:feature` tag](/reference/test-metadata)), sized by the routes, pages and controls it groups, colored by its
@@ -6703,22 +6713,24 @@ Every gap takes the same four verbs as an inbox item:
 - **Snooze** for a day, a week, or until the node changes.
 - **Dismiss** with a reason: *not worth testing*, *covered elsewhere* (which records the covering test as reaching the
   node), or *wrong*.
-- **Covered by** names the test that covers it and closes the gap. A gap closed this way stays closed when its
+- **Covered by** names the test written for it and closes the gap. A gap closed this way stays closed when its
   detector raises it again, and the covering test is recorded as reaching the node.
 
 Gaps persist, so triage survives recomputation: a dismissed gap keeps its verdict, and a gap **closes itself** when
-the detector no longer finds it, for example once its node gains a trusted test, so "closed this month" is real. A gap
-on new surface stays open past the run that found it, until any test reaches the node or the node leaves the graph. A
-closed gap that comes back reopens, unless it was closed with **Covered by**. Home lists the gaps accepted more than a week ago whose test was never written.
+the detector no longer finds it, for example once its node gains a trusted test. A closed gap is not always a test
+written: an uncovered change also closes when its file is deleted or nothing observes it any more. A gap on new
+surface stays open until a test reaches it ([detectors](/reference/gap-detectors#detectors)). A closed gap that comes
+back reopens, unless it was closed with **Covered by**. Home lists the gaps still accepted a
+week after their acceptance: the tests not yet written.
 
 <figure>
   <img src="/diagrams/scenario-gaps-loop.svg" alt="Sources feed the Test Map, detectors, ranking and delivery; triage flows back">
 </figure>
 
-Every verdict is also a labeled example: accepted and covered-by count *for* a detector, dismissed as *wrong* counts
-*against* it. A detector below 60% precision on a project with twenty or more verdicts **mutes itself** there: its
-rows leave the pull-request comment and the Gaps digest, its gaps sort last in the Gaps tab, and the Gaps tab and
-**Settings → About** say so.
+Every verdict is also a labeled example that counts
+[for or against its detector](/reference/gap-detectors#precision). A detector below 60% precision on a project with twenty or more verdicts **mutes itself**
+there: its rows leave the pull-request comment, the Gaps digest, the feature map and graph, its gaps sort last in the Gaps
+tab and in the MCP tools, and the Gaps tab and **Settings → About** say so.
 
 The top new gaps of each project are the **Gaps digest**
 [quality report](/features/quality-reports#what-a-report-contains); [schedule it](/features/quality-reports#report-schedules)
@@ -6731,10 +6743,9 @@ to your channels. Agents list, draft and triage gaps with the
 Every run adds the routes its tests requested on the application's own origin and the pages they ran locator calls
 on or ended on. Three optional sources add the rest:
 
-- **The page inventory.** With `capturePageInventory` on (off by default), the reporter records the controls (role
-  and accessible name) and links of each page a passing run visits, at most 200 of each per page, never a field
-  value. Control and link nodes, and the detectors that read them, appear only then. See
-  [Page inventory](/guide/concepts#page-inventory).
+- **The [page inventory](/guide/concepts#page-inventory).** With `capturePageInventory` on (off by default), the
+  reporter records the controls and links of the pages a passing run visits. Control and link nodes, and the
+  detectors that read them, appear only then.
 - **Server spans.** With the [backend instrumentation](/guide/backend-logs#server-spans) for Nitro, each route gains
   the handler that served it and the dependencies that handler called.
 - **The declared surface**, below.
@@ -6748,9 +6759,11 @@ reaches is named a **declared, never hit** blind spot instead of staying invisib
   the application's routes at `/__piwi/manifest` outside production, and the reporter uploads it with the run.
 - **A committed manifest.** A `piwi.manifest.json` next to your Playwright config (`{ "routes": [...], "pages": [...] }`)
   is uploaded whenever present, whatever the backend.
-- **An OpenAPI URL**, set per project under Project → Settings → Capabilities → Scenario gaps. Piwi fetches the document
-  on a recompute and records each route's documented response codes, so a *success only* gap can name the error codes a
-  route documents but never returned under test.
+- **An OpenAPI URL**, set per project under Project → Settings → Capabilities → Scenario gaps. Piwi reads the document
+  when the URL is saved, every night and on a recompute, declares each path under the path of the document's first
+  server (or Swagger's `basePath`), and records each route's documented response codes, so a *success only* gap can
+  name the error codes a route documents but never returned under test. A route a later read no longer finds stops
+  being declared.
 
 A declared pattern is reached by every request it serves, as in a router: `/blog/{slug}` by `/blog/hello`.
 
@@ -6791,9 +6804,10 @@ project or for the instance, and these surfaces disappear.
 A pull request that changes `server/api/orders/[id].patch.ts` while no test ever requests that route passes CI and
 proves nothing about the change. When a run finishes, Piwi joins the files its change touched to the tests that
 [observably reach](/guide/concepts#reach) them, and names the changed files nothing reaches: the **uncovered
-changes**. Each one is a *changed, unreached* [scenario gap](/features/scenario-gaps), with a draft scenario to start
-from. When the head commit has [combined coverage](/features/combined-coverage), the same section counts the changed
-lines too, and names those no suite ran, in every file.
+changes**. Each one is a *changed, unreached* [scenario gap](/features/scenario-gaps); its draft holds the file and
+the evidence, and no steps, since no test leads to it. When the head commit has
+[combined coverage](/features/combined-coverage), the same section counts the changed lines too, and names those no
+suite ran, in every file.
 
 <figure>
   <img src="/diagrams/uncovered-changes.svg" alt="A pull-request run's changed files are joined to the tests that reach them; each is reached, an uncovered change (a gap), or not counted, with the reason; the result goes to the pull request">
@@ -6822,13 +6836,17 @@ A test reaches a file when it:
 
 Piwi can observe a file when one of these could happen to it, or when the head commit's coverage counts its changed
 lines. A skipped test reaches nothing. A *changed, unreached* gap closes when a later diff no longer counts its file
-as uncovered, or when the Test Map's next recompute finds it reached or out of scope.
+as uncovered, or when the Test Map's next recompute finds it reached or out of scope; an accepted one closes only once
+a test reaches the file.
 
 Before the pull request, the [editor extensions](./editor-coverage#uncovered-changes) mark the lines of an uncovered
-change of a page or a server route in the file itself, by the same rule.
+change of a page or a server route in the file itself, by a rule of their own: no coverage scope, no window of runs,
+and a page counts as reached only when a test's locator acted on it.
 
 The diff comes from the [source control](/guide/source-control) connection: a pull-request run is compared with its
-base branch, any other run with the commit of the last passing run. With no SCM token or no diff, nothing appears.
+base branch, any other run with the commit of the last passing run. A public repository is read without a token, so
+its uncovered changes and their gaps appear in Piwi, though nothing is posted; a private one needs a
+[token](/guide/source-control#set-the-token). With no diff, nothing appears.
 
 ## On the pull request
 
@@ -7102,7 +7120,8 @@ a change to that file keeps every test that matched one of its rules.
 
 A style rule counts from its selector to its closing brace, like a function. A grouping rule (`@media`, `@supports`,
 `@layer`, `@container`) counts its first line once a rule inside it matched. Every rule of each sheet, matched or not,
-goes with the run, for the file's ratio.
+goes with the run, for the file's ratio. The rules also count in the project's **Functions** ratio, beside the
+scripts' functions.
 
 ## Where it is used
 
@@ -7190,7 +7209,8 @@ With `functions` and `lines`, each file names the git blob its line numbers refe
 reporter also sends each backend's run-level coverage, attributed to no test, with each file's executable lines at
 `lines`: the lines no test runs, in every assembly or every Nitro server file built with coverage, including those
 whose code never ran. A test
-whose coverage the backend no longer held, or that could not be collected, is marked incomplete.
+whose coverage the backend held only in part, or that could only partly be collected, is marked incomplete; one whose
+collection failed outright records no backend coverage at all.
 
 <figure>
   <img src="/screenshots/server-coverage.png" alt="The backend files one test ran, recorded by line">
@@ -7224,6 +7244,9 @@ answers it is the one that served the run's first requests.
   end of the run is flagged the same way, with only the tests' lines kept. The commit's
   [combined coverage](./combined-coverage) notes the run, and its `e2e` suite reads as incomplete unless a complete
   run of the commit counts beside it. A Nitro development server restarts on every rebuild.
+- **The backend's whole life:** the run-level coverage holds everything the process ran since it started, so with a
+  server Playwright reuses (`reuseExistingServer`), a shared staging backend, health checks or clicks by hand, code no
+  test ran counts as run by the end-to-end suite. A backend started for the run reads true.
 - **Run level only:** work outside a request (hosted services, timers started at startup), and work a request started
   that still runs once the reporter collected its coverage. On ASP.NET Core, lambdas created at startup too (inline
   minimal API handlers, inline middleware, DI factory lambdas); the methods they call count normally. On Nitro, a
@@ -7357,8 +7380,8 @@ Playwright run creates the project.
 ## One ratio per commit
 
 For each commit, the dashboard counts every suite that ran the code: the reports uploaded for it, and `e2e`, the run
-coverage of the commit's complete Playwright runs (never a partial, probe or flake-lab run). The
-totals are recomputed seconds after each upload or run; read them with the
+coverage of the commit's complete Playwright runs (never a partial, probe or flake-lab run; a run narrowed only by
+`--project`, or cut short by `--max-failures`, still counts as complete). The totals are recomputed seconds after each upload or run; read them with the
 [API](https://piwitests.dev/demo/docs) or the MCP `get_coverage_summary` tool.
 
 - **One set of executable lines per file version.** Tools disagree on which lines can run, so every suite counts on
@@ -7369,7 +7392,9 @@ totals are recomputed seconds after each upload or run; read them with the
 - **Functions** count across suites by start line: one ran when any suite ran a function starting there.
 - **Classes of lines.** Each executable line is unit only, end to end only (what the Playwright suite alone
   protects), both, none, or undetermined.
-- **Files without coverage data** are tracked files in scope no suite names, counted apart from the percentage.
+- **Files without coverage data** are tracked files in scope no suite names, counted apart from the percentage. They
+  come from an upload's inventory, so a commit with no upload has none, and they count every file in scope, a README
+  or an image included: narrow the scope to the code.
 - **Carried forward.** A suite the commit lacks comes from the newest commit whose coverage arrived before it, on
   the commit's branch then on the default branch, file by file where the file's version is unchanged.
 - **A run whose backend restarted** still joins `e2e`, adding only lines that ran; alone, it marks `e2e` incomplete.
@@ -7430,14 +7455,15 @@ one counting an incomplete `e2e` says so.
 ## Export
 
 The coverage page's card menu downloads the commit's combined coverage as LCOV or Cobertura, for Sonar, Codecov or an
-IDE (`coverage-export?format=` in the API). A line any suite ran has 1 hit, else 0: Piwi keeps no hit counts and no
-branches.
+IDE (`coverage-export?format=` in the API). A line any suite ran has 1 hit, else 0, an undetermined line included:
+Piwi keeps no hit counts and no branches.
 
 ## The coverage scope
 
 A project's coverage scope decides which files count: include and exclude patterns over repository-relative paths, in
 the syntax CODEOWNERS uses. With no include pattern every file counts; an exclude wins. The defaults leave out tests,
-build output and generated sources. Set it in the project's **Settings › Coverage**, or with the
+build output (`bin/`, `obj/`, `dist/`, `.next/`, `.nuxt/`, `.output/`, `.svelte-kit/`) and generated sources; a folder
+pattern matches at any depth. Set it in the project's **Settings › Coverage**, or with the
 [API](https://piwitests.dev/demo/docs) (`coverageScope`). The upload sends only the files in scope, and the commit's
 inventory: its tracked files in scope and their blob ids.
 
@@ -7585,8 +7611,9 @@ summary to their answer.
 Given a test, a file and target lines, Piwi reads the test's latest execution with coverage, or the execution you
 name, and splits the target lines into those that **ran**, those that **did not run** (from a complete capture
 only) and those it **cannot tell** (file granularity, or an incomplete capture). At function granularity a line ran
-when a function around it ran. When a run recorded the file's executable lines for that version, target lines that
-cannot run (blank lines, comments) are set apart.
+when the innermost function around it ran: a callback nested in a function that ran, and never called, did not. When
+a run recorded the file's executable lines for that version, target lines that cannot run (blank lines, comments) are
+set apart.
 
 When a target line did not run, the answer names the **nearest test**: the one running most of the function around
 the first target line at that version, else of the target lines, else, at another version, of the file. It is the
@@ -7668,14 +7695,19 @@ response after the page's first navigation:
 
 The plan pairs each passing test with a route it reaches: pairs never probed come first, then pairs whose test
 changed since its last probe, and each test gets one fault per run, up to a budget (50 pairs by default,
-`--budget` to change it). Quarantined tests and tests whose last run failed are left out. A fault that did not change
-the response records the pair as *inconclusive*, and an inconclusive pair waits a week before it returns to the plan.
+`--budget` to change it). The plan rotates through `status-500`, `empty-body` and `drop-field`, the faults that break
+what a test checks: `slow` reads a test's timeout rather than its assertions, and `stale-value` needs an earlier
+response. Quarantined tests and tests whose last run failed are left out. A fault that did not change the response
+(a body with no field to drop), a test skipped and a run interrupted record the pair as *inconclusive*, and a pair no
+probe has decided returns to the plan a week after its last probe.
 
 A test counts as changed when the source lines its steps run from differ from those of its passing runs before the
 probe: an added assertion, an edited helper or a moved line. A new tag or owner does not count, and neither does a
 change to the route's handler alone.
 
-A probe run is stamped as one, with retries off. It never counts as a real run: no failure clusters, no regression
+A probe run is stamped as one, with retries off and no failure limit, whatever the config and its projects set.
+Every project of the config runs each planned test; pass Playwright's own flags after `--` to narrow it
+(`-- --project=chromium`). It never counts as a real run: no failure clusters, no regression
 signals, no notifications, no pull-request feedback, no metric, no quarantine streak, never the baseline another run is
 compared with, and nothing in the Test Map but the probe outcomes. It never moves a pass rate, a duration or the
 `failed` selection either, and leaves a test's tags, owner, locks and locator snapshots as they are.
@@ -7684,9 +7716,11 @@ A probed test that notices its fault fails, so a non-zero Playwright exit is exp
 
 ## What an outcome records
 
-Each outcome is a *checks* edge in the [Test Map](/features/scenario-gaps) between the test and the route: noticed,
-not noticed, or inconclusive. The *not noticed* detector reads them: a route with at least one probe that no test
-noticed, and none that did, is a **false-comfort** gap:
+Each outcome is recorded, and a decisive one (noticed or not noticed) is the *checks* edge in the
+[Test Map](/features/scenario-gaps) between the test and the route. An inconclusive outcome, or one of a fault that
+only delays a response (`slow`, and the server's `delay` and `slow-first`), never replaces it. When several
+Playwright projects probe one pair, the outcome that says most is kept: a pass under the fault, then a failure. The *not noticed* detector reads the edges: a route with at least one probe that no test noticed,
+and none that did, is a **false-comfort** gap:
 
 ```
 Tests pass when POST /api/orders breaks
@@ -7710,9 +7744,11 @@ it did not honor records as *inconclusive*, never as a pass.
 
 Two signals come back: whether the test noticed, as with a client probe, and whether the application coped. An
 uncaught page error once the fault applied, or a blank page (no accessible content when the test ends) after a backend
-error, makes an **unhandled** finding. A console error, a dialog, a backend error or a blank page alone makes a
-**degraded** one. A fault the server never applied makes no finding. Findings rank by severity and reach, and the
-*unprobed dependency* detector names the dependencies no probe has failed yet.
+error, makes an **unhandled** finding. A console error, a dialog, a blank page alone, or a backend error the fault did
+not inject itself makes a **degraded** one: the 500 of a `throw` or `status` fault is the fault, and the browser's
+*Failed to load resource* line only repeats a status, so neither counts. A fault the server never applied makes no
+finding, nor does a probe whose test was skipped or interrupted. Findings rank by severity and reach, and the *unprobed dependency* detector names the dependencies no probe
+has decided yet.
 
 It needs:
 
@@ -7721,10 +7757,13 @@ It needs:
   status, delay and extreme-value faults; its data and dependency probes record as *inconclusive*;
 - the same `PIWI_PROBE_SECRET` where `piwi probe` runs;
 - **Server probes** turned on under **Scenario gaps** in the **Capabilities** section of the project's **Settings** tab,
-  where the fault classes and routes are allow-listed. Dependency faults on state-changing routes (`POST`, `PUT`,
+  where the fault classes and routes are allow-listed. A test gets the first class in the list that its route allows,
+  `dependency` aside, so list first the class that matters most; a dependency fault goes to a test the other classes
+  left, on a route whose handler calls a dependency. Dependency faults on state-changing routes (`POST`, `PUT`,
   `PATCH`, `DELETE`) stay off unless you allow them.
 
-With server probes on, half of the budget goes to server faults.
+With server probes on, half of the budget is kept for server faults, for the tests the run's client faults did not
+take. A pair a probe decided, at either level, is not planned again until its test changes.
 
 ## Try it in the demo
 
@@ -11051,9 +11090,10 @@ file's lens says `coverage recorded on another version`. Fetching it brings the 
 ## Uncovered changes
 
 A file the editor can observe and no test reaches has its changes marked before the pull request's
-[uncovered changes](./uncovered-changes) list them, by the same rule: a page (Nuxt `pages/**`) while Piwi knows the
-pages your tests visit, or a server route (`server/api/**`, `server/routes/**`) while code reach maps routes to tests,
-that no test visits, requests or runs. Its lines changed since the default branch are marked orange: those added since
+[uncovered changes](./uncovered-changes) list them: a page (Nuxt `pages/**`) while the locator index knows the pages
+your tests act on, or a server route (`server/api/**`, `server/routes/**`) while code reach maps routes to tests, that
+no test's locator acts on, requests or runs. The rule is close to the pull request's, not the same: it applies no
+coverage scope and no window of runs, and a page a test only visited reads as unreached. Its lines changed since the default branch are marked orange: those added since
 the commit your branch left it at (the merge base with `origin/main`, else `main`), uncommitted changes included,
 blank lines left out. The file's top lens says `Uncovered changes: 12 lines changed since main, and no test reaches
 this file`, and so does the hover on a marked line. A test that reaches the file, or the change reaching the default
@@ -14082,9 +14122,11 @@ Coverage has two sides, each opt-in: the browser's, [code reach](/features/code-
 | Server files | `coverage.server: 'files'`, with a coverage build | the backend files that ran | paths |
 | Server functions | `coverage.server: 'functions'` | also the start and end line of each function that ran | paths, line numbers, git blob ids |
 | Server lines | `coverage.server: 'lines'` | also the executed lines, and the run's executable lines | paths, line numbers, git blob ids |
+| CSS rules | `coverage.css: 'rules'`, on its own | the start and end line of each style rule a page matched, and every rule of each sheet | paths, line numbers, git blob ids |
 
-Never source code, never hit counts. Each variable form (`PIWI_COVERAGE_BROWSER`, `PIWI_COVERAGE_SERVER`) fills the
-option the Playwright config leaves unset.
+Never source code, never hit counts. Each variable form (`PIWI_COVERAGE_BROWSER`, `PIWI_COVERAGE_SERVER`,
+`PIWI_COVERAGE_CSS`) fills the option the Playwright config leaves unset. [CSS coverage](/features/css-coverage#cost)
+measures its own cost.
 
 ## On a large ASP.NET Core and Vue application
 
@@ -14235,8 +14277,8 @@ What each origin feeds:
   performance [notification](/features/notifications#events), posts no
   [pull-request comment or commit status](/features/pr-feedback), starts no automatic AI diagnosis or auto-heal, and
   writes nothing to an [issue tracker](/features/issue-automation#the-runs-that-write) on its own.
-- **Partial runs** (a `--grep`, a file filter, a selection) never count for change coverage, which asks whether a
-  file was reached in the recent runs.
+- **Partial runs** (a `--grep`, a file filter, a selection, `--last-failed`, `--only-changed` or `--test-list`) never count for change
+  coverage, which asks whether a file was reached in the recent runs, nor as a commit's end-to-end coverage.
 
 ### Playwright configuration
 
@@ -15395,11 +15437,14 @@ as a [steps file](/reference/steps-format#checks) is, and a file whose steps fai
 
 The [detectors](/guide/concepts#detector) that turn the [Test Map](/features/scenario-gaps) into scenario gaps, the
 **exposure** score that ranks them, and the rules that decide what the graph holds. Evidence counts use the last 30
-runs of the project, probe runs excluded.
+runs of the project's default branch: never a pull-request run, a probe or Flake Lab run, a bisect step or a
+reproduction, nor a run flagged as an environment incident. *Changed, unreached* reads the window of
+[change coverage](/features/uncovered-changes#one-rule-for-every-changed-file) instead.
 
 ## Detectors
 
-The Test Map is recomputed after every run, nightly, and on demand. Every detector reads the runs the
+The Test Map is recomputed after every run of the default branch, nightly, and on demand (**Recompute** on the Gaps
+tab), always for the default branch whatever branch ran last. Every detector reads the runs the
 [capture fixtures](/guide/capture-fixtures) record; **Needs** names what else it reads, and a detector stays silent
 without it.
 
@@ -15413,13 +15458,13 @@ without it.
 | **Escaped defect**<br>`escaped-defect` | blind-spot | a page with [bug reports](/features/bug-reports) no test names yet, one gap per page | Piwi Picker sending reports | 0.6 plus 0.1 per further report, at most 1 | `Bug report #37: Coupon not applied to the total — no test names it yet` |
 | **Changed, unreached**<br>`changed-unreached` | blind-spot | an [uncovered change](/features/uncovered-changes#one-rule-for-every-changed-file), at pull-request time: a changed file Piwi can observe that no test reached, in the run or the last 30, and no suite ran a changed line of | an SCM token | 0.9 | `+41 −3 · no test in run #812 or in the last 30 runs` |
 | **Single covering test**<br>`single-covering-test` | fragile | a node exactly one trusted test reaches, or that only untrusted tests reach | nothing more | 0.5; 0.6 when only untrusted tests reach it | `Only checkout › coupon reaches this`; `Only toggles dark mode (flaky) reaches this` |
-| **Orphan test**<br>`orphan-test` | fragile | a test whose every reached node disappeared from the last 30 runs | nothing more | 0.4 | `All 3 node(s) it reaches disappeared from recent runs` |
+| **Orphan test**<br>`orphan-test` | fragile | a test whose every reached node went unseen through the default branch's last 30 complete runs | nothing more | 0.4 | `All 3 node(s) it reaches disappeared from recent runs` |
 | **Fix did not hold**<br>`fix-did-not-hold` | fragile | a failure cluster whose fix later regressed | nothing more | 0.6 | `Fixed in a1b2c3d · regressed 6 days later` |
-| **Not noticed**<br>`not-noticed` | false-comfort | a route a probe broke while no test noticed | [probes](/features/probes) | 0.8 | `A probe (status-500) on POST /api/orders did not make checkout › pay fail` |
+| **Not noticed**<br>`not-noticed` | false-comfort | a route a probe broke while no test noticed (a delay never counts) | [probes](/features/probes) | 0.8 | `A probe (status-500) on POST /api/orders did not make checkout › pay fail` |
 | **Passed with errors**<br>`passed-with-errors` | false-comfort | a test whose newest execution in the default branch's last 30 runs passed while the application reported an error: a 5xx from one of its routes, a backend log at error level, or a console error from its own origin | nothing more; backend logs need the [instrumentation](/guide/backend-logs) | 0.6 | `Passed · run #73 · the backend logged an error on PATCH /api/orgs/current` |
 | **Assertion-light**<br>`assertion-light` | false-comfort | a page some test asserts on, every check there only that an element is visible, hidden, attached or in the viewport | the locator index | 0.4 | `2 tests assert on this page, only that elements are present` |
 | **Catalog method, no test calls**<br>`catalog-method-no-test-calls` | blind-spot | a page-object method or helper on a reached page that no test runs | the [test functions catalog](/features/test-functions) | 0.5 | `./pages/UsersPage · goToNextPage · page reached by 3, called by 0` |
-| **Unprobed dependency**<br>`unprobed-dependency` | false-comfort | a dependency a route's handler calls that no probe has failed | server spans | 0.3 plus 0.1 per calling route, at most 0.7 | `Called by 4 route(s) · no probe has checked what happens when it fails` |
+| **Unprobed dependency**<br>`unprobed-dependency` | false-comfort | a dependency a route's handler calls that no probe has decided | server spans | 0.3 plus 0.1 per calling route, at most 0.7 | `Called by 4 route(s) · no probe has checked what happens when it fails` |
 | **Not handled**<br>`not-handled` | unhandled, degraded | the application did not cope with a server probe's fault; a finding, not a gap | [server probes](/features/probes#server-probes) | 1 unhandled, 0.5 degraded | `A server probe made POST /api/orders fail; the application did not handle it` |
 
 *Passed with errors* leaves out a console line from another origin's script and the browser's own *Failed to load
@@ -15433,12 +15478,15 @@ so a page checked only that way reads as light. A test calls a catalog method wh
 locator uses does what one of the method's steps does, on the element that step names by test id or name, on a page
 its URL pattern matches. A method whose every target comes from a parameter gets no decision.
 
-A trusted test is one that is not flaky, not quarantined, and not skipped in its latest run. *Surface drift* raises a
-node in the run it first appears in; the gap then stays open until any test reaches the node or the node leaves the
-graph, unless you dismiss it or close it with *Covered by* first. A node only untrusted tests reach is then a
-*Single covering test* gap. *Changed, unreached* is covered on
-[Uncovered changes in pull requests](/features/uncovered-changes): its gap closes once a test reaches the file. A
-finding never closes itself; triage it.
+A trusted test is judged on the default branch's last 30 runs: it did not pass only after a retry in any of them, did
+not flip between failing and passing three times across them, did not fail each of its last three, is not quarantined, and was neither skipped nor left unrun in the newest it ran in.
+A test with no run among them stays trusted. *Surface drift* raises a node in the run it first appears in; the gap
+then stays open until any test reaches the node or the node leaves the graph, unless you dismiss it or close it with
+*Covered by* first. A node only untrusted tests reach is then a *Single covering test* gap. *Changed, unreached* is
+covered on [Uncovered changes in pull requests](/features/uncovered-changes): its gap closes once a test reaches the
+file, or a later diff no longer counts the file; an accepted gap closes only once a test reaches the file. A file no
+later diff reads, such as the old path of a rename or a file of an abandoned pull request, keeps its gap until a test
+reaches it or it is triaged. A finding never closes itself; triage it.
 
 Runs record reach to routes and pages: a test reaches every route its page requested, every page it ran a locator
 call on, and the page it ended on. Each recompute adds reach to controls and links from the default branch's
@@ -15458,8 +15506,8 @@ kept between 0.1 and 1, so a missing input lowers the score without zeroing it.
 
 | Factor | From | Reaches 1 at |
 |---|---|---|
-| **Churn** | commits touching the files in the last 90 days | 12 commits |
-| **Age** | the age of those files; older weighs more, since escaped defects concentrate there | one year |
+| **Churn** | commits touching the files: on a pull request, among the base branch's newest twelve in the last 90 days | 12 commits |
+| **Age** | on a pull request, the days since the oldest of those commits; older weighs more, since escaped defects concentrate there. The 90-day scan stops it near 0.25 | one year |
 | **Escape history** | whether a file was part of a failure cluster's fixing commit | yes, else 0.1 |
 | **Priority** | the highest [`piwi:priority`](/reference/test-metadata#ownership-metadata-piwi-annotations) of the tests reaching the node: critical 1, high 0.7, medium 0.4, low 0.2 | critical |
 
@@ -15471,6 +15519,19 @@ files in the diff that ended on a fixing commit, which holds every change since 
 file's history, so it stays at 0.1 there. The other detectors
 rank by priority and confidence. A finding ranks by its severity (1 for unhandled, 0.5 for degraded) times the
 route's reach.
+
+## Precision
+
+Each verdict on a gap counts for or against its detector, on that project:
+
+- **For**: accepted at any point, or closed with **Covered by**, even once the gap later closes, unless it was then
+  dismissed as *wrong* or *covered elsewhere*.
+- **Against**: dismissed as *wrong*, or as *covered elsewhere* (no test was missing). On a finding, *covered
+  elsewhere* counts for neither.
+- **Neither**: dismissed as *not worth testing*, or with no reason, and never accepted.
+
+A detector's precision is its share of verdicts *for*. Below 60%, on a project with twenty or more verdicts, the
+detector [mutes itself](/features/scenario-gaps#triage) there.
 
 ## Features
 
@@ -15494,16 +15555,23 @@ The graph stays proportional to the application's surface, not its data volume:
 
 - **Your own origin only.** Route nodes come from requests to the Playwright `baseURL` of the run's projects (or the
   project's configured route origins); analytics beacons and CDN assets never become nodes.
+- **A page load reaches its route.** A page load (`page.goto`, a link followed) reaches the route of its URL, so a
+  route a backend serves by navigation is reached. *Success only* counts only the calls a page makes, a form's POST
+  included, so a page never reads as a route without its error path.
 - **Pages are path patterns.** `/orders/123` and `/orders/456` are one node, as is the same path from staging and
-  production.
+  production. Numbers, UUIDs, JWTs, ULIDs and long tokens become placeholders; other ids (a Mongo ObjectId, a cuid, a
+  slug) stay in the key, one node per value. A single-page app routed by the URL hash (`/#/settings`) is one page, `/`.
 - **Routes drop the query.** `GET /api/orders?page=2` and `GET /api/orders?status=open` are one node, `GET /api/orders`.
 - **Controls and links are templated.** Dates, ids and numbers in an accessible name become placeholders, and each
   page keeps at most 200 controls and 200 links.
 - **Branches stay separate.** A default-branch run writes the canonical graph; any other branch writes rows tagged
   with it, so a route added on a pull request never shows as drift on the default branch. Those rows drop when the
-  pull request closes, or after 30 days unseen. Detectors read the canonical graph; change coverage reads every branch.
-- **Old nodes retire.** A node unseen for 30 default-branch runs leaves the graph unless an open, snoozed or
-  accepted gap other than *Surface drift* is about it; its *Surface drift* gap then closes.
+  pull request closes, or after 30 days unseen. Detectors read the canonical graph and the default branch's runs;
+  change coverage reads every branch.
+- **Old nodes retire.** A node unseen for 30 complete default-branch runs leaves the graph, unless an open, snoozed
+  or accepted gap other than *Surface drift* is about it: that node stays until the gap is closed or dismissed, and a
+  *Surface drift* gap closes with its node. With a [retention period](/operate/storage#data-retention), a node goes
+  with the runs that saw it, whatever gap is about it.
 
 ## Related
 
