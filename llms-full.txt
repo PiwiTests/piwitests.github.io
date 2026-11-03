@@ -1535,7 +1535,8 @@ The [desktop app](/features/desktop) needs no token for the read features. When 
 remotes points at the run's remote URL), Piwi reads the commits, diffs and files with `git` in that folder, on your
 machine. A commit or branch the clone does not have is asked of the host as above, so run `git fetch` in the folder to
 see commits pushed since your last fetch. With a token set, the host is read instead, as on a server, and the write
-features always need one.
+features always need one. A repository on another host (a self-hosted Bitbucket or Gitea, a GitLab host not listed
+below) is read from the clone alone, token or not: what the clone does not have stays unavailable.
 
 ### Which repository
 
@@ -1547,9 +1548,10 @@ and source are not read, and nothing is written for it. A project admin can chan
 next run sets it again. With the instance-wide token, a link to a repository no readable project uses is unfurled as a
 public page, without the token.
 
-Supported hosts are `github.com`, `gitlab.com`, `bitbucket.org` and self-hosted GitLab. List each self-hosted GitLab
-host in [`PIWI_SCM_GITLAB_HOSTS`](/reference/configuration#integrations): Piwi sends the token only to a host you
-named. A run without a remote URL has nothing to diff.
+Supported hosts are `github.com`, `gitlab.com`, `bitbucket.org` and self-hosted GitLab. A remote on a host's SSH
+alias (`ssh.github.com`, `ssh.bitbucket.org`, `altssh.bitbucket.org`) names the same repository as on the host. List
+each self-hosted GitLab host in [`PIWI_SCM_GITLAB_HOSTS`](/reference/configuration#integrations): Piwi sends the token
+only to a host you named. A run without a remote URL has nothing to diff.
 
 ### Scopes
 
@@ -2418,7 +2420,7 @@ Every outbound connection Piwi can make:
 
 The reporter sends your instance what its options switch on. [Code reach](/features/code-reach) and
 [server coverage](/features/server-coverage), off by default, send repository-relative paths; line numbers and
-blob ids only with `coverage.browser: 'functions'` or `coverage.server: 'functions'` or `'lines'`. `piwi coverage
+blob ids only with `coverage.browser: 'functions'` or `'lines'`, or `coverage.server: 'functions'` or `'lines'`. `piwi coverage
 upload` adds the commit's tracked paths. Source code and hit counts never leave.
 
 Two rows need no setting: anonymous git-host reads for runs that report a public-host remote, and a
@@ -7078,6 +7080,13 @@ line, through the source map, and the file's git blob: line numbers then leave t
 run also records every function the pages' scripts declare, run or not, so the run's coverage can say how many of a
 file's functions ran. A function declared inside a function that never ran is not listed: V8 has not seen it.
 
+`'lines'` adds the lines that ran, from V8's block coverage, which counts each branch and block apart. A file's
+executable lines are the lines its source map maps code to, so a Vue component counts the lines its compiled module
+maps back to, not the hot-reload code the dev server adds; a module with no map counts the lines holding code
+inside its functions. A line ran when code mapped to it ran. A module's top-level lines count as run in the run's
+coverage once it is imported, and in a test's only when one of its functions ran. Block coverage slows the page's
+scripts more than function coverage does: [Coverage cost](/reference/coverage-cost) has the numbers.
+
 Paths resolve against the Playwright config's directory, then the repository root. Set `codeReachRoots` to the dev
 server's root when it is elsewhere; for Nuxt that is `app/`:
 
@@ -7499,10 +7508,11 @@ coverage of the commit's complete Playwright runs (never a partial, probe or fla
 [API](https://piwitests.dev/demo/docs) or the MCP `get_coverage_summary` tool.
 
 - **One set of executable lines per file version.** Tools disagree on which lines can run, so every suite counts on
-  the same lines: the span table's, from [server coverage](./server-coverage), when a run recorded them for that
-  version of the file; otherwise the reports' own. A line a tool marks outside them is ignored.
-- **Undetermined lines.** The browser suite records functions, not lines: an unrun line whose innermost function it
-  ran is undetermined, shown beside the ratio, never counted as run.
+  the same lines: the span table's, from [server coverage](./server-coverage) or
+  [browser lines](./code-reach#what-it-records), when a run recorded them for that version of the file; otherwise the
+  reports' own. A line a tool marks outside them is ignored.
+- **Undetermined lines.** At `coverage.browser: 'functions'`, the browser suite records functions, not lines: an unrun
+  line whose innermost function it ran is undetermined, shown beside the ratio, never counted as run.
 - **Functions** count across suites by start line: one ran when any suite ran a function starting there.
 - **Classes of lines.** Each executable line is unit only, end to end only (what the Playwright suite alone
   protects), both, none, or undetermined.
@@ -7637,7 +7647,7 @@ agents and, for a failure, the AI diagnosis.
 
 The insights read the coverage your runs already record: set up [server coverage](./server-coverage) with
 `coverage: { server: 'lines' }` in the reporter options, or `PIWI_COVERAGE_SERVER=lines`. Line answers need the
-`lines` granularity; `functions`, on the server or in the browser (`coverage.browser: 'functions'`), gives function
+`lines` granularity (`coverage.browser: 'lines'` in the browser); `functions`, on the server or in the browser (`coverage.browser: 'functions'`), gives function
 answers, and `files` gives file answers. A run without coverage changes nothing, so a nightly job with coverage on is
 enough for the comparisons across runs.
 
@@ -12152,7 +12162,7 @@ The marks show what the reporter records, per test:
   every line of a function that ran is marked run, and no line is marked as not run.
 - **Browser code**: recorded per file ([code reach](./code-reach#turn-it-on)), so such a file lists its tests in its
   top lens, with no line marks; with `coverage.browser: 'functions'`, every line of a function that ran is marked run,
-  with its lens above it. No line of a browser file is marked as not run.
+  with its lens above it, and no line is marked as not run; with `'lines'`, its lines are marked as a server file's.
 
 Nothing else is needed in the editor. A test file, a file no recorded coverage names lines of, and a project without
 coverage show nothing of it: no mark, no lens line, no command, no hover text.
@@ -14327,6 +14337,7 @@ Coverage has two sides, each opt-in: the browser's, [code reach](/features/code-
 | --- | --- | --- | --- |
 | Browser files | `coverage.browser: 'files'`, or `captureCodeReach: true` | the application files whose functions ran | paths |
 | Browser functions | `coverage.browser: 'functions'` | also the start and end line of each function that ran | paths, line numbers, git blob ids |
+| Browser lines | `coverage.browser: 'lines'` | also the lines that ran, and the run's executable lines | paths, line numbers, git blob ids |
 | Server files | `coverage.server: 'files'`, with a coverage build | the backend files that ran | paths |
 | Server functions | `coverage.server: 'functions'` | also the start and end line of each function that ran | paths, line numbers, git blob ids |
 | Server lines | `coverage.server: 'lines'` | also the executed lines, and the run's executable lines | paths, line numbers, git blob ids |
@@ -14370,7 +14381,7 @@ every function the page runs; as the test leaves the document, the reporter stop
 resolves it to files. Each of these works on every module of every document, so the cost grows with the modules a page
 loads and with the full page loads a test makes: an application that loads its modules once, then navigates on the
 client, pays far less, as the synthetic pages below show. Files and functions cost about the same: both read the same
-record, functions only keep more of it.
+record, functions only keep more of it. Lines cost more: V8 counts every block a function runs, not only the call.
 
 ## On synthetic pages
 
@@ -14380,6 +14391,11 @@ Browser files, medians on a 4-core sandbox, headless Chromium, one page per test
   1,220 ms per test, 8% more, and 16% for a worker's first test, where Playwright's `page.coverage` adds 50%.
 - **A light page** (the reporter's capture benchmark, `npm run reporter:bench`): 61 to 103 ms more per test, where
   `page.coverage` adds 176 to 209 ms.
+
+V8's coverage alone, on a script that spends its time in JavaScript (a recursive function, a loop with branches and a
+sort, over 20,000 items, 20 times), medians of 5 runs: 285 ms with no coverage, 287 ms with the function coverage of
+`files` and `functions`, 468 ms with the block coverage of `lines`, 64% more. A page whose time goes to the network,
+the DOM or rendering pays a smaller share.
 
 Server coverage, on a prototype of the coverage package: under 2% of test duration on Microsoft's eShopOnWeb, whose
 CPU goes to the framework; up to 26% more backend CPU on an application written to spend its CPU in business logic, and
@@ -14397,7 +14413,8 @@ measurable test time either. Per call, the Nitro recorder costs 5 to 13 ns, abou
   the UI tests' time: record lines, unless the reports' size matters more than their detail.
 - **Browser coverage** belongs in a scheduled run on a large application served by a dev server, where it adds 40 to
   50% to the UI tests. Files and functions cost about the same, so a scheduled run may as well record functions. On an
-  application that loads its modules once, it costs little enough to stay on.
+  application that loads its modules once, it costs little enough to stay on. Record lines where the front end's
+  line ratio in the [combined coverage](/features/combined-coverage) is worth the slower scripts.
 
 ## Related
 
