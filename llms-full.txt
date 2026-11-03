@@ -1205,6 +1205,9 @@ env:
   PIWI_API_KEY: ${{ secrets.PIWI_API_KEY }}   # only if authentication is enabled
 ```
 
+With authentication off, the server's `PIWI_SITE_URL` or `PIWI_ALLOWED_HOSTS` must name the domain or container name
+in that URL ([why](/operate/authentication#disabling-authentication)).
+
 Everything else — branch, commit, author, workflow, build URL, shard index — is
 [detected automatically](#what-gets-detected).
 
@@ -1971,7 +1974,9 @@ Both packages serve `/__piwi/manifest` outside production: the routes the server
 reporter fetches it from each `baseURL` and each other origin whose responses carry an instrumentation header, and
 uploads it with the run, so a route or page nothing reaches becomes a
 [declared, never hit](/features/scenario-gaps#declared-surface) gap. Any backend can commit a
-`piwi.manifest.json` next to the Playwright config. Turn the upload off with `uploadManifest: false`.
+`piwi.manifest.json` next to the Playwright config. Turn the upload off with `uploadManifest: false`. A pattern
+holds at most 2,048 characters and 16 parameters in one segment: Piwi refuses a manifest past either limit, and leaves
+such a path out of an OpenAPI document.
 
 - **ASP.NET Core** reads the application's endpoint table, so the manifest holds every route from the first run, hit
   or not: minimal APIs and route groups, controllers (attribute routes, conventional routes and areas) and SignalR
@@ -3106,8 +3111,9 @@ things:
 Share links are **off by default**. Set `PIWI_SHARE_LINKS_ENABLED=true` to allow them — see the
 [configuration reference](/reference/configuration#authentication).
 
-The [live demo](https://piwitests.dev/demo/) runs without a server, so it has no share links and hides the **Share**
-button.
+The **Share** button, the *Live dashboard links* menu item and the switches that add a link to a scheduled report or
+an issue show only while share links are enabled. The [desktop app](./desktop) never shows them, since its server has
+no public address, and neither does the [live demo](https://piwitests.dev/demo/), which runs without a server.
 
 ## Creating a link
 
@@ -3115,7 +3121,8 @@ On an execution page, a failure-cluster page or a report snapshot page, open **S
 **Download**); on a saved dashboard, open *Live dashboard links* in the dashboard's menu:
 
 1. Pick an expiry. The dialog offers lifetimes up to `PIWI_SHARE_LINK_MAX_TTL_DAYS` (30 days unless configured;
-   setting it to `0` lifts the cap and allows links with no expiry).
+   setting it to `0` lifts the cap and allows links with no expiry, which work until they are revoked or their
+   creator loses access to what they open).
 2. **Copy the link immediately — it is shown only once.** The server stores a hash of the token, not the token, so
    there is no way to display the URL again later. Mint a new link instead.
 
@@ -3137,7 +3144,7 @@ Two consequences of "live" worth knowing:
   export file instead.
 - **Revocation is immediate.** A revoked link stops resolving on the next request. Turning the feature off entirely
   (`PIWI_SHARE_LINKS_ENABLED` unset) dead-ends every outstanding link at once without deleting anything, so the
-  variable doubles as a kill switch.
+  variable doubles as a kill switch. While it is off, the **Share** dialogs and their lists of links are hidden too.
 
 ## Report share links
 
@@ -3179,10 +3186,20 @@ the reader's address, since such a proxy fetches for many readers.
 ## Security properties
 
 - The token is a 256-bit random secret (`psl_` + 64 hex characters) — unguessable at any request rate. The server
-  stores its SHA-256 hash and the first 8 hex characters, which the dialog shows as the link's prefix.
-- Everything a link serves is data its creator could already see: minting requires access to the execution, the
-  cluster, every project of the snapshot, or the dashboard, so a link is a narrower delegation of an existing
-  member's read access, never an escalation.
+  stores its SHA-256 hash and the first 8 hex characters, which the dialog shows as the link's prefix. What Piwi
+  records of an issue that carries a link keeps its URL with the token redacted.
+- Everything a link serves is data its creator can see: minting requires access to the execution, the cluster,
+  every project of the snapshot, or the dashboard, so a link is a narrower delegation of an existing member's read
+  access, never an escalation.
+- A link works only while its creator can still read what it opens: the project of the execution or the cluster,
+  or every project of the snapshot (a live dashboard link follows its creator's access as
+  [described above](#live-dashboard-links)). Once they lose that access, the link answers 404 like an unknown link,
+  and works again if the access comes back. Deleting their account revokes their links. With authentication off,
+  every link works.
+- An execution, cluster or report link with no creator is tied to no account, and works until it is revoked or
+  expires: one Piwi created itself, in an issue an [automation rule](./issue-automation) filed, one created while
+  authentication was off, and one whose creator was deleted before v0.65.0. An administrator revokes it in the
+  **Share** dialog of what it opens, which lists every link to it, whoever created it.
 - The rendered page is sandboxed into a unique origin and served with `noindex` and `Referrer-Policy: no-referrer`,
   so it cannot read dashboard cookies, call the API with credentials, or leak the URL through outbound links. The
   page is never cached; the two images may be, for five minutes.
@@ -6112,7 +6129,8 @@ Each of these is a switch in **Keep the ticket honest**, off by default, and a d
   a run in which the failure failed again, and when a diagnosis completes. The rewrite keeps the language, the toggles
   and the share link the issue was filed with, and changes the title only on an issue a rule filed. Before writing,
   Piwi reads the description back: once someone has edited it in the tracker, Piwi never replaces it again, and the
-  activity list says so. A rewrite that would change nothing is not sent.
+  activity list says so. A rewrite that would change nothing is not sent. Piwi keeps no copy of a share link's token:
+  it takes the link from the issue's description, and skips a rewrite that cannot find it there.
 
 ## What an automatic issue says
 
@@ -6397,7 +6415,7 @@ absent `include` starts from the whole suite. The predicates, all optional:
 | `ids` | the test-case id is one of these |
 | `tags` / `anyTags` | the test carries all / any of these tags |
 | `owner`, `priority`, `feature` | the `piwi:` annotation is one of these |
-| `files` | the file path matches one of these globs (`**`, `*`, `?`) |
+| `files` | the file path matches one of these globs (`**`, `*`, `?`): at most 100, each of up to 500 characters |
 | `suitePath`, `text` | the describe chain / title (or file) contains this substring |
 | `quarantined`, `flaky`, `neverRun` | the test is (or is not) in that state |
 | `minPassRate` / `maxPassRate` | the [pass rate](/guide/concepts#pass-rate) is within bounds (0–1); a test with none matches neither |
@@ -8303,7 +8321,8 @@ reports** page starts an empty one. A Contributor or above on the project, or an
 
 **Run now** sends the last complete period straight away; **Preview**, in the form, shows that report
 before you save, as its email and as the full report, and sends nothing. **Mute** keeps the snapshots
-and sends nothing; **Pause** stops the schedule. Each firing uses its owner's current roles. A **global**
+and sends nothing; **Pause** stops the schedule. Each firing uses its owner's current roles, and a report to someone's
+own channel is dropped once they can no longer open every project it covers. A **global**
 schedule covers every project, goes to global channels and needs an administrator.
 
 <figure>
@@ -8451,7 +8470,8 @@ dashboard.
 2. A **subscription** links a channel to the events you care about, for every project or one, with filters and a
    delivery mode.
 3. When an event fires, Piwi matches the active subscriptions and writes each delivery to an outbox, which a scheduled
-   task sends with retries. A browser channel is delivered at once to every open dashboard tab.
+   task sends with retries. It drops a delivery whose subscription was muted or turned off since, or whose recipient
+   can no longer open its project. A browser channel is delivered at once to every open dashboard tab.
 
 ## Where it is
 
@@ -8544,7 +8564,7 @@ When the lookup fails (a private repository without a token, a host that exposes
 
 ### Global channels & subscriptions
 
-Admins can mark a channel **global** so it is available to all users, and mark a subscription **instance-wide** (from the project bell) so it delivers whoever is signed in: the way to route every failure to one team Slack channel. Global subscriptions must target a global channel. Other users see where a global webhook points, never its full URL. With authentication disabled, every channel and subscription is global.
+Admins can mark a channel **global** so it is available to all users, and mark a subscription **instance-wide** (from the project bell) so it delivers whoever is signed in: the way to route every failure to one team Slack channel. Global subscriptions must target a global channel. Other users see where a global webhook points, never its full URL.
 
 ## Subscriptions
 
@@ -8567,7 +8587,8 @@ The subscriptions REST API (see the [API docs](https://piwitests.dev/demo/docs))
 - **Filters**: `branches` and `environments` as above; for run events, status; **owner**, which applies to the
   `run.*` events, `flakiness.spike`, `perf.regression`, `cluster.new` and `test.stuck` and delivers them only when a
   test behind the event belongs to that team (see [Tags & ownership](/guide/concepts#tags-ownership)); `flakinessThreshold`
-  (a 0–1 rate) and `perfRegressionPct`. Each list holds at most 100 values of up to 256 characters.
+  (a 0–1 rate) and `perfRegressionPct`. Lists hold up to 100 values of at most 256 characters; branch and environment
+  patterns, up to 200 characters and 10 `*` each, 2,000 together.
 - **Mode**: `realtime`, sent as events happen, or `digest` with `digestAt` (`HH:MM`, UTC, from `00:00` to `23:59`),
   held until then and sent as **one combined message** per email, Slack or Teams channel.
 - **Mute**: `mutedUntil`, any time, without deleting the subscription.
@@ -10304,8 +10325,8 @@ verified against the project's signing key.
   [Docker image](/operate/deployment).
 - **Local runs need the checkout**: a linked folder with Playwright installed, and `git` and your package manager for
   reproduce, bisect (one repository) and the lab.
-- **No public address**: no [pull-request feedback](/features/pr-feedback), [auto-heal](/features/auto-heal) or Jira
-  webhook, and email only with SMTP set.
+- **No public address**: no [pull-request feedback](/features/pr-feedback), [auto-heal](/features/auto-heal),
+  [share links](/features/share-links) or Jira webhook; email only with SMTP set.
 
 ## Related
 
@@ -12525,6 +12546,11 @@ Run with:
 docker compose up -d
 ```
 
+With authentication off, a container that reaches the dashboard by its service name, such as a reporter in a
+Playwright container sending to `http://piwi-dashboard:3000`, gets a `403` until that name is in `PIWI_ALLOWED_HOSTS`:
+add `PIWI_ALLOWED_HOSTS=piwi-dashboard` to the dashboard's `environment`
+([why](./authentication#disabling-authentication)).
+
 ### Docker Compose with PostgreSQL
 
 For production deployments requiring a robust relational database:
@@ -12643,7 +12669,9 @@ spec:
 ```
 
 The Service stays inside the cluster: publish it through your Ingress with TLS, rather than as a plain-HTTP
-`LoadBalancer`, with the proxy settings of [Reverse proxy (HTTPS)](#reverse-proxy-https).
+`LoadBalancer`, with the proxy settings of [Reverse proxy (HTTPS)](#reverse-proxy-https). With authentication off, a
+pod that calls the Service by name needs that name in `PIWI_ALLOWED_HOSTS` (`piwi-dashboard`, or the full
+`piwi-dashboard.<namespace>.svc.cluster.local`); the probes call the pod's IP address and need nothing.
 
 ## npm / npx (quick local run)
 
@@ -12687,7 +12715,7 @@ isolates the environment.
 
 ## Reverse proxy (HTTPS)
 
-Always put a TLS-terminating reverse proxy in front of the dashboard for anything beyond localhost. Two working examples — mind the **upload size** (trace/report uploads can reach hundreds of MB) and **SSE streaming** (live runs and browser notifications use long-lived `text/event-stream` responses that must not be buffered).
+Always put a TLS-terminating reverse proxy in front of the dashboard for anything beyond localhost. Two working examples — mind the **upload size** (trace/report uploads can reach hundreds of MB, and a run's results sent as one JSON document up to [`PIWI_SUBMIT_MAX_BYTES`](/reference/configuration#ingest-limits), 256 MB by default) and **SSE streaming** (live runs and browser notifications use long-lived `text/event-stream` responses that must not be buffered).
 
 **Caddy** (automatic HTTPS):
 
@@ -12712,7 +12740,7 @@ server {
     location / {
         proxy_pass http://127.0.0.1:3000;
         proxy_http_version 1.1;
-        proxy_set_header Host $host;
+        proxy_set_header Host $http_host;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
 
@@ -12723,7 +12751,7 @@ server {
 }
 ```
 
-When auth is enabled, set `PIWI_SITE_URL` to the public HTTPS URL so email links and OAuth callbacks point at the right origin, and set `PIWI_TRUST_PROXY=true` (step 4 of the [production checklist](./production-checklist#before-you-expose-it)).
+When auth is enabled, set `PIWI_SITE_URL` to the public HTTPS URL so email links and OAuth callbacks point at the right origin, and set `PIWI_TRUST_PROXY=true` (step 4 of the [production checklist](./production-checklist#before-you-expose-it)). With authentication off, set it too, and have the proxy forward the browser's `Host` header, as both examples do (Apache: `ProxyPreserveHost On`). The dashboard then refuses a request addressed to a name other than `localhost`, its host or one `PIWI_ALLOWED_HOSTS` lists; it reads that name from `Host` alone, so a proxy that sends its own local address instead lets every request through ([why](./authentication#disabling-authentication)).
 
 ## Resource requirements
 
@@ -12929,7 +12957,7 @@ A fresh Piwi instance starts as an **open dashboard with authentication off** �
 
 ## Before you expose it
 
-1. **Turn authentication on.** Set `PIWI_AUTH_ENABLED=true` and a strong `PIWI_AUTH_SECRET` (session-cookie signing key). The server refuses to start with auth enabled and no secret, so this can't half-apply. Set `PIWI_SETUP_TOKEN` to a random value too: the first-administrator form asks for it, so whoever reaches the URL before you cannot make themselves administrator. Then create that account before you share the URL. See [Authentication](./authentication#initial-setup).
+1. **Turn authentication on.** Set `PIWI_AUTH_ENABLED=true` and a strong `PIWI_AUTH_SECRET` (session-cookie signing key). The server refuses to start with auth enabled and no secret, or one shorter than 32 characters, so this can't half-apply. Set `PIWI_SETUP_TOKEN` to a random value too: the first-administrator form asks for it, so whoever reaches the URL before you cannot make themselves administrator. Then create that account before you share the URL. See [Authentication](./authentication#initial-setup).
 2. **Set the encryption key.** Set `PIWI_SECRET_KEY` so the credentials you store in the dashboard — AI API keys, SCM tokens, webhook secrets — are encrypted with **your** key. Unset, the dashboard refuses to save them. Generate either secret with:
 
    ```bash
@@ -12937,7 +12965,7 @@ A fresh Piwi instance starts as an **open dashboard with authentication off** �
    ```
 
 3. **Terminate TLS.** Always put the dashboard behind an HTTPS reverse proxy. Mind the two things a proxy gets wrong by default: **upload size** (trace and report uploads reach hundreds of MB) and **SSE buffering** (live runs and browser notifications use long-lived `text/event-stream` responses that must not be buffered). With authentication on, browser sign-in needs HTTPS in any case: the session cookie is `Secure`, so over plain `http://` it only works on `localhost`. See [Deployment → Reverse proxy (HTTPS)](./deployment#reverse-proxy-https).
-4. **Tell Piwi its address and that it is behind a proxy.** Set `PIWI_SITE_URL` to the public HTTPS address: the links in emails, notifications and pull-request comments, and the OAuth callbacks, are built from it. Unset, emails and notifications link to `http://localhost:3000`, no pull-request comment is posted, and OAuth callbacks follow the request's host. Set `PIWI_TRUST_PROXY=true` so the per-client rate limits on the auth endpoints key on the real client address from `X-Forwarded-For` instead of pooling every request into the proxy's one address. Leave it off when clients connect directly — see the [configuration reference](/reference/configuration#authentication).
+4. **Tell Piwi its address and that it is behind a proxy.** Set `PIWI_SITE_URL` to the public HTTPS address: the links in emails, notifications and pull-request comments, and the OAuth callbacks, are built from it. Unset, emails and notifications link to `http://localhost:3000`, no pull-request comment is posted, and OAuth callbacks follow the request's host. Set `PIWI_TRUST_PROXY=true` so the per-client rate limits on the auth endpoints key on the real client address from `X-Forwarded-For` instead of pooling every request into the proxy's one address; while it is unset, the server logs a warning the first time a request carries that header. Leave it off when clients connect directly — see the [configuration reference](/reference/configuration#authentication).
 5. **Persist and back up the data.** Mount `/app/.data` (or your configured database and storage paths) on a persistent volume, and set up a backup before you accumulate history you care about. See [Backup & restore](./backup-restore).
 6. **Pin a version.** Running `latest` lets an unattended `docker pull` move you across a breaking change. Pin an exact tag and bump it deliberately — migrations are forward-only, so the rollback path is *restore a backup*, not "pull the old tag." See [Upgrading](./upgrading).
 
@@ -12948,7 +12976,7 @@ Never leave the built-in development secrets in place on a real deployment.
 The defaults are conservative, so the checklist above is short. Without any extra work:
 
 - The container runs as a **non-root** user (`nodejs`, UID 1001).
-- Passwords are hashed with **scrypt** and per-password salts; login, initial-setup and password-reset endpoints are **rate-limited** per client address (and failed logins per account), returning `429` with `Retry-After`.
+- Passwords are hashed with **scrypt** and per-password salts, two at a time (up to 32 more wait, and one client address holds at most 4 of those places, an IPv6 address counted by its /64 network; past either limit the server answers `503` with `Retry-After` at once, and the refused request counts toward no rate limit). A stored hash that declares a higher scrypt cost than Piwi writes is refused as a wrong password is, and the server logs the account's id. Login, initial-setup and password-reset endpoints are **rate-limited** per client address, returning `429` with `Retry-After`. Failed logins are also limited per account in 15 minutes: 5 from one address and 50 from all addresses together, so wrong passwords sent from other addresses do not stop the owner signing in until they pass 50. A password change allows 5 wrong current passwords per account and 20 per address in 15 minutes.
 - **API keys** are stored only as SHA-256 hashes and shown once, at creation — a leaked database yields no usable key.
 - No other site can frame the dashboard: every response carries `X-Frame-Options: SAMEORIGIN` and
   `frame-ancestors 'self'`. Status badges and report charts are images, so a README or a wiki still shows them.
@@ -13005,7 +13033,8 @@ What a Member can do inside a project comes from the **project roles** granted t
    node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
    ```
 
-2. Restart the server. It refuses to start with authentication on and no `PIWI_AUTH_SECRET`.
+2. Restart the server. It refuses to start with authentication on and no `PIWI_AUTH_SECRET`, or one shorter than 32
+   characters.
 
 ## Initial setup
 
@@ -13067,7 +13096,7 @@ generic OpenID Connect or SAML sign-in.
 
 ### Restricting who can sign in (allowlists)
 
-By default any account at a configured provider can sign in (and a new **Member** account with no access is created). To restrict access:
+By default any account at a configured provider can sign in. To restrict access:
 
 - **`PIWI_OAUTH_ALLOWED_DOMAINS`** — comma-separated email domains (e.g. `example.com,acme.org`). Only **verified** provider emails in these domains may sign in. Applies to all providers.
 - **`PIWI_OAUTH_GITHUB_ALLOWED_ORGS`** — comma-separated GitHub org logins. The user must be a member of at least one. Enabling this requests the `read:org` scope so membership (including private) can be checked.
@@ -13124,12 +13153,18 @@ set the other's address to one that receives mail.
 
 ### Changing a role
 
-Each row's **Role** column is an inline selector for the instance role: pick **Administrator** or **Member** to change it immediately, revoking the user's sessions. This is the only way to make an account an administrator, including accounts created through [OAuth](#oauth-google-github), which always start as a **Member** with no access. The **last remaining administrator cannot be demoted**, so an instance can never be left without one.
+Each row's **Role** column is an inline selector for the instance role: pick **Administrator** or **Member** to change it immediately, revoking the user's sessions. This is the only way to make an account an administrator, including accounts created through [OAuth](#oauth-google-github). The **last remaining administrator cannot be demoted**, so an instance can never be left without one.
 
 ## Disabling authentication
 
-Set `PIWI_AUTH_ENABLED=false`, or remove the variable, and restart the server. Every endpoint is then accessible
-without authentication.
+Set `PIWI_AUTH_ENABLED=false`, or remove the variable, and restart the server.
+
+With authentication off, the dashboard answers only requests whose `Host` header names an IP address, `localhost`, a
+name under `.localhost`, the host of [`PIWI_SITE_URL`](/reference/configuration#general) or a name `PIWI_ALLOWED_HOSTS`
+lists (a container's name such as `piwi`, `host.docker.internal`, or `.example.lan` for a whole domain); any other gets
+a `403`. Over plain HTTP, a write must also come from the requested host, `PIWI_SITE_URL`'s or a listed one. The entry
+`*` of `PIWI_ALLOWED_HOSTS` turns the first check off, and with it the protection against DNS rebinding. Behind a
+[reverse proxy](./deployment#reverse-proxy-https), set `PIWI_SITE_URL` and forward the browser's `Host` header.
 
 ## Related
 
@@ -13315,6 +13350,21 @@ health and version endpoints, the sign-in flows themselves, and live-run streami
 - Keys are sent as `Authorization: Bearer <key>` or `X-API-Key: <key>` headers.
 - Keys can be given an optional expiry date.
 
+## What a key cannot do
+
+A key acts for its owner everywhere except on the account's own credentials. These take a signed-in session, and a
+request with a key gets a 403:
+
+- creating an API key, for any account;
+- allowing a [browser extension](/features/extension-connection), an
+  [editor](/features/editor-connection) or an [MCP client](/features/mcp) to connect, which creates a key or a
+  connection for the account;
+- changing the account's password or its own email address, and disconnecting its OAuth provider.
+
+A key therefore cannot create keys or change its own account's credentials, nor move the account's password reset to
+another address. An administrator's key still manages the other users, their email addresses included, and creates
+accounts with a password, so it is as powerful as the administrator's password: keep it with the same care.
+
 ## Creating an API key
 
 Every signed-in user manages their own keys under **Settings → Account → API keys**. An administrator can also manage
@@ -13341,8 +13391,9 @@ Click the trash icon next to the key, in the same place you created it. The key 
 ## Using the API key in the reporter
 
 The reporter reads the key from `PIWI_API_KEY`, in the environment or in the `.env` beside the Playwright config
-(`init --api-key` writes it), so the config needs no change: store the key as a CI secret under that name. To read it from
-another variable, pass it in the [`wrapConfig`](/guide/reporter#installing-via-wrapconfig) options:
+(`init --api-key` writes it there, unless git tracks that file or cannot say whether it does, or the file is a link),
+so the config needs no change: store the key as a CI secret under that name. To read it from another variable, pass it
+in the [`wrapConfig`](/guide/reporter#installing-via-wrapconfig) options:
 
 ```typescript
 // playwright.config.ts
@@ -14304,6 +14355,10 @@ the logs for `Migration error`. The schema is mid-flight or incompatible; restor
 `Migration history repair failed`, the database ran another build and could not be brought in line
 automatically ([details](#a-database-that-ran-another-build)); it was left as it was.
 
+**Every page answers `403` and lists the dashboard's local addresses.** With authentication off, name the hosts
+clients use, a container's name included, in `PIWI_SITE_URL` or `PIWI_ALLOWED_HOSTS`, or turn authentication on
+([why](./authentication#disabling-authentication)).
+
 **The dashboard loads but data looks wrong.** Don't downgrade — restore the backup instead, then
 report what you saw. Downgrading on a migrated database compounds the problem.
 
@@ -15041,6 +15096,8 @@ Wire a Playwright project up to a dashboard. It installs the reporter as a dev d
 
 The `.env` it writes sits next to the Playwright config, where `npx playwright test` reads it: the reporter takes `PIWI_DASHBOARD_URL`, `PIWI_API_KEY` and `PIWI_PROJECT_NAME` from it for whatever the config and the environment leave unset, so the config needs no dotenv loading ([Values from `.env`](/reference/reporter-options#values-from-env)). The file stays out of git; in CI, set the same variables as secrets.
 
+When git already tracks that `.env`, adding it to `.gitignore` would not untrack it, so `init` writes no API key into it: the `env` step is reported as `manual`, and the rest of the setup goes on. Set `PIWI_API_KEY` in the environment (in CI, as a secret), or untrack the file with `git rm --cached .env` and run `init` again. The same goes for a `.env` in a repository git gives no answer about (git missing, or refusing a repository another user owns): make `git ls-files .env` work there, or set the key in the environment. Nor does `init` write the key through a `.env` that is a link (symbolic or hard) to another file: put a file of its own in its place. With `PIWI_API_KEY` set in the environment and no `--api-key`, such a `.env` needs no key, and `init` reports the step as done.
+
 In a monorepo, run `init` in the package that holds the Playwright config, or point `--cwd` at it: every step then applies to that package, with the package manager its workspace's root names (the `packageManager` field or the lockfile). Run at the root of a workspace (`workspaces` in `package.json`, as npm, Yarn and Bun declare one, or a `pnpm-workspace.yaml`) that holds no Playwright config of its own, `init` looks for the workspace packages that hold one:
 
 - **One**: it wires that package, and says which.
@@ -15057,7 +15114,7 @@ npx @piwitests/reporter init --server-url http://localhost:3000 --project my-pro
 | `--no-server-url` | Write no URL into the config: the reporter finds the [desktop app](/features/desktop) running on the machine, or reads `PIWI_DASHBOARD_URL` |
 | `--project <name>` | Project name to report under (default: your package/folder name) |
 | `--desktop-app <mode>` | Write [`desktopApp`](/guide/reporter#local-runs-to-the-desktop-app-ci-to-a-team-server) into the config: `prefer` sends local runs to the desktop app while it runs, and CI runs to `--server-url`; `fallback` or `off` |
-| `--api-key <key>` | API key to write into `.env` (env `PIWI_API_KEY`), where the reporter reads it. Omit to leave a `.env.example` placeholder you fill in yourself |
+| `--api-key <key>` | API key to write into `.env` (env `PIWI_API_KEY`), where the reporter reads it; never into a `.env` git tracks or cannot say it does not, nor through a link. Omit to leave a `.env.example` placeholder you fill in yourself |
 | `--cwd <path>` | Project root to operate on (default: current directory) |
 | `--skills <list>` | Comma-separated skills to install, or `all` / `none` (default: the six workflow skills) |
 | `--skills-dir <path>` | Directory to install skills into (default: `.claude/skills`) |
