@@ -308,6 +308,10 @@ Two things commonly surprise people:
 - **A run can be watched while it happens.** With streaming enabled (the default), the run row appears
   when the suite starts and fills in test by test, so a failure is browsable before CI finishes.
 
+A run **ran to its end** when it passed, failed or hit Playwright's global timeout. A project's health (Home's
+Project health table and stat strip, the project header) reads only such runs: a run still in progress, interrupted
+or cancelled shows in every list and in the trend bars with its status, and in none of those figures.
+
 ### Test case
 
 The **identity of a test across time**, keyed by project + file path (relative to the folder holding your
@@ -318,6 +322,10 @@ A test case is browser-independent: `login.spec.ts › signs in` is one test cas
 Chromium, Firefox, or all five projects in your matrix.
 
 This is the object at `/test-cases/:id` — pass rate, duration trend, and the list of every execution.
+
+On a test's own pages (its page and Trend tab, the project's Tests tab, selections and spec health), a **run** of the
+test is one result per run, Playwright project and `--repeat-each` repetition: its final attempt. A retry is never a
+run of its own, and a test that failed, then passed on its retry, is one flaky run.
 
 ### Execution
 
@@ -336,12 +344,40 @@ whole group: the tests that passed before and a `test.fail()` test that failed a
 test that did not run behind the failure passes, none of them flaky. The last attempt decides: a test that
 passed, then failed on the group's retry, counts as failed, where Playwright's summary calls it flaky.
 
+A test is **interrupted** when the run's interruption (Ctrl+C, a crashed worker) cut it short. It counts in no
+outcome: neither passed, failed, skipped nor did not run, and in no pass rate. The dashboard, the exports and the
+notifications draw it in a neutral slate labelled *Interrupted*, and a count bar names the gap it leaves.
+
 This is the object at `/test-run-cases/:id` — the error, steps, trace, screenshots, console, network,
 Web Vitals, and (for a failure) the diagnosis view. When the docs say *execution* or *test-run case*,
 this is what they mean; when they say *test case*, they mean the identity above it.
 
 The distinction matters in practice: "this test is flaky" is a statement about a **test case**, and
 "here is the stack trace" is a statement about one **execution**.
+
+### Pass rate
+
+**The passed results over the results that passed or failed.** A timed-out result counts as failed. A skipped,
+did-not-run or interrupted result is in neither term, so a suite that skips tests by design, or a run stopped
+halfway, is rated on the tests that ran to an outcome. A flaky result, passed on a retry, counts as passed. With no
+passed or failed result there is no pass rate: the dashboard shows a dash, never 0% or 100%.
+
+Every pass rate follows this one rule: a run's, a project's, Home's, a test's, the
+[test pass rate metric](/reference/metrics) of Analytics and the quality reports, and a share link's README badge.
+
+### Flaky rate
+
+**A test's flaky runs over its runs that passed or failed**, the results the [pass rate](#pass-rate) divides by. A
+flaky run passed on a retry, so it is one of the passed runs; a skipped, did-not-run or interrupted run is in neither
+term. With no passed or failed run there is no flaky rate: the dashboard shows a dash.
+
+A file's or a spec directory's flaky rate divides its tests' runs the same way: the Trend tab of a test, the file
+headers of the project's Tests tab and the Spec health widget all follow this rule.
+
+Other numbers about flakiness divide differently and are not a flaky rate: the [flakiness score](#flakiness-score), a
+run's share of flaky tests (the `flakiness.spike` notification), and Flake Lab's **flaky N%**, shown beside a flaky
+test in an editor and on Home. That one is the share of the test's recent runs (those the flaky ranking reads, a
+skipped run included) in which it failed or passed on a retry.
 
 ### Baseline (last green run)
 
@@ -427,15 +463,31 @@ A public repository's CODEOWNERS is read without a token; a private one needs an
 ### Error fingerprint & failure cluster
 
 When an execution fails, Piwi hashes a normalized form of its error — error type, message with the
-volatile parts masked out (timeouts, numbers, UUIDs, URLs, expected/received values), and the locator
-with its dynamic arguments masked. That hash is the **error fingerprint**.
+volatile parts masked out, and the locator with its dynamic arguments masked. That hash is the
+**error fingerprint**. The masks take out what changes from one occurrence to the next:
+
+- timeouts and other numbers, UUIDs, hashes, and ids glued to an underscore (`order_5f3a9c1e2b`);
+- URLs, emails and timestamps (`2026-05-01T10:30:00Z`);
+- the folders of a path under a home folder, a CI workspace or a Windows drive
+  (`/home/runner/work/shop/fixtures/user.json` reads `<PATH>/user.json`), and the random end of a temporary
+  folder's name (`playwright_chromiumdev_profile-Xo8n2p`);
+- an assertion's expected and received values, and the list of elements a strict-mode violation prints;
+- dynamic locator options, such as the `{ name: '…' }` of a table row.
 
 Every failed execution sharing a fingerprint joins one **failure cluster**. Fifty red tests caused by
 one broken endpoint become one cluster you triage once, with a status (open / resolved / ignored) and
 a note.
 
-Fingerprints deliberately **ignore the failing stack frame**, so the same root cause reached from six
-different spec files stays one cluster. Full detail:
+Two clusters can also merge into one ([semantic merging](/features/ai-diagnosis#semantic-merging-optional)). A merge
+never buries a live failure: the survivor ends open when either cluster was open and not snoozed, takes the other's
+assignee when it has none and its note, and keeps its fix attempts, tracker history and dismissed pairs.
+
+Fingerprints **ignore the failing stack frame** when the error says what failed, so the same root cause
+reached from six different spec files, through a shared helper or page object, stays one cluster. A
+**generic** error says nothing of its own: it names no locator, and its message is an `expect(…)` matcher
+whose values are all masked, a test timeout, or a bare `TypeError` or `ReferenceError` line. Unrelated
+tests fail with the same generic error, so its fingerprint also hashes the file of its failing stack frame:
+the spec file, or the helper it failed in. Full detail:
 [Failure clustering & AI diagnosis](/features/ai-diagnosis).
 
 ### Story
@@ -471,8 +523,13 @@ Where a **failure cluster** stands, said in one sentence with one verb next to a
 failing*, *not seen for N runs — still open*, *fixed and verified — still open*, *fixed, but the diagnosed patch
 still applies at the fix's commit*, *stopped failing*, *regressed — the fix did not hold*, *resolved*, *ignored*,
 *snoozed* or *all tests quarantined*. It reconciles the human triage status with the machine-observed verdict; when
-they disagree the state line offers the one action that closes the gap, unless the Next line already offers it. See
-[Failure clusters](/features/failure-clusters#the-state-line).
+they disagree the state line offers the one action that closes the gap, unless the Next line already offers it.
+*Not seen for N runs* counts the runs since the last failure that could have shown it: finished runs on its branch or
+the default branch (no lab run, bisect step, reproduction or environment incident) that ran its tests and did not fail
+with it. A test skipped, not run or interrupted is one a run did not run, and a run of the whole suite that ran to its
+end counts even when a test of the cluster no longer exists; one stopped early (interrupted, cancelled, timed out or
+cut short by `maxFailures`) counts only when it ran the cluster's tests. The failure of a cluster whose ticket is Done stopped once such a run came after its last
+failure. See [Failure clusters](/features/failure-clusters#the-state-line).
 
 ### Flakiness score
 
@@ -781,13 +838,15 @@ export default wrapConfig(
     // no `screenshot` / `trace` needed: wrapConfig fills them in
   }),
   {
-    serverUrl: 'http://localhost:3000',
+    serverUrl: process.env.PIWI_DASHBOARD_URL || 'http://localhost:3000',
     projectName: 'my-project',
   },
 )
 ```
 
-The first argument is your Playwright config; the second is the [Piwi options](#configuration-options). On top of injecting the reporter, `wrapConfig`:
+The first argument is your Playwright config; the second is the [Piwi options](#configuration-options). An option set
+in the config wins over its `PIWI_*` variable, so the server URL reads `PIWI_DASHBOARD_URL` first, as `init` writes it:
+a CI job that sets the variable reports there. On top of injecting the reporter, `wrapConfig`:
 
 - Sets `screenshot: 'only-on-failure'` and `trace: { mode: 'retain-on-failure', snapshots: { dom: true, aria: true } }` on the **top-level** `use` block when each is unset (a value you set, `'off'` included, and per-project `use` blocks are kept). They unlock the DOM snapshot, full call stack, full network with bodies and the visual diff **without** the capture fixtures. The trace's aria snapshots feed the [Screen tab and the page diff](/features/evidence#aria-and-screen-snapshots). The `screen` snapshot kind stays opt-in; see [what `screen` adds per action](/operate/storage#trace-snapshots). Opt out with `defaultCapture: false` (or `PIWI_DEFAULT_CAPTURE=false`); the reporter logs one line at the start of the run naming whatever it defaulted.
 - Forwards the CI-gate option `failOnFlakyTests` into Playwright's native config so a flaky-only run exits non-zero locally.
@@ -804,7 +863,7 @@ export default defineConfig({
   reporter: [
     ['list'],
     ['@piwitests/reporter', {
-      serverUrl: 'http://localhost:3000',
+      serverUrl: process.env.PIWI_DASHBOARD_URL || 'http://localhost:3000',
       projectName: 'my-project',
     }],
   ],
@@ -838,7 +897,8 @@ wins, except `PIWI_VERBOSE`, which overrides even an explicit `verbose` outside 
 `PIWI_API_KEY` and `PIWI_PROJECT_NAME` also come from the config folder's
 [`.env`](/reference/reporter-options#values-from-env), below the environment. [Reporter options](/reference/reporter-options)
 lists every option with its default and its variable, and [Test metadata](/reference/test-metadata) what the reporter
-records on its own.
+records on its own, [errors outside the tests](/reference/test-metadata#errors-outside-the-tests),
+[what each test printed](/reference/test-metadata#test-output) and [hooks](/reference/test-metadata#hooks) included.
 
 ### Finding the desktop app automatically
 
@@ -871,7 +931,8 @@ A server that does not support streaming gets the batch upload instead.
 
 ### Disabling streaming
 
-`streaming: false` sends all results at the end of the run.
+`streaming: false` sends all results at the end of the run, then each test's files and each report in a request of
+their own.
 
 ### Tuning batch parameters
 
@@ -895,7 +956,8 @@ export default createGlobalSetup({}, async (config) => {
 ```
 
 Registration is best-effort: if the server is unreachable, the run is created when tests begin. Playwright's UI mode
-(`--ui`) skips registration, since it swaps the reporter out; your own setup still runs.
+(`--ui`) skips registration, since it swaps the reporter out, and so does a run with `streaming: false`, which the
+dashboard receives in one batch at its end; your own setup still runs.
 
 ## Multiple reports
 
@@ -909,7 +971,7 @@ export default defineConfig({
     ['monocart-reporter', { name: 'My Tests', outputFile: 'monocart-report/index.html' }],
     ['blob'],
     ['@piwitests/reporter', {
-      serverUrl: 'http://localhost:3000',
+      serverUrl: process.env.PIWI_DASHBOARD_URL || 'http://localhost:3000',
       projectName: 'my-project',
       reports: [
         { type: 'html' },
@@ -921,8 +983,10 @@ export default defineConfig({
 })
 ```
 
-`html` (`playwright-report/`) and `monocart` (`monocart-report/`) open in a new tab; `blob` (`blob-report/`) downloads
-as an archive. Any other type is accepted too, read from `dir` or else `<type>-report/`.
+`html` (the html reporter's folder, `playwright-report/` by default) and `monocart` (`monocart-report/`) open in a new
+tab; `blob` (`blob-report/`) downloads as an archive. Any other type is accepted too, read from `dir` or else
+`<type>-report/`. Reports are uploaded compressed, and one over the dashboard's upload limit
+([`PIWI_IMPORT_MAX_BYTES`](/reference/configuration#ingest-limits), 500 MB by default) is left out alone.
 
 ## With authentication enabled
 
@@ -942,11 +1006,13 @@ through [`wrapConfig`](#installing-via-wrapconfig).
 [Capture fixtures → Troubleshooting](./capture-fixtures#troubleshooting).
 
 **Connection errors.** Check that `serverUrl` answers from where the tests run; `PIWI_VERBOSE=true` logs every
-request. A run the reporter could not deliver (dashboard down, no credential) is saved locally, owner-only, and sent
-to the same `serverUrl` on the project's next run, without traces or attachments; it never fails the Playwright run.
-An interrupted stream is retried, then sent as a batch.
-[`submitTimeout`](/reference/reporter-options#submittimeout) (15 minutes by default) bounds that end-of-run work, so
-an unresponsive dashboard does not hold the CI job.
+request. A run the reporter could not deliver (dashboard down, no credential, a sign-in page answering in its place)
+is saved locally, owner-only, and sent to the same `serverUrl` on the project's next run, without traces or
+attachments; it never fails the Playwright run. An interrupted stream is retried until it catches up. Live events the
+dashboard refuses, or has not taken two and a half minutes after they first failed, leave the live view so the later
+ones flow; when test results are among the events the dashboard never took, the run is sent again as a batch at its
+end. [`submitTimeout`](/reference/reporter-options#submittimeout) (15 minutes by default) bounds that end-of-run work,
+so an unresponsive dashboard does not hold the CI job.
 
 ## Related
 
@@ -1142,6 +1208,10 @@ env:
 Everything else — branch, commit, author, workflow, build URL, shard index — is
 [detected automatically](#what-gets-detected).
 
+A `serverUrl` written in the Playwright config wins over `PIWI_DASHBOARD_URL`. `init` writes it as
+`process.env.PIWI_DASHBOARD_URL || '<the URL you gave>'`, so the variable takes over in CI; a config that names the URL
+alone keeps sending to that URL.
+
 ## GitHub Actions
 
 ```yaml
@@ -1223,13 +1293,17 @@ How the merge works:
 1. Each shard derives a **run label**, a stable identifier for the CI pipeline, from the provider's build id
    (`GITHUB_RUN_ID` with `GITHUB_RUN_ATTEMPT`, `CI_PIPELINE_ID`, `CIRCLE_WORKFLOW_ID` and their equivalents on the
    systems listed above). A re-run of a GitHub Actions workflow is a new attempt, so it starts a new run.
-2. Shards sharing a run label **and** a `projectName` resolve to the same run, streamed or batched.
+2. Shards sharing a run label, a `projectName` **and** a shard count (the `3` of `--shard=1/3`) resolve to the same
+   run, streamed or batched.
 3. The run stays `running` until the **last** shard reports. While none of its shards is running, it waits up to an
-   hour for the next one, streamed or batched, so a shard may start an hour after the others ended.
-4. Counters accumulate across shards. The run is `failed` if any shard reported a failure, and the run page shows a
-   shard progress badge (`2/3`) while shards are arriving.
+   hour for the next one, streamed or batched, so a shard may start an hour after the others ended. It also waits up
+   to an hour for a shard still in its global setup.
+4. Counters accumulate across shards, and the run page shows a shard progress badge (`2/3`) while shards are arriving.
+   A shard counts once, even when it reports its end twice (its `/finish` answer lost, then its batch upload).
+   The run takes the most severe status its shards reported, as Playwright's `merge-reports` does: `failed`, then
+   `timedout`, then `interrupted`. It is `failed` whenever a test failed.
 5. The run lasts from the first shard's start to the last shard's end, whether the shards run side by side or one
-   after another. Its metadata keeps each shard's start, end and worker count under `shards`.
+   after another. Its metadata keeps each shard's start, end, worker count and status under `shards`.
 
 **All shards must use the same `projectName`.**
 
@@ -1250,11 +1324,19 @@ If your CI isn't detected, set the label yourself to anything common to all shar
 A job that is not sharded adds the CI job's id (`GITHUB_JOB`, `CI_JOB_ID`, …) to its run label, so a GitLab
 `e2e:chrome` and `e2e:firefox` reporting to one `projectName` stay two runs. The legs of a GitHub Actions matrix
 share one job id, and Jenkins, TeamCity and Drone expose none: give each leg its own label, or its own `projectName`.
-A configured label is used as it is, so the shards of a leg still merge:
+On GitHub Actions, `strategy.job-index` numbers the jobs of a matrix, whatever its keys:
 
 ```yaml
-PIWI_RUN_LABEL: ${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.browser }}
+PIWI_RUN_LABEL: ${{ github.run_id }}-${{ github.run_attempt }}-${{ strategy.job-index }}
 ```
+
+A configured label is used as it is, so each job of the matrix gets a run of its own, a shard too. When the legs are
+themselves sharded (`shard: [1, 2, 3]` beside `browser`), put the leg's keys in the label instead (`matrix.browser`):
+the shards of a leg share them, and merge into one run. Two matrix jobs of one workflow that report to one
+`projectName` also need `github.job` in the label, since each numbers its jobs from 0.
+
+Jobs left sharing a label cancel each other's live runs: the reporter of a cancelled run stops streaming and sends its
+results in one batch at the end of its job, so each job still ends in one complete run, without its live view.
 
 ## Watching a run while CI is still going
 
@@ -1394,9 +1476,11 @@ reach, or a missing API key while authentication is on.
 [`wrapConfig`](./reporter#installing-via-wrapconfig), which sets both when they are unset.
 
 **A run is stuck as `interrupted`.** A run silent for two minutes (a cancelled job, a killed runner, a dropped
-network) is marked `interrupted` until its next event revives it. A run still uploading its report (`finalizing`) waits
-ten minutes, then keeps the status the reporter sent. [Analytics](/features/analytics#scope) counts interrupted runs as
-failing; **full runs only** drops only partial runs.
+network) is marked `interrupted` until its next event revives it. A run still in its global setup (`initializing`), or
+a sharded run with a shard still in its own, waits an hour for its reporter to begin it. A run still uploading its
+files or its reports (`finalizing`) waits ten minutes after the last one arrived, then keeps the status the reporter
+sent.
+[Analytics](/features/analytics#scope) counts interrupted runs as failing; **full runs only** drops only partial runs.
 
 ## Related
 
@@ -1955,7 +2039,7 @@ npx playwright test --reporter=blob
 It writes `blob-report/report.zip` (or `blob-report/report-<n>.zip` per shard). Those `.zip` files are what you upload —
 one archive per run.
 
-If you already keep blob reports as CI artifacts, download them; there is nothing to re-run.
+If you already keep blob reports as CI artifacts, download them: nothing to re-run.
 
 The blob format is internal to Playwright and versioned. Piwi reads versions **1 and 2**, which covers every Playwright
 release to date. An archive written in a format a given Piwi build does not know is refused outright, with the version
@@ -1986,19 +2070,20 @@ Before anything uploads, the page checks each archive and tells you where it sta
 | **Too large** | Bigger than this server accepts. Nothing is uploaded. |
 | **Not importable** | Not a `.zip`, or empty. |
 
-Click **Import N archives** to upload the ready ones, one at a time, with a progress bar each. Nothing is uploaded that
-the server would have rejected, and nothing that is already there is uploaded twice.
+Click **Import N archives** to upload the ready ones, one at a time. Nothing is uploaded that the server would have
+rejected, and nothing that is already there is uploaded twice.
 
 Importing is **idempotent**: an archive is identified by the SHA-256 of its bytes, so re-uploading one changes nothing.
-An interrupted batch is safe to simply repeat. An import that fails partway leaves no run behind, so the archive reads
-as ready again and the retry imports it in full.
+An interrupted batch is safe to repeat. An import that fails partway leaves no run behind, so the archive reads as ready
+again and the retry imports it in full.
 
 ## Importing trace files
 
 If you kept `test-results/` from a CI job rather than a blob report, upload the `trace.zip` files inside it. Each one
 rebuilds its execution from what the trace itself recorded: the test's title and describe blocks, its spec file and
 line, its timeout, browser and viewport, its start time and duration, its steps, its browser console, and — when the
-test failed — the error with its call log, so it clusters like any other failure.
+test failed — the error with its call log, so it clusters like any other failure. A caught action error
+(`click().catch(() => {})`) leaves it passed.
 
 **Traces you select together become one run.** A trace carries no notion of the run it belonged to, so Piwi treats the
 selection as the run — which is what you want when the files came from a single CI job. Upload a trace on its own and
@@ -2008,8 +2093,9 @@ The grouping is fixed when you *choose* the files, not when they upload, so retr
 its siblings. Two separate selections are two runs, even if you import them with one click — pick every trace that
 belongs to a run in one go.
 
-Two different traces for the same test in one selection are treated as **attempts**: the second becomes retry 1, so a
-test that failed then passed is recognized as flaky. Upload order is attempt order.
+Two different traces for the same test and browser in one selection are treated as **attempts**: the second becomes
+retry 1, so a test that failed then passed is flaky, one that passed twice is not, and the run counts it once. Upload
+order is attempt order.
 
 One kind of trace cannot be imported: Playwright writes the test's title alongside the *browser context*, so a test
 that never opened a page — skipped, or failed in a hook — produces a trace with no title in it. Those files are
@@ -2019,9 +2105,11 @@ reported as not importable and skipped; the rest of the batch is unaffected.
 
 Everything Playwright itself recorded comes across:
 
-- Test results — status, duration, timeout, retries, `--repeat-each` repetition, worker, start time, annotations
+- Test results — status, duration, timeout, retries, `--repeat-each` repetition, worker, start time, annotations,
+  stdout and stderr
 - Suite structure — spec file, `describe` nesting, Playwright project (browser) name
-- Errors, with full call logs, so failures **cluster exactly like reported ones**
+- Errors, with full call logs, so failures **cluster exactly like reported ones**, and the
+  [errors outside the tests](/reference/test-metadata#errors-outside-the-tests)
 - Steps, including their subtitles and capped, masked params (Playwright 1.63+), the slowest step and wasted-time totals
 - Traces, screenshots and videos — the trace viewer, call stack, network and DOM snapshot views all work
 - The failure-time page snapshot and source snippet, recovered from Playwright's `error-context` attachment
@@ -2042,8 +2130,8 @@ history, not at the top. An archive older than the project's newest run leaves t
 priority, locks and locator snapshots as they are, and wakes no snoozed cluster.
 
 Imports are also deliberately **silent**: they never send notifications, never trigger AI diagnosis, and never compute
-regression signals. Backfilling a year of history should not page your team about failures they fixed months ago, or
-label an old failure a new regression.
+regression signals. Backfilling a year of history should not page your team about failures fixed months ago, or label
+an old failure a new regression.
 
 ## Making history line up
 
@@ -2073,8 +2161,8 @@ the demo.
 
 ## Size limits
 
-Each archive is uploaded whole, so it must fit under the server's limit — **500 MB** by default. The import page shows
-the effective limit and rejects anything larger before uploading it.
+Each archive is uploaded whole, so it must fit under the server's limit — **500 MB** by default, under 2 GB in any
+case. The import page shows the effective limit and rejects anything larger before uploading it.
 
 If a reverse proxy in front of Piwi enforces a smaller body limit, set
 [`PIWI_IMPORT_MAX_BYTES`](/reference/configuration#ingest-limits) to match, so the page rejects the same archives your proxy would
@@ -2396,8 +2484,8 @@ Some data is skipped at the source, so it never exists to leak:
   selection name elements, never values or selected text. A URL fragment's credentials are masked
   (`#access_token=[masked]`).
 - **Sensitive headers.** `Authorization`, `Cookie` and friends are masked server-side in Piwi's trace
-  network view, and token-shaped strings in URLs and bodies are masked too. The trace file is stored
-  as uploaded, so the trace viewer and a downloaded trace still show them.
+  network view, and token-shaped strings in URLs, bodies and [test errors](/reference/test-metadata#test-errors) are
+  masked too. The trace file is stored as uploaded, so the trace viewer and a downloaded trace still show them.
 - **Backend logs, in production.** The [backend-log integrations](./backend-logs) emit their header only
   in development and test environments by default.
 
@@ -2510,7 +2598,7 @@ path [opens in your IDE](./ide-integration).
 
 ## Home
 
-`/`: a health check across all projects. A **Filters** block (environment, full runs only), a **stat strip** whose every number but the average pass rate is a link, a **Project health** table with run-history bars and a tendency badge
+`/`: a health check across all projects. A **Filters** block (environment, full runs only), a **stat strip** whose every number but the average [pass rate](/guide/concepts#pass-rate) is a link, a **Project health** table with run-history bars and a tendency badge
 beside the recent activity, then the **failure inbox** of open clusters, triaged from the row or the keyboard
 ([Failure clusters & the inbox](./failure-clusters#the-failure-inbox)).
 
@@ -2540,11 +2628,12 @@ first result, or with **New project**.
 ## Project detail
 
 `/projects/:id`: one project's history. The **header** names the project, its description and tags, and where it
-stands: the latest run and the pass rate of the last 20 runs, then the open clusters, flaky tests and quarantined
-tests, each a link. The **Filters** block under it (environment, branch, full runs only) scopes the header and every
-tab that reads run history; with no branch picked it reads the [default branch](./branches#the-default-branch), and a
-note counts the runs it hides. The **More** menu holds Edit, [Test functions](./test-functions),
-[Selections](./test-selection), [Import](/guide/importing-runs) and Delete. The tabs:
+stands: the latest run that [ran to its end](/guide/concepts#test-run) and the [pass rate](/guide/concepts#pass-rate) of the last 20 such runs, then the open clusters, flaky tests
+and quarantined tests, each a link. The **Filters** block under it (environment, branch, full runs only) scopes the
+header and every tab that reads run history; with no branch picked it reads the
+[default branch](./branches#the-default-branch), and a note counts the runs it hides. The **More** menu holds Edit,
+[Test functions](./test-functions), [Selections](./test-selection), [Import](/guide/importing-runs) and Delete. The
+tabs:
 
 - **Runs**: the run trend chart, with its [timeline markers](./timeline-markers), over the filtered runs, and the runs table,
   25 runs to a page; select two runs and **Compare** to see [what changed](./run-changes) between them, or select any
@@ -2581,7 +2670,9 @@ the HTML report on a green one) and one facts line, and a **count bar** filters 
 results stream in live, and the tab's icon and title show its progress. When ingest left something out or rebuilt
 it, the facts line counts **ingest notes** and **Details** lists them: steps and console entries over the
 [ingest caps](/reference/configuration#ingest-limits), traces not stored, evidence rebuilt from a trace, and the
-fallback the reporter took to send the run. The tabs:
+fallback the reporter took to send the run. When Playwright reported
+[errors outside the tests](/reference/test-metadata#errors-outside-the-tests) (a global setup that threw, a spec that did
+not load), the header shows them under the facts line. The tabs:
 
 - **Tests**: every execution with its failure headline, in run order, grouped by cluster (the default on a red run),
   file, describe block or [lock](/reference/test-metadata#test-locks), with the same
@@ -2601,9 +2692,8 @@ fallback the reporter took to send the run. The tabs:
     details.
   - **Retries**: a retried test has one bar per attempt, the last solid, the earlier ones pale. Hover one to join
     them with arrows.
-  - **Resources**: when the reporter measured them, the machine's CPU, the run's memory and the pages open in the
-    workers are drawn above the worker rows, and one metric of your choice under each worker row. Hover a track for
-    its values; turn each off from the **Resources** menu. See [CPU, memory & disk](./cpu-memory-disk#in-the-dashboard).
+  - **Resources**: the run's CPU, memory and open pages, above the worker rows and under each of them
+    ([CPU, memory & disk](./cpu-memory-disk#in-the-dashboard)).
 
 ## Test case detail
 
@@ -2779,7 +2869,7 @@ Each project has a **Default branch** setting in the **Source control** section 
 
 On a project page, the **Filters** block carries a **branch** multi-select (the git-branch icon) next to the environment filter. It appears once any of the project's runs carries a branch. With no branch picked, the page reads the project's default branch and the runs that report no branch, like [Analytics](./analytics#branch-policy); **All branches** beside it reads every branch, and the branches you pick read exactly those. The header, the runs list, the test catalog, the failure clusters, the flaky leaderboard, the Flake Lab and the performance trends all follow it; a note under the filters counts the runs on other branches they hide.
 
-The branch is an indexed column, so every project tab, Analytics and the MCP `list_runs` tool filter by it in the database; the project's runs list filters its latest 200 runs in the browser. Runs reported before the column existed fall back to the branch recorded in their metadata, so old history still filters.
+The branch is an indexed column, so every project tab (the runs list included), Analytics and the MCP `list_runs` tool filter by it in the database. Runs reported before the column existed carry the branch recorded in their metadata, so old history still filters.
 
 ## The project status
 
@@ -2919,8 +3009,8 @@ The **Export** button sits on a test-case execution (`/test-run-cases/:id`), on 
 
 | Format | What you get |
 |--------|--------------|
-| **HTML** | One file. Screenshots and video are embedded as `data:` URIs; error, steps, console, network, ARIA snapshot, test source and the AI diagnosis are all inline. Double-click it. |
-| **ZIP** | `report.html` plus the raw artifacts on disk — full-size video, reconstructed `trace.zip` archives, console and network logs — and `data.json` with everything the report shows, machine-readable. |
+| **HTML** | One file. Screenshots and video are embedded as `data:` URIs; error, steps, console, what the test wrote to stdout and stderr, network, ARIA snapshot, test source and the AI diagnosis are all inline. Double-click it. |
+| **ZIP** | `report.html` plus the raw artifacts on disk — full-size video, reconstructed `trace.zip` archives, console and network logs, `stdout.txt` and `stderr.txt` — and `data.json` with everything the report shows, machine-readable. |
 | **PDF** | A formatted document generated directly — no browser print dialog, so it is identical on the web app, the desktop app and the demo. Screenshots embed; video and trace archives can't live in a PDF, so they're listed as omitted (use ZIP to keep them). |
 | **Markdown / JSON** | Text only, for pasting into an issue or feeding an agent. |
 
@@ -2984,8 +3074,7 @@ execution is a slice on its worker's thread, with its hooks, fixtures and steps 
 start time, and a slice colored by outcome (green passed, red failed). A failing execution adds an
 instant marker at the moment it failed. Every slice carries its details in the event arguments —
 source location, step params, tags, locks, annotations, status, error message, and links back to the
-execution and its attachments on the dashboard. Suite-level `beforeAll`/`afterAll` setup steps appear
-on their worker's thread too.
+execution and its attachments on the dashboard.
 
 Open it by dragging the downloaded `.json` onto [ui.perfetto.dev](https://ui.perfetto.dev), or use
 **Open trace file** there. Timestamps are relative to the first event, so a run always starts at zero.
@@ -3076,7 +3165,7 @@ none; duplicate one first.
 
 A report link and a live dashboard link each carry two images, shown when the link is minted:
 
-- `/share/<token>/badge.svg`: a badge such as "tests on default branch · 97.8% · 7 d", the test pass rate on the
+- `/share/<token>/badge.svg`: a badge such as "tests on default branch · 97.8% · 7 d", the test [pass rate](/guide/concepts#pass-rate) on the
   pass-rate color scale, for a README or a wiki page. The dialog copies it as Markdown.
 - `/share/<token>/chart.png`: the report's trend. A scheduled report's Slack message draws it as an image, since
   Slack needs a public address to show one.
@@ -3514,7 +3603,8 @@ else on the cited tab, else on **Screen** when a screenshot or video exists, els
 - **Network**: the requests, API calls through Playwright's `request` fixture included, with inline
   [backend logs](/guide/backend-logs); one with no response shows the browser's error (`net::ERR_CONNECTION_RESET`). **Console**: the console output.
   **State**: the app state at test end and the environment diff against the last green run. **Performance**:
-  performance hints and Web Vitals.
+  performance hints and Web Vitals. **Output**: what the test wrote to stdout and stderr
+  ([Test output](/reference/test-metadata#test-output)).
 
 Below the evidence sit the folded [**More ways to fix**](./fix-plans#more-ways-to-fix) toolbox and a **history** strip
 of this test's recent executions. A test that **passed on retry** leads with its failed attempt's error, opens on
@@ -3526,9 +3616,8 @@ Web Vitals, ARIA, focus and alternative-locator data come from the [capture fixt
 
 A **clue** is a one-line finding a deterministic rule draws from the evidence already captured, with no model
 involved. Each carries a **strength** (strong, medium or weak) and a **citation** that opens and marks the evidence it
-came from; the **Most likely** line leads with their strong or medium story, else a completed diagnosis, else a weak
-story or the strongest one, and marks the rows and tabs it cites. The AI diagnosis receives the clues as evidence.
-Every rule is on [Clue rules](/reference/clues).
+came from; the **Most likely** line marks the rows and tabs it cites. [Clue rules](/reference/clues) gives every rule,
+how **Most likely** picks among them and what the AI diagnosis receives.
 
 ### Attempts
 
@@ -3615,7 +3704,7 @@ server, with or without [authentication](/operate/authentication). The hosted
 
 ## The test case page
 
-`/test-cases/:id` is the other axis: not one attempt, but the test's whole life. Total runs, pass rate, average duration
+`/test-cases/:id` is the other axis: not one attempt, but the test's whole life. Total [runs](/guide/concepts#test-case), [pass rate](/guide/concepts#pass-rate), average duration
 and last run, a duration trend, a status-history strip, and the recent executions, each linking back to its execution.
 A flaky test adds a **Flakiness** tab with its [suspects](./flaky-tests#suspects).
 
@@ -3838,14 +3927,14 @@ into a **failure inbox**: the problems you still owe a decision.
 Failed executions sharing an **error fingerprint** join one cluster, so twenty stack traces read as
 *"20 failures, 3 root causes"*. Clustering is always on.
 
-- The fingerprint **masks volatile fragments** of the error: timeouts and other numbers, UUIDs and hashes, URLs and
-  emails, an assertion's *expected* and *received* values, and dynamic locator options such as the
-  `{ name: '…' }` of a table row, wherever the error prints the locator. The locator target itself (the test id, the
-  role) still tells different failures apart.
-- It is **call-site agnostic**: the failing stack frame is shown for context but does not split a cluster, so one root
-  cause reached from several spec files stays one cluster.
+- The fingerprint **masks volatile fragments** of the error ([the list](/guide/concepts#error-fingerprint-failure-cluster)):
+  numbers, ids, timestamps, machine paths, an assertion's *expected* and *received* values, a table row's
+  `{ name: '…' }`. The locator target itself (the test id, the role) still tells different failures apart.
+- It is **call-site agnostic** when the error says what failed: one root cause reached from several spec files
+  stays one cluster. A **generic** error (a bare `toBe`, a test timeout, a `TypeError`) is told apart by the file
+  it failed in.
 - The fingerprint is computed from the error the cluster was created from, so an improved normalization
-  regroups clusters in place and keeps their triage, notes and diagnoses.
+  regroups clusters in place and keeps their triage, notes, diagnoses and merges.
 - A run's **Tests** tab can group its failures by cluster, each group with its triage status; the
   `get_failure_groups` [MCP tool](/reference/mcp-tools#get_failure_groups) adds a **worker-correlation** flag: "the
   app is broken" versus "worker 3 is misbehaving".
@@ -3899,7 +3988,7 @@ to its site unfurl and stay in sync (see [issue tracking](/features/issue-tracki
 
 A cluster's **owner** is derived, not stored: it comes from the failing test's `piwi:owner` annotation; the
 cluster and execution pages (not the inbox) fall back to the repository's `CODEOWNERS`. An **assignee** overrides it, and the **Mine** queue
-matches either against the signed-in user (by name or email).
+matches either against the signed-in user (by name, username or email).
 
 ## The cluster page
 
@@ -3928,11 +4017,12 @@ the rest fold into [**More ways to fix**](./fix-plans#more-ways-to-fix).
 The cluster page states where a cluster stands in **one sentence with one verb**, next to a colored dot:
 *still failing*, *not seen for N runs*, *fixed and verified, still open*, *fixed, but the diagnosed patch still
 applies*, *stopped failing*, *regressed, the fix did not hold*, *resolved*, *ignored*, *snoozed* or *all tests
-quarantined*. When an open cluster stopped failing, or its ticket is Done and the latest finished run no longer fails
-it, the page offers **one action**, *Mark resolved*, which a fix whose patch still applies keeps in the **Next** menu;
-a snoozed cluster offers *Unsnooze*, an all-quarantined one *Release*. Beside it, **Triage** sets the status (open /
-resolved / ignored), a note and the assignee, and [snoozes](#snoozing) the cluster. A status change keeps the
-triage note and the lines Piwi added.
+quarantined*. When an open cluster stopped failing, or its ticket is Done and the failure
+[stopped](/guide/concepts#cluster-state), the page offers **one action**, *Mark resolved*, which a fix whose patch
+still applies keeps in the **Next** menu; a snoozed cluster offers *Unsnooze*, an all-quarantined one *Release*.
+Beside it, **Triage** sets the status (open / resolved / ignored), a note and the assignee, and
+[snoozes](#snoozing) the cluster. A status change keeps the triage note and the lines Piwi added, a note edit the
+status.
 
 ### Occurrences over time
 
@@ -3950,26 +4040,25 @@ long the cluster was open. Three verdicts:
 | **Diagnosis verified** | The commits since the last failing run touched a file the [suggested patch](./ai-diagnosis#what-a-diagnosis-contains) named. |
 | **Regressed** | A fix was recorded, and the cluster is failing again. |
 
-**Every affected test must pass**: a test that did not run counts against the fix. A filtered run covering them all can close
-the cluster, so `--grep` over exactly the affected tests is enough.
+**A fix needs every affected test to pass** (a test that did not run counts against it, so a `--grep` over exactly the
+affected tests is enough) in a run that could carry one: started after the last failing run, at another commit (a pass
+at the failing commit, such as a CI retry, is flake evidence, and the state line says so), on the branch the cluster
+last failed on or the default branch, so a green pull-request branch leaves a cluster failing on `main` open.
 
-**The commit must have changed.** A run at the commit the cluster last failed at (a CI retry, or **Re-run in CI**)
-proves nothing was fixed: Piwi records it as flake evidence and the state line says *passed again at the same commit,
-which is flake evidence, not a fix*. **The branch must match**: only a run on the branch the cluster last failed on, or
-on the default branch, records a fix, so a green pull-request or heal branch leaves a cluster that fails on `main`
-open.
+**A regression needs a run started after the fix landed**, failing on the fix's branch or the default branch.
 
 The verdict moves the status only on strong evidence: *Diagnosis verified* sets an **open** cluster **resolved**, and
-*Regressed* sets a **resolved** one back to **open**, each adding a line to the triage note. *Stopped failing* alone
-changes nothing, and an *ignored* cluster is never touched. The [notifications](./notifications) `cluster.fixed` and
-`cluster.regressed` follow the verdict, and with [pull-request feedback](./pr-feedback) on, the comment gains a
-**Fixed by this change** section, even with *only comment on failures* set.
+*Regressed* sets a **resolved** one back to **open**, as does a new failure after a person resolved a cluster with no fix
+on record; each adds a line to the triage note. *Stopped failing* alone changes nothing, and an *ignored* cluster is
+never touched. The [notifications](./notifications) `cluster.fixed` and `cluster.regressed` follow the verdict, and
+with [pull-request feedback](./pr-feedback) on, the comment gains a **Fixed by this change** section, even with *only
+comment on failures* set.
 
 ## Snoozing
 
 **Snoozing** hides a cluster from every inbox queue without touching its status. **1 day** and
-**1 week** return it then; **Until it recurs** returns it to the **New** queue, with a **snoozed,
-back** badge, when a new run fails it again.
+**1 week** return it then; **Until it recurs** returns it to the **New** queue when a new run fails
+it again, with a **snoozed, back** badge until your next visit.
 
 ## From an AI agent
 
@@ -4047,7 +4136,8 @@ A [probe](./probes) or [Flake Lab](./flake-lab) run is never judged: it injects 
   test owners. `run.finished` still fires. When one outage flags runs in several projects, a channel that hears from
   all of them receives one message.
 - **The failure inbox** on Home shows one row for the run instead of one row per new cluster it opened. Clusters that
-  were already open before the incident keep their rows.
+  were already open before the incident keep their rows, and a cluster it opened gets its own row once a run that is
+  no incident fails it again.
 - **No AI diagnosis and no pull-request comment** are produced for the run.
 
 The run's history stays: its executions, evidence and clusters are kept like any other run's, and analytics still
@@ -4143,7 +4233,7 @@ The **failure rate** is shown but not scored.
   <figcaption>The score and the impact ranking, computed for one test.</figcaption>
 </figure>
 
-The project's **Failures** tab has a **Flaky** view with a **configurable lookback window**. Each flaky test links to its history and carries a **Quarantine** action.
+The project's **Failures** tab has a **Flaky** view with a **configurable lookback window**. Each flaky test links to its history and, unless already quarantined, offers **Quarantine**.
 
 **Scoping**: only runs within the project's **Filters** count: environment (the [reporter](/guide/reporter)'s `environment` option), branch (the [default branch](./branches#the-default-branch) unless picked) and full runs only.
 
@@ -4217,8 +4307,8 @@ Piwi ranks flaky tests by **impact** — derived from wasted CI minutes (retries
 
 ### Per-test stability trend
 
-The **Trend** tab of a test's page draws its pass rate, flaky rate and average duration over the last
-30, 90 or 365 days, one point per UTC day, week or month, with the project's timeline markers, so you can
+The **Trend** tab of a test's page draws its pass rate, [flaky rate](/guide/concepts#flaky-rate) and average duration over its
+[runs](/guide/concepts#test-case) of the last 30, 90 or 365 days, one point per UTC day, week or month, with the project's timeline markers, so you can
 see whether a fix actually stuck. The same series is the MCP `get_test_stability_trend` tool.
 
 ## Quarantine, with a way out
@@ -4232,32 +4322,31 @@ list only grows.
 `--max-failed`, `--max-new-regressions`, `--max-new-flaky`, `--require-tag` and `--require-selection` checks and the
 [commit status](./pr-feedback#what-gets-posted), nothing else. That makes the exit possible:
 
-- Passing executions after quarantine (one per attempt per browser project) accumulate as a **streak**; one failure
-  resets it.
-- After five consecutive passes the test is flagged **ready to release** — the dashboard tells you, rather than waiting
-  to be asked.
-- A fix [verified](#verified-fixed) after the quarantine flags it at once, while it holds. Release stays yours to
-  click.
+- Each run started after the quarantine counts once toward a **streak**: a pass adds one, a failure or a pass on retry
+  resets it, a skip does neither.
+- After five consecutive passes the test is flagged **ready to release**: you're told, not asked.
+- A fix [verified](#verified-fixed) after the quarantine flags it at once, until the test fails again. Release stays
+  yours to click.
 - **Candidates** (**Proposed for quarantine** in the Flaky view) are flaky tests wasting 2+ CI minutes with a score
   of 40+, ranked by impact; a high-confidence AI diagnosis calling the test flaky adds a reason. A 200 ms flake
   costs nothing; one burning a four-minute timeout weekly hurts.
-- **Debt** is reported in aggregate: how many are quarantined, how many are ready to release, how long the oldest has
-  been in, and how many still have no passing streak at all.
+- **Debt** is reported in aggregate: how many are quarantined, ready to release or failing in their latest run, and how
+  long the oldest has been in.
 
-**Dismiss** turns down either proposal, with an optional reason, and changes nothing else; a dismissed candidate
-returns after a newer run. Agents call [`dismiss_quarantine_proposal`](/reference/mcp-tools#dismiss_quarantine_proposal)
+**Dismiss** turns down either proposal, with an optional reason, and moves no test: a dismissed release stops counting
+as ready, and a dismissed candidate returns once the flaky analysis reads a newer run. Agents call [`dismiss_quarantine_proposal`](/reference/mcp-tools#dismiss_quarantine_proposal)
 and [`set_test_quarantine`](/reference/mcp-tools#set_test_quarantine).
 
-The gate always states how many failures quarantine excluded — a green gate that silently ignored failures would be
-worthless — and `--max-quarantined` sets a ceiling so the list can't grow unbounded.
+The gate always states how many failures quarantine excluded, and `--max-quarantined` sets a ceiling on the list.
 
 Manage it from the **Quarantine** view of the project's **Failures** tab, or over the REST API (see the [API docs](https://piwitests.dev/demo/docs)).
 
 ## Regression signals
 
-Individual test cases in a run carry at-a-glance badges:
+A run's tests carry badges:
 
-- **New regression** (red) — failing here but passing in the baseline (the last passing run)
+- **New regression** (red) — failing here, passing in the baseline: the same Playwright project in the last complete
+  passing run
 - **Newly flaky** (fuchsia) — the first run in which the test was flaky
 - **Passed on retry** (fuchsia) — failed at least once in this run, then passed
 
@@ -4267,7 +4356,7 @@ An [execution](./evidence#one-execution-diagnosis-first) shows them in its statu
 
 ## Spec health by file
 
-The project's **Tests** tab has a **Group by File** view that groups tests by their first two path segments (`tests/admin` for `tests/admin/users.spec.ts`) and carries that group's pass rate, flaky rate, failure count, execution count and average time over the last 90 days in its header, so an unhealthy area of the suite jumps out.
+With **Group by: File** on the project's **Tests** tab, each spec file's header carries its tests' pass rate, flaky rate, failure count, run count and average time over the list's window (the last 30 days by default), so an unhealthy file jumps out. The **Spec health** [Analytics](./analytics) widget gives them per spec directory.
 
 ## Across every project
 
@@ -4376,7 +4465,7 @@ It reruns the reproducing arm and its control for enough runs that a failure at 
 shown with 95% confidence (`⌈ln 0.05 / ln(1 − rate)⌉`, at least 5), and stops at the first matching failure. With
 none, the fix is **verified**. The verify experiment appears on the Flakiness tab next to the one it verifies, and the
 test reads [verified fixed](./flaky-tests#verified-fixed): off the flaky ranking until it retry-passes again, and a
-quarantined test is proposed for release at once.
+quarantined test is proposed for release at once, until it fails again.
 
 **Exit codes:** `0` an arm reproduced the failure (`verify`: the fix held) · `1` nothing reproduced (`verify`: it
 still fails, or too few runs passed to say) · `2` error.
@@ -4402,12 +4491,12 @@ and every other comparison between runs.
 
 ## From the editor and the failure pages
 
-- **In the [editor](./editors#the-tests-behind-each-line)**, a flaky test's line shows its flaky rate and top suspect
-  ("flaky 18% · top suspect: GET /api/cart slower (reproduced 7 of 10)"), with **Reproduce this flake** and, once
-  reproduced, **Verify the flake fix**, run in a terminal against the instance the editor reads. Beside a team
-  instance, **Reproduce this flake in the desktop app** (also on a failure with an untested suspect) runs the
-  instance's plan in the [desktop app](./desktop#jobs-from-your-editor) once you confirm it; **Share on …** records
-  the results on the instance, as run from `desktop`.
+- **In the [editor](./editors#the-tests-behind-each-line)**, a flaky test's line shows the share of its recent runs in
+  which it failed or passed on a retry, and its top suspect ("flaky 18% · top suspect: GET /api/cart slower (reproduced
+  7 of 10)"), with **Reproduce this flake** and, once reproduced, **Verify the flake fix**, run in a terminal against
+  the instance the editor reads. Beside a team instance, **Reproduce this flake in the desktop app** (also on a failure
+  with an untested suspect) runs the instance's plan in the [desktop app](./desktop#jobs-from-your-editor) once you
+  confirm it; **Share on …** records the results on the instance, as run from `desktop`.
 - **On a flaky failure's page**, the next step reproduces it under the top untested suspect, then verifies the fix.
 - **Home** lists the tests waiting for a verify, then those whose top suspect is untested.
 
@@ -5668,7 +5757,7 @@ An open cluster often isn't new — the same failure, or one close to it, was fi
 
 A match is scored deterministically first — the same fingerprint family (error kind, masked message, masked locator), the same failing locator, the same spec file or test — and then, when an [embedding model](/guide/ai-provider#model-roles) is configured, by semantic similarity of the stored cluster vectors. The top three matches are shown, each with **when** it was resolved, the **commit** that fixed it (linked when the repository host is known), **how long** it stayed open, the triage note, the earlier diagnosis and its thumbs feedback (a diagnosis rated unhelpful shows only the thumbs-down, never its text), and one short reason it matched ("same error and locator", "same spec, similar message (0.91)"); the Markdown export and the MCP tool also name its owner. Nothing matches → the section renders nothing, no empty-state noise.
 
-**Apply the same triage** copies the earlier cluster's triage note onto the open one, prefixed `Same as cluster #N:` so the history reads as an intentional reuse. It never changes the open cluster's status — a new cluster is never marked resolved just because an old one was. The same top match is fed to the AI diagnosis as a *Previously fixed similar failure* clue, so the model can reuse a known fix rather than re-derive it.
+**Apply the same triage** adds the earlier cluster's triage note below the open one's, prefixed `Same as cluster #N:` so the history reads as an intentional reuse; the lines already in the note stay, those Piwi added since the page loaded included. It never changes the open cluster's status — a new cluster is never marked resolved just because an old one was. The same top match is fed to the AI diagnosis as a *Previously fixed similar failure* clue, so the model can reuse a known fix rather than re-derive it.
 
 ## Related
 
@@ -6309,10 +6398,10 @@ absent `include` starts from the whole suite. The predicates, all optional:
 | `files` | the file path matches one of these globs (`**`, `*`, `?`) |
 | `suitePath`, `text` | the describe chain / title (or file) contains this substring |
 | `quarantined`, `flaky`, `neverRun` | the test is (or is not) in that state |
-| `minPassRate` / `maxPassRate` | pass rate over executed runs is within bounds (0–1) |
+| `minPassRate` / `maxPassRate` | the [pass rate](/guide/concepts#pass-rate) is within bounds (0–1); a test with none matches neither |
 | `minAvgDurationMs` / `maxAvgDurationMs` | average duration is within bounds |
 | `lastStatus` | the latest execution's status is one of these |
-| `failedInLastRuns` | the test failed within its last _N_ executions (N ≤ 25) |
+| `failedInLastRuns` | the test failed within its last _N_ [runs](/guide/concepts#test-case) (N ≤ 25); a pass on a retry is no failure |
 
 An unknown predicate is a validation error, so a typo never widens the set.
 
@@ -7889,7 +7978,7 @@ view, save an [analytics dashboard](./dashboards).
 
 ### Where the numbers come from
 
-The pass rates, run counts, durations, CI time, wasted time and regression counts are read from
+The [pass rates](/guide/concepts#pass-rate), run counts, durations, CI time, wasted time and regression counts are read from
 **daily rollups**, one precomputed row per project, UTC day, environment, branch and run kind, kept at
 ingest and checked nightly against the stored runs. When [retention](/operate/storage#data-retention)
 deletes old runs, their numbers stay in the rollups, so a one-year pass-rate line survives a 30-day
@@ -8134,7 +8223,7 @@ projects, branches, environments, test filter and period of the analytics **Filt
 reports:
 
 - **Executive**, for stakeholders, in plain words with no locators and no stack traces: a verdict,
-  six headline numbers, the pass rate over time with the comparison period and your
+  six headline numbers, the [pass rate](/guide/concepts#pass-rate) over time with the comparison period and your
   [timeline markers](./timeline-markers), what changed, what is being done (causes fixed, assigned or
   ticketed, tests released from quarantine) and the risks (metrics moving the wrong way, projects
   failing run after run, the oldest open causes).
@@ -8377,7 +8466,8 @@ When each event fires, and its payload, are in
 [Notification events & webhooks](/reference/notification-events). A
 [report schedule](./quality-reports#report-schedules) sends its report to the channels it names, with no subscription.
 A run from an editor, a bisect step, a reproduction, or a partial run from a developer's machine or the desktop app
-fires no run event and no new-cluster, flakiness or performance event ([run origin](/reference/test-metadata#run-origin)).
+fires no run event and no new-cluster, fixed, regressed, flakiness or performance event
+([run origin](/reference/test-metadata#run-origin)).
 
 ## Channels
 
@@ -8467,9 +8557,9 @@ The subscriptions REST API (see the [API docs](https://piwitests.dev/demo/docs))
 - **Filters**: `branches` and `environments` as above; for run events, status; **owner**, which applies to the
   `run.*` events, `flakiness.spike`, `perf.regression`, `cluster.new` and `test.stuck` and delivers them only when a
   test behind the event belongs to that team (see [Tags & ownership](/guide/concepts#tags-ownership)); `flakinessThreshold`
-  (a 0–1 rate) and `perfRegressionPct`.
-- **Mode**: `realtime`, sent as events happen, or `digest` with `digestAt` (`HH:MM`, UTC), held until then and sent as
-  **one combined message** per email, Slack or Teams channel.
+  (a 0–1 rate) and `perfRegressionPct`. Each list holds at most 100 values of up to 256 characters.
+- **Mode**: `realtime`, sent as events happen, or `digest` with `digestAt` (`HH:MM`, UTC, from `00:00` to `23:59`),
+  held until then and sent as **one combined message** per email, Slack or Teams channel.
 - **Mute**: `mutedUntil`, any time, without deleting the subscription.
 
 ## SMTP configuration
@@ -11743,7 +11833,7 @@ Lines above the code (CodeLens):
 | An application file | the tests that reach it, from [code reach](/features/code-reach); with [coverage](./editor-coverage), each function's too | runs those tests |
 | A page file (Nuxt `pages/**`) | the tests acting on that page, its locators and how many are brittle | runs those tests |
 
-Above a flaky test: its flaky rate and [top suspect](./flake-lab#from-the-editor-and-the-failure-pages), then
+Above a flaky test: Flake Lab's **flaky N%** and [top suspect](./flake-lab#from-the-editor-and-the-failure-pages), then
 **Reproduce this flake** and, once reproduced, **Verify the flake fix**, which run `piwi flake`; beside a team instance,
 **Reproduce this flake in the desktop app**.
 
@@ -13924,7 +14014,7 @@ An answer, cut to three metrics and two projects:
 ```txt
 # TYPE piwi_test_pass_rate_percent gauge
 # UNIT piwi_test_pass_rate_percent percent
-# HELP piwi_test_pass_rate_percent Test pass rate, last 7 days: Tests passed divided by tests run, summed over the runs of the period.
+# HELP piwi_test_pass_rate_percent Test pass rate, last 7 days: Tests passed divided by tests passed or failed (timed out included), summed over the runs of the period. Skipped, did-not-run and interrupted tests count in neither, and a pass on a retry counts as passed.
 piwi_test_pass_rate_percent{project="checkout",project_id="1"} 97.8
 piwi_test_pass_rate_percent{project="search",project_id="2"} 99.4
 # TYPE piwi_runs gauge
@@ -14066,7 +14156,8 @@ On boot, before any request can touch the database (requests that need it wait f
    [A database that ran another build](#a-database-that-ran-another-build)).
 2. **Failure clusters are re-fingerprinted** if the fingerprint algorithm changed in this release.
    This is non-destructive: existing clusters are updated in place, and clusters that now collide are
-   merged rather than dropped, so your triage statuses and notes survive.
+   merged into the one first seen earliest rather than dropped, so your triage statuses and notes
+   survive. Clusters merged earlier stay merged, and tests moved to a cluster of their own stay there.
 
 Step 2 logs an error and continues if it fails. **Step 1 does not.** If a migration fails, the
 process keeps running but every database call fails with the migration error and `GET /api/health`
@@ -14214,7 +14305,9 @@ leaves an old file behind: in Task Manager's **Details** tab, end the `node.exe`
 **Open file location** is that folder, then choose **Retry**.
 
 **Failure clusters look reorganized.** Expected after a fingerprint-algorithm change: clusters that now
-share a root cause have merged. Triage state is carried across the merge.
+share a root cause have merged. Triage state is carried across the merge. A cluster that held unrelated
+failures under one [generic error](/guide/concepts#error-fingerprint-failure-cluster) keeps them, and their next
+failures join a cluster per file they fail in.
 
 ## Related
 - [Backup & restore](./backup-restore) — what to back up and how
@@ -14381,14 +14474,16 @@ What each origin feeds:
 
 - **Flake Lab and probe runs** feed nothing: they replay tests under conditions Piwi injected.
 - **Bisect steps and reproductions** run at a commit chosen to investigate a failure. They stay out of baselines, fix
-  verification, flaky scores, selections, change coverage, the stored locators and test metadata, and the bug-report
-  lifecycle, and have no outbound effect: no [notification](/features/notifications#events), no
+  verification, flaky scores, selections, change coverage, the stored locators and test metadata, the bug-report
+  lifecycle and a failure cluster's occurrences (its count, its last seen run, the wake of a snooze), and have no
+  outbound effect: no [notification](/features/notifications#events), no
   [pull-request comment or commit status](/features/pr-feedback), no automatic AI diagnosis or auto-heal, and no
   [automatic write to an issue tracker](/features/issue-automation#the-runs-that-write).
 - **`piwi bug` runs** do not move the bug report they were written for.
-- **Local runs** (`local`, `desktop`, `editor`, `preflight`) count like CI runs, with two exceptions. An editor's CI
+- **Local runs** (`local`, `desktop`, `editor`, `preflight`) count like CI runs, with three exceptions. An editor's CI
   failures come from the newest complete CI run on the branch, and a local run stands in only while the branch has
-  none. An `editor` run, or a `local` or `desktop` run of part of the suite, fires no run, new-cluster, flakiness or
+  none. An `editor` run's failures join their clusters without counting as occurrences. An `editor` run, or a `local`
+  or `desktop` run of part of the suite, fires no run, new-cluster, fixed, regressed, flakiness or
   performance [notification](/features/notifications#events), posts no
   [pull-request comment or commit status](/features/pr-feedback), starts no automatic AI diagnosis or auto-heal, and
   writes nothing to an [issue tracker](/features/issue-automation#the-runs-that-write) on its own.
@@ -14571,18 +14666,72 @@ Together with the test's duration history this drives the **Timeout opportunitie
 The reporter distinguishes two outcomes that Playwright both reports as `skipped`:
 
 - **`skipped`** — an intentional skip via `test.skip()` / `test.fixme()` (static, conditional, or runtime). These always carry a `skip`/`fixme` annotation, so the skip reason (when provided) is preserved in `testAnnotations` and shown on the test case. The annotation also decides the grey the status bars draw: a `fixme` skip is counted apart from a plain `skip` (it stays part of `skippedTests`), so a test switched off as known broken does not blend into the deliberate skips.
-- **`didnotrun`** — a test that never actually executed. This covers two cases:
+- **`didnotrun`** — a test that never actually executed. This covers three cases:
   - a test skipped as a side effect of an **earlier failure in a `describe.serial` group** (Playwright reports it as `skipped` with no annotation; the reporter reclassifies it);
-  - a test that Playwright **never started because the run was cut short** (no `onTestEnd` fires for these — the reporter materializes them from the planned test list so they still appear, with zero duration and no error).
+  - a test of a project whose **[project dependency](https://playwright.dev/docs/test-projects#dependencies) failed**, such as the tests that need a `setup` project's login (Playwright runs none of them);
+  - a test that Playwright **never started because the run was cut short** (no `onTestEnd` fires for these or the previous case — the reporter materializes them from the planned test list so they still appear, with zero duration and no error).
+
+  A test declared skipped (`test.skip()`, `test.fixme()`, a skipped `describe`) is `skipped` even when the run stopped before reaching it.
 
 Each `didnotrun` case also carries **`didNotRunReason`**, so the dashboard can say _why_ a test never ran rather than just that it didn't:
 
 - `previous-failure` — skipped because an earlier test (or hook) in its serial group failed, or because a `beforeAll` hook failed, which skips the rest of its group in any mode. The reporter also records **`blockedBy`**, the location of the failing test that blocked it — so the did-not-run case links to its cause, names the hook when the failure happened in one, and the failing test lists the downstream tests it stopped from running.
+- `dependency-failure` — not run because a test failed in a project its project depends on (`dependencies`), directly or through another project. `blockedBy` holds the location of that failing test, as for `previous-failure`.
 - `global-timeout` — the run's `globalTimeout` elapsed before the test could start.
 - `max-failures` — the run reached its configured `maxFailures` budget.
 - `interrupted` — the run was otherwise cut short (a worker crash or a cancellation).
 
 The run-level counter `didNotRunTests` aggregates these, and the dashboard renders them as a distinct "Didn't run" segment/badge separate from skipped.
+
+### Test errors
+
+The reporter sends a failed test's errors as one text, with the call log Playwright writes. What may be a secret in it
+is written `<hidden>`:
+
+- the text a fill or a typing typed, and the value of a credential header a request's log writes;
+- the values an assertion quotes of a password field, or of a field whose locator names a secret (`Mot de passe`);
+- a credential's shape wherever it stands, colored or not: a JWT, a bearer token, a service's key such as `sk_live_…`,
+  `ghp_…` or `AKIA…`, a key or a token Piwi issues such as `pd_…`.
+
+Each step's error, and the error line of a hook or a fixture that failed, are hidden the same way. The dashboard hides
+them again as it stores a result, whatever sent it. An error that holds no secret is kept as it is, so it joins the
+[failure cluster](/features/failure-clusters) it did. An error stored before the dashboard hid a credential's shape
+has it hidden at the first start of the version that does, its failure cluster kept.
+
+### Errors outside the tests
+
+The reporter keeps the errors Playwright reports beside the tests (its `onError`), each with its message, the frames of
+its stack and the place it was thrown, named relative to the Playwright config's folder:
+
+- a global setup or global teardown that threw;
+- a spec file that did not load: a syntax error, an import that failed, a `test()` call where none is allowed. `No
+  tests found` and a web server that did not start come the same way, before any test runs, and the run then has none;
+- a worker fixture whose teardown threw, with the tests the worker ran;
+- the failure budget (`maxFailures`) that stopped the run.
+
+The first 20 go with the run's end, as its `runErrors`, each message and stack cut to 4,000 characters, with what may
+be a secret hidden as in a [test's error](#test-errors), and also a credential in a URL, a cookie or a JSON field, and a
+value shaped like a token. A sharded run adds each shard's to the others'. The run page shows them under its header,
+and the MCP `get_run` tool returns them as `runErrors`. A [blob report you import](/guide/importing-runs) keeps them
+the same way.
+
+### Test output
+
+The reporter keeps what each attempt wrote to stdout and stderr (`TestResult.stdout` and `stderr`): the test's
+`console.log` lines and what the code it ran printed, text or bytes read as UTF-8. Each stream has what may be a
+secret hidden, as above, colored or not, and the value it gives a name like a credential's (`password: '…'`,
+`API_KEY=…`), and past about 64 KB keeps its first and last lines, cut at a line break, with a line saying how many
+lines and characters were cut between them. The dashboard stores each stream once per project however many
+executions wrote it, and shows it on the execution's **Output** tab ([Failure evidence](/features/evidence)), in its
+[offline export](/features/offline-export) and through the MCP `get_test_run_case` tool. An
+[imported blob report](/guide/importing-runs) keeps each attempt's output the same way.
+
+### Hooks
+
+Playwright 1.59 and later give every hook step to a test: a `beforeAll` or `afterAll` hook and the setup of a worker
+fixture are steps of the test they ran for. The run's timeline draws them inside that test's bar, as its setup and
+teardown sections, never on a lane of their own. A worker fixture that throws as its worker shuts down, after its last
+test, is one of the [errors outside the tests](#errors-outside-the-tests).
 
 ## With custom metadata
 
@@ -14874,6 +15023,12 @@ An API key goes only to the URL it came with: a key exported in the environment 
 Wire a Playwright project up to a dashboard. It installs the reporter as a dev dependency, wraps `export default defineConfig(...)` with [`wrapConfig(...)`](/guide/reporter#installing-via-wrapconfig), creates the [capture-fixtures](/guide/capture-fixtures) file, records `PIWI_*` connection settings in `.env` / `.env.example` (and `.gitignore`), and installs the [agent skills](/features/agent-skills). **Every step is idempotent** — safe to re-run — and a config shape it will not rewrite is reported as `manual` with the exact change to make. See the [one-command setup](/guide/getting-started#fast-path-one-command) in Getting started.
 
 The `.env` it writes sits next to the Playwright config, where `npx playwright test` reads it: the reporter takes `PIWI_DASHBOARD_URL`, `PIWI_API_KEY` and `PIWI_PROJECT_NAME` from it for whatever the config and the environment leave unset, so the config needs no dotenv loading ([Values from `.env`](/reference/reporter-options#values-from-env)). The file stays out of git; in CI, set the same variables as secrets.
+
+In a monorepo, run `init` in the package that holds the Playwright config, or point `--cwd` at it: every step then applies to that package, with the package manager its workspace's root names (the `packageManager` field or the lockfile). Run at the root of a workspace (`workspaces` in `package.json`, as npm, Yarn and Bun declare one, or a `pnpm-workspace.yaml`) that holds no Playwright config of its own, `init` looks for the workspace packages that hold one:
+
+- **One**: it wires that package, and says which.
+- **Several**: in a terminal, it lists them and asks which one to wire. In CI, without a terminal or with `--json`, it wires none, names them, and asks you to run it again with `--cwd <package>`; the JSON plan lists them under `workspace.packages`.
+- **None**: it reports the missing config, as in any other folder.
 
 ```bash
 npx @piwitests/reporter init --server-url http://localhost:3000 --project my-project
@@ -15740,19 +15895,19 @@ one fires and what a webhook channel receives; channels, subscriptions and deliv
 | Event | Fires when |
 |-------|------------|
 | `run.finished` | A run completes (any status) |
-| `run.failed` | A run completes with failures |
-| `run.failed.default_branch` | A run fails on the repository's default branch |
-| `run.interrupted` | A run stops reporting before its end and the stale-run sweep marks it interrupted (two minutes without activity, an hour for a sharded run waiting for a shard that has not started, once every shard that started has ended). The payload is a run event's, with `status: "interrupted"` and the results stored so far; Flake Lab and probe runs send none |
-| `cluster.new` | A new failure cluster appears |
+| `run.failed` | A run completes with failures, or stops at Playwright's global timeout (`status: "timedout"`) |
+| `run.failed.default_branch` | A run fails, as `run.failed` reads it, on the repository's default branch |
+| `run.interrupted` | A run stops reporting before its end and the stale-run sweep marks it interrupted (two minutes without activity, an hour for a run still in its global setup or with a shard still in its own, and an hour for a sharded run waiting for a shard that has not started, once every shard that started has ended). The payload is a run event's, with `status: "interrupted"` and the results stored so far; Flake Lab and probe runs send none |
+| `cluster.new` | A new failure cluster appears in a run that ran to its end (passed, failed or timed out). A cluster first seen by a run that sent no notification of it (a run from an editor, a partial run from a developer's machine, an import, a cancelled or interrupted run) is announced by the first such run that sends notifications, unless the cluster is resolved, ignored or snoozed when that run ends, or its first run was deleted. When runs overlap, the first to end announces it and no other run does, whether or not a channel is subscribed |
 | `cluster.fixed` | A run passes every test a cluster covers: the fix landed (a filtered re-run of just those tests counts). The payload's `verification` says whether the diagnosis was corroborated (`diagnosis-verified`) or the tests merely stopped failing, and `resolved` whether the triage status was closed automatically |
-| `cluster.regressed` | A cluster with a recorded fix fails again; `reopened` says whether a *resolved* cluster was set back to open |
+| `cluster.regressed` | A cluster with a recorded fix fails again, or one resolved by hand fails in a run started after it was resolved (no `fixLandedRunId` then); `reopened` says whether a *resolved* cluster was set back to open |
 | `flakiness.spike` | A completed run contains flaky tests; the flakiness-threshold filter keeps only rates above N% |
-| `perf.regression` | A run is at least 20% slower than the median of the previous five completed runs on the same branch and environment; the regression-% filter raises the bar |
+| `perf.regression` | A run is at least 20% slower than the median of the previous five complete runs on the same branch and environment (runs of the whole suite: no partial, Flake Lab, probe, bisect or reproduction run, and no environment incident); the regression-% filter raises the bar |
 | `diagnosis.completed` | A diagnosis of a cluster, or of one of its failures, is stored: Piwi's (requires an [AI provider](/guide/ai-provider)) or one an agent records. A failure in no cluster sends none |
 | `auto_heal.pr_opened` | [Auto-heal](/features/auto-heal) opened a pull request; the payload carries `prNumber`, `prUrl`, `branch` and `editCount` |
 | `environment.incident` | A completed run is flagged as an [environment incident](/features/environment-incidents); it replaces the run's `run.failed`, `run.failed.default_branch`, `flakiness.spike`, `perf.regression`, `cluster.new` and `bug.looks_fixed` (`run.finished` still fires). The payload carries `rule`, `reason`, `host`, `otherProjects` and `incidentKey`, which is the same for every run of one outage across projects, so a channel receives one message. A subscription filtered on owners does not receive it |
 | `test.stuck` | A running test of a live run has run longer than both two minutes and three times its longest duration among its last ten passing executions ([Stuck tests](/features/stuck-tests)), once per attempt; runs that send no run event send none |
-| `bug.looks_fixed` | A `test.fail()` test passed in a completed run, in every browser project that ran it, and did not already pass on the previous completed run of the same branch; the payload lists the `tests`, each with the bug report (`bugId`, from `piwi:bug`) and ticket (`link`) it names |
+| `bug.looks_fixed` | A `test.fail()` test passed in a completed run, in every browser project that ran it, and did not already pass on the previous completed run of the same branch that sends notifications itself; the payload lists the `tests`, each with the bug report (`bugId`, from `piwi:bug`) and ticket (`link`) it names |
 
 **`report.ready`** needs no subscription: a [report schedule](/features/quality-reports#report-schedules) sends it to
 the channels it names, through the same outbox. Its webhook body adds the whole report:
@@ -15776,6 +15931,7 @@ For run events the payload includes up to three failing tests, so you can act wi
     "flakyTests": 2,
     "skippedTests": 3,
     "didNotRunTests": 0,
+    "interruptedTests": 0,
     "failingTestCount": 3,
     "branch": "main",
     "environment": "staging",
@@ -15825,7 +15981,7 @@ timeout. Slack and email messages lead with the headline, quote the excerpt and 
 The [pull-request comment](/features/pr-feedback) quotes failures the same way.
 
 A test is failing when the last attempt of one of its repetitions failed: a test that passed on a retry counts as flaky,
-never as a failure. `topFailures` names the first three, `failingTestCount` counts them all, each test once per
+never as a failure. `interruptedTests` counts the tests the run's interruption cut short, in none of the other counts. `topFailures` names the first three, `failingTestCount` counts them all, each test once per
 Playwright project however many of its `--repeat-each` repetitions failed (`failedTests` counts each failed repetition),
 and `owners` covers every failed attempt, so a team hears of its flaky test's failed first attempt. Each failure names its describe blocks (`suitePath`), the line it is declared on, its Playwright project
 (`browserName`) and its `owner`. `source` holds the lines around the line the failure threw at, as the reporter
@@ -15837,7 +15993,8 @@ failing line marked `>`.
 `history` lists the run and up to nine runs before it on the same branch and environment, oldest first: the ended runs
 that would send notifications themselves (no lab run, no run from an editor, no bisect step or reproduction, no
 partial run from a developer's machine or the desktop app, no environment incident). Each failure's `history` gives that test's outcome in each of those runs (`passed`, `flaky`, `failed`,
-`skipped`, `didnotrun` for a test that did not run or was interrupted, or `null` when the run did not report it). `commit`
+`skipped`, `didnotrun` for a test that did not run, `interrupted` for one the run's interruption cut short, in no
+outcome, or `null` when the run did not report it). `commit`
 comes from the run's Git metadata, linked when the project's repository host is known, and `ciUrl` from its CI
 metadata.
 
@@ -15872,7 +16029,8 @@ Every event that comes from a run carries that run's `branch` and `environment` 
 - **Run events** (`run.*`, `flakiness.spike`, `perf.regression`): the run, its counts, `topFailures`, and the `owners`
   of the failing tests. `perf.regression` adds `durationMs`, `baselineDurationMs` and `regressionPct`.
 - **`cluster.new`**: the cluster's `signature` and `title`, `sampleErrorExcerpt` (cut like `errorExcerpt`),
-  `affectedCases`, and the `owners` of the tests that failed into it in that run.
+  `affectedCases`, the `owners` of the tests that failed into it in that run, and `firstSeenRunId` when it first
+  appeared in an earlier run, which sent no notification of it.
 - **`cluster.fixed`** and **`cluster.regressed`**: the cluster's `signature`, `title` and the `runId` that decided the
   verdict; for a fix, the `commit` and `timeToResolutionMs`. With an [SCM token](/guide/source-control), a `fixAuthor`
   object (`{ name, email }`) names the author of the fixing commit (for a regression, of the fix that did not hold).
