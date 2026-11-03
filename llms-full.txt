@@ -54,14 +54,14 @@ why the snippet creates `.data` with the right owner; see
 it. [Deployment](/operate/deployment) covers Docker Compose, PostgreSQL and Kubernetes.
 
 With the desktop app, keep it running: a reporter with no server configured finds it by itself. Its URL and access
-token, for when you need them, are on its **Setup** page under **Send results to this app**.
+token, for when you need them, are in its **Settings → Desktop app** under **Send results to this app**.
 
 Your test project is unaffected by these requirements: Node 22 is the dashboard's requirement, not your suite's. Want
 to look around first? The [live demo](https://piwitests.dev/demo/) runs in your browser on seeded data.
 
 ## 2. Connect your suite
 
-The dashboard's connect wizard, on **Home** while it has no project and on **Setup** after, builds every snippet below
+The dashboard's connect wizard, on **Home** while it has no project and on **Settings → Connect a suite** after, builds every snippet below
 from your project name and its own URL, and offers three ways to the same setup: one command, a prompt for a coding
 agent, or the steps by hand.
 Each ends in [`wrapConfig`](./reporter#installing-via-wrapconfig) around your config and the
@@ -122,10 +122,10 @@ Then import `test` from the fixtures file in your specs, the one change `init` l
 import { test, expect } from './fixtures'
 ```
 
-A coding agent can do both: the **Coding agent** path on **Setup** gives it a prompt that runs `init --json`, finishes
+A coding agent can do both: the **Coding agent** path on **Connect a suite** gives it a prompt that runs `init --json`, finishes
 the steps it reports as `manual` and moves the specs onto the fixtures.
 
-If authentication is on, pass an [API key](/operate/api-keys) as `PIWI_API_KEY`; **Setup** creates one in place. When
+If authentication is on, pass an [API key](/operate/api-keys) as `PIWI_API_KEY`; **Connect a suite** creates one in place. When
 developers run the [desktop app](/features/desktop) and CI reports to a shared dashboard, add `--desktop-app prefer`:
 [local runs then land in the app](./reporter#local-runs-to-the-desktop-app-ci-to-a-team-server). To wire the reporter
 in by hand, or to send one run without editing your config, see [Reporter](./reporter).
@@ -826,7 +826,7 @@ This is a trial path: you get results and your configured traces and screenshots
 
 ## Installing via wrapConfig
 
-`wrapConfig` wraps your whole Playwright config in one call: it injects the reporter, chains Piwi's [global setup](#global-setup-phase), and defaults the failure-evidence capture options. It is the recommended setup, and what `npx @piwitests/reporter init` and the dashboard's **Setup** page write for you.
+`wrapConfig` wraps your whole Playwright config in one call: it injects the reporter, chains Piwi's [global setup](#global-setup-phase), and defaults the failure-evidence capture options. It is the recommended setup, and what `npx @piwitests/reporter init` and the dashboard's **Connect a suite** settings page write for you.
 
 ```typescript
 import { defineConfig } from '@playwright/test'
@@ -991,7 +991,7 @@ tab; `blob` (`blob-report/`) downloads as an archive. Any other type is accepted
 ## With authentication enabled
 
 When the dashboard has authentication enabled, pass an **API key**: create one ([API keys](/operate/api-keys);
-**Setup** creates one in place), keep it in a CI secret (locally, in `.env`), and pass it as `PIWI_API_KEY` or the `apiKey` option.
+**Connect a suite** creates one in place), keep it in a CI secret (locally, in `.env`), and pass it as `PIWI_API_KEY` or the `apiKey` option.
 
 The key is sent as an `Authorization: Bearer` header. `username` and `password` (`PIWI_USERNAME`, `PIWI_PASSWORD`)
 work too (the reporter logs in once and reuses the session); prefer an API key in CI.
@@ -1179,7 +1179,7 @@ If that request fails, the set stays empty and **nothing is sampled**. Turn it o
 - **Data missing for some specs only** — those specs import `test` from `@playwright/test` instead of your fixtures file.
 - **No fixture data at all**: check that `collectPerformanceMetrics` is not `false`, and that tests leave `about:blank`.
 - **ARIA snapshot or locator healing missing**: the same causes, or `captureLocators` is off.
-- **An evidence card says "not captured"**: that project has never had the fixtures active; the in-app `/setup` checklist, which each empty card links, says what to switch on. A card that reads *nothing happened* means the fixtures ran and this execution produced nothing. With an uploaded trace, the console, network and ARIA cards are recovered from it and marked *derived from the trace*.
+- **An evidence card says "not captured"**: that project has never had the fixtures active; the in-app connect wizard, which each empty card links (**Settings → Connect a suite**), shows the fixtures to add. A card that reads *nothing happened* means the fixtures ran and this execution produced nothing. With an uploaded trace, the console, network and ARIA cards are recovered from it and marked *derived from the trace*.
 
 ## Try it
 
@@ -1629,7 +1629,7 @@ When a run finishes and `PIWI_AI_AUTO_DIAGNOSE` is on, the `PIWI_AI_AUTO_DIAGNOS
 
 A diagnosis streams: the model's reasoning appears in a live panel as it arrives, with a stage indicator (*Researching patterns* while a
 [research model](#model-roles) pre-analyzes the failure, when one is configured, then *Diagnosing root cause*), and turns
-into the result card when it completes. The [API docs](https://piwitests.dev/demo/docs), or `/docs` on your
+into the result card when it completes. The [API docs](https://piwitests.dev/demo/settings/api), or `/settings/api` on your
 instance, describe the streaming protocol.
 
 To be told when a diagnosis finishes without watching the panel, turn on **Settings → AI → Diagnosis notifications**: a per-browser preference that shows a browser notification on completion once you grant the permission.
@@ -2442,8 +2442,8 @@ context before it's sent, and cap its size. See
 - **Traces.** The Playwright trace viewer is bundled and served by your own instance at
   `/trace-viewer/`. Opening a trace from Piwi never uploads it anywhere — unlike sending a colleague to
   the hosted `trace.playwright.dev`.
-- **The API reference.** `/docs` is rendered in-app from your instance's own OpenAPI spec, with no
-  third-party CDN, so it works offline.
+- **The API reference.** It is rendered in-app from your instance's own OpenAPI spec, with no third-party CDN, so it
+  works offline.
 - **Screenshots, videos, HTML reports.** Stored on your disk or your S3 bucket, served by your instance.
 - **HTML report execution.** Reports run with scripts enabled inside a CSP sandbox with a unique opaque origin. Piwi
   provides the report with an in-memory Web Storage facade so Playwright's settings UI works; it is discarded with the
@@ -2720,12 +2720,6 @@ of its own above the affected tests and their evidence
 ([Failure clusters & the inbox](./failure-clusters#the-cluster-page)). The **More ways to fix** toolbox holds the
 other sections and the [fix plan](./fix-plans); the occurrence chart and the activity fold to one line each below it.
 
-## Setup
-
-`/setup`, administrators only: the [connect wizard](/guide/getting-started#_2-connect-your-suite) and a checklist of
-which optional capabilities this instance actually uses, judged from the data it holds
-([Choose what you use](/operate/capabilities)).
-
 ## Settings
 
 `/settings`: your **Account** and connected accounts ([OAuth](/operate/authentication#oauth-google-github)),
@@ -2736,11 +2730,15 @@ which optional capabilities this instance actually uses, judged from the data it
 **Auto-heal** ([Auto-heal PRs](./auto-heal)), **Integrations** ([Integrations](/operate/integrations)),
 **Performance** (wasted-time patterns and timeout hygiene), **AI** ([AI provider](/guide/ai-provider)),
 **Notifications** ([Notifications & alerts](./notifications)) and **Localization**
-([Localization](/operate/localization)). A setting backed by an environment variable is shown read-only with the
-variable's name ([Configuration reference](/reference/configuration)).
+([Localization](/operate/localization)), and in the [desktop app](./desktop) **Desktop app** first. A setting backed by
+an environment variable is shown read-only with the variable's name ([Configuration reference](/reference/configuration)).
 
-The sidebar also links the **MCP server** setup page, `/mcp` ([MCP server](./mcp)), and the **API docs**, `/docs`, the
-instance's own OpenAPI reference.
+## Setup
+
+The **Setup** section of Settings: **Connect a suite**, the
+[connect wizard](/guide/getting-started#_2-connect-your-suite); **Capabilities**, for administrators, which optional
+capabilities this instance uses ([Choose what you use](/operate/capabilities)); **MCP server**
+([MCP server](./mcp)); **API reference**, the instance's own OpenAPI reference; and **Companion tools**.
 
 ## Live demo
 
@@ -2812,7 +2810,7 @@ popover, and pointing at a line enlarges its number on the page.
 | **Build a dashboard** | Save the widgets and filters a team watches | Everyone |
 | **Set retention** | See what runs take up, delete old ones, keep the ones that matter | Administrators |
 
-A guide about a capability your instance declined on the Setup page ([Choose what you
+A guide about a capability your instance declined in **Settings → Capabilities** ([Choose what you
 use](/operate/capabilities#declining-a-capability)) is not listed. With authentication off, every guide is listed for
 everyone, as every page is.
 
@@ -2833,7 +2831,7 @@ Three pages suggest a guide, or a question for the [assistant](./assistant), whe
 
 | Page | When | Offers |
 |---|---|---|
-| Setup | A capability is neither in use nor declined | **Ask**: which of them your runs would use, and what each one needs |
+| Settings → Capabilities | A capability is neither in use nor declined | **Ask**: which of them your runs would use, and what each one needs |
 | A failure cluster | Its diagnosis read no commits, and no SCM token is set for the project or the instance | **Show me**: Add the SCM token |
 | An execution | It timed out, or its leading clue comes from the network, the server logs or the console, and the project has not decided on the capture fixtures | **Show me**: Add the capture fixtures |
 
@@ -2841,7 +2839,7 @@ A fixed rule over what the page already shows decides; no AI model is called. A 
 and a browser at most three a week. **Don't show again** hides one for good: the dismissal is kept on the server for
 your account, so it stays hidden in every browser, and with authentication off it is hidden for every visitor. A
 suggestion whose guide is not listed for you does not show. A question needs the assistant and an AI model to answer
-it, so declining the assistant or AI on the Setup page turns the Setup suggestion off; the two that offer a guide need
+it, so declining the assistant or AI in **Settings → Capabilities** turns that page's suggestion off; the two that offer a guide need
 no model and keep showing, and **Don't show again** still hides them.
 
 ## Related
@@ -2960,7 +2958,7 @@ Two ways to compare against something else:
 - **Base branch** — take the baseline from one branch only: its last passing run, else its last failed run, same environment first. The list offers every branch with an earlier full run that passed or failed, so it appears once a branch other than this run's own has one. Deep-linkable as `?baseBranch=<name>`.
 - **Run** — compare against one earlier run, whatever its branch, environment or outcome. The list shows the 50 runs before this one, each with its branch, environment, start time and outcome, partial runs marked; type a branch or environment name to filter it. Deep-linkable as `?baseline=<runId>`, so a link to a comparison reopens the same two runs. **Previous run** is the shortcut for the run just before this one.
 
-**Automatic** returns to the default choice. The same options exist on the REST API (see the [API docs](https://piwitests.dev/demo/docs)), where `earlierRuns` lists the runs that can be passed as `baseline`, and on the MCP `get_run_insights` tool (`baseBranch`).
+**Automatic** returns to the default choice. The same options exist on the REST API (see the [API docs](https://piwitests.dev/demo/settings/api)), where `earlierRuns` lists the runs that can be passed as `baseline`, and on the MCP `get_run_insights` tool (`baseBranch`).
 
 ## What it shows
 
@@ -3362,7 +3360,7 @@ by cluster with the worker correlation included, and `get_test_case_context` pul
 single failure — steps, console, network, SCM diff. No install; the server is part of the dashboard.
 
 **From a script.** The same grouping is available over the REST API if you'd rather post a summary into
-your own channel — see the [API docs](https://piwitests.dev/demo/docs).
+your own channel — see the [API docs](https://piwitests.dev/demo/settings/api).
 
 **Before anyone opens anything.** Subscribe to the `cluster.new` [notification](/features/notifications) event
 instead of `run.failed`: you hear once when a genuinely new root cause appears, not on every red build,
@@ -3451,7 +3449,7 @@ wasted CI minutes and root-cause category, highest score first; `get_test_stabil
 for "what should I fix this sprint?" without opening a browser.
 
 **Script it.** Quarantine is a REST resource, so promoting candidates or releasing ready tests can
-be a scheduled job. Shapes are in the [API docs](https://piwitests.dev/demo/docs).
+be a scheduled job. Shapes are in the [API docs](https://piwitests.dev/demo/settings/api).
 
 **No server at all.** If this is your own laptop suite rather than a team's, the
 [desktop app](/features/desktop) runs the same analysis with no Docker and no Node — Windows x64,
@@ -3563,7 +3561,7 @@ just not aggregated across the suite.
 **Ask your agent.** Over the [MCP server](/features/mcp), `get_slow_tests` returns the ranked slowest tests,
 `get_performance_trend` the duration history, and `get_run_insights` the worker imbalance of one run.
 
-**Script it.** The same numbers are on the REST API: see the [API docs](https://piwitests.dev/demo/docs).
+**Script it.** The same numbers are on the REST API: see the [API docs](https://piwitests.dev/demo/settings/api).
 
 **Watch it drift.** Rather than auditing periodically, subscribe to the `perf.regression`
 [notification](/features/notifications) event and let it tell you when a duration trend breaks.
@@ -4203,7 +4201,7 @@ The rules can miss an outage or flag a real regression. Anyone who can upload or
   again: its regression signals are computed, and it feeds flaky scores and baselines from then on.
 
 Either decision is kept on the run, and finalizing the run again (a late shard, a report upload) never overrides it.
-The run page says who decided. The same action is in the [API reference](https://piwitests.dev/demo/docs), and an
+The run page says who decided. The same action is in the [API reference](https://piwitests.dev/demo/settings/api), and an
 agent makes it with the MCP tool [`set_run_incident`](/reference/mcp-tools#set_run_incident), which needs a key whose
 owner may make the same change in the dashboard and is kept in the [write log](./mcp).
 
@@ -4358,7 +4356,7 @@ and [`set_test_quarantine`](/reference/mcp-tools#set_test_quarantine).
 
 The gate always states how many failures quarantine excluded, and `--max-quarantined` sets a ceiling on the list.
 
-Manage it from the **Quarantine** view of the project's **Failures** tab, or over the REST API (see the [API docs](https://piwitests.dev/demo/docs)).
+Manage it from the **Quarantine** view of the project's **Failures** tab, or over the REST API (see the [API docs](https://piwitests.dev/demo/settings/api)).
 
 ## Regression signals
 
@@ -4714,7 +4712,7 @@ A run whose reporter sent findings shows a **Resources** tab:
 - the **costliest tests**, by the CPU of their worker and browser processes, with the pages each found already open.
 
 The execution page's Performance tab shows what that one test cost and what it left open. A project that declines the
-**Resources** capability on the Setup page hides both, and the reporter's summary stays as it is.
+**Resources** capability in **Settings → Capabilities** hides both, and the reporter's summary stays as it is.
 
 <figure>
   <img src="/screenshots/run-resources.png" alt="A run's Resources tab: counts of leaked, never-used, piling-up and left-running resources, the four findings, each with the fixture, file or test behind it, the machine's CPU, memory and disk, and the costliest tests">
@@ -5007,7 +5005,7 @@ deterministic locator edits.
 ## Diagnoses written by an agent
 
 A coding agent can record its own diagnosis on a cluster, or on one failure, with the MCP tool `record_diagnosis`, in
-the same JSON a model returns here. On one failure, the [REST API](https://piwitests.dev/demo/docs) records it too.
+the same JSON a model returns here. On one failure, the [REST API](https://piwitests.dev/demo/settings/api) records it too.
 It needs no AI provider, its patch is validated against the failing commit's source when
 [source control](/guide/source-control) is connected, and the panel shows it as **written by an agent** with the
 model it named. It replaces the current diagnosis, which stays in the history. Declining the **Agent diagnoses**
@@ -5216,7 +5214,7 @@ stops the field from asking.
 
 ## Turning it off
 
-Decline **Assistant** on the Setup page ([Choose what you use](/operate/capabilities#declining-a-capability)) and its
+Decline **Assistant** in **Settings → Capabilities** ([Choose what you use](/operate/capabilities#declining-a-capability)) and its
 routes answer as unavailable for everyone; **Ask Piwi** leaves the sidebar and the command palette. Declining AI turns it off too. [Suggestions](./guides#suggested-on-a-page) that offer a guide stay.
 
 ## Related
@@ -5582,7 +5580,7 @@ shows only what tests do on the page you are on. Without the fixtures a use has 
 - **Getter calls are not reported.** Playwright hides `textContent()`, `inputValue()`, `isVisible()` and similar calls from reporters, so a locator used only through them is not in the index.
 - **Long and described chains.** Piwi keeps 500 steps of an execution (`PIWI_INGEST_MAX_STEPS`, the steps that failed first) and the first 200 characters of each step parameter (`PIWI_INGEST_MAX_STEP_PARAM_VALUE_CHARS`), and `locator.describe()` replaces the chain with its description. Chains cut short or described are skipped.
 - **Matching is by chain text.** Two different chains that happen to resolve to the same element count separately. The counts tell you where to look, not that a test will break. To match on the element itself, open the page and use the extension's [Tested elements](./tested-elements), which evaluates every chain there.
-- **The index fills itself.** New runs are indexed as they arrive. When the server starts, it indexes each project's stored history once: for every test, Playwright project and branch, the latest passed execution, or the latest one when none passed. The rebuild endpoint empties a project's index and indexes its stored history again, which also splits by branch the uses indexed before branches were recorded (until then they count as the default branch's): see the [API docs](https://piwitests.dev/demo/docs), or `/docs` on your own instance.
+- **The index fills itself.** New runs are indexed as they arrive. When the server starts, it indexes each project's stored history once: for every test, Playwright project and branch, the latest passed execution, or the latest one when none passed. The rebuild endpoint empties a project's index and indexes its stored history again, which also splits by branch the uses indexed before branches were recorded (until then they count as the default branch's): see the [API docs](https://piwitests.dev/demo/settings/api), or `/settings/api` on your own instance.
 
 ## Related
 
@@ -5720,7 +5718,7 @@ A **fix plan** gathers everything Piwi knows about a failure cluster into one an
 The same plan is reachable three ways:
 
 - **On the cluster page** — the recommended action leads as the **Next** line, and the section it points at sits right under the situation block as its own card, above the **Affected tests** selector and the evidence; everything else lives in [**More ways to fix**](#more-ways-to-fix), the folded toolbox below the evidence: the diagnosis and its patch, the locator fix, the verify command, the reproduce recipe, and a **Copy as Markdown** action for a ticket.
-- **As Markdown**: the REST API returns the same rendering as plain text, so an export or a script can drop it straight into an issue (see the [API docs](https://piwitests.dev/demo/docs)).
+- **As Markdown**: the REST API returns the same rendering as plain text, so an export or a script can drop it straight into an issue (see the [API docs](https://piwitests.dev/demo/settings/api)).
 - **For agents** — the `get_fix_plan` [MCP tool](/reference/mcp-tools#get_fix_plan) returns the structured plan, so a coding agent gets in one call what a person reads on the card.
 
 The plan also names one Playwright command for the affected tests, by file and title in the projects they failed in, so a moved line still matches; the bisect and every re-run use the same tests, and Piwi records the fix once they pass.
@@ -6392,7 +6390,7 @@ Two selections exist for every project with no setup:
 
 ## Defining a selection
 
-Save a selection through the dashboard or the [API](https://piwitests.dev/demo/docs). The `definition` is declarative
+Save a selection through the dashboard or the [API](https://piwitests.dev/demo/settings/api). The `definition` is declarative
 JSON: OR-ed `include` groups, minus OR-ed `exclude` groups, then pins, a budget and a limit — applied in that order.
 
 ```jsonc
@@ -7030,7 +7028,7 @@ coverage's part and stay either way.
 The [`get_change_coverage`](/reference/mcp-tools#get_change_coverage) MCP tool returns the same join for a run or for
 an explicit base and head commit, grouped by ticket, without recording anything: each file's `reach`, its `lines`
 when the coverage counts them, and the files not counted. The [write-the-missing-test](/features/agent-skills) skill
-takes it from there. The REST endpoint is in the [API docs](https://piwitests.dev/demo/docs).
+takes it from there. The REST endpoint is in the [API docs](https://piwitests.dev/demo/settings/api).
 
 ## The gate flags
 
@@ -7193,7 +7191,7 @@ test to copy.
   pages' [What changed](./failure-clusters#the-cluster-page), in the [AI diagnosis](./ai-diagnosis#scm-grounded-context)
   and the [fix plan](./fix-plans).
 
-The [API](https://piwitests.dev/demo/docs) (`/docs` on your instance) serves the tests reaching a file and a branch's map.
+The [API](https://piwitests.dev/demo/settings/api) (`/settings/api` on your instance) serves the tests reaching a file and a branch's map.
 
 ## Limits
 
@@ -7381,7 +7379,7 @@ answers it is the one that served the run's first requests.
   coverage; what the earlier process ran outside a request (startup, background work) is lost, and a test whose
   requests it served but the reporter had not yet collected is marked incomplete. The reporter warns, the run's header
   reads *Coverage incomplete: the backend restarted during the run*, and the run's coverage in the
-  [API](https://piwitests.dev/demo/docs) names the origin and about when it restarted. A backend unreachable at the
+  [API](https://piwitests.dev/demo/settings/api) names the origin and about when it restarted. A backend unreachable at the
   end of the run is flagged the same way, with only the tests' lines kept. The commit's
   [combined coverage](./combined-coverage) notes the run, and its `e2e` suite reads as incomplete unless a complete
   run of the commit counts beside it. A Nitro development server restarts on every rebuild.
@@ -7523,7 +7521,7 @@ Playwright run creates the project.
 For each commit, the dashboard counts every suite that ran the code: the reports uploaded for it, and `e2e`, the run
 coverage of the commit's complete Playwright runs (never a partial, probe or flake-lab run; a run narrowed only by
 `--project`, or cut short by `--max-failures`, still counts as complete). The totals are recomputed seconds after each upload or run; read them with the
-[API](https://piwitests.dev/demo/docs) or the MCP `get_coverage_summary` tool.
+[API](https://piwitests.dev/demo/settings/api) or the MCP `get_coverage_summary` tool.
 
 - **One set of executable lines per file version.** Tools disagree on which lines can run, so every suite counts on
   the same lines: the span table's, from [server coverage](./server-coverage) or
@@ -7610,7 +7608,7 @@ A project's coverage scope decides which files count: include and exclude patter
 the syntax CODEOWNERS uses. With no include pattern every file counts; an exclude wins. The defaults leave out tests,
 build output (`bin/`, `obj/`, `dist/`, `.next/`, `.nuxt/`, `.output/`, `.svelte-kit/`) and generated sources; a folder
 pattern matches at any depth. Set it in the project's **Settings › Coverage**, or with the
-[API](https://piwitests.dev/demo/docs) (`coverageScope`). The upload sends only the files in scope, and the commit's
+[API](https://piwitests.dev/demo/settings/api) (`coverageScope`). The upload sends only the files in scope, and the commit's
 inventory: its tracked files in scope and their blob ids.
 
 ## Areas
@@ -7769,7 +7767,7 @@ checks its target lines this way until they run.
 ## For agents
 
 Three read-only MCP tools, listed with the rest on [MCP tools](/reference/mcp-tools), carry these answers. They
-belong to the `core` module and depend on the **Coverage** capability: declining it for the instance on the Setup page
+belong to the `core` module and depend on the **Coverage** capability: declining it for the instance in **Settings → Capabilities**
 drops them.
 For a project with no coverage, each answers one sentence saying how to turn it on.
 
@@ -7780,7 +7778,7 @@ For a project with no coverage, each answers one sentence saying how to turn it 
   that explains them.
 - `get_coverage_loss`: what quarantining, skipping or deleting tests would leave uncovered.
 
-The same answers are in the dashboard's API; see the [API docs](https://piwitests.dev/demo/docs) (`/docs` on your
+The same answers are in the dashboard's API; see the [API docs](https://piwitests.dev/demo/settings/api) (`/settings/api` on your
 instance).
 
 ## Limits
@@ -8371,12 +8369,12 @@ quality report; unset, only minutes show. The cost is one instance-wide value.
 - The [MCP server](./mcp) offers `get_quality_report` (the bundle), `get_metric_trend` (one metric over
   time) and `compare_periods` (the headline numbers over two periods).
 - The REST API renders a report for a dashboard, format, language and analytics scope, keeps one as a snapshot,
-  manages schedules and reads snapshots. See the [API docs](https://piwitests.dev/demo/docs), or `/docs` on your
+  manages schedules and reads snapshots. See the [API docs](https://piwitests.dev/demo/settings/api), or `/settings/api` on your
   instance.
 
 ## Turning reports off
 
-Quality reports are an optional [capability](/operate/capabilities#declining-a-capability). Declining it in Setup hides
+Quality reports are an optional [capability](/operate/capabilities#declining-a-capability). Declining it in **Settings → Capabilities** hides
 the *Export* and *Schedule…* actions and the *Quality reports* page, and drops `get_quality_report` from
 the MCP tools; the analytics page and the metric tools stay, since analytics is core. A schedule or a
 snapshot counts as use, so the capability stays on while one exists: delete them first.
@@ -8449,7 +8447,7 @@ curl -X POST "$PIWI_DASHBOARD_URL/api/projects/<projectId>/markers" -H "Authoriz
 
 ## API
 
-Markers can also be managed through the REST API. See the interactive [API docs](https://piwitests.dev/demo/docs) for request and response shapes.
+Markers can also be managed through the REST API. See the interactive [API docs](https://piwitests.dev/demo/settings/api) for request and response shapes.
 
 ## Related
 
@@ -8581,7 +8579,7 @@ empty list matches every run. The filters apply to every event that comes from a
 
 ### Through the API
 
-The subscriptions REST API (see the [API docs](https://piwitests.dev/demo/docs)) adds:
+The subscriptions REST API (see the [API docs](https://piwitests.dev/demo/settings/api)) adds:
 
 - **Scope**: all projects (`projectId: null`, for a user who can access every project), or a single project.
 - **Filters**: `branches` and `environments` as above; for run events, status; **owner**, which applies to the
@@ -9867,7 +9865,7 @@ its pages and run code in them. It is shared until the test ends, and no agent c
 
 The dashboard serves a **Model Context Protocol (MCP) server** at `/mcp` from its own process, with nothing to
 install. Any MCP client (Claude Code, Cursor, VS Code Copilot, Claude Desktop, Gemini CLI) can query your test
-results, failure clusters and AI diagnoses, and triage them. The **MCP server** page in the dashboard has a live setup
+results, failure clusters and AI diagnoses, and triage them. **Settings → MCP server** in the dashboard has a live setup
 guide for this instance.
 
 ## What it provides
@@ -9890,7 +9888,7 @@ message (one whose SCM or AI provider is not configured returns `{ error }`).
   <figcaption>One tool on the MCP server page, opened: what it does and the parameters it takes.</figcaption>
 </figure>
 
-**Modules.** Every tool belongs to one module, `core`, `workflow`, `healing` or `agents`, the groups the Setup page
+**Modules.** Every tool belongs to one module, `core`, `workflow`, `healing` or `agents`, the groups **Settings → Capabilities**
 asks about. Declining a capability drops the tools that depend on it. Append `?modules=core` (comma-separated) to the
 MCP URL to narrow the list further; narrowing never re-enables a declined tool.
 
@@ -9905,7 +9903,7 @@ the project they act on, and `get_instance_stats` needs an administrator.
 
 **The write log.** Every call of a write tool is logged with the API key that made it, the tool, what it acted on and
 the result; read tools never are. A cluster's **Activity** section shows the calls on it, the log is pruned after
-`PIWI_RETENTION_NOTIFICATION_DAYS`, and declining the **Agent write log** capability on the Setup page keeps none.
+`PIWI_RETENTION_NOTIFICATION_DAYS`, and declining the **Agent write log** capability in **Settings → Capabilities** keeps none.
 
 **Transport.** Streamable HTTP: JSON-RPC 2.0 over `POST /mcp`, with no SSE or WebSocket. Protocol versions
 `2025-06-18`, `2025-03-26` and `2024-11-05` are supported.
@@ -9924,7 +9922,7 @@ revoking it there disconnects the client at its next request.
 
 Claude Code (`/mcp`, then **Authenticate**), Cursor, VS Code, Gemini CLI, Opencode and Claude Desktop through
 `mcp-remote` sign in this way. The instance is its own authorization server: clients register on their own (dynamic
-client registration), PKCE is required, and the API reference (`/docs` in your instance) lists the endpoints under
+client registration), PKCE is required, and the API reference (`/settings/api` in your instance) lists the endpoints under
 **MCP OAuth**.
 
 A client that cannot sign in sends an API key instead, the same `pd_` keys as the REST API, created in **Settings →
@@ -10120,8 +10118,8 @@ made to the cluster over MCP, with the API key it used.
 ## Where it is
 
 The skills ship inside the reporter package. `npx @piwitests/reporter init` installs the six workflow skills as part
-of setup (everything but `setup-piwi`, which an agent runs before the reporter exists). The **MCP server** page of the
-dashboard (`/mcp`) lists them next to the tools.
+of setup (everything but `setup-piwi`, which an agent runs before the reporter exists). **Settings → MCP server** in the
+dashboard lists them next to the tools.
 
 <figure>
   <img src="/screenshots/mcp-agent-skills.png" alt="The agent skills section of the MCP server page, with the command that installs the skills">
@@ -10219,7 +10217,7 @@ the app, the machine does not go to sleep on its own, and a run that fails while
 icon or flashes the taskbar button. In the background, [notifications](/features/notifications#browser) arrive as OS notifications,
 with no setup, and an unread count on the dock icon or the tray tooltip.
 
-It listens on port 3000, or the one set in the `.exe` installer or on **Setup → Desktop app** (`serverPort` in
+It listens on port 3000, or the one set in the `.exe` installer or in **Settings → Desktop app** (`serverPort` in
 `settings.json`), a free one when taken.
 
 ## Sending results to it
@@ -10228,15 +10226,15 @@ While the app runs, the reporter finds it by itself: a config with only a `proje
 address and token the app writes to `~/.piwi/desktop.json` only when nothing else sets a server, so a CI job is never
 redirected ([details](/guide/reporter#finding-the-desktop-app-automatically)). A suite that reports to a shared dashboard sends
 its local runs here with
-[`desktopApp: 'prefer'`](/guide/reporter#local-runs-to-the-desktop-app-ci-to-a-team-server), which the snippets on
-**Setup** carry once you turn on **CI reports to a team server**.
+[`desktopApp: 'prefer'`](/guide/reporter#local-runs-to-the-desktop-app-ci-to-a-team-server), which the
+**Connect a suite** snippets carry once you turn on **CI reports to a team server**.
 
 <figure>
   <img src="/screenshots/setup-connect-desktop.png" alt="The connect wizard in the desktop app: the one init command with no server URL, the fixtures import and the test command, and the CI reports to a team server switch, off">
   <figcaption>The desktop app's connect wizard: no URL to set.</figcaption>
 </figure>
 
-When the tests run as another user or in a container, **Setup → Send results to this app** gives the
+When the tests run as another user or in a container, **Settings → Desktop app** gives the
 address and the token to configure by hand. Keep the token in `PIWI_API_KEY`.
 
 A dashboard link opened in your browser opens in the app, and its tab closes. A `piwi://open/<page>` link opens its
@@ -10306,7 +10304,7 @@ The app serves the [MCP server](/features/mcp) with local tools a hosted instanc
 `apply_locator_fix` (a recommended locator fix applied to the file, previewed by default), and the
 [run tools](./desktop-runs#for-agents) for the runs it starts. It registers as `piwi-desktop`, beside a hosted Piwi.
 
-The **MCP server** page detects Claude Code, Claude Desktop, Cursor, Opencode, VS Code, Windsurf and Gemini CLI, and
+**Settings → MCP server** detects Claude Code, Claude Desktop, Cursor, Opencode, VS Code, Windsurf and Gemini CLI, and
 connects each in one click, writing a `piwi-desktop` entry with the address and token into its config.
 It keeps a backup and rewrites only that entry, again when the port changes. Claude Desktop, which takes only
 local commands, is pointed at the app's built-in bridge (`piwi-desktop mcp-stdio`), so no token is copied; the app must
@@ -11410,7 +11408,7 @@ reopens as its ticket moves into and out of Done.
 
 For the exact verdict and a trace, the [desktop app](./desktop) runs a report's steps with Playwright in your project.
 Pair it once: in the extension's settings, under **Desktop app**, click **Pair**, then **Allow** in the app's window,
-which shows the same code. The address is on the app's **Setup** page, under **Connect Piwi Picker**
+which shows the same code. The address is in the app's **Settings → Desktop app**, under **Connect Piwi Picker**
 (`http://127.0.0.1:3000` by default); **Pair by hand** takes the token shown there.
 The token goes only to an app that proves it holds it.
 
@@ -13197,7 +13195,7 @@ apart.
 
 ## What each role can do
 
-Each row is one permission. The **Permission** column is how the [API docs](https://piwitests.dev/demo/docs) name
+Each row is one permission. The **Permission** column is how the [API docs](https://piwitests.dev/demo/settings/api) name
 each endpoint's requirement (`x-required-permission`), so a script author can tell which role a call needs. In the app,
 **Settings → Roles** shows the same table to every signed-in user.
 
@@ -13263,7 +13261,7 @@ Roles are granted from four places, which all edit the same grants:
 - **Settings → Groups** for who belongs to each group; its roles are set on the grid or in a project's Members.
 
 Scripts read and change the same grants, called role bindings, through the API; see the
-[API docs](https://piwitests.dev/demo/docs).
+[API docs](https://piwitests.dev/demo/settings/api).
 
 ## Permission grid
 
@@ -13337,7 +13335,7 @@ projects if CI should create projects from a new project name), and a key for it
 delete or change anything.
 
 With authentication on, every endpoint needs a session cookie or an API key whose owner holds the permission the
-endpoint declares (listed per endpoint in the [API docs](https://piwitests.dev/demo/docs)). The exceptions are the
+endpoint declares (listed per endpoint in the [API docs](https://piwitests.dev/demo/settings/api)). The exceptions are the
 health and version endpoints, the sign-in flows themselves, and live-run streaming, which uses per-run stream tokens.
 
 ## Security properties
@@ -13511,16 +13509,16 @@ PIWI_TIME_ZONE=Europe/Paris
 
 # Choose what you use
 
-The **Setup** page (`/setup`, administrators only) is the permanent home for "how do I connect this, and what else can it do?". Above the connect steps it asks one coarse question, *What do you want Piwi for?*, with **See why tests fail** always on and three opt-out groups: **Triage as a team** (notifications, quarantine, pull-request feedback, issue tracking), **Fix faster** (locator healing, auto-heal), and **Let agents in** (AI diagnosis, the assistant). Below it, a ladder lists every optional capability grouped by state: **Active** (evidence has arrived), **Available** (configured but not used yet), **Not set up**, and a folded **Declined** group.
+**Settings → Capabilities** (`/settings/capabilities`, administrators only) is where an instance says what else it does once results arrive. It opens on one coarse question, *What do you want Piwi for?*, with **See why tests fail** always on and three opt-out groups: **Triage as a team** (notifications, quarantine, pull-request feedback, issue tracking), **Fix faster** (locator healing, auto-heal), and **Let agents in** (AI diagnosis, the assistant). Below it, a ladder lists every optional capability grouped by state: **Active** (evidence has arrived), **Available** (configured but not used yet), **Not set up**, and a folded **Declined** group.
 
 ## Declining a capability
 
-Not every team uses every capability. Any optional one can be **declined** so the dashboard stops showing it everywhere: the evidence tabs, empty panels, settings page, sidebar entry, project actions and MCP tools it owns all go, rather than lingering half-visible. Decline instance-wide from the Setup ladder (*Not for this instance*) or the presets, or per project from the **Capabilities** section of the project's **Settings** tab and the places the capability appears (for example the execution page's evidence footer, *Not for this project*). A project override can also **enable** a capability the instance declined.
+Not every team uses every capability. Any optional one can be **declined** so the dashboard stops showing it everywhere: the evidence tabs, empty panels, settings page, sidebar entry, project actions and MCP tools it owns all go, rather than lingering half-visible. Decline instance-wide from the ladder (*Not for this instance*) or the presets, or per project from the **Capabilities** section of the project's **Settings** tab and the places the capability appears (for example the execution page's evidence footer, *Not for this project*). A project override can also **enable** a capability the instance declined.
 
-Declining instance-wide is for administrators, and per project for the project's [Project admin](./project-access#project-roles) role. It is never final: each declined capability keeps a *Reconsider* link on the Setup ladder that clears the decision, and because data always wins, a declined capability that starts receiving data reads as active again with the stored decision shown next to it. See [Why a card is empty](/features/evidence#why-a-card-is-empty) for how this reads on the execution page.
+Declining instance-wide is for administrators, and per project for the project's [Project admin](./project-access#project-roles) role. It is never final: each declined capability keeps a *Reconsider* link on the ladder that clears the decision, and because data always wins, a declined capability that starts receiving data reads as active again with the stored decision shown next to it. See [Why a card is empty](/features/evidence#why-a-card-is-empty) for how this reads on the execution page.
 
 <figure>
-  <img src="/screenshots/setup-ladder-declined-wide.png" alt="The Setup page's list of what is switched on, Notifications among the active capabilities with Declined on Setup and a Reconsider link beside its docs link">
+  <img src="/screenshots/setup-ladder-declined-wide.png" alt="The Capabilities settings page's list of what is switched on, Notifications among the active capabilities, marked declined with a Reconsider link beside its docs link">
   <figcaption>A declined capability that still receives data reads as active, its decision and Reconsider link beside it.</figcaption>
 </figure>
 
@@ -13939,7 +13937,7 @@ There are three ways to keep a run:
 
 A kept run shows a lock next to its number in the runs table and a **Kept** mark in its header; its **Details** say who kept it, when and why. The runs table's **Kept runs only** box lists every kept run of the project, however far back. **Settings › Storage** shows how many runs are kept and how much storage their own files hold.
 
-A Project admin can **release** a run (**Release keep** in the same menus), which puts it back under retention. A kept run cannot be deleted until it is released. Scripts can keep and release runs through the API; see the [API docs](https://piwitests.dev/demo/docs).
+A Project admin can **release** a run (**Release keep** in the same menus), which puts it back under retention. A kept run cannot be deleted until it is released. Scripts can keep and release runs through the API; see the [API docs](https://piwitests.dev/demo/settings/api).
 
 ### Space reclamation
 
@@ -14123,7 +14121,7 @@ UTC day, environment, branch and run kind, with the history retention deleted st
 curl -H "Authorization: Bearer pd_your_api_key" "https://piwi.example.com/api/rollups?format=csv&period=this-year" -o rollups.csv
 ```
 
-The column list and every parameter are in the API reference (`/docs` on your instance).
+The column list and every parameter are in the API reference (`/settings/api` on your instance).
 
 ## Related
 - [Analytics](/features/analytics): the metrics, the scope and the periods
@@ -14923,7 +14921,7 @@ tab opens in File order. In the *File + Describe* grouping, a describe block kee
 around it. Outside that grouping, a test's describe blocks are named before its title: `Checkout › pays by card`.
 
 The test catalog's `q` API parameter and the `query` argument of the MCP `get_project_test_catalog` tool take the same
-language ([API docs](https://piwitests.dev/demo/docs), [MCP tools](/reference/mcp-tools)).
+language ([API docs](https://piwitests.dev/demo/settings/api), [MCP tools](/reference/mcp-tools)).
 
 ## Related
 
