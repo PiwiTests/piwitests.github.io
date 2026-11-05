@@ -1,1 +1,0 @@
-function e(e,t=2166136261){let n=t>>>0;for(let t=0;t<e.length;t++)n^=e.charCodeAt(t),n=Math.imul(n,16777619);return(n>>>0).toString(16).padStart(8,`0`)}export{e as t};

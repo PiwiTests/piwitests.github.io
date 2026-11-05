@@ -2569,6 +2569,8 @@ WHERE COALESCE(`browser_name`, '') = ''
 DROP INDEX `idx_test_runs_cases_run_browser`;
 CREATE UNIQUE INDEX `idx_test_runs_cases_run_browser` ON `test_runs_cases` (`test_run_id`,`test_case_id`,`repeat_each_index`,`retries`,(CASE WHEN "browser_name" IS NULL THEN '' ELSE "browser_name" END));
 
+ALTER TABLE `users` ADD `avatar_key` text;
+
 BEGIN TRANSACTION;
 
 -- Tags
