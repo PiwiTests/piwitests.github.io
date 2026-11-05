@@ -2571,6 +2571,8 @@ CREATE UNIQUE INDEX `idx_test_runs_cases_run_browser` ON `test_runs_cases` (`tes
 
 ALTER TABLE `users` ADD `avatar_key` text;
 
+ALTER TABLE `projects` ADD `ci_server_token` text;
+
 BEGIN TRANSACTION;
 
 -- Tags
