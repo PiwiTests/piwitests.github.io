@@ -1,1 +1,0 @@
-function e(e,t){return`${e.replace(/\/$/,``)}/api/auth/avatar?v=${encodeURIComponent(t)}`}export{e as t};
