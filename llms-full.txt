@@ -938,17 +938,13 @@ same `projectName`. `runLabel` is the manual override when your CI isn't detecte
 By default, the reporter streams results as tests complete: the run appears when the suite starts, each test's trace and
 attachments upload when it finishes (`liveFileUploads`), and the run's page shows the step each running test is on. When a test's final attempt fails, the reporter prints its headline and a link right away;
 at the end it prints `View run: <url>` (see [CI → Getting the run URL back out](./ci#getting-the-run-url-back-out-of-ci)).
-A server that does not support streaming gets the batch upload instead.
+A server that does not support streaming gets the batch upload instead. `streamingBatchSize` and `streamingBatchDelay`
+set how often results are sent.
 
 ### Disabling streaming
 
 `streaming: false` sends all results at the end of the run, then each test's files and each report in a request of
 their own.
-
-### Tuning batch parameters
-
-`streamingBatchSize` (default 20 queued events) and `streamingBatchDelay` (default
-2000 ms) set how often results are sent while streaming.
 
 ## Global setup phase
 
@@ -1019,7 +1015,9 @@ through [`wrapConfig`](#installing-via-wrapconfig).
 **Connection errors.** Check that `serverUrl` answers from where the tests run; `PIWI_VERBOSE=true` logs every
 request. A run the reporter could not deliver (dashboard down, no credential, a sign-in page answering in its place)
 is saved locally, owner-only, and sent to the same `serverUrl` on the project's next run, without traces or
-attachments; it never fails the Playwright run. An interrupted stream is retried until it catches up. Live events the
+attachments; it never fails the Playwright run. A stream that cannot start while the dashboard is down or busy retries
+for the run's life, its events kept within
+[`maxStreamBufferBytes`](/reference/reporter-options#maxstreambufferbytes); one that starts late says how late. Live events the
 dashboard refuses, or has not taken two and a half minutes after they first failed, leave the live view so the later
 ones flow; when test results are among the events the dashboard never took, the run is sent again as a batch at its
 end. [`submitTimeout`](/reference/reporter-options#submittimeout) (15 minutes by default) bounds that end-of-run work,
@@ -2705,10 +2703,10 @@ not load), the header shows them under the facts line. The tabs:
     click it to open the test's steps on that hook. Playwright leaves `beforeAll` / `afterAll` hooks and worker
     fixtures out of a test's duration; the bar spans them anyway, and its tooltip gives the duration Playwright
     reported. Runs sent by an older reporter show the sections without their hook list.
-  - **Gaps**: a lane is one worker. Playwright replaces a worker process after a failed test, so a lane can hold
-    several processes one after another: **↻** marks where a new one took over, and the stretch before it is the old
-    process shutting down and the new one starting. A dashed line is time the worker ran no test; hover either for
-    details.
+  - **Gaps**: a lane is one [worker](/reference/test-metadata#worker-lanes). Playwright replaces a worker process
+    after a failed test, so a lane can hold several processes one after another: **↻** marks where a new one took
+    over, and the stretch before it is the old process stopping and the new one starting. A dashed line is time the
+    worker ran no test; hover either for details.
   - **Retries**: a retried test has one bar per attempt, the last solid, the earlier ones pale. Hover one to join
     them with arrows.
   - **Resources**: the run's CPU, memory and open pages, above the worker rows and under each of them
@@ -3760,7 +3758,7 @@ A flaky test adds a **Flakiness** tab with its [suspects](./flaky-tests#suspects
 # Live view of a run
 
 In a project that turns the live view on, a running test of a CI run, or of a run a developer
-[shares from their machine](#share-a-run-from-your-machine), gets **Watch** on its run page: it opens the page that
+[shares from their machine](./share-live), gets **Watch** on its run page: it opens the page that
 worker is on, a few images a second, each with the call it was taken at. It is for a CI run that seems stuck, or a
 teammate's paused test, without waiting for the trace. Nothing you do in the view reaches the test.
 
@@ -3777,18 +3775,27 @@ app hands out no live view key.
 
 ## Turn it on
 
-The live view is off in every project. A Project admin turns it on in **Project → Settings → Live view**. It applies to
+The live view is off in every project. A Project admin turns it on in **Project → Settings → Live view**, or from a running run's status. It applies to
 each CI run that starts after, as the reporter's global setup registers it: [`wrapConfig`](/guide/reporter) adds that
 setup. A CI job is told by its provider's variable (`GITHUB_ACTIONS`, `GITLAB_CI`, …) or by `CI` set to anything but
 `false` or `0`. Such a run's log then says:
 
-```text
-[Piwi Dashboard] Live view on: people who may open this run can watch its tests' pages on the dashboard while it runs. Nothing is stored.
+```txt
+[Piwi Dashboard] Live view on for the specs that use Piwi's fixtures: people who may open this run can watch their tests' pages on the dashboard while it runs. Nothing is stored.
 ```
 
-A CI run without a view logs why instead.
+A spec file that imports `test` from `@playwright/test` instead of your [capture fixtures](/guide/capture-fixtures)
+has no view: the log names the first one. A CI run without a view logs why instead: the setting is off, the run does
+not stream (`streaming: false`), `wrapConfig`'s global setup did not register it, or the instance did not register the run as
+it started, with the error it answered.
 
-Turning it off ends every view at once; a run that started while it was off stays without one.
+Turning it off ends every view at once; a run that started while it was off stays without one. Turned on again, a
+run that had a view and still runs gets it back within a minute.
+
+A CI run's workers keep their view through an outage of the dashboard or its restart: each tries again after 1, 2, 4,
+8 and 16 seconds, then every 30 to 60 seconds while the run lasts; one the instance refuses waits that long at once. A
+worker whose view stays out says so once in the run's log, with the cause, and once more as it is back, outside any
+test's output.
 
 ## Check availability
 
@@ -3796,51 +3803,32 @@ A running run's **Tests** tab says **Live view available**, or what is missing, 
 
 | It says | Why, and what to do |
 |---|---|
-| **Live view off** | A Project admin turns it on for the next runs. |
-| **Live view unavailable** | The run has no key: it started before the setting was on, without `wrapConfig`'s global setup, with `streaming` off, or before the instance restarted. Start a new run. |
+| **Live view off** | A Project admin turns it on for the next runs, from its help. |
+| **Live view unavailable** | The run has no key: it started before the setting was on, without `wrapConfig`'s global setup, while the instance did not answer that setup, or with `streaming` off. Start a new run. |
 | **Live view waiting** | No worker is connected yet: they are starting. |
 | **No worker connected** | Tests run without one: the specs import `test` from `@playwright/test`, not the [capture fixtures](/guide/capture-fixtures). |
-| **Not shared live** | The run is on a developer's machine: they [share it](#share-a-run-from-your-machine). |
+| **Not shared live** | The run is on a developer's machine: they [share it](./share-live). |
 
 ## Watch a worker
 
-On the run page's **Tests** tab, **Watch** beside a running test opens its worker's view: the test's page as the
-browser paints it, headless or not, under it the call the image was taken at (`Click getByRole('button', { name: 'Pay' }) · checkout.spec.ts:30`). A still page sends no new image.
+On the run page's **Tests** tab, **Watch** at the end of a running test's row opens its worker's view, docked beside
+the page (a sheet on a smaller screen): the test's page as the browser paints it, headless or not, under it the call
+the image was taken at (`Click getByRole('button', { name: 'Pay' }) · checkout.spec.ts:30`). A still page sends no new
+image, so the caption names the step the test began since. Widen the panel by its edge or open it full screen; a click
+on the image zooms.
 
 In a CI run, the view follows that call: how long it has run, Playwright's log of it as a failed call's error
 prints it, and while it waits, what its locator matches (no element yet, several, or one not enabled), outlined on the
-image, with the point a click acts on. A shared run shows the call alone. Following the call needs Playwright 1.64:
-1.63 shows its log without the matches, an older one the call alone.
+image, with the point a click acts on; **Zoom to the element** crops the image around it. A shared run shows the call
+alone. Following the call needs Playwright 1.64: 1.63 shows its log without the matches, an older one the call alone.
 
-A view follows its worker's lane: it says how each test ended and goes on, across worker restarts; untick **Follow
-the worker's next test** to end it with its test. It ends with the run, 30 s after its lane's worker left, as the live
-view turns off, or as you close it.
+A view follows its worker's lane: it says how each test ended, lists the lane's earlier tests and goes on, across
+worker restarts; untick **Follow the worker's next test** to end it with its test. The page's address names the lane
+(`?watch=2`; `?watch=3.2` for worker 2 of shard 3) for a link. It ends with the run, saying how it went, 30 s after its
+lane's worker left, as the live view turns off, or as you close it. A view that cannot open says why.
 
 A CI run never stops at a breakpoint or a `page.pause()`; a shared run does, and its row then says **Paused** at the
 stopped call, which opens in your editor.
-
-## Share a run from your machine
-
-Choose **Share live** while a local run executes to let a teammate watch it. The run must report to a team instance
-whose project enables live view, and connect to an editor or the desktop app for controls.
-
-| Where | Share | Stop |
-|---|---|---|
-| VS Code | **Piwi: Share the run live on the team instance**, or the status bar's broadcast icon | **Piwi: Stop sharing the run live**, or the status bar's **Live** |
-| JetBrains IDEs | **Tools → Piwi → Share the Run Live** | **Tools → Piwi → Stop Sharing the Run Live** |
-| Piwi Picker's [Runs window](./runs-window) | **Share live** under the run's name | **Stop sharing** |
-| The desktop app's [Local runs tray](./desktop-runs) | **Share live** above the run's workers | **Stop sharing** |
-
-The first share in a window asks for confirmation. The shared run shows its destination, viewer count and a link to copy.
-
-Until then, its workers send nothing, and its running tests say **Not shared live** where **Watch** would be. Once
-shared, its stops (the call, its file and line, the test's title) reach everyone with the run's page open, and images
-only those watching. **Stop sharing** closes the views within seconds and clears **Paused** from the rows. Closing the
-editor or the desktop app stops it too.
-
-A run that cannot be shared says why: it reports to no instance or to the desktop app, its project has the live view
-off, or the reporter's global setup did not register it. A sharing that stops on its own says why (the live view turned
-off, the instance restarted or stopped answering), and **Share live** shows again.
 
 ## What is sent, to whom, and what is kept
 
@@ -3864,7 +3852,9 @@ leaves it, the worker paints over password fields, fields whose `autocomplete` a
 number or code, and the project's **Masked elements** (Playwright locators). While one shows, two images a second go at
 most. A zoomed-in page sends no image. A secret in the page's own text still shows; the caption and the log hide credentials and typed text. The workers reach the dashboard with a key
 the run got as it registered: it opens this run's live view and nothing else, ends with the run, and is never in the
-environment of the tests, their hooks or their fixtures, so a process they start does not get it.
+environment of the tests, their hooks or their fixtures, so a process they start does not get it. The dashboard keeps
+the key's SHA-256 digest with the run, never the key, so a dashboard that restarts takes the key back from the
+workers that present it while the run lasts.
 
 ## Limits
 
@@ -3880,9 +3870,49 @@ environment of the tests, their hooks or their fixtures, so a process they start
 ## Related
 
 - [Capture fixtures](/guide/capture-fixtures): the worker side of the view
-- [Runs window](./runs-window): the live view of a test your editor runs, with its controls, and Share live
+- [Share a run live](./share-live): let a teammate watch a run on your machine
+- [Runs window](./runs-window): the live view of a test your editor runs, with its controls
 - [Desktop app runs](./desktop-runs): the desktop app's runs, and Share live from its tray
 - [Failure evidence](./evidence): what a finished test keeps
+
+<!-- https://piwitests.dev/features/share-live -->
+
+# Share a run live
+
+A run on your machine sends the team instance nothing of its pages until you share it. Shared, it gets the
+[live view](./live-view) a CI run gets: a teammate opens its page and watches each worker, and its stops show on its
+rows. Sharing changes nothing for the run itself, and stops as you choose, or as the tool that shared it closes.
+
+## Share and stop
+
+Choose **Share live** while a local run executes to let a teammate watch it. The run must report to a team instance
+whose project enables live view, and connect to an editor or the desktop app for controls.
+
+| Where | Share | Stop |
+|---|---|---|
+| VS Code | **Piwi: Share the run live on the team instance**, or the status bar's broadcast icon | **Piwi: Stop sharing the run live**, or the status bar's **Live** |
+| JetBrains IDEs | **Tools → Piwi → Share the Run Live** | **Tools → Piwi → Stop Sharing the Run Live** |
+| Piwi Picker's [Runs window](./runs-window) | **Share live** under the run's name | **Stop sharing** |
+| The desktop app's [Local runs tray](./desktop-runs) | **Share live** above the run's workers | **Stop sharing** |
+
+The first share in a window asks for confirmation. The shared run shows its destination, viewer count and a link to copy.
+
+Until then, its workers send nothing, and its running tests say **Not shared live** where **Watch** would be. Once
+shared, its stops (the call, its file and line, the test's title) reach everyone with the run's page open, and images
+only those watching. **Stop sharing** closes the views within seconds and clears **Paused** from the rows. Closing the
+editor or the desktop app stops it too.
+
+A run that cannot be shared says why: it reports to no instance or to the desktop app, it does not stream its results,
+its project has the live view off, the reporter's global setup did not register it, or the instance did not register the run
+as it started. A sharing that stops on its own says why (the live view turned off, or the instance stopped answering), and **Share live** shows again: shared again, the run streams once the instance answers with its live view
+on, a restarted instance taking the run's key back. A run the instance no longer holds live cannot be shared again.
+
+## Related
+
+- [Live view of a run](./live-view): what a teammate sees, what is sent and what is kept
+- [Editor run control](./editor-run-control): the controls of a run your editor starts
+- [Runs window](./runs-window): Piwi Picker's view of your runs
+- [Desktop app runs](./desktop-runs): the desktop app's runs and its tray
 
 <!-- https://piwitests.dev/features/stuck-tests -->
 
@@ -3924,7 +3954,8 @@ A page opened after the test was said to be stuck shows it too: the dashboard ke
 `test.stuck` fires once per attempt, through the channels of the project's
 [subscriptions](./notifications#subscriptions) that chose it. Its message names the test, how long it has run against
 its usual time, the run with its branch and environment, the browser and worker, and the test's owner. Its button opens
-the run with its **Tests** tab searched for the test. The payload is on
+the run with its **Tests** tab searched for the test, and the [live view](./live-view#watch-a-worker) of its worker
+where the project has it on. The payload is on
 [Notification events & webhooks](/reference/notification-events#payload-fields-by-event).
 
 The branch, environment, owner and **Default branch only** filters apply to it. A run that sends no notification sends
@@ -9297,7 +9328,7 @@ under it. **Resume** lets it end as it failed; **Pick** replaces the failing loc
 **Share live**, under the run's name, lets a teammate watch the run from its page on your team's instance, in a
 project whose live view is on. The first time in a window, it says what goes out and to whom; shared, the run says
 how many views are open, with its page's link to copy, until **Stop sharing**. A run that cannot be shared says why in
-its place: [Share a run from your machine](./live-view#share-a-run-from-your-machine).
+its place: [Share a run live](./share-live).
 
 ## Code from a stop
 
@@ -9635,7 +9666,7 @@ the test; a condition is not read, so a conditional breakpoint stops at each pas
 **Share live** lets a teammate watch the run from its page on your team's instance: **Piwi: Share the run live on the
 team instance** in VS Code, **Tools → Piwi → Share the Run Live** in a JetBrains IDE, any time. It first says what goes
 out and to whom (once a VS Code window, once a JetBrains project); shared, the status bar counts its views, until
-**Stop sharing**: [Share a run from your machine](./live-view#share-a-run-from-your-machine).
+**Stop sharing**: [Share a run live](./share-live).
 
 ## How it works
 
@@ -10605,8 +10636,8 @@ A run that reports to your team's Piwi instance, as a **Re-run** in a folder who
 names it does, can be shared there for a teammate to watch from its page, in a project whose live view is on: **Share
 live**, above the run's workers, any time while it runs. The first time since the app started, it says what goes out and
 to whom, and waits for your yes. Shared, the run says where and how many views are open, with **Copy the run page's
-link** and **Stop sharing**. A run that cannot be shared says why: [Share a run from your
-machine](./live-view#share-a-run-from-your-machine).
+link** and **Stop sharing**. A run that cannot be shared says why: [Share a run
+live](./share-live).
 
 A run that reports to the app itself (a reproduction, a bisect, a **Re-run** in a folder that names no instance, a run
 your editor started) cannot be shared: the app hands out no live view key, since no teammate reaches it. The tray
@@ -14990,6 +15021,18 @@ executions wrote it, and shows it on the execution's **Output** tab ([Failure ev
 [offline export](/features/offline-export) and through the MCP `get_test_run_case` tool. An
 [imported blob report](/guide/importing-runs) keeps each attempt's output the same way.
 
+### Worker lanes
+
+The reporter sends each attempt's worker twice: Playwright's `workerIndex`, the worker process, which is new every time
+Playwright starts one (after a failed test, or for a test that needs another project or other worker options), and
+its `parallelIndex`, the lane the process runs in, which the process started in its place keeps. The dashboard names a
+worker by its lane, from 1 in each shard: **Worker 2** on the run's Timeline, in the Tests list's **Worker** sort, on
+the execution page, in its [offline export](/features/offline-export) and in a `test.stuck`
+[notification](/reference/notification-events), and `worker: 2` in the MCP `get_run` and `get_test_run_case` tools.
+A [blob report you import](/guide/importing-runs) keeps both. A run from a reporter that sends no lane names a worker
+by its process, and its Timeline works the lanes out from when each process ran; the MCP tools then give its
+`workerIndex` in place of `worker`.
+
 ### Hooks
 
 Playwright 1.59 and later give every hook step to a test: a `beforeAll` or `afterAll` hook and the setup of a worker
@@ -16327,9 +16370,10 @@ Every event that comes from a run carries that run's `branch` and `environment` 
   A fix landed by an [auto-heal PR](/features/auto-heal#after-the-pr-opens) carries `healPr` (`{ number, url, actionId }`).
 - **`diagnosis.completed`**: the cluster, and the diagnosis's `summary`, `rootCause`, `category` and `confidence`. A
   diagnosis of one failure in the cluster adds its `executionId`, and the notification opens that failure.
-- **`test.stuck`**: the run, the test's `testTitle`, `suitePath` and `location`, the `browserName`, `workerIndex` and
-  `shardIndex` it runs in, the attempt's `startedAt` (epoch ms), `elapsedMs` (how long it had run) and `usualMs` (its
-  longest passing duration), and the test's `owners`.
+- **`test.stuck`**: the run, the test's `testTitle`, `suitePath` and `location`, the `browserName`, `shardIndex` and
+  worker it runs in (`parallelIndex`, its lane from 0, which the message shows from 1 as `worker 2`, absent from an
+  older reporter; `workerIndex`, Playwright's worker process), the attempt's `startedAt` (epoch ms), `elapsedMs` (how
+  long it had run) and `usualMs` (its longest passing duration), and the test's `owners`.
 
 A `cluster.*` event also carries `knownIssue` (`{ key, url }`) when the cluster is linked to a tracker issue.
 
