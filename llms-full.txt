@@ -3910,6 +3910,15 @@ its project has the live view off, the reporter's global setup did not register 
 as it started. A sharing that stops on its own says why (the live view turned off, or the instance stopped answering), and **Share live** shows again: shared again, the run streams once the instance answers with its live view
 on, a restarted instance taking the run's key back. A run the instance no longer holds live cannot be shared again.
 
+## From the desktop app
+
+A run that reports to the [desktop app](./desktop-runs) itself (a reproduction, a bisect, a **Re-run** in a folder
+that names no instance, a run your editor started) cannot be shared: the app hands out no live view key, since no
+teammate reaches it. Its tray offers no **Share live** for it, the app's project settings have no **Live view**
+section, and on the run's page its running tests offer [**Pause and watch**](./desktop-runs#watch-live) where
+**Watch** would be. A run your editor started says **See its page at a stop** there: its page shows where the editor
+steers it.
+
 ## Related
 
 - [Live view of a run](./live-view): what a teammate sees, what is sent and what is kept
@@ -5834,6 +5843,8 @@ git bisect reset
 ```
 
 The bisect needs two commits, the failing run's and the **last green** run's, which the reporter records from git (`collectScmInfo`, on by default): when either is missing, or the two are the same commit, the section says so in one line instead of showing a script. The recipe is always there.
+
+The application under test has to build from the same checkout, started at each commit by a Playwright `webServer`; without one, a reproduction or bisect exercises test changes only.
 
 In the [desktop app](/features/desktop#reproducing-a-failure-and-finding-the-breaking-commit) the same section can do the work for you: **Reproduce here** runs the recipe against the linked folder in a throwaway `git worktree` (your checkout is never touched), and **Find the breaking commit here** drives the whole bisect with live progress, then records the first bad commit on the cluster. For a failure on a team instance, your [editor](/features/editor-failures#ci-failures-in-the-problems-panel) passes the bisect to the desktop app and shares the first bad commit back with its own key; an agent records one with the `set_cluster_bisect` [MCP tool](/reference/mcp-tools).
 
@@ -9022,11 +9033,9 @@ recorded, lands at the editor's cursor too:
    locator is inserted in the copy form you chose; a recording is rendered as the body of a test, like
    [`piwi codegen --body`](/reference/cli#codegen), or as a new test outside one.
 
-The editor listens on the loopback interface only, answers only a request addressed to `127.0.0.1` or `localhost` at
-its port, and accepts one only with the token. Before Piwi Picker sends the token, the editor proves it holds it, so
-another program that took the port is sent nothing; the settings ask for that proof as they open and after
-**Pair**. With several VS Code windows open, the one that paired receives.
-With no editor open, a JetBrains IDE puts it in a new scratch file. In a remote window (Remote SSH, WSL, Dev
+The editor answers on your machine alone, and proves it holds the token before Piwi Picker sends it; with several VS
+Code windows open, the one holding the paired port receives: [Piwi Picker and your editor](./editor-pairing). With no
+editor open, a JetBrains IDE puts it in a new scratch file. In a remote window (Remote SSH, WSL, Dev
 Containers), the pairing address is the local end of a port VS Code forwards to the listener, listed in the Ports
 view, and Piwi Picker's Runs window lists that window's runs: [Remote development](/guide/remote-development).
 
@@ -9324,11 +9333,11 @@ locator on its image. The editor shows the same stops: [Pause and step from the 
 
 With Piwi Picker [paired with VS Code or a JetBrains IDE](./editor-recording#send-from-piwi-picker), or with the
 [desktop app](./bug-reports#running-it-with-playwright-in-the-desktop-app), the popup shows a **Runs** tile under
-**More tools** while one of them answers. It opens the Runs window, to keep beside the test's
-browser. For each run the editor [started](./editor-runs), it shows the folder and the command, then each worker's test
-and whether it runs or where it stopped: the file and line, the call about to run, and an image of the page. While
-none of its tests is stopped, the run says how one stops: at a breakpoint, a `page.pause()` or **Pause**. A run
-[started outside Piwi](./terminal-runs) shows too, marked **Terminal** or **Test runner**.
+**More tools**, muted with **Not connected** while none of them answers. It opens the Runs window, to keep beside the
+test's browser. For each run the editor [started](./editor-runs), it shows the folder and the command, then each
+worker's test and whether it runs or where it stopped: the file and line, the call about to run, and an image of the
+page. While none of its tests is stopped, the run says how one stops: at a breakpoint, a `page.pause()` or **Pause**. A
+run [started outside Piwi](./terminal-runs) shows too, marked **Terminal** or **Test runner**.
 
 ## The controls
 
@@ -9368,7 +9377,8 @@ background worker, on your machine or through the port your IDE forwards from a 
 window](/guide/remote-development).
 
 The view ends with the stop, when you turn **Watch live** off, minimize the window, or close it. Left on, it starts
-again at the worker's next stop, and as the window shows again.
+again at the worker's next stop, at the next stop of the worker Playwright starts in its place after a failure, as the
+window shows again, and once a lost connection to the editor is back.
 
 At a headless stop, nobody sees the test's page: **Pick**, **Record**, **Assert** and **Assert a region** show once you
 watch it. The picker, the recorder's panel and the check panel appear in the view, and you answer them there as in a
@@ -9418,10 +9428,8 @@ runs](./desktop-runs).
 
 ## How it connects
 
-The background worker reaches the editor's services on `127.0.0.1` only once the paired port proves it holds the
-pairing's token ([how the pieces connect](./editor-run-control#how-it-works)), as the desktop app proves it holds its
-own. The window talks to that worker alone, and makes no network call of its own. An older editor extension gives the
-image and the controls alone.
+Through the editor's pairing, on your machine alone, and the desktop app's: what it reaches, the windows it finds as
+they open, and what it says when one does not answer are in [Piwi Picker and your editor](./editor-pairing).
 
 ## Limits
 
@@ -9446,6 +9454,52 @@ image and the controls alone.
 - [Browser extension](./extension): Piwi Picker's other tools, and its permissions.
 - [Remote development](/guide/remote-development): the runs of a dev container or a remote window.
 - [Desktop app runs](./desktop-runs): the same runs, in the desktop app's window.
+- [Piwi Picker and your editor](./editor-pairing): how the pairing reaches each editor window.
+
+<!-- https://piwitests.dev/features/editor-pairing -->
+
+# Piwi Picker and your editor
+
+[Send to editor](./editor-recording#send-from-piwi-picker) and the [Runs window](./runs-window) reach your editor
+through one pairing: the address **Piwi: Pair with Piwi Picker** copies, pasted under **Send to editor** in Piwi
+Picker's settings. The desktop app has a pairing of its own, which the Runs window follows beside it.
+
+## What the pairing reaches
+
+The editor listens on the loopback interface only, answers only a request addressed to `127.0.0.1` or `localhost` at
+its port, and accepts one only with the token. Before Piwi Picker sends the token, the editor proves it holds it, so
+another program that took the port is sent nothing; the settings ask for that proof as they open and after
+**Pair**. With several VS Code windows open, the one holding the paired port receives; when it closes, another open
+window takes the port within seconds, unless every other one already listens on a port of its own for a run it
+started meanwhile.
+
+Piwi Picker's background worker reaches the editor's services on `127.0.0.1` only once the paired port proves it holds
+the pairing's token ([how the pieces connect](./editor-run-control#how-it-works)), as the desktop app proves it holds
+its own. The Runs window talks to that worker alone, and makes no network call of its own. An older editor extension
+gives the image and the controls alone.
+
+## Windows that open and close
+
+An editor window you open later shows in the Runs window within seconds: each window's service names the others,
+without their tokens, and the worker asks the paired editor for them. While the Runs window is open, it also asks
+every minute. A run whose window stops answering stays listed, grayed and as last heard, until that window answers
+again, ten minutes at most, and a stop's **Watch live** starts again then.
+
+## When the editor does not answer
+
+A line under the Runs window's title says how each paired tool stands, a broken pairing included, with **Look again**
+or **Open the settings** where its sentence needs them. When the paired port answers without proving it holds the
+token, the worker asks a few times more, then once a minute while the Runs window is open: pair again from the settings
+if the editor moved to another port. One that answers with no proof and no such page is not
+your editor's Piwi extension. While no window of a paired tool answers, the popup's **Runs** tile stays, muted, and
+the Runs window says why.
+
+## Related
+
+- [Runs window](./runs-window): the runs it follows, and their controls.
+- [Record tests from the editor](./editor-recording#send-from-piwi-picker): pairing, and what Send to editor inserts.
+- [Remote development](/guide/remote-development): the pairing address of a remote window.
+- [Browser extension](./extension): Piwi Picker's other tools, and its permissions.
 
 <!-- https://piwitests.dev/features/editor-breakpoints -->
 
@@ -10448,8 +10502,9 @@ Closing the window quits the app unless **Run in background** is on in the tray 
 it hidden into the tray. The windows open where you left them, and Cmd or Ctrl with +, - and 0 zoom the dashboard. On macOS the app menu
 holds Settings (⌘,), Import Playwright report (⌘O), Back and Forward (⌘[ and ⌘]) and the docs; Windows and Linux
 take the same keys with Ctrl. The tray lists the tests running from the app, each with Stop. While tests run from
-the app, the machine does not go to sleep on its own, and a run that fails while you look elsewhere bounces the Dock
-icon or flashes the taskbar button. In the background, [notifications](/features/notifications#browser) arrive as OS notifications,
+the app, the machine stays awake, and a failed run bounces the Dock icon or flashes the taskbar button while you look
+away, a bisect or a lab only at its verdict; one the window's tray does not list (a `piwi flake` from a terminal or an
+editor, a probe, another window's, or one from before a reload) never does. In the background, [notifications](/features/notifications#browser) arrive as OS notifications,
 with no setup, and an unread count on the dock icon or the tray tooltip.
 
 It listens on port 3000, or the one set in the `.exe` installer or in **Settings → Desktop app** (`serverPort` in
@@ -10514,9 +10569,6 @@ linked folder, **without touching your checkout**:
 - **Find the breaking commit here** bisects between the last green commit and the failing one, with live
   progress and a **Stop** that kills the test and what it started, resets the bisect and removes the worktree. The
   first bad commit is linked to your SCM host and recorded on the failure cluster.
-
-The application under test has to build from the same checkout, started at each commit by a Playwright `webServer`; without one, a reproduction or
-bisect exercises test changes only.
 
 ### Jobs from your editor
 
@@ -10600,7 +10652,11 @@ run nobody attends never holds one, and its switch says so: a Flake Lab run, a b
 </figure>
 
 The tray opens at each stop: a headless test waits for you there. While the window is in the background, the system
-tells you of a failure or a `page.pause()`, never of a step or a pause you asked for. When no run of the app is going
+tells you of a failure or a `page.pause()`, never of a step or a pause you asked for. The window listens on every
+page, and again as soon as it reloads while a run of the app goes on. On a page without the tray, as an analytics
+dashboard in TV mode or an error page, the system tells you of every stop, whatever the window shows, and no failure
+is held; a `page.pause()`, a step or a breakpoint still waits there until something answers it: the tray once a page
+shows it again, [Piwi Picker's Runs window](./runs-window) or [an agent](#for-agents). When no run of the app is going
 on, the window stops listening, and a stop goes on at once.
 
 ## Its output
@@ -10650,14 +10706,8 @@ A run that reports to your team's Piwi instance, as a **Re-run** in a folder who
 names it does, can be shared there for a teammate to watch from its page, in a project whose live view is on: **Share
 live**, above the run's workers, any time while it runs. The first time since the app started, it says what goes out and
 to whom, and waits for your yes. Shared, the run says where and how many views are open, with **Copy the run page's
-link** and **Stop sharing**. A run that cannot be shared says why: [Share a run
-live](./share-live).
-
-A run that reports to the app itself (a reproduction, a bisect, a **Re-run** in a folder that names no instance, a run
-your editor started) cannot be shared: the app hands out no live view key, since no teammate reaches it. The tray
-offers no **Share live** for it, the app's project settings have no **Live view** section, and on the run's page its
-running tests offer [**Pause and watch**](#watch-live) where **Watch** would be. A run your editor started says **See
-its page at a stop** there: its page shows where the editor steers it.
+link** and **Stop sharing**. A run that cannot be shared, as one that reports to the app itself, says why: [Share a
+run live](./share-live#from-the-desktop-app).
 
 ## From Piwi Picker
 
@@ -10689,6 +10739,8 @@ for an agent that left.
 - **A linked folder.** A reproduction or a bisect step runs in a throwaway worktree, which no project links: its
   stops make no code.
 - **A file changed since the run started** makes no code: run the test again.
+- **A reload forgets the tray's runs.** A run still going shows among the app's other runs, without **Hold
+  failures**: its failures go on, a reproduction's included.
 - **Run to cursor** stays in the editor, which has the file.
 - **One call at a time through the bridge.** Claude Desktop reaches the app through `piwi-desktop mcp-stdio`, which
   passes its calls one by one: a `run_follow` or a `run_control` that waits holds the next call, 40 seconds at most
@@ -14778,6 +14830,11 @@ editors (`editor`, with a ref of their own on each test run, which they find the
 run it starts with `PIWI_RUN_REF`, so two runs started for the same cluster each find their own Piwi run. A
 [re-run dispatched from the dashboard](/features/ci-rerun) is recorded as `ci-rerun` once
 Piwi recognizes it, and an imported report as `import`. You rarely set them yourself.
+
+A run whose workers connect to an editor or the desktop app, which steer it at their breakpoints (a run either of them
+started, or one [started in a terminal](/features/terminal-runs) that follows an editor), also records
+`piwiInteractive`: the editor's name (else the `PIWI_ORIGIN` its launcher set) as `client`, and the run's name there
+as `ref`.
 
 What each origin feeds:
 
