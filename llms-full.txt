@@ -859,7 +859,7 @@ The first argument is your Playwright config; the second is the [Piwi options](#
 in the config wins over its `PIWI_*` variable, so the server URL reads `PIWI_DASHBOARD_URL` first, as `init` writes it:
 a CI job that sets the variable reports there. On top of injecting the reporter, `wrapConfig`:
 
-- Sets `screenshot: 'only-on-failure'` and `trace: { mode: 'retain-on-failure', snapshots: { dom: true, aria: true } }` on the **top-level** `use` block when each is unset (a value you set, `'off'` included, and per-project `use` blocks are kept). They unlock the DOM snapshot, full call stack, full network with bodies and the visual diff **without** the capture fixtures. The trace's aria snapshots feed the [Screen tab and the page diff](/features/evidence#aria-and-screen-snapshots). The `screen` snapshot kind stays opt-in; see [what `screen` adds per action](/operate/storage#trace-snapshots). Opt out with `defaultCapture: false` (or `PIWI_DEFAULT_CAPTURE=false`); the reporter logs one line at the start of the run naming whatever it defaulted.
+- Sets `screenshot: 'only-on-failure'` and `trace: 'retain-on-failure'` on the **top-level** `use` block when each is unset (a value you set, `'off'` included, and per-project `use` blocks are kept). They unlock the DOM snapshot, full call stack, full network with bodies and the visual diff **without** the capture fixtures. The trace records no ARIA snapshots, which slow each action on a large page: [`defaultCapture`](/reference/reporter-options#defaultcapture) gives their cost and how to record them. Opt out with `defaultCapture: false` (or `PIWI_DEFAULT_CAPTURE=false`); the reporter logs one line at the start of the run naming whatever it defaulted.
 - Forwards the CI-gate option `failOnFlakyTests` into Playwright's native config so a flaky-only run exits non-zero locally.
 - Forwards the `PIWI_*` variables into the global setup process, so registering the run uses the reporter's server and credentials.
 
@@ -3326,8 +3326,10 @@ grouped](/features/failure-clusters#how-failures-are-grouped) explains what the 
 Before treating any cluster as a product bug, check the two flags on the run's failure groups. They come
 from `get_failure_groups` over MCP or from the REST API; the dashboard doesn't show them.
 
-- **Worker correlated** — two or more of the cluster's failures, all on one worker, in a run that used
-  several: you're looking at a misbehaving worker, not forty broken tests.
+- **Worker correlated** — two or more of the cluster's failures, all on one worker (one lane of one shard,
+  whichever processes Playwright started in it), in a run that used several: you're looking at a misbehaving
+  worker, or state a worker-scoped fixture holds, not forty broken tests. An account picked by `parallelIndex` is
+  shared by that lane in every shard, which the flag doesn't join.
 - **Flaky** — a test in the cluster passed on retry in this run: part of the cluster is noise riding on a
   bad run.
 
@@ -3703,11 +3705,12 @@ With an uploaded trace (`trace: 'retain-on-failure'` or `'on-first-retry'`), two
 
 ### Aria and screen snapshots
 
-A Playwright trace can record the page's **aria tree** and a **screenshot** before and after every action
-(`trace: { snapshots: { dom, aria, screen } }`; [`wrapConfig`](/guide/reporter#installing-via-wrapconfig) turns `aria`
-on, `screen` stays [opt-in](/operate/storage#trace-snapshots)). Then the Screenshot view sets the page **before the
-failing action** beside the one at the failure, and the Timeline tab adds a **filmstrip** of the page before each
-step. The [in-execution page diff](#page-diff) reads the same snapshots.
+A Playwright 1.63 trace can record the page's **aria tree** and a **screenshot** before and after every action
+(`trace.snapshots.aria` and `.screen`), both off in [`wrapConfig`](/guide/reporter#installing-via-wrapconfig)'s trace
+([their cost](/reference/reporter-options#defaultcapture)). Screenshots set the page **before the failing
+action** beside the one at the failure in the Screenshot view, and add a **filmstrip** of the page before each step to
+the Timeline tab. Aria trees show the page at the failing action in the Accessibility tree view, and add the
+[in-execution page diff](#page-diff).
 
 ### Recovered from the trace without the fixtures
 
@@ -3958,9 +3961,11 @@ the run with its **Tests** tab searched for the test, and the [live view](./live
 where the project has it on. The payload is on
 [Notification events & webhooks](/reference/notification-events#payload-fields-by-event).
 
-The branch, environment, owner and **Default branch only** filters apply to it. A run that sends no notification sends
-none: a run from an editor, a bisect step, a reproduction, or a partial run from a developer's machine or the desktop
-app.
+The branch, environment, owner and **Default branch only** filters apply to it. A run started on a developer's machine
+sends none, complete or not: a run from a terminal, the desktop app, an editor, `piwi preflight --run` or
+`piwi bug --write` is marked **Stuck?** on its run page and notifies nobody, since its test may be stopped at a
+breakpoint. A bisect step or a reproduction sends none either. A CI job the reporter does not detect as CI records its
+runs as `local`: set `PIWI_ORIGIN=ci` on it ([run origin](/reference/test-metadata#run-origin)).
 
 ## Limits
 
@@ -14190,7 +14195,7 @@ backend. What happens to them is automatic and needs no configuration:
 - **Failure evidence is stored once.** The ARIA snapshot, source snippet and stack frames of a failure are stored
   once per project and shared by every execution that fails the same way.
 
-The one capture choice that visibly changes storage growth is the `screen` trace snapshot, below.
+The capture choices that visibly change storage growth are the trace's `screen` snapshots and, on a large page, its `aria` snapshots, below.
 
 ## Trace snapshots
 
@@ -14198,8 +14203,8 @@ A Playwright 1.63 trace can record an **aria tree** and a **screenshot** before 
 
 The two kinds cost very differently:
 
-- **`aria`** adds one small JSON tree per action per phase — a few hundred bytes each, negligible next to the trace it rides in. [`wrapConfig`](/guide/reporter#installing-via-wrapconfig) turns it on by default on Playwright 1.63+.
-- **`screen`** adds a **PNG per action per phase** — by far the trace's biggest cost, growing with the page size and the number of actions. It stays **opt-in**: enable it only when you want the filmstrip and the before/after screenshots, and pair it with [data retention](#data-retention) so the extra bytes are swept. Enable it with `use: { trace: { mode: 'retain-on-failure', snapshots: { dom: true, aria: true, screen: true } } }`.
+- **`aria`** adds one JSON tree per action per phase: a few hundred bytes on a small page, hundreds of kilobytes on a large one, where ten clicks on a 1,000-row table made the trace three times bigger. Each tree also takes hundreds of milliseconds to record on such a page, on every attempt. It is **opt-in**, off in the trace [`wrapConfig`](/guide/reporter#installing-via-wrapconfig) sets: [`defaultCapture`](/reference/reporter-options#defaultcapture) gives the measured cost and the setting.
+- **`screen`** adds a **PNG per action per phase** — by far the trace's biggest cost, growing with the page size and the number of actions. It stays **opt-in**: enable it only when you want the filmstrip and the before/after screenshots, and pair it with [data retention](#data-retention) so the extra bytes are swept. Enable it with `use: { trace: { mode: 'retain-on-failure', snapshots: { dom: true, screen: true } } }`.
 
 Identical screenshots, common between consecutive actions and across runs, are stored once in the shared pool.
 
@@ -14784,13 +14789,14 @@ What each origin feeds:
   [pull-request comment or commit status](/features/pr-feedback), no automatic AI diagnosis or auto-heal, and no
   [automatic write to an issue tracker](/features/issue-automation#the-runs-that-write).
 - **`piwi bug` runs** do not move the bug report they were written for.
-- **Local runs** (`local`, `desktop`, `editor`, `preflight`) count like CI runs, with three exceptions. An editor's CI
+- **Local runs** (`local`, `desktop`, `editor`, `preflight`) count like CI runs, with four exceptions. An editor's CI
   failures come from the newest complete CI run on the branch, and a local run stands in only while the branch has
   none. An `editor` run's failures join their clusters without counting as occurrences. An `editor` run, or a `local`
   or `desktop` run of part of the suite, fires no run, new-cluster, fixed, regressed, flakiness or
   performance [notification](/features/notifications#events), posts no
   [pull-request comment or commit status](/features/pr-feedback), starts no automatic AI diagnosis or auto-heal, and
-  writes nothing to an [issue tracker](/features/issue-automation#the-runs-that-write) on its own.
+  writes nothing to an [issue tracker](/features/issue-automation#the-runs-that-write) on its own. No local run, and
+  no `piwi bug` run, sends [`test.stuck`](/features/stuck-tests#the-notification), complete or not.
 - **Partial runs** (a `--grep`, a file filter, a selection, `--last-failed`, `--only-changed` or `--test-list`) never count for change
   coverage, which asks whether a file was reached in the recent runs, nor as a commit's end-to-end coverage.
 
@@ -16248,7 +16254,7 @@ one fires and what a webhook channel receives; channels, subscriptions and deliv
 | `diagnosis.completed` | A diagnosis of a cluster, or of one of its failures, is stored: Piwi's (requires an [AI provider](/guide/ai-provider)) or one an agent records. A failure in no cluster sends none |
 | `auto_heal.pr_opened` | [Auto-heal](/features/auto-heal) opened a pull request; the payload carries `prNumber`, `prUrl`, `branch` and `editCount` |
 | `environment.incident` | A completed run is flagged as an [environment incident](/features/environment-incidents); it replaces the run's `run.failed`, `run.failed.default_branch`, `flakiness.spike`, `perf.regression`, `cluster.new` and `bug.looks_fixed` (`run.finished` still fires). The payload carries `rule`, `reason`, `host`, `otherProjects` and `incidentKey`, which is the same for every run of one outage across projects, so a channel receives one message. A subscription filtered on owners does not receive it |
-| `test.stuck` | A running test of a live run has run longer than both two minutes and three times its longest duration among its last ten passing executions ([Stuck tests](/features/stuck-tests)), once per attempt; runs that send no run event send none |
+| `test.stuck` | A running test of a live run has run longer than both two minutes and three times its longest duration among its last ten passing executions ([Stuck tests](/features/stuck-tests)), once per attempt; a run started on a developer's machine (origin `local`, `desktop`, `editor`, `preflight` or `bug`) sends none, complete or not, and neither does a run that sends no run event |
 | `bug.looks_fixed` | A `test.fail()` test passed in a completed run, in every browser project that ran it, and did not already pass on the previous completed run of the same branch that sends notifications itself; the payload lists the `tests`, each with the bug report (`bugId`, from `piwi:bug`) and ticket (`link`) it names |
 
 **`report.ready`** needs no subscription: a [report schedule](/features/quality-reports#report-schedules) sends it to
