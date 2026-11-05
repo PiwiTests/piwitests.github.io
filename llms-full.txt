@@ -1415,8 +1415,9 @@ url }`, with `url` the per-test link the log prints.
 
 ## Pull-request feedback
 
-Piwi can post a summary comment and a commit status on the pull request, and re-run a failure cluster's tests in CI:
-see [Pull-request feedback & re-run](/features/pr-feedback).
+Piwi can post a summary comment and a commit status on the pull request: see
+[Pull-request feedback](/features/pr-feedback). To re-run a failure cluster's tests in CI, see
+[Re-run in CI](/features/ci-rerun).
 
 ## Blocking a merge
 
@@ -1499,7 +1500,7 @@ sent.
 ## Related
 
 - [Reporter](./reporter): setup, streaming and authentication
-- [Pull-request feedback & re-run](/features/pr-feedback): the result on the pull request
+- [Pull-request feedback](/features/pr-feedback): the result on the pull request
 - [Test tags](/reference/test-metadata#test-tags): what `--require-tag` matches on
 - [API keys](/operate/api-keys): the key CI uses
 
@@ -1522,7 +1523,7 @@ failure, or writes back to a pull request, goes through it.
 | [Notifications](/features/notifications) | Names the author of the fixing commit on `cluster.fixed` and `cluster.regressed` | read |
 | Ownership and the default branch | Reads `CODEOWNERS` for test owners, and the repository's default branch when the project sets none | read |
 | [Pull-request feedback](/features/pr-feedback) | Posts a summary comment and a commit status | write |
-| [Re-run in CI](/features/pr-feedback#re-run-from-the-dashboard) | Dispatches a workflow or pipeline | write |
+| [Re-run in CI](/features/ci-rerun) | Dispatches a workflow or pipeline (a CI server takes its own token) | write |
 | [Auto-heal PRs](/features/auto-heal) | Opens a pull request with a locator fix | write |
 
 Every call is best-effort: a missing token, a private repository the token cannot see or an unreachable host is
@@ -1598,7 +1599,7 @@ section is absent, it says why.
 ## Related
 
 - [AI provider](./ai-provider): the model that reads this context
-- [Pull-request feedback & re-run](/features/pr-feedback): what gets posted on a pull request
+- [Pull-request feedback](/features/pr-feedback): what gets posted on a pull request
 - [Privacy & data flow](./privacy): what Piwi sends to your Git host
 
 <!-- https://piwitests.dev/guide/ai-provider -->
@@ -4584,7 +4585,7 @@ The experiment is recorded with the source `ci`. Exit code 1 (nothing reproduced
 
 To start it from a failure's next step (**Reproduce in CI**, **Verify in CI**), make the input the command's arguments
 (<code v-pre>npx @piwitests/reporter ${{ inputs.piwi_flake }}</code>) and name the workflow as the **Flake Lab** target in the project's
-[CI re-run](./pr-feedback#re-run-from-the-dashboard) settings. It receives `flake 1842` or `flake verify 1842`.
+[CI re-run](./ci-rerun) settings. It receives `flake 1842` or `flake verify 1842`.
 
 ## Without the dashboard
 
@@ -6195,11 +6196,11 @@ issues of the same kind of failure fixed before, and the links back to Piwi.
 
 <!-- https://piwitests.dev/features/pr-feedback -->
 
-# Pull-request feedback & re-run
+# Pull-request feedback
 
 The run URL a CI job prints is a link somebody has to click. Piwi can instead post the result onto the pull request
-itself, which is where the person who broke the test already is. And once a cluster is fixed, the cluster page can
-start the CI run that proves it.
+itself, which is where the person who broke the test already is. To re-run a fixed cluster's tests from the dashboard,
+see [Re-run in CI](./ci-rerun).
 
 ## What gets posted
 
@@ -6273,18 +6274,54 @@ Turn it on in **Settings → Pull requests** (off by default). It needs:
   GitLab. [Source control](/guide/source-control) explains where to set it and what else uses it.
 - **Branch and commit metadata on the run**, which the reporter [detects automatically](/guide/ci#what-gets-detected).
 
-## Re-run from the dashboard
+## Limits
+
+- Pull-request feedback posts on GitHub and GitLab. On Bitbucket the settings page saves, but nothing is posted.
+- Piwi only ever edits a comment it wrote itself (identified by a hidden marker), so a human comment is never
+  overwritten.
+- Everything here is best-effort: the run is already stored by the time it runs, and a missing token or an unreachable
+  host is logged rather than failing your pipeline.
+- A comment reports; it does not block. To fail the build on a policy, use the
+  [merge gate](/guide/ci#blocking-a-merge).
+
+## Related
+
+- [CI & sharding](/guide/ci): run the reporter in CI and gate a merge
+- [Source control](/guide/source-control): the SCM token and its scopes
+- [Auto-heal PRs](./auto-heal): the pull request Piwi opens itself
+- [Failure clusters & the inbox](./failure-clusters): the clusters the comment reports
+- [Re-run in CI](./ci-rerun): re-run a cluster's tests from the dashboard
+
+<!-- https://piwitests.dev/features/ci-rerun -->
+
+# Re-run in CI
 
 Once a cluster is fixed, the fastest way to prove it is to re-run the affected tests, and a
 [filtered run that passes them all closes the cluster](./failure-clusters#did-the-fix-work). The cluster page can
-trigger that run in CI: **Re-run in CI**, next to *Copy retry command*, dispatches a workflow or pipeline with
+trigger that run in CI: **Re-run in CI**, next to *Copy retry command*, dispatches a workflow, pipeline or job with
 the cluster's retry arguments (each affected test's `file:line` from its latest failure, and the projects it failed
 in) on the branch of the cluster's latest run, and links to the run it started. The configured ref is used only when
 that run recorded no branch. An execution's Verify section offers **Re-run this test in CI**, for that test at its
-line and in its project, beside **Re-run the cluster in CI**; both are recorded as the cluster's last re-run. The last dispatch (when, by whom, and a link) shows under Test evidence.
+line and in its project, beside **Re-run the cluster in CI**; both are recorded as the cluster's last re-run. In the
+Verify section, the last dispatch says where it went (_dispatched to Jenkins_), when, by whom, and links to the build.
 
 It is **off by default** and configured per project in the **Source control** section of the project's **Settings** tab,
-under **CI re-run**. Turn it on and fill in the block for your provider:
+under **CI re-run**. Turn it on and pick what it dispatches through:
+
+- **Repository host**: the CI of the repository host, with the project's SCM token.
+- **CI server**: one HTTP request to a CI server, such as Jenkins, with its own credential.
+
+Its buttons, and a next step that runs in CI, show to people with
+[`run:control`](/operate/project-access#what-each-role-can-do) once the feature is on and a target is set; through the
+repository, an SCM token must be set too. A CI server request goes without a credential when none applies.
+
+An optional **Flake Lab** target names a second workflow, pipeline or job that runs `piwi flake` for one flaky test,
+started from that test's next step: [Run it in CI](./flake-lab#run-it-in-ci) shows the GitHub workflow, and
+[Flake Lab on Jenkins](#flake-lab-on-jenkins) the Jenkins job.
+
+## Repository host
+
+Fill in the block for your provider:
 
 | Provider | Target you configure | Token scope |
 |---|---|---|
@@ -6292,12 +6329,7 @@ under **CI re-run**. Turn it on and fill in the block for your provider:
 | **GitLab** | A ref and the pipeline variable name that receives the arguments | `api` |
 | **Bitbucket** | The `custom:` pipeline name and the variable name that receives the arguments | `pipeline:write` |
 
-The dispatch uses the project's SCM token, which needs the write scope above. Its buttons, and a next step that runs in
-CI, show to people with [`run:control`](/operate/project-access#what-each-role-can-do) once the feature is on, a target
-is set for the provider and a token is set.
-
-An optional **Flake Lab** block names a second workflow or pipeline that runs `piwi flake` for one flaky test, started
-from that test's next step: [Run it in CI](./flake-lab#run-it-in-ci) shows the workflow.
+The dispatch uses the project's [SCM token](/guide/source-control), which needs the write scope above.
 
 Your workflow has to actually consume the value. A minimal GitHub example that forwards the input to Playwright:
 
@@ -6349,10 +6381,111 @@ pipelines:
 GitHub's `workflow_dispatch` returns no run id, so the link goes to the workflow's runs page filtered to the branch;
 GitLab and Bitbucket link straight to the pipeline.
 
-When the re-run finishes, Piwi recognizes it and records its [origin](/reference/test-metadata#run-origin) as `ci-rerun`: by
-GitLab's pipeline id or Bitbucket's build number, which the dispatch answered with, and on GitHub by the dispatch id
-when the workflow passes it on. GitHub rejects an input the workflow does not declare, so that input is a separate,
-optional setting. Declare it and hand it to the reporter as `PIWI_ORIGIN_REF`:
+## CI server
+
+A CI server target is a **preset**, which builds the request from a few fields, or a **Custom request** you write.
+The form shows the request a re-run sends, filled with sample values and the credential masked, as you type.
+
+**Jenkins** takes the job as Jenkins shows its path (`polaris/e2e`; `polaris/e2e/{branch}` for a multibranch pipeline,
+where `{branch}` becomes the run's branch) and posts to its `buildWithParameters` with two string parameters:
+`PIWI_RERUN_ARGS` (the arguments) and `PIWI_ORIGIN_REF` (the dispatch id), names you can change. The credential is
+a user and their API token, sent as Basic authentication, which Jenkins accepts without a crumb. The link goes to the
+job's page. The job declares both parameters and runs `rerun`:
+
+```groovy
+pipeline {
+  agent any
+  parameters {
+    string(name: 'PIWI_RERUN_ARGS', defaultValue: '', description: 'Playwright arguments of a re-run')
+    string(name: 'PIWI_ORIGIN_REF', defaultValue: '', description: 'The dispatch Piwi matches the run to')
+  }
+  stages {
+    stage('e2e') {
+      steps {
+        sh 'npm ci'
+        sh 'npx @piwitests/reporter rerun'
+      }
+    }
+  }
+}
+```
+
+### Flake Lab on Jenkins
+
+The preset's Flake Lab job receives `flake 12` or `flake verify 12` in its arguments parameter and hands it to the
+reporter, which reads `PIWI_DASHBOARD_URL` and `PIWI_API_KEY`:
+
+```groovy
+pipeline {
+  agent any
+  parameters {
+    string(name: 'PIWI_RERUN_ARGS', defaultValue: '', description: 'flake 12, or flake verify 12')
+    string(name: 'PIWI_ORIGIN_REF', defaultValue: '', description: 'The dispatch Piwi started')
+  }
+  environment {
+    PIWI_DASHBOARD_URL = 'https://piwi.example.com'
+    PIWI_API_KEY = credentials('piwi-api-key')
+  }
+  stages {
+    stage('flake') {
+      steps {
+        sh 'npm ci'
+        sh 'npx playwright install --with-deps chromium'
+        sh 'npx @piwitests/reporter $PIWI_RERUN_ARGS'
+      }
+    }
+  }
+}
+```
+
+On a Windows agent the steps are `bat` steps, and the last reads `%PIWI_RERUN_ARGS%`.
+
+### Custom requests
+
+**Customize the request** turns the preset into a Custom request that sends the same thing, to edit from there. A
+Custom request is JSON: `auth` (`none`, `basic`, `bearer`, or `{ "header": "X-Token" }`), a `rerun` request and an
+optional `flakeLab` one, each with a `method` (`POST` or `PUT`), a `path` relative to the base URL, and optional
+`query`, `headers` and `body` (JSON, or form fields), `link` (a JSON pointer, a response header, or a path) and
+`buildNumber` (a JSON pointer). Its values may name these placeholders:
+
+| Placeholder | Value |
+|---|---|
+| <code v-pre>{{args}}</code> | The Playwright arguments, or `flake 12` for Flake Lab |
+| <code v-pre>{{dispatchId}}</code> | The dispatch id, which the run hands back as `PIWI_ORIGIN_REF` |
+| <code v-pre>{{ref}}</code> | The branch of the cluster's latest run, else the default branch you set |
+| <code v-pre>{{commit}}</code> | The commit of that run, else empty |
+| <code v-pre>{{branchJob}}</code> | The branch as Jenkins names a branch job (`feature/x` is `feature%2Fx`) |
+
+A placeholder in a path is percent-encoded inside its segment, and a value that would add a `.` or `..` segment is
+refused. In a JSON body it fills a whole string value.
+
+### The credential and the hosts
+
+The token field is write-only: leave it empty to keep the stored token. A token is stored with the base URL in effect
+when it is saved and sent only to URLs under it, so changing the base URL asks for the token again. A project without
+a base URL uses the instance's CI server (`PIWI_CI_SERVER_URL`), and one without a token the instance's
+(`PIWI_CI_SERVER_USER`, `PIWI_CI_SERVER_TOKEN`): it goes only with a preset's request under that URL, never with a
+Custom one.
+
+A request never follows a redirect, and a link from the answer is kept only when it is an `http(s)` URL or a path from
+the base URL's root (`/queue/item/12/`). A CI server
+is reached over `https`. Over `http`, or on a private address (a `10.x` host, `localhost`), it is reached only when it
+is the host and port of the instance's `PIWI_CI_SERVER_URL` or is listed in `PIWI_CI_SERVER_HOSTS` (`host` for any
+port, `host:port` for one); the desktop app reaches any address. The
+variables are in the [configuration reference](/reference/configuration).
+
+## Matching the run
+
+When the re-run finishes, Piwi recognizes it and records its [origin](/reference/test-metadata#run-origin) as `ci-rerun`.
+A Jenkins job matches by the dispatch id it passes on as `PIWI_ORIGIN_REF`; a Custom request by that id too, or by the
+build number its `buildNumber` pointer reads from the answer, for a run of the same branch and spec files that started
+after the dispatch. GitLab matches by its pipeline id and
+Bitbucket by its build number, which the dispatch answered with; GitHub by the dispatch id when the workflow passes it
+on. Once matched, the last dispatch links to the build the
+run recorded.
+
+GitHub rejects an input the workflow does not declare, so that input is a separate, optional setting. Declare it and
+hand it to the reporter as `PIWI_ORIGIN_REF`:
 
 ```yaml
 on:
@@ -6375,25 +6508,21 @@ jobs:
           PIWI_ORIGIN_REF: ${{ inputs.piwi_dispatch }}
 ```
 
-Without it, a GitHub run is matched on its branch, a start within six hours of the dispatch, and running exactly the
-dispatched spec files.
+Without it, a GitHub run, or a CI server run with neither, is matched on its branch, a start within six hours of the
+dispatch, and running exactly the dispatched spec files.
 
 ## Limits
 
-- Pull-request feedback posts on GitHub and GitLab. On Bitbucket the settings page saves, but nothing is posted.
-- Piwi only ever edits a comment it wrote itself (identified by a hidden marker), so a human comment is never
-  overwritten.
-- Everything here is best-effort: the run is already stored by the time it runs, and a missing token or an unreachable
-  host is logged rather than failing your pipeline.
-- A comment reports; it does not block. To fail the build on a policy, use the
-  [merge gate](/guide/ci#blocking-a-merge).
+- A dispatch is one request: Piwi does not poll the CI for the build's state, it waits for the run to report.
+- The demo records a CI server dispatch without sending it, and links to the job's page.
 
 ## Related
 
-- [CI & sharding](/guide/ci): run the reporter in CI and gate a merge
+- [Pull-request feedback](./pr-feedback): the result posted on the pull request
 - [Source control](/guide/source-control): the SCM token and its scopes
-- [Auto-heal PRs](./auto-heal): the pull request Piwi opens itself
-- [Failure clusters & the inbox](./failure-clusters): the clusters the comment and the re-run act on
+- [Failure clusters & the inbox](./failure-clusters): the clusters a re-run acts on
+- [Flake Lab](./flake-lab): the experiment a Flake Lab target runs in CI
+- [CLI](/reference/cli#rerun): the `rerun` command a pipeline runs
 
 <!-- https://piwitests.dev/features/test-selection -->
 
@@ -7113,7 +7242,7 @@ Either warns too when the run has no source control diff to count. Without them,
 
 - [Scenario gaps & the Test Map](/features/scenario-gaps): the other gaps, and triage
 - [Combined coverage](/features/combined-coverage): the coverage the changed lines are counted on
-- [Pull-request feedback & re-run](/features/pr-feedback): the comment this section joins
+- [Pull-request feedback](/features/pr-feedback): the comment this section joins
 - [Source control](/guide/source-control): the token that provides the diff
 - [Piwi CLI: gate](/reference/cli#gate): every gate flag
 
@@ -14602,7 +14731,7 @@ Piwi's own launchers set them: the desktop app (`desktop`, and `reproduce` or `b
 editors (`editor`, with a ref of their own on each test run, which they find the run by), `piwi preflight --run`
 (`preflight`), `piwi bug --write` (`bug` with the report id), Flake Lab and probes. The desktop app also names each
 run it starts with `PIWI_RUN_REF`, so two runs started for the same cluster each find their own Piwi run. A
-[re-run dispatched from the dashboard](/features/pr-feedback#re-run-from-the-dashboard) is recorded as `ci-rerun` once
+[re-run dispatched from the dashboard](/features/ci-rerun) is recorded as `ci-rerun` once
 Piwi recognizes it, and an imported report as `import`. You rarely set them yourself.
 
 What each origin feeds:
@@ -15142,7 +15271,7 @@ npx @piwitests/reporter <command> [options]
 | [`coverage`](#coverage) | Upload another tool's coverage report of a commit, for [combined coverage](/features/combined-coverage) |
 | [`select`](#select-run) | Print the Playwright args for a saved test selection |
 | [`run`](#select-run) | Run a saved test selection with `playwright test` |
-| [`rerun`](#rerun) | Run the tests a [CI re-run](/features/pr-feedback#re-run-from-the-dashboard) from the dashboard asked for |
+| [`rerun`](#rerun) | Run the tests a [CI re-run](/features/ci-rerun) from the dashboard asked for |
 | [`probe`](#probe) | Run the dashboard's probe plan and record what the suite noticed |
 | [`flake`](#flake) | Make a flaky test fail on demand under its suspects' conditions, then verify the fix |
 | [`ai`](#ai) | Manage committed natural-language AI-step artifacts |
@@ -15353,8 +15482,8 @@ When `run` spawns Playwright and the target config has **no Piwi reporter**, it 
 
 ## `rerun`
 
-Run the tests a [CI re-run](/features/pr-feedback#re-run-from-the-dashboard) dispatched from the dashboard asked for,
-in a GitLab or Bitbucket job. The dashboard hands the job its Playwright arguments in the `PIWI_RERUN_ARGS` variable,
+Run the tests a [CI re-run](/features/ci-rerun) dispatched from the dashboard asked for,
+in a GitLab, Bitbucket or Jenkins job. The dashboard hands the job its Playwright arguments in the `PIWI_RERUN_ARGS` variable,
 each one double-quoted (`"tests/login.spec.ts:10" --project="chromium"`). `rerun` splits them as they were quoted,
 without reading them through a shell, and starts `playwright test` with them, followed by any arguments given on its
 own command line, after an optional `--`. The same command works on Linux, macOS and Windows runners.
