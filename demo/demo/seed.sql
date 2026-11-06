@@ -2577,6 +2577,18 @@ ALTER TABLE `test_runs_cases` ADD `parallel_index` integer;
 
 ALTER TABLE `test_runs` ADD `live_view_key_digests` text;
 
+CREATE TABLE `project_stars` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`user_id` integer NOT NULL,
+	`project_id` integer NOT NULL,
+	`created_at` integer NOT NULL,
+	FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`project_id`) REFERENCES `projects`(`id`) ON UPDATE no action ON DELETE cascade
+);
+
+CREATE UNIQUE INDEX `idx_project_stars_user_project` ON `project_stars` (`user_id`,`project_id`);
+CREATE INDEX `idx_project_stars_project` ON `project_stars` (`project_id`);
+
 BEGIN TRANSACTION;
 
 -- Tags
@@ -2613,6 +2625,10 @@ INSERT INTO role_bindings (id, user_id, group_id, project_id, role, created_by, 
 INSERT INTO role_bindings (id, user_id, group_id, project_id, role, created_by, created_at) VALUES (4, 6, NULL, 1, 'project_admin', NULL, 1739145600000);
 INSERT INTO role_bindings (id, user_id, group_id, project_id, role, created_by, created_at) VALUES (5, 2, NULL, NULL, 'uploader', NULL, 1739145600000);
 INSERT INTO role_bindings (id, user_id, group_id, project_id, role, created_by, created_at) VALUES (6, 3, NULL, 1, 'viewer', NULL, 1739145600000);
+
+-- Starred projects (of the identity the demo opens as)
+INSERT INTO project_stars (id, user_id, project_id, created_at) VALUES (1, 1, 5, 1739145600000);
+INSERT INTO project_stars (id, user_id, project_id, created_at) VALUES (2, 1, 2, 1739145600001);
 
 -- App settings (the `ai` key marks the demo provider as configured)
 INSERT INTO app_settings (key, value, updated_at) VALUES ('ai', '{"autoDiagnose":false,"roles":{"diagnosis":{"provider":"demo","model":"demo-simulated","baseUrl":null,"apiKey":null}}}', 1745139600);
@@ -10800,6 +10816,7 @@ UPDATE network_requests SET start_time = start_time + (SELECT delta_sec FROM _re
 UPDATE groups SET created_at = created_at + (SELECT delta_sec FROM _rebase) * 1000, updated_at = updated_at + (SELECT delta_sec FROM _rebase) * 1000;
 UPDATE group_members SET created_at = created_at + (SELECT delta_sec FROM _rebase) * 1000;
 UPDATE role_bindings SET created_at = created_at + (SELECT delta_sec FROM _rebase) * 1000;
+UPDATE project_stars SET created_at = created_at + (SELECT delta_sec FROM _rebase) * 1000;
 UPDATE analytics_dashboards SET created_at = created_at + (SELECT delta_sec FROM _rebase) * 1000, updated_at = updated_at + (SELECT delta_sec FROM _rebase) * 1000, last_viewed_at = last_viewed_at + (SELECT delta_sec FROM _rebase) * 1000;
 UPDATE assistant_conversations SET created_at = created_at + (SELECT delta_sec FROM _rebase) * 1000, updated_at = updated_at + (SELECT delta_sec FROM _rebase) * 1000;
 UPDATE assistant_messages SET created_at = created_at + (SELECT delta_sec FROM _rebase) * 1000;
