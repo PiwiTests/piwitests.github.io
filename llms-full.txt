@@ -9346,7 +9346,8 @@ or **Pause**. A run [started outside Piwi](./terminal-runs) shows too, marked **
 
 ## The controls
 
-**Pause** stops a running test before its next call. At a stop, **Resume**, **Step**, **Finish** and
+**Pause** stops a running test before its next call; while the test waits in a long one, its row says which (a
+locator call, for how long), with [**End the test**](./end-the-test#while-a-pause-waits-for-a-call). At a stop, **Resume**, **Step**, **Finish** and
 [**End the test**](./end-the-test) do what they do [in the editor](./editor-run-control#the-controls); Run to cursor
 stays in the editor.
 
@@ -9673,7 +9674,8 @@ waits for the next stop rather than start a debug session.
 
 **Pause** stops every run Piwi started in this window (in a JetBrains IDE, this project), each worker before its next
 call that Playwright's debugger stops at ([which calls](./editor-breakpoints#limits)): a long call or a `waitForTimeout`
-finishes first, and a worker between tests stops at the next test's first call. A test that never stops, under CI or
+finishes first, unless you [end the test there](./end-the-test#while-a-pause-waits-for-a-call), and a worker between
+tests stops at the next test's first call. A test that never stops, under CI or
 Playwright's own debugger, says why.
 
 ## Where the test stands
@@ -9792,7 +9794,7 @@ workers to choose from, the editor asks which.
 
 ## What you see
 
-Each view names the worker by its slot in the run (`Worker 2`) and says what it does: its running test, where it
+Each view names the worker by its slot in the run (`Worker 2`) and says what it does: its running test, the call a Pause waits in, where it
 stopped, between tests, or starting. Across a **Step**, a **Resume** or between two tests, the last image stays until
 the next one comes, dimmed in VS Code, the Runs window and the desktop app. A page that does not change sends no new
 image.
@@ -9980,6 +9982,19 @@ It is offered at any stop but a failure, with a reporter newer than 0.62.0:
 - **Piwi Picker's [Runs window](./runs-window)** and the desktop app's [Local runs tray](./desktop-runs): **End the
   test**, beside **Finish**.
 - **An [agent](./agent-run-control)**: `run_control` with `end`, answered as the test ends.
+
+## While a Pause waits for a call
+
+**Pause** stops a test before its next call, so a test inside a long one (a click that waits for a button, a
+`waitForTimeout`) stops only once it returns. Meanwhile, with a reporter newer than 0.67.0, the Runs window and the
+desktop app's tray say the call it waits in and, for a locator call, how long it has run, and offer **End the test**
+there. In VS Code, the status bar reads `Pausing… 12 s`, the call in its tooltip, with **End the test** beside it; in
+a JetBrains IDE, the status bar item reads `Piwi: pausing… · waits in` and the call, and **Tools → Piwi → End the
+Test** ends it:
+
+- **A locator call or an assertion**, with Playwright 1.62 or later, is given up at once, and the test is skipped.
+- **Another call** (a `waitForTimeout`, a navigation) finishes first, and the test is skipped at its next locator
+  call, or as its function ends.
 
 ## What runs, and what does not
 
