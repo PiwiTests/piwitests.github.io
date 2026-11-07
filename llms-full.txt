@@ -1450,7 +1450,7 @@ A failed gate exits 1 and prints:
 
 Its rules bound the failing tests, the new regressions and newly flaky tests, the tests a tag or a
 [selection](/features/test-selection) requires, the [quarantine](/features/flaky-tests#quarantine-with-a-way-out)
-debt (`--max-quarantined`), new clusters and [leaks](/features/resource-leaks#in-ci): every flag is in the
+debt (`--max-quarantined`), new clusters and [leaks](/features/leak-history): every flag is in the
 [CLI reference](/reference/cli#gate).
 
 At least one rule is required, or a [warn-only flag](/features/uncovered-changes#the-gate-flags). Exit codes are part
@@ -4733,17 +4733,19 @@ and at the end of the run the reporter lists what stayed open past the scope tha
 The reporter prints it after the last test, before the upload, and adds it to the job summary on GitHub Actions:
 
 ```text
-[Piwi Dashboard] Resources: 3 leaks · 6 idle pages · 1 piling up · 1 handle left in workers
-[Piwi Dashboard]   leaked   context     tests/cart.spec.ts:12 · 4 contexts · with 4 pages · 4 tests · open until the worker shut down (41.2 s past its test) · 18.3 s of page CPU after its test
-[Piwi Dashboard]   leaked   page        popup after locator.click at tests/checkout.spec.ts:30 · 2 pages · 2 tests · open 3.1 s past its test
-[Piwi Dashboard]   leaked   context     tests/admin.spec.ts:8 · beforeAll of "admin" · 1 test · open until the worker shut down (12.0 s past its describe block)
-[Piwi Dashboard]   piling   listeners   fixture "adminPage" at tests/fixtures.ts:21 · 11 → 31 listeners over 20 tests
-[Piwi Dashboard]   handle   server      tests/pay.spec.ts:14 · left running in the worker by "mocks the payment API" (tests/pay.spec.ts)
-[Piwi Dashboard]   idle     page        fixture "page" · 6 pages · 6 tests · set up with consoleCollector (tests/fixtures.ts:40)
+[Piwi Dashboard] Resources: 3 leaks · 6 idle pages · 1 piling up · 1 handle left in workers · 1 lingering
+[Piwi Dashboard]   leaked    context     tests/cart.spec.ts:12 · 4 contexts · with 4 pages · 4 tests · open until the worker shut down (41.2 s past its test) · 18.3 s of page CPU after its test · last used at tests/cart.spec.ts:15
+[Piwi Dashboard]   leaked    page        popup after locator.click at tests/checkout.spec.ts:30 · 2 pages · 2 tests · open 3.1 s past its test · last used at tests/checkout.spec.ts:31
+[Piwi Dashboard]   leaked    context     tests/admin.spec.ts:8 · beforeAll of "admin" · 1 test · open until the worker shut down (12.0 s past its describe block) · last used at tests/admin.spec.ts:19
+[Piwi Dashboard]   piling    listeners   fixture "adminPage" at tests/fixtures.ts:21 · 11 → 31 listeners over 20 tests
+[Piwi Dashboard]   handle    server      tests/pay.spec.ts:14 · left running in the worker by "mocks the payment API" (tests/pay.spec.ts)
+[Piwi Dashboard]   idle      page        fixture "page" · 6 pages · 6 tests · set up with consoleCollector (tests/fixtures.ts:40)
+[Piwi Dashboard]   lingering page        popup after locator.click at tests/export.spec.ts:22 · 1 test · open 6.4 s after its last use · last used at tests/export.spec.ts:23
 [Piwi Dashboard] Set leakCheck: 'fail' (PIWI_LEAK_CHECK=fail) to fail the tests that leave what they open, or 'close' to close it.
 ```
 
-Findings of one line are grouped: the first above is one line leaking in four tests. A leaked context
+Findings of one line are grouped: the first above is one line leaking in four tests. Each leak names the line that
+last used it, where its `close()` belongs. A leaked context
 or browser carries the pages open in it, and a page `browser.newPage()` opened carries the context made for it. At most
 ten findings are listed; the rest are counted. In Chromium, the fixtures read each page that outlives its test over the
 DevTools protocol, so a leak also says how much CPU its pages' main threads used after their test, from half a second.
@@ -4757,7 +4759,8 @@ The [CPU, memory & disk](./cpu-memory-disk) panel follows, with what the whole r
 | **leaked**, past its describe block | Opened in a `beforeAll` (or an `afterAll`) and still open once the tests of its describe block ran. | Close it in `afterAll` |
 | **piling up** | A page or context living across tests whose open pages, listeners, route handlers or DOM elements kept growing; or a worker whose open file descriptors, or heap after V8's own full garbage collections, did | Remove what each test adds or opens; in a worker, what a module variable, cache or pool keeps |
 | **handle** | A server, child process or file watcher a test started and left running in the worker; a server or process at its line | Close or kill it in the test or an `afterEach` |
-| **idle** | A page opened and never used: no navigation, content, script or locator. The detail names the fixtures of yours that set it up. | Drop the `page` argument, or the fixture that asks for it |
+| **idle** | A page opened and never used: no navigation, and no call of the test's on it. The detail names the fixtures of yours that set it up. | Drop the `page` argument, or the fixture that asks for it |
+| **lingering** | A browser, context or page the test body opened and closed within the test, but long after its last use: at least 2 s, and a third of the test or more. A popup checked once, then left to the `page` fixture. What a hook or a fixture opens, and an API request context, never is. | Close it right after its last use |
 | **probable** | Without the fixtures, from a test's steps: a browser, context or `browser.newPage()` page nothing in its file closed | Use the fixtures for exact findings |
 
 What is never reported:
@@ -4781,8 +4784,8 @@ wrapConfig(config, { projectName: 'my-project', leakCheck: 'fail' })
 
 ```text
 Error: Piwi: this test left one object open:
-  - a context opened at tests/cart.spec.ts:12, with 1 page
-Close each before the test ends (await using, close() or dispose()), or set PIWI_LEAK_CHECK=report to only list them.
+  - a context opened at tests/cart.spec.ts:12, with 1 page, last used at tests/cart.spec.ts:15
+Close each after its last use (await using, close() or dispose()), or set PIWI_LEAK_CHECK=report to only list them.
 ```
 
 A `beforeAll` object, and what a fixture opens, are only ever reported. Each test is judged when it ends, so a test that
@@ -4799,11 +4802,21 @@ reporter entry's options.
 A run whose reporter sent findings shows a **Resources** tab:
 
 - the counts of each kind of finding, the CPU the run's processes used and the machine's peak memory;
-- the findings, each with the line or fixture that opened it, one click from your editor;
+- the findings, each with the line or fixture that opened it and the line that last used it, one click from your
+  editor;
 - a switch drawing each worker's open pages on the run's [Timeline tab](./cpu-memory-disk#in-the-dashboard):
   a leak climbs test after test, a clean worker stays flat;
 - the machine each shard ran on, from the [CPU, memory & disk](./cpu-memory-disk#in-the-dashboard) panel;
 - the **costliest tests**, by the CPU of their worker and browser processes, with the pages each found already open.
+
+On the run's **Timeline** tab, a red tail under a worker's row runs from the test that left an object open to its
+close or the worker's end, and an amber one from an object's last use to its close. Hover one for its lines; click it
+to open its test. The open pages graphs draw the pages left open in red, and **Show leaks** turns all of it off.
+
+<figure>
+  <img src="/screenshots/run-timeline-leaks.png" alt="A run's Timeline tab: under each worker's row, red tails from each test's end to the worker's end, one amber tail inside a test, and the tooltip of the amber one naming where the popup was opened, its test, how long it stayed open after its last use and the line that last used it">
+  <figcaption>Leaks under each worker on the Timeline tab.</figcaption>
+</figure>
 
 The execution page's Performance tab shows what that one test cost and what it left open. A project that declines the
 **Resources** capability in **Settings → Capabilities** hides both, and the reporter's summary stays as it is.
@@ -4815,29 +4828,8 @@ The execution page's Performance tab shows what that one test cost and what it l
 
 ## In CI
 
-Each finding keeps a history: the run it was first seen in and the runs that showed it. A finding is known by the line
-or fixture that opened it, so renaming its test or fixture, or opening and closing another context in its file, keeps
-its history. A leak that an edit above its line moved keeps it too.
-
-Only a full run of the default branch changes a finding. A leak is fixed once five such runs came without it, each able
-to have shown it: with the fixtures on, its report not cut at the 100 findings the dashboard keeps, and a test of the
-leak's file passed while none failed, was interrupted or did not run. What such a test left open is never judged, so
-with one anywhere in the run, a leak a fixture or a helper opened is not counted either. Such a run that shows the leak
-again reopens it. Any other run, a partial run or a branch forked before the fix, only adds its showing. On the Resources tab each finding says whether it is new to
-the base branch (the pull request's target, else the default branch), or since which run it has been there.
-
-Three places read it:
-
-- [`piwi gate`](/guide/ci#blocking-a-merge): `--max-leaks <n>` fails when the run left more than `n`
-  objects open, counted per opening line; `--max-new-leaks <n>`, when more than `n` were never seen on the base branch.
-  A run that sent no resource report fails either rule rather than passing on silence, and so does a run of a project
-  that declined the **Resources** capability, whose leaks are not measured.
-- The [pull-request comment](./pr-feedback) lists each leak the branch introduces under **Left open by this change**.
-- Agents read `list_resource_findings` and `get_resource_profile` over [MCP](/reference/mcp-tools).
-
-```bash
-npx @piwitests/reporter gate --max-new-leaks 0
-```
+Each finding keeps a history across runs: whether it is new to a pull request's base branch, and once fixed, the run
+that fixed it. `piwi gate`, the pull-request comment and MCP read it: [Leak history in CI](./leak-history).
 
 ## Cost
 
@@ -4849,11 +4841,13 @@ Servers and child processes are placed by wrapping Node's `listen` and `spawn` i
 ## Limits
 
 - The dashboard keeps the first 100 findings of each run, most severe first.
-- **Playwright internals.** The ledger reads Playwright's instrumentation hooks, the runner's current test and fixture,
-  and a few private fields (`_routes`, `_ownerPage`, `_opener`). The Playwright versions the reporter supports have them
-  all, and each is checked before use: without the hooks the ledger stays off.
+- **Playwright internals.** The ledger reads Playwright's instrumentation hooks, the calls on the worker's connection to
+  its browsers, the runner's current test and fixture, and a few private fields (`_routes`, `_ownerPage`, `_opener`).
+  Each is checked before use: without the hooks the ledger stays off, and without the connection a page counts as used
+  only when it navigates, loads, runs a script or builds a locator, and no finding names a last use.
 - An object kept in a module variable on purpose and closed by another spec file reads as leaked.
-- A page used only through calls the ledger does not count, a screenshot of a blank page for example, reads as idle.
+- A fixture with a `timeout` of its own runs with the slot a worker fixture has: what it leaves open is reported only
+  once it opened something in two tests of the same worker.
 - **Probable leaks** come from step titles, which name no object, and the lines they point at. A close goes to the open
   assigned its name (`ctx` in `ctx.close()`); `page.context().close()`, on no name, may take another object of its
   test. A page counts as `browser.newPage()` when the name before `.newPage` is a browser's. A browser's `close()`
@@ -4872,8 +4866,50 @@ The [live demo](https://piwitests.dev/demo/) holds a leaky run, and its run simu
 
 - [Capture fixtures](/guide/capture-fixtures): what else the fixtures record
 - [Reporter options](/reference/reporter-options#what-gets-captured): `captureResources` and `leakCheck`
+- [Leak history in CI](./leak-history): new leaks, fixed ones, and the gate
 - [CPU, memory & disk](./cpu-memory-disk): what the whole run cost the machine
 - [Slow tests & wasted time](./slow-tests): where the suite's time goes
+
+<!-- https://piwitests.dev/features/leak-history -->
+
+# Leak history in CI
+
+The [resource leaks](./resource-leaks) each run reports are kept across runs, so a pull request can be held to the leaks
+it adds, and a fix is known to have held.
+
+## Each finding's history
+
+Each finding keeps a history: the run it was first seen in and the runs that showed it. A finding is known by the line
+or fixture that opened it, so renaming its test or fixture, or opening and closing another context in its file, keeps
+its history. A leak that an edit above its line moved keeps it too.
+
+Only a full run of the default branch changes a finding. A leak is fixed once five such runs came without it, each able
+to have shown it: with the fixtures on, its report not cut at the 100 findings the dashboard keeps, and a test of the
+leak's file passed while none failed, was interrupted or did not run. What such a test left open is never judged, so
+with one anywhere in the run, a leak a fixture or a helper opened is not counted either. Such a run that shows the leak
+again reopens it. Any other run, a partial run or a branch forked before the fix, only adds its showing. On the Resources tab each finding says whether it is new to
+the base branch (the pull request's target, else the default branch), or since which run it has been there.
+
+## Where CI reads it
+
+Three places read it:
+
+- [`piwi gate`](/guide/ci#blocking-a-merge): `--max-leaks <n>` fails when the run left more than `n`
+  objects open, counted per opening line; `--max-new-leaks <n>`, when more than `n` were never seen on the base branch.
+  A run that sent no resource report fails either rule rather than passing on silence, and so does a run of a project
+  that declined the **Resources** capability, whose leaks are not measured. Neither counts a lingering object.
+- The [pull-request comment](./pr-feedback) lists each leak the branch introduces under **Left open by this change**.
+- Agents read `list_resource_findings` and `get_resource_profile` over [MCP](/reference/mcp-tools).
+
+```bash
+npx @piwitests/reporter gate --max-new-leaks 0
+```
+
+## Related
+
+- [Resource leaks](./resource-leaks): what a run reports, and how to fix each finding
+- [Pull-request feedback](./pr-feedback): the comment that lists the leaks a branch adds
+- [CI & sharding](/guide/ci#blocking-a-merge): the gate's other policies
 
 <!-- https://piwitests.dev/features/cpu-memory-disk -->
 
@@ -6358,7 +6394,7 @@ What the comment says, in this order:
 5. **New failure clusters**: root causes never seen before in this project.
 6. **Fixed by this change**: clusters this pull request closed, with how long they were open. See
    [Did the fix work?](./failure-clusters#did-the-fix-work)
-7. **Left open by this change**: [resource leaks](./resource-leaks#in-ci) the base branch never showed, each with the
+7. **Left open by this change**: [resource leaks](./leak-history) the base branch never showed, each with the
    line that opened it.
 
 Each failure carries its error, its owner and tags when the test declares them (see
@@ -13656,6 +13692,8 @@ each endpoint's requirement (`x-required-permission`), so a script author can te
 | Edit a bug report | `bug-report:write` | | ✓ | ✓ | ✓ | |
 | Save and schedule reports | `report:write` | | ✓ | ✓ | ✓ | |
 | Add and edit timeline markers | `marker:write` | | ✓ | ✓ | ✓ | |
+| Run tests on my machine from the dashboard | `run:request` | | ✓ | ✓ | ✓ | |
+| Connect an app that runs my requests | `run:receive` | | ✓ | ✓ | ✓ | |
 | Create share links, share a dashboard | `share:create` | | | ✓ | ✓ | |
 | Triage clusters and gaps | `triage:write` | | | ✓ | ✓ | |
 | Quarantine and release tests | `quarantine:write` | | | ✓ | ✓ | |
@@ -13744,20 +13782,8 @@ same 403, that says an administrator or a Project admin of that project can gran
 
 Run the reporter in CI as a Member with the **Uploader** role, through an [API key](./api-keys): it reads the project
 and uploads runs, nothing else. Grant it on All projects when CI should create projects from a new project name, else
-on the projects it reports to.
-
-## Upgrading from the three roles
-
-Earlier versions had three instance-wide roles (Administrator, Reporter, User) and assigned projects to each account.
-The upgrade converts them:
-
-- **Administrator** stays Administrator.
-- **Reporter** becomes a Member with the Maintainer role on the same projects.
-- **User** becomes a Member with the Viewer role on the same projects.
-
-Access to all projects becomes a role on All projects. A Maintainer can do exactly what a Reporter could, and a Viewer
-what a User could, so nobody gains or loses a right. To narrow a CI account that ran as a Reporter, give it Uploader in
-place of Maintainer.
+on the projects it reports to. A CI account that the upgrade from the three roles made a Maintainer narrows the same
+way.
 
 > **Try it in the demo:** the [live demo](https://piwitests.dev/demo/) ships with seeded identities, from an
 > administrator to a viewer. Switch between them with the **Acting as** picker in the demo banner and watch the
@@ -13777,7 +13803,8 @@ An API key is a long-lived token tied to one user account, and the recommended w
 Playwright reporter and scripts once [authentication](./authentication) is on. A key carries its owner's access: their
 [instance role](./authentication#roles) and the [project roles](./project-access) they hold, directly or through
 their groups. A key for a Member with the Uploader role on one project can read that project and upload to it, and
-nothing else.
+nothing else. The key a connected run target receives (the desktop app, Piwi Runner) is the one exception: it holds
+`run:receive` alone, and serves only that app's routes.
 
 For CI, create a dedicated account: a **Member** with the **Uploader** role on the projects CI reports to (on All
 projects if CI should create projects from a new project name), and a key for it. A leaked CI key then cannot triage,
@@ -14361,7 +14388,7 @@ A nightly sweep (03:17 server time) handles recurring cleanup:
 
 - **Test-run pruning** — deletes runs older than `PIWI_RETENTION_DAYS` days, including their files, traces, and reports. **Off by default**: nothing is pruned until you set it. [Kept runs](#keeping-runs-forever) are never pruned, and `PIWI_RETENTION_MIN_RUNS` keeps each project's newest runs whatever their age, so a project that stops reporting keeps its last runs instead of emptying. The [desktop app](/features/desktop) sets it under **Settings › Storage**, from its next start, and also runs the sweep a few minutes after it starts.
 - **Analytics rollups** — pruned runs' numbers are moved into the [daily rollups](/features/analytics#where-the-numbers-come-from) in the transaction that deletes them, so the analytics trends keep the days that retention empties; deleting a single run by hand removes its numbers instead. Hand-back outcomes are counted the same way.
-- **Notification outbox pruning** — removes sent/failed delivery rows older than `PIWI_RETENTION_NOTIFICATION_DAYS` days (default 30).
+- **Notification outbox pruning** — removes sent/failed delivery rows older than `PIWI_RETENTION_NOTIFICATION_DAYS` days (default 30), and with them settled auto-heal and integration actions, the agents' write log, and run requests that ended or expired.
 - **Report snapshot pruning** — removes [quality reports](/features/quality-reports#report-schedules) older than `PIWI_RETENTION_REPORT_DAYS` days (default 365; 0 keeps them).
 - **Diagnosis history capping** — keeps the newest `PIWI_RETENTION_DIAGNOSIS_VERSIONS` versions per AI diagnosis (default 20).
 - **Unlinked traces** — deletes traces no execution has used for a day.
@@ -14674,8 +14701,8 @@ That's deliberate: a loud failure you can restore from beats silent corruption.
 
 On the upgrade that adds project roles, a migration turns each Reporter account into a Member with the Maintainer role
 on the projects it could open, and each User account into a Member with the Viewer role, so nobody gains or loses a
-right (see [Upgrading from the three roles](./project-access#upgrading-from-the-three-roles)). A database from before
-project access existed gets the same roles on all projects, as that upgrade granted.
+right (see [Project access](./project-access#project-roles)). A database from before project access existed gets the
+same roles on all projects, as that upgrade granted.
 
 On the upgrade that makes email addresses unique ignoring case, a migration first looks for users whose addresses
 differ only by letter case (`Bob@corp.com` and `bob@corp.com`), such as a second account an OAuth sign-in created for
