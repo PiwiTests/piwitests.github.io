@@ -2637,6 +2637,14 @@ ALTER TABLE `api_keys` ADD `client_kind` text;
 ALTER TABLE `api_keys` ADD `permissions` text;
 ALTER TABLE `extension_device_codes` ADD `client_kind` text;
 
+ALTER TABLE `run_requests` ADD `run_id` integer;
+ALTER TABLE `run_requests` ADD `run_token_digest` text;
+ALTER TABLE `run_requests` ADD `run_token_expires_at` integer;
+CREATE INDEX `idx_run_requests_run` ON `run_requests` (`run_id`);
+CREATE INDEX `idx_run_requests_run_token` ON `run_requests` (`run_token_digest`);
+ALTER TABLE `test_runs` ADD `requester_id` integer REFERENCES users(id);
+CREATE INDEX `idx_test_runs_requester` ON `test_runs` (`requester_id`);
+
 BEGIN TRANSACTION;
 
 -- Tags
