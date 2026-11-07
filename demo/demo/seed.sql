@@ -2682,6 +2682,10 @@ INSERT INTO role_bindings (id, user_id, group_id, project_id, role, created_by, 
 INSERT INTO role_bindings (id, user_id, group_id, project_id, role, created_by, created_at) VALUES (5, 2, NULL, NULL, 'uploader', NULL, 1739145600000);
 INSERT INTO role_bindings (id, user_id, group_id, project_id, role, created_by, created_at) VALUES (6, 3, NULL, 1, 'viewer', NULL, 1739145600000);
 
+-- The desktop app the identity the demo opens as connected (Connected apps)
+INSERT INTO api_keys (id, user_id, name, key_hash, key_prefix, client_kind, permissions, created_at, last_used_at) VALUES (1, 1, 'Piwi Desktop on DEMO-LAPTOP (macOS)', 'demo-connected-app-000000000000000000000000000000000000000000000', 'demo0000', 'desktop', '["run:receive"]', 1745139600, 1745568000);
+INSERT INTO run_targets (id, user_id, api_key_id, kind, device_name, platform, version, project_ids, last_seen_at, created_at) VALUES (1, 1, 1, 'desktop', 'Piwi Desktop on DEMO-LAPTOP (macOS)', 'macos', '0.68.0', '[1]', 1745568000000, 1745139600000);
+
 -- Starred projects (of the identity the demo opens as)
 INSERT INTO project_stars (id, user_id, project_id, created_at) VALUES (1, 1, 5, 1739145600000);
 INSERT INTO project_stars (id, user_id, project_id, created_at) VALUES (2, 1, 2, 1739145600001);
@@ -10867,6 +10871,7 @@ UPDATE quarantined_tests SET created_at = created_at + (SELECT delta_sec FROM _r
 UPDATE failure_diagnoses SET created_at = created_at + (SELECT delta_sec FROM _rebase), updated_at = updated_at + (SELECT delta_sec FROM _rebase);
 UPDATE failure_diagnosis_versions SET created_at = created_at + (SELECT delta_sec FROM _rebase);
 UPDATE cluster_merge_suggestions SET created_at = created_at + (SELECT delta_sec FROM _rebase), updated_at = updated_at + (SELECT delta_sec FROM _rebase);
+UPDATE api_keys SET created_at = created_at + (SELECT delta_sec FROM _rebase), last_used_at = last_used_at + (SELECT delta_sec FROM _rebase);
 
 -- Millisecond timestamp columns
 UPDATE test_runs_cases SET started_at = started_at + (SELECT delta_sec FROM _rebase) * 1000, created_at = created_at + (SELECT delta_sec FROM _rebase) * 1000;
@@ -10875,6 +10880,7 @@ UPDATE groups SET created_at = created_at + (SELECT delta_sec FROM _rebase) * 10
 UPDATE group_members SET created_at = created_at + (SELECT delta_sec FROM _rebase) * 1000;
 UPDATE role_bindings SET created_at = created_at + (SELECT delta_sec FROM _rebase) * 1000;
 UPDATE project_stars SET created_at = created_at + (SELECT delta_sec FROM _rebase) * 1000;
+UPDATE run_targets SET created_at = created_at + (SELECT delta_sec FROM _rebase) * 1000, last_seen_at = last_seen_at + (SELECT delta_sec FROM _rebase) * 1000;
 UPDATE analytics_dashboards SET created_at = created_at + (SELECT delta_sec FROM _rebase) * 1000, updated_at = updated_at + (SELECT delta_sec FROM _rebase) * 1000, last_viewed_at = last_viewed_at + (SELECT delta_sec FROM _rebase) * 1000;
 UPDATE assistant_conversations SET created_at = created_at + (SELECT delta_sec FROM _rebase) * 1000, updated_at = updated_at + (SELECT delta_sec FROM _rebase) * 1000;
 UPDATE assistant_messages SET created_at = created_at + (SELECT delta_sec FROM _rebase) * 1000;
