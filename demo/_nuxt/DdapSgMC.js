@@ -1,0 +1,1 @@
+var e={tests:{min:1,max:200},repeatEach:{min:1,max:10},workers:{min:1,max:4},lifetimeMs:12e4,silentTargetMs:3e5,stopGraceMs:6e4},t=new Set([`declined`,`expired`,`refused`,`ended`]);export{e as n,t};

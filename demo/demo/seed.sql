@@ -2705,6 +2705,7 @@ INSERT INTO project_stars (id, user_id, project_id, created_at) VALUES (2, 1, 2,
 
 -- App settings (the `ai` key marks the demo provider as configured)
 INSERT INTO app_settings (key, value, updated_at) VALUES ('ai', '{"autoDiagnose":false,"roles":{"diagnosis":{"provider":"demo","model":"demo-simulated","baseUrl":null,"apiKey":null}}}', 1745139600);
+INSERT INTO app_settings (key, value, updated_at) VALUES ('capabilities', '{"decisions":{"machine-runs":"enabled"}}', 1745139600);
 
 -- Project-tag associations
 INSERT INTO project_tags (project_id, tag_id) VALUES (1, 1);
