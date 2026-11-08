@@ -1,0 +1,1 @@
+function e(e){if(!e)return null;try{let{protocol:t}=new URL(e);return t===`http:`||t===`https:`?e:null}catch{return null}}function t(e){return/^(?:https?:\/\/|mailto:|\/(?!\/)|#|\?)/i.test(e)}export{e as n,t};
