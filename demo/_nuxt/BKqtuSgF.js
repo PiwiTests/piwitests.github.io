@@ -1,0 +1,1 @@
+function e(e,t=`Unknown error`){if(e&&typeof e==`object`){let n=e;return n.data?.message??n.message??t}return t}function t(e,t=120){if(!e)return``;let n=e.replace(/\n/g,` · `);return n.length<=t?n:n.slice(0,t)+`…`}export{e as n,t};
