@@ -1281,7 +1281,7 @@ Unconfigured, the reporter records:
   [baselines](/guide/concepts#baseline-last-green-run) fall back to when the branch has no history of its own.
 - **CI**: provider, workflow or job name, build number, and a link back to the CI build.
 - **Origin**: [what launched it](/reference/test-metadata#run-origin).
-- **Environment**: the Playwright version, and each test's browser and viewport.
+- **Environment**: Playwright version, browser and viewport, [run environment](/features/run-environment).
 - **Shard index**: from Playwright's own `--shard` config.
 
 [Test metadata](/reference/test-metadata#scm-information-git) lists the variables each field comes from.
@@ -1855,6 +1855,7 @@ except in those response headers, or from the coverage endpoints of a coverage b
 | [Backend logs](#backend-logs) | The server's warnings and errors, next to the request that caused them | ✓ | ✓ |
 | [Server spans](#server-spans) | The server's time on a request, and the handler and dependencies it reached | | ✓ |
 | [Route manifest](#route-manifest) | The routes the server has, so the Test Map can name the ones no test reaches | ✓ | ✓ |
+| [Server environment](#server-environment) | The server process's runtime, time zone, locale and start time | ✓ | ✓ |
 | [Server probes](#server-probes) | A fault injected inside the server for one request (**Experimental**) | ✓ | ✓ |
 | [Server coverage](/features/server-coverage) | Backend files, functions and lines each test ran, from a coverage build | ✓ | ✓ |
 
@@ -2000,6 +2001,12 @@ such a path out of an OpenAPI document.
   every rule.
 - **Nitro** reads its route table at build time through the package's module
   (`modules: ['@piwitests/instrumentation-nitro/module']`, under `nitro` in Nuxt); without it, only matched routes.
+
+## Server environment
+
+Both packages serve `/__piwi/environment` under the same rule as the route manifest: the server process's runtime, OS,
+time zone, locale, start time and clock, so a failure that depends on them can be told from one in the code. No other
+environment variable, path or connection string. Never enable it on a public production server.
 
 ## Server probes
 
@@ -3635,7 +3642,7 @@ else on the cited tab, else on **Screen** when a screenshot or video exists, els
   ([Locator usage](./locator-usage#the-locators-tab)).
 - **Network**: the requests, API calls through Playwright's `request` fixture included, with inline
   [backend logs](/guide/backend-logs); one with no response shows the browser's error (`net::ERR_CONNECTION_RESET`). **Console**: the console output.
-  **State**: the app state at test end and the environment diff against the last green run. **Performance**:
+  **State**: the app state at test end and the [environment diff](./run-environment) against the last green run. **Performance**:
   performance hints and Web Vitals. **Output**: what the test wrote to stdout and stderr
   ([Test output](/reference/test-metadata#test-output)).
 
@@ -4314,6 +4321,71 @@ The [live demo](https://piwitests.dev/demo/) holds an incident run, and its run 
 - [Timeline markers](./timeline-markers): the `incident` category
 - [Concepts](/guide/concepts#environment-incident): the term
 
+<!-- https://piwitests.dev/features/run-environment -->
+
+# Run environment
+
+Piwi records where each run executed, so "it fails on CI but not on my machine" and "it broke when the runner image
+changed" become facts the dashboard shows. The reporter records three kinds of snapshot, each a closed list of fields:
+no environment variable is copied whole.
+
+| Snapshot | One per | Fields |
+|---|---|---|
+| **Runner** | shard | time zone, `TZ`, locale, `LANG` / `LC_ALL` / `LC_TIME`, OS and distribution, architecture, Node.js and ICU versions, CI runner image, container; host name, CPU and memory |
+| **Browser** | shard and project | browser version, time zone, locale, languages, how it formats a number and a date, color scheme and reduced motion, headless; screen and user agent |
+| **Server** | instrumented origin | runtime, OS, time zone, culture, globalization mode, environment name, app version; host name, process, start time, clock offset from the runner |
+
+The browser snapshot needs the [capture fixtures](/guide/capture-fixtures): it is read from the test's page before the
+test navigates. The server snapshot needs an [instrumentation package](/guide/backend-logs#server-environment). The
+last fields of each row (after the semicolon) change by nature between runs and are never shown as a possible cause.
+`collectEnvironmentInfo: false` in the reporter options, or `PIWI_COLLECT_ENVIRONMENT_INFO=false`, turns it all off.
+
+## Where it shows
+
+- **Run page**: the **Environment** line under the versions opens every snapshot, shard by shard. It warns when the
+  shards disagree (two runner images, two time zones), when a server restarted during the run, and when a server's
+  clock is more than 2 s off the runner's, enough to break token expiry and "created just now" checks.
+- **Changes tab**: the runner, browser and server fields that changed against the baseline run, grouped, with every
+  value of a field the shards disagree on.
+- **Test page**: the environment diff of the **State** tab, against the test's last pass. A browser time zone or
+  locale the page did not report is _inferred_ from the declared value, else the runner's, and labeled so.
+- **Trend charts**: an automatic marker on the run where the runner, a browser or a server changed, against the
+  previous run on the same branch and environment label.
+- **Flakiness tab**: the runner's time zone and locale become [flake suspects](/features/flake-lab) when the failures
+  share one and the passes another; the [Flake Lab](/features/flake-lab) runs the browser in it to confirm. The runner
+  image and the browser version are listed as context.
+- **MCP**: `get_run` returns the run's `environments`.
+
+A run from an older reporter, or with collection off, shows nothing: it was never recorded, and is never read as a
+change. Host names are left out of exports and share links.
+
+## Fails on CI, passes locally
+
+A CI runner usually runs in `UTC` with `en-US`, a laptop in its own time zone and language, and a browser takes both
+from the machine unless the config sets `use.timezoneId` and `use.locale`. To reproduce a CI failure locally, run with
+CI's values:
+
+::: code-group
+
+```bash [bash]
+TZ=UTC LANG=en_US.UTF-8 npx playwright test
+```
+
+```powershell [PowerShell]
+$env:TZ='UTC'; $env:LANG='en_US.UTF-8'; npx playwright test
+```
+
+:::
+
+Browsers on Windows may not follow `TZ`: set `use.timezoneId` in the Playwright config instead.
+
+## Related
+
+- [Failure evidence](./evidence): the State tab and the rest of a failure's evidence.
+- [Backend logs](/guide/backend-logs#server-environment): what a server under test answers.
+- [Flake Lab](./flake-lab): confirm a time zone or locale suspect by experiment.
+- [CI & sharding](/guide/ci): the run metadata the reporter collects.
+
 <!-- https://piwitests.dev/features/flaky-tests -->
 
 # Flaky tests & quarantine
@@ -4531,6 +4603,7 @@ Verdict: reproduced by delay GET /api/cart 1.8 s (3/4 against 0/10, p = 0.011)
 | A slow route | delay it to the failures' median duration | the fixtures hold each response until that long after the request started |
 | A failed route | fail it with the same status, or abort it | the fixtures answer with the status, or reset the connection |
 | Load | throttle the CPU ×4 | a DevTools session, so Chromium only |
+| A runner time zone or locale | run the browser in it | `timezoneId` or `locale` of each context the test opens |
 | Another test alongside | run both together | both tests on two workers; only rounds where they overlapped count |
 | The test just before | run that test first | both tests on one worker; only rounds where it ran just before count |
 | A browser | pin the Playwright project | `--project` |
