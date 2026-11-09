@@ -1,1 +1,0 @@
-import{H as e}from"./BfmlAjtM.js";function t(){let t=e();return String(t.public.desktop)===`true`}export{t};
