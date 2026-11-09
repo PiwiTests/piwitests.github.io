@@ -809,7 +809,7 @@ the union of every role they hold there, directly or through their groups. See
 
 The `@piwitests/reporter` package is a Playwright reporter that uploads test results, traces, attachments and reports
 to the dashboard while your tests run. [Getting started](./getting-started#fast-path-one-command) sets it up with one
-command, `npx @piwitests/reporter init`; this page is the manual setup and the switches that matter.
+command, `npx @piwitests/reporter init`; this page covers manual setup.
 
 ## Installation
 
@@ -817,12 +817,12 @@ command, `npx @piwitests/reporter init`; this page is the manual setup and the s
 npm install --save-dev @piwitests/reporter
 ```
 
-It needs `@playwright/test` 1.59 or later and Node.js 20 or later. A feature that needs a later Playwright names the
-version on its page, and what it does on an older one.
+It needs `@playwright/test` 1.59 or later and Node.js 20 or later. A feature needing a later Playwright names the
+version on its page.
 
 ### Try it without editing your config
 
-Playwright's `--add-reporter` (1.63 or later; an older Playwright refuses the option) appends this reporter to whatever your config already uses (unlike `--reporter`, which replaces them), so you can send one run to a dashboard with no config edit. Most reporter options have a `PIWI_*` [environment variable](/reference/reporter-options), so point it at your dashboard that way:
+Playwright's `--add-reporter` (1.63 or later; older versions refuse it) appends this reporter to your config's reporters (unlike `--reporter`, which replaces them), so one run can go to a dashboard without a config edit. Most reporter options have a `PIWI_*` [environment variable](/reference/reporter-options):
 
 ::: code-group
 
@@ -836,11 +836,11 @@ $env:PIWI_DASHBOARD_URL='http://localhost:3000'; $env:PIWI_API_KEY='your-api-key
 
 :::
 
-This is a trial path: you get results and your configured traces and screenshots, but not the [capture fixtures](#capture-fixtures) or [`wrapConfig`](#installing-via-wrapconfig)'s capture defaults. [`piwi run`](/reference/cli#select-run) makes the same append automatically when the config has no Piwi reporter.
+This is a trial path: you get results and your configured traces and screenshots, not the [capture fixtures](#capture-fixtures) or [`wrapConfig`](#installing-via-wrapconfig)'s capture defaults. [`piwi run`](/reference/cli#select-run) appends it the same way when the config has no Piwi reporter.
 
 ## Installing via wrapConfig
 
-`wrapConfig` wraps your whole Playwright config in one call: it injects the reporter, chains Piwi's [global setup](#global-setup-phase), and defaults the failure-evidence capture options. It is the recommended setup, and what `npx @piwitests/reporter init` and the dashboard's **Connect a suite** settings page write for you.
+`wrapConfig` wraps your whole config in one call: it injects the reporter, chains Piwi's [global setup](#global-setup-phase), and defaults the failure-evidence capture options. It is the recommended setup, written by `npx @piwitests/reporter init` and the dashboard's **Connect a suite** page.
 
 ```typescript
 import { defineConfig } from '@playwright/test'
@@ -858,17 +858,17 @@ export default wrapConfig(
 )
 ```
 
-The first argument is your Playwright config; the second is the [Piwi options](#configuration-options). An option set
-in the config wins over its `PIWI_*` variable, so the server URL reads `PIWI_DASHBOARD_URL` first, as `init` writes it:
-a CI job that sets the variable reports there. On top of injecting the reporter, `wrapConfig`:
+The first argument is your Playwright config; the second is the [Piwi options](#configuration-options). An option in
+the config wins over its `PIWI_*` variable, so the server URL reads `PIWI_DASHBOARD_URL` first, as `init` writes it: a
+CI job that sets the variable reports there. `wrapConfig` also:
 
-- Sets `screenshot: 'only-on-failure'` and `trace: 'retain-on-failure'` on the **top-level** `use` block when each is unset (a value you set, `'off'` included, and per-project `use` blocks are kept). They unlock the DOM snapshot, full call stack, full network with bodies and the visual diff **without** the capture fixtures. The trace records no ARIA snapshots, which slow each action on a large page: [`defaultCapture`](/reference/reporter-options#defaultcapture) gives their cost and how to record them. Opt out with `defaultCapture: false` (or `PIWI_DEFAULT_CAPTURE=false`); the reporter logs one line at the start of the run naming whatever it defaulted.
-- Forwards the CI-gate option `failOnFlakyTests` into Playwright's native config so a flaky-only run exits non-zero locally.
+- Sets `screenshot: 'only-on-failure'` and `trace: 'retain-on-failure'` on the **top-level** `use` block when unset (a value you set, `'off'` included, and per-project `use` blocks are kept). They unlock the DOM snapshot, full call stack, full network with bodies and the visual diff **without** the capture fixtures. The trace records no ARIA snapshots, which slow each action on a large page: [`defaultCapture`](/reference/reporter-options#defaultcapture) gives their cost and how to record them. Opt out with `defaultCapture: false` (or `PIWI_DEFAULT_CAPTURE=false`); the reporter logs one line at the start of the run naming what it defaulted.
+- Forwards `failOnFlakyTests` into Playwright's native config so a flaky-only run exits non-zero locally.
 - Forwards the `PIWI_*` variables into the global setup process, so registering the run uses the reporter's server and credentials.
 
 ## Basic configuration
 
-When a config cannot be wrapped, add the reporter entry yourself, and set the capture options `wrapConfig` would:
+When a config cannot be wrapped, add the reporter entry and the capture options `wrapConfig` would set:
 
 ```typescript
 import { defineConfig } from '@playwright/test'
@@ -889,10 +889,10 @@ export default defineConfig({
 })
 ```
 
-The `use` block is Playwright's: the reporter uploads what Playwright records, and what a test attaches with `testInfo.attach()`. Videos can be large, so pair `retain-on-failure` with [storage cleanup](/operate/storage#storage-management).
+The `use` block is Playwright's: the reporter uploads what Playwright records and what a test attaches with `testInfo.attach()`. Videos can be large: pair `retain-on-failure` with [storage cleanup](/operate/storage#storage-management).
 
 ::: tip You don't also need Playwright's `html` reporter
-The dashboard is complete without it: running it alongside only repeats end-of-run work (and opens a browser on a local failure). Keep it if you want the standalone report, and Piwi uploads it with the run (`uploadReport`).
+The dashboard is complete without it: running it alongside only repeats end-of-run work (and opens a browser on a local failure). Keep it for the standalone report, which Piwi uploads (`uploadReport`).
 :::
 
 <a id="performance-metrics-web-vitals"></a>
@@ -901,62 +901,67 @@ The dashboard is complete without it: running it alongside only repeats end-of-r
 
 The reporter works without test-code changes. The **capture fixtures** add network timing, Web Vitals, console
 capture, failure-time ARIA snapshots and the locator snapshots behind [locator healing](/features/locator-healing):
-[Capture fixtures](./capture-fixtures) covers the setup, what each fixture records and what it costs.
+[Capture fixtures](./capture-fixtures) covers setup, what each records and its cost.
 
 ## Configuration options
 
-Options go in the reporter's entry in `playwright.config.ts`, or in `wrapConfig`'s second argument. Most options can
-also be set with a `PIWI_*` environment variable, which fills in an option you left unset: an option in the config
-wins, except `PIWI_VERBOSE`, which overrides even an explicit `verbose` outside `wrapConfig`. `PIWI_DASHBOARD_URL`,
+Options go in the reporter's entry in `playwright.config.ts` or `wrapConfig`'s second argument. Most can also be
+set with a `PIWI_*` environment variable, which an option in the config overrides, except `PIWI_VERBOSE`, which
+overrides even an explicit `verbose` outside `wrapConfig`. `PIWI_DASHBOARD_URL`,
 `PIWI_API_KEY` and `PIWI_PROJECT_NAME` also come from the config folder's
 [`.env`](/reference/reporter-options#values-from-env), below the environment. [Reporter options](/reference/reporter-options)
-lists every option with its default and its variable, and [Test metadata](/reference/test-metadata) what the reporter
+lists every option with its default and variable, and [Test metadata](/reference/test-metadata) what the reporter
 records on its own, [errors outside the tests](/reference/test-metadata#errors-outside-the-tests),
 [what each test printed](/reference/test-metadata#test-output) and [hooks](/reference/test-metadata#hooks) included.
 
 ### Finding the desktop app automatically
 
 If nothing sets a server (no URL or API key in the config, the environment or that `.env`), the reporter
-uploads to the [desktop app](/features/desktop) running on the same machine, which publishes its loopback URL and
-access token to `~/.piwi/desktop.json` (`%USERPROFILE%\.piwi\desktop.json` on Windows) while it runs.
-`PIWI_DESKTOP_CONFIG` overrides the path. A CI job or a project pointed elsewhere is never redirected, unless it opts
-in below.
+uploads to the [desktop app](/features/desktop) on the same machine, which publishes its loopback URL and access token
+to `~/.piwi/desktop.json` (`%USERPROFILE%\.piwi\desktop.json` on Windows) while it runs. `PIWI_DESKTOP_CONFIG`
+overrides the path. A CI job or a project pointed elsewhere is never redirected unless it opts in below.
+
+The token goes only to a server that proves it holds it: before each request that carries it, the reporter
+sends a one-time challenge to `/api/health` and checks the answer's proof. With no proof, or the wrong one, no
+token is sent, nothing is uploaded and the reporter says so; an app before 0.56 gives none: update it.
+A run the app starts itself (a reproduction or flake lab) exports `PIWI_DESKTOP_KEY=1` beside `PIWI_API_KEY`, marking
+the key as the app's, as does a `PIWI_API_KEY` equal to the token in `desktop.json`, while that file exists, also after a crash (the app
+deletes it on a clean quit). Any other key is sent as before.
 
 ### Local runs to the desktop app, CI to a team server
 
 With `desktopApp: 'prefer'`, a run not on CI lands in the desktop app whenever it is running, even with `serverUrl`
-set, so developers' local runs stay out of a shared dashboard; CI runs, and local runs with the app closed, go to
-`serverUrl` with its credentials. URL and token always move together. A run is on CI when a CI
-provider's variable is set, or `CI` is anything but `false` or `0`. `'off'` never uses the app. `PIWI_DESKTOP_APP`
+set, so local runs stay out of a shared dashboard; CI runs, and local runs with the app closed, go to `serverUrl` with
+its credentials. URL and token always move together. A run is on CI when a CI provider's variable is set, or `CI` is
+anything but `false` or `0`. `'off'` never uses the app. `PIWI_DESKTOP_APP`
 overrides the option: `off` sends one local run to `serverUrl`. `init --desktop-app prefer` writes it.
 
 [Run on my machine](/features/run-on-my-machine#what-leaves-your-machine) runs report to the instance that asked.
 
 ## Sharding
 
-Playwright's `--shard` jobs are merged back into a single dashboard run automatically, as long as every shard uses the
-same `projectName`. `runLabel` is the manual override when your CI isn't detected. See
+Playwright's `--shard` jobs merge into one dashboard run when every shard uses the same
+`projectName`. `runLabel` is the manual override when your CI isn't detected. See
 [CI & sharding](./ci#sharding).
 
 ## Live streaming
 
-By default, the reporter streams results as tests complete: the run appears when the suite starts, each test's trace and
-attachments upload when it finishes (`liveFileUploads`), and the run's page shows the step each running test is on. When a test's final attempt fails, the reporter prints its headline and a link right away;
-at the end it prints `View run: <url>` (see [CI → Getting the run URL back out](./ci#getting-the-run-url-back-out-of-ci)).
-A server that does not support streaming gets the batch upload instead. `streamingBatchSize` and `streamingBatchDelay`
-set how often results are sent.
+The reporter streams results as tests complete: the run appears when the suite starts, each test's trace and
+attachments upload when it finishes (`liveFileUploads`), and the run's page shows each running test's step. A
+test's final failed attempt prints its headline and a link right away; at the end the reporter prints `View run: <url>`
+(see [CI → Getting the run URL back out](./ci#getting-the-run-url-back-out-of-ci)). A server without streaming support
+gets the batch upload instead. `streamingBatchSize` and `streamingBatchDelay` set how often results are sent.
 
 ### Disabling streaming
 
-`streaming: false` sends all results at the end of the run, then each test's files and each report in a request of
-their own.
+`streaming: false` sends all results at the end of the run, then each test's files and each report in their own request.
 
 ## Global setup phase
 
-By default a run appears on the dashboard when the first test starts. If your config has a `globalSetup` step
-(seeding a database, authenticating, building the app), register the run before it so the dashboard shows an
-**initializing** state during setup. `wrapConfig` does this for you; otherwise export `createGlobalSetup` from the
-file `globalSetup` points to (`globalSetup: './global-setup.ts'`); it reads its options from the reporter entry:
+A run appears on the dashboard when the first test starts. If your config has a `globalSetup` step
+(seeding, authenticating, building), register the run before it so the dashboard shows an **initializing** state during
+setup. `wrapConfig` does this for you; otherwise export `createGlobalSetup` from the `globalSetup` file
+(`globalSetup: './global-setup.ts'`); it reads its options from the reporter entry:
 
 ```typescript
 // global-setup.ts
@@ -967,9 +972,9 @@ export default createGlobalSetup({}, async (config) => {
 })
 ```
 
-Registration is best-effort: if the server is unreachable, the run is created when tests begin. Playwright's UI mode
-(`--ui`) skips registration, since it swaps the reporter out, and so does a run with `streaming: false`, which the
-dashboard receives in one batch at its end; your own setup still runs.
+Registration is best-effort: with the server unreachable, the run is created when tests begin. Playwright's UI mode
+(`--ui`) skips registration, since it swaps the reporter out, as does `streaming: false`, whose run the dashboard
+receives in one batch at its end; your own setup still runs.
 
 ## Multiple reports
 
@@ -996,14 +1001,14 @@ export default defineConfig({
 ```
 
 `html` (the html reporter's folder, `playwright-report/` by default) and `monocart` (`monocart-report/`) open in a new
-tab; `blob` (`blob-report/`) downloads as an archive. Any other type is accepted too, read from `dir` or else
-`<type>-report/`. Reports are uploaded compressed, and one over the dashboard's upload limit
+tab; `blob` (`blob-report/`) downloads as an archive. Any other type is accepted, read from `dir` or else
+`<type>-report/`. Reports upload compressed; one over the dashboard's upload limit
 ([`PIWI_IMPORT_MAX_BYTES`](/reference/configuration#ingest-limits), 500 MB by default) is left out alone.
 
 ## With authentication enabled
 
-When the dashboard has authentication enabled, pass an **API key**: create one ([API keys](/operate/api-keys);
-**Connect a suite** creates one in place), keep it in a CI secret (locally, in `.env`), and pass it as `PIWI_API_KEY` or the `apiKey` option.
+With authentication enabled, pass an **API key**: create one ([API keys](/operate/api-keys); **Connect a suite**
+creates one in place); keep it in a CI secret (locally, `.env`), and pass it as `PIWI_API_KEY` or the `apiKey` option.
 
 The key is sent as an `Authorization: Bearer` header. `username` and `password` (`PIWI_USERNAME`, `PIWI_PASSWORD`)
 work too (the reporter logs in once and reuses the session); prefer an API key in CI.
@@ -1013,20 +1018,20 @@ work too (the reporter logs in once and reuses the session); prefer an API key i
 **No traces or screenshots.** Playwright records neither by default. Set `trace` and `screenshot` in `use`, or install
 through [`wrapConfig`](#installing-via-wrapconfig).
 
-**No network, Web Vitals, console or locator data.** Every spec must import `test` from your fixtures file, not from
-`@playwright/test`, and `collectPerformanceMetrics` must not be `false`. See
+**No network, Web Vitals, console or locator data.** Every spec must import `test` from your fixtures file, not
+`@playwright/test`, and `collectPerformanceMetrics` must not be `false`; see
 [Capture fixtures → Troubleshooting](./capture-fixtures#troubleshooting).
 
 **Connection errors.** Check that `serverUrl` answers from where the tests run; `PIWI_VERBOSE=true` logs every
 request. A run the reporter could not deliver (dashboard down, no credential, a sign-in page answering in its place)
-is saved locally, owner-only, and sent to the same `serverUrl` on the project's next run, without traces or
+is saved locally, owner-only, and sent to the same `serverUrl` on the project's next run without traces or
 attachments; it never fails the Playwright run. A stream that cannot start while the dashboard is down or busy retries
 for the run's life, its events kept within
-[`maxStreamBufferBytes`](/reference/reporter-options#maxstreambufferbytes); one that starts late says how late. Live events the
+[`maxStreamBufferBytes`](/reference/reporter-options#maxstreambufferbytes); one starting late says how late. Live events the
 dashboard refuses, or has not taken two and a half minutes after they first failed, leave the live view so the later
-ones flow; when test results are among the events the dashboard never took, the run is sent again as a batch at its
-end. [`submitTimeout`](/reference/reporter-options#submittimeout) (15 minutes by default) bounds that end-of-run work,
-so an unresponsive dashboard does not hold the CI job.
+ones flow; if test results are among them, the run is sent again as a batch at its end.
+[`submitTimeout`](/reference/reporter-options#submittimeout) (15 minutes by default) bounds that end-of-run work, so an
+unresponsive dashboard cannot hold the CI job.
 
 ## Related
 
@@ -10737,7 +10742,7 @@ MCP; installed skills work offline. See [MCP server](/features/mcp#prompts).
 # Desktop app
 
 The desktop app runs the **entire dashboard on your machine**, with no Docker, no `npx` and no server to set up. It
-bundles the Docker image's server in a native window and adds what only a local app can do.
+bundles the Docker image's server in a native window and adds what only a local app can.
 
 ## What it does
 
@@ -10745,9 +10750,9 @@ bundles the Docker image's server in a native window and adds what only a local 
 - **Links a project to its checkout**, so a run page can re-run the failed tests here.
 - **Reproduces and bisects** a failure, or a flake, in a throwaway worktree, also for your editor.
 - **Imports** a blob report or trace dropped on the window.
-- **Connects AI assistants** to its MCP server by writing their config for them.
+- **Connects AI assistants** to its MCP server by writing their config.
 
-Everything binds to `127.0.0.1`, so nothing is exposed to the network.
+Everything binds to `127.0.0.1`.
 
 ## Where it is
 
@@ -10765,29 +10770,29 @@ Windows, **More info** then **Run anyway** in SmartScreen.
 Data lives in the app-data folder (`%APPDATA%\io.piwitests.dashboard\.data` on Windows,
 `~/Library/Application Support/io.piwitests.dashboard/.data` on macOS, `~/.local/share/io.piwitests.dashboard/.data`
 on Linux): `piwi.db` (SQLite) and `storage/`. **Settings → Storage → Data location** and the tray's **Open data
-folder** show it. Back up the parent folder while the app is closed; its `secret.key` decrypts stored AI keys and SCM
-tokens.
+folder** show it. Back up the parent folder while the app is closed: its `secret.key` decrypts stored AI keys and SCM tokens.
 
-Closing the window quits the app unless **Run in background** is on in the tray menu; **Start on login** launches
-it hidden into the tray. The windows open where you left them, and Cmd or Ctrl with +, - and 0 zoom the dashboard. On macOS the app menu
+Closing the window quits the app unless **Run in background** is on in the tray menu; **Start on login** launches it
+hidden in the tray. The windows open where you left them, and Cmd or Ctrl with +, - and 0 zoom the dashboard. On macOS the app menu
 holds Settings (⌘,), Import Playwright report (⌘O), Back and Forward (⌘[ and ⌘]) and the docs; Windows and Linux
-take the same keys with Ctrl. The tray lists the tests running from the app, each with Stop. While tests run from
-the app, the machine stays awake, and a failed run bounces the Dock icon or flashes the taskbar button while you look
-away, a bisect or a lab only at its verdict; one the window's tray does not list (a `piwi flake` from a terminal or an
-editor, a probe, another window's, or one from before a reload) never does. In the background, [notifications](/features/notifications#browser) arrive as OS notifications,
-with no setup, and an unread count on the dock icon or the tray tooltip.
+use Ctrl. The tray lists the tests running from the app, each with Stop, and the machine stays awake while they run.
+While you look away, a failed run bounces the Dock icon or flashes the taskbar button, a bisect or a lab only at its verdict; a run the tray does not list (a `piwi flake` from a terminal or an
+editor, a probe, another window's, or from before a reload) never does. In the background,
+[notifications](/features/notifications#browser) arrive as OS notifications with no setup, plus an unread count on the
+dock icon or tray tooltip.
 
 It listens on port 3000, or the one set in the `.exe` installer or in **Settings → Desktop app** (`serverPort` in
 `settings.json`), a free one when taken.
 
 ## Sending results to it
 
-While the app runs, the reporter finds it by itself: a config with only a `projectName` reports here. It reads the
+While the app runs, the reporter finds it itself: a config with only a `projectName` reports here. It reads the
 address and token the app writes to `~/.piwi/desktop.json` only when nothing else sets a server, so a CI job is never
-redirected ([details](/guide/reporter#finding-the-desktop-app-automatically)). A suite that reports to a shared dashboard sends
-its local runs here with
+redirected, and sends the token only to a server that proves it holds it
+([details](/guide/reporter#finding-the-desktop-app-automatically)). A suite reporting to a shared dashboard sends its
+local runs here with
 [`desktopApp: 'prefer'`](/guide/reporter#local-runs-to-the-desktop-app-ci-to-a-team-server), which the
-**Connect a suite** snippets carry once you turn on **CI reports to a team server**.
+**Connect a suite** snippets carry with **CI reports to a team server** on.
 
 <figure>
   <img src="/screenshots/setup-connect-desktop.png" alt="The connect wizard in the desktop app: the one init command with no server URL, the fixtures import and the test command, and the CI reports to a team server switch, off">
@@ -10795,33 +10800,32 @@ its local runs here with
 </figure>
 
 When the tests run as another user or in a container, **Settings → Desktop app** gives the
-address and the token to configure by hand. Keep the token in `PIWI_API_KEY`.
+address and token to configure by hand. Keep the token in `PIWI_API_KEY`.
 
-A dashboard link opened in your browser opens in the app, and its tab closes. A `piwi://open/<page>` link opens its
+A dashboard link opened in your browser opens in the app, closing its tab. A `piwi://open/<page>` link opens its
 page there, starting the app if needed (macOS: from Applications; Linux: after one run).
 
 ## Projects from local folders
 
-**Projects → New project → Choose folder…** creates a project from a checkout on this machine, named as it would report, and
-checks the setup (a Playwright config, Playwright, the reporter):
-`npx @piwitests/reporter init` in the folder fixes what is missing. The link to the folder
-stays on this machine, under **project page → Settings → Local folder**, with the same checks and **Change** and
-**Unlink**. Linking a folder offers to import the runs already in its `blob-report/` and `test-results/` folders;
+**Projects → New project → Choose folder…** creates a project from a checkout on this machine, named as it would
+report, and checks the setup (a Playwright config, Playwright, the reporter): `npx @piwitests/reporter init` in the
+folder fixes what is missing. The link stays on this machine, under **project page → Settings → Local folder**, with
+the same checks and **Change** and **Unlink**. Linking a folder offers to import the runs already in its `blob-report/` and `test-results/`;
 [Open in IDE](/features/ide-integration) resolves source links against it when no workspace root is set; and a clone
-of the repository serves its git history without an [SCM token](/guide/source-control#on-the-desktop-app).
+serves its git history without an [SCM token](/guide/source-control#on-the-desktop-app).
 
 ## Running tests from the app
 
-A run, an execution, a cluster or a test runs again here, with the folder's own Playwright, and its button says what:
+A run, an execution, a cluster or a test runs again here with the folder's own Playwright, and its button says what:
 **Re-run 3 failed tests**, **Re-run this test**, or **Run this test** (20 times, traced) on a test case.
 
-- **The arrow next to the button** shows the command, runs it once headed, in the inspector or UI mode, and sets its
+- **The arrow** shows the command, runs it once headed, in the inspector or UI mode, and sets its
   options: tests by `file:line`, title or file, a trace, `--repeat-each` without retries (up to 1,000 in **Run with
   options…**). The button names what differs from Playwright's defaults (**· headed · ×5**); set the project's in
   **Settings → Local folder**.
 - **On a run**, the arrow also re-runs its flaky tests or all of them, and the **Tests** tab a selection.
-- **Runs keep going while you browse**, in the **Local runs** tray, each under what it runs; its results come here,
-  with **Compare with run #N**. A [bug report](/features/bug-reports#running-it-with-playwright-in-the-desktop-app)
+- **Runs keep going while you browse**, in the **Local runs** tray, each under what it runs; results come here, with
+  **Compare with run #N**. A [bug report](/features/bug-reports#running-it-with-playwright-in-the-desktop-app)
   from Piwi Picker runs there too.
 - **Wrong folder?** With none of the tests in it, the button opens the link's dialog.
 - **Watch, pause and step** each worker from the tray, running or at a stop: [Desktop app
@@ -10829,44 +10833,45 @@ A run, an execution, a cluster or a test runs again here, with the folder's own 
 
 ### Reproducing a failure and finding the breaking commit
 
-The [reproduce and bisect](/features/fix-plans#reproduce-and-bisect) recipe of a fix plan can run here, against the
-linked folder, **without touching your checkout**:
+A fix plan's [reproduce and bisect](/features/fix-plans#reproduce-and-bisect) recipe can run here, against the linked
+folder, **without touching your checkout**:
 
 - **Reproduce here** checks out the failing commit in a throwaway
   [`git worktree`](https://git-scm.com/docs/git-worktree), installs its dependencies (reusing yours on an
   unchanged lockfile outside a workspace) and any missing browser, and runs the failing test with that commit's own
   Playwright.
-- **Find the breaking commit here** bisects between the last green commit and the failing one, with live
-  progress and a **Stop** that kills the test and what it started, resets the bisect and removes the worktree. The
-  first bad commit is linked to your SCM host and recorded on the failure cluster.
+- **Find the breaking commit here** bisects between the last green commit and the failing one, with live progress and
+  a **Stop** that kills the test and what it started, resets the bisect and removes the worktree. The first bad commit
+  is linked to your SCM host and recorded on the failure cluster.
 
 ### Jobs from your editor
 
-On a failure of a team instance, the [editor extensions](/features/editor-failures#ci-failures-in-the-problems-panel) offer
+On a team instance's failure, the [editor extensions](/features/editor-failures#ci-failures-in-the-problems-panel) offer
 **Reproduce in the desktop app** and **Find the breaking commit in the desktop app**; on a flaky test, or a failure
 whose test has an untested suspect, a [Flake Lab](/features/flake-lab#from-the-editor-and-the-failure-pages) run of
-the team instance's plan. The window shows the commits, tests or arms, and runs nothing until you start it. The editor
+the team instance's plan. The window shows the commits, tests or arms and runs nothing until you start it. The editor
 gets the verdict and can share it on the team instance with its own key, which the app never holds.
 
 ## Importing local files
 
 Drop a Playwright blob report or trace (`.zip`) on the window, or open one with **Open with → Piwi Dashboard**, and
-pick the project: it is imported as on the [import page](/guide/importing-runs), several traces forming one run. A
+pick the project: it imports as on the [import page](/guide/importing-runs), several traces forming one run. A
 [`.piwibug`](/reference/bug-report-file) becomes a [bug report](./bug-reports).
 
 ## Connecting AI assistants
 
-The app serves the [MCP server](/features/mcp) with local tools a hosted instance cannot offer:
+The app serves the [MCP server](/features/mcp) with local tools a hosted instance lacks:
 `import_local_report` (a local `.zip` into a project), `read_local_source` (the file on disk now),
 `apply_locator_fix` (a recommended locator fix applied to the file, previewed by default), and the
 [run tools](./desktop-runs#for-agents) for the runs it starts. It registers as `piwi-desktop`, beside a hosted Piwi.
 
-**Settings → MCP server** detects Claude Code, Claude Desktop, Cursor, Opencode, VS Code, Windsurf and Gemini CLI, and
-connects each in one click, writing a `piwi-desktop` entry with the address and token into its config.
-It keeps a backup and rewrites only that entry, again when the port changes. Claude Desktop, which takes only
-local commands, is pointed at the app's built-in bridge (`piwi-desktop mcp-stdio`), so no token is copied; the app must
-run. Restart the client after connecting. The page also installs the
-[agent skills](/features/agent-skills) into a linked folder.
+**Settings → MCP server** detects Claude Code, Claude Desktop, Cursor, Opencode, VS Code, Windsurf and Gemini CLI and
+connects each in one click, writing a `piwi-desktop` entry that runs the app's built-in bridge
+(`piwi-desktop mcp-stdio`). No address or token is copied; the bridge finds the app at start, so the app must run, and sends the token only
+to a server that proves it holds it. It writes only its own entry and keeps the first backup beside
+the config. A disk image (DMG), a translocated copy or a dev build writes nothing, for Connect, Disconnect and the
+startup repair alike; each client shows **Manual setup** with the reason. After a move, startup points that entry at the app again,
+as it does for an earlier version's address-and-token entry. One you edited shows **Needs update**; **Update** replaces it. Restart the client afterwards. The page also installs the [agent skills](/features/agent-skills) into a linked folder.
 
 ## Updates
 
@@ -10878,18 +10883,16 @@ signature-checked.
 
 - **One machine, one user.** The app accepts results only from this machine; a team needs the
   [Docker image](/operate/deployment).
-- **Local runs need the checkout**: a linked folder with Playwright installed, and `git` and your package manager for
+- **Local runs need the checkout**: a linked folder with Playwright installed, plus `git` and your package manager for
   reproduce, bisect (one repository) and the lab.
 - **No public address**: no [pull-request feedback](/features/pr-feedback), [auto-heal](/features/auto-heal),
   [share links](/features/share-links) or Jira webhook; email only with SMTP set.
 
 ## Related
 
-- [Reporter](/guide/reporter#finding-the-desktop-app-automatically): how the reporter finds the app
-- [MCP server](/features/mcp): the tools the assistants get
-- [Fix plans, reproduce & bisect](/features/fix-plans): the recipes the app runs
-- [Importing runs](/guide/importing-runs): the same import from the dashboard
-- [Desktop app runs](/features/desktop-runs): pause, step and watch the runs the app starts
+- [Reporter](/guide/reporter#finding-the-desktop-app-automatically): finding the app
+- [MCP server](/features/mcp): the assistants' tools
+- [Desktop app runs](/features/desktop-runs): pause, step and watch its runs
 
 <!-- https://piwitests.dev/features/desktop-runs -->
 
@@ -13013,6 +13016,14 @@ the variables your shell exports: the `.env` or Connect work either way.
 The desktop app needs no pairing with the editor: while it runs, it publishes its address and a local token in
 `~/.piwi/desktop.json`, which the editor reads, as the reporter does. The editor notices within seconds when the app
 starts or quits. With nothing else naming an instance, the editor uses the app as soon as it runs.
+
+The editor sends the app's token only to a server that proves it holds that token: before its first request that
+carries the token, the editor asks the address in `desktop.json` for the app's proof. A server that gives none, or the
+wrong one, gets no token, and the editor says the app's token was not sent. An app that does not answer is asked
+again on the next request, and so is an app after a request with the token failed to connect or was refused, or after
+the app restarts (a new process in `desktop.json`). The MCP server entries the editor offers for AI assistants (**Copy MCP Server
+Configuration** and the VS Code agent's server list) include the app's token only after the same proof; the
+assistant that receives the entry sends the token to the address itself.
 
 The app is looked for on the machine the extension runs on: in a remote window of VS Code (Remote SSH, WSL, Dev
 Containers), that is the remote machine, and `localhost` in `piwi.serverUrl` names it too.
@@ -15835,6 +15846,8 @@ npx @piwitests/reporter <command> [options]
 | [`bug`](#bug) | Write a bug report's failing test into the project and run it once |
 
 The commands that talk to a dashboard, all but `ai resolve`, find it in their flags first, then in the environment: `PIWI_DASHBOARD_URL` (dashboard URL), `PIWI_API_KEY` (API key) and `PIWI_PROJECT_NAME` (project), then in the project's `.env` (the one `init` writes), then in the running [desktop app](/features/desktop). `bug`, `codegen` and `preflight` read the `.env` of the Playwright config's folder (the nearest one within the repository), the working directory and the repository root, in that order: the URL comes from the first of them that names one, with that file's API key or none, and the project from the first that sets one. A key in a `.env` that names no URL is never sent to another file's URL. The other commands read the working directory's `.env`. An empty variable counts as unset. `PIWI_DESKTOP_APP` places the desktop app with the reporter's three modes: `off` never uses it, `prefer` uses it before the environment and the `.env` outside CI (a `--server-url` flag still wins), and `fallback`, the default, uses it only when no flag, variable or `.env` names a URL or an API key. The command line reads the mode from `PIWI_DESKTOP_APP` only, not from the `desktopApp` option of the Playwright config that `init --desktop-app` writes: set `PIWI_DESKTOP_APP=prefer` in the environment to get the same behavior from the commands. `ai resolve` reads `PIWI_DASHBOARD_URL` and `PIWI_API_KEY` from the environment only.
+
+The desktop app's token is held to a proof: the first request that carries it waits for the server at the address to prove it holds the token, and a command whose server does not stops with one line instead of sending it. A command the app starts marks the key it exports with `PIWI_DESKTOP_KEY=1`; a key you set yourself is sent as before.
 
 An API key goes only to the URL it came with: a key exported in the environment is never sent to a URL the `.env` names, and an `--api-key` flag is never sent to a URL that comes from a `.env` or the desktop app. The command then says so in one line on stderr; pass `--server-url` with the key to name the instance it is for.
 
