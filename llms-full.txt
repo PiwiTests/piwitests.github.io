@@ -13071,9 +13071,15 @@ Click a failure (double-click, Enter or **Next Occurrence** in a JetBrains IDE) 
 line.
 
 The title bar, or the toolbar, holds Refresh, **Re-run the failing tests** (every config's), **Open the run in the
-dashboard** (the run the status bar shows), **Compare with…** (for the active file's config) and the grouping. In VS
-Code, **Follow the active editor** selects the first failure of the file you switch to, and the badge counts the
-failing tests, as the tool window's title does. The tree is read again when a run ends or an edit moves a failure.
+dashboard** (the run the status bar shows; in a JetBrains IDE, the page of the selected failure or run), **Compare
+with…** (for the active file's config) and the grouping. In VS Code, **Follow the active editor** selects the first
+failure of the file you switch to, and the badge counts the failing tests, as the tool window's title does. The tree is
+read again when a run ends or an edit moves a failure.
+
+With no failure to list, the view says why, in both editors: no failure in the run read; no run yet, or none for the
+baseline chosen, with **Compare with…**; an instance that does not answer, naming it and why, with **Retry** (Piwi tries
+again on its own too); a desktop app to restart or update; an instance still being read; or no connection, with
+**Connect**. **Re-run the failing tests** stays while failures are listed, the instance answering or not.
 
 ## Compare with another run
 
@@ -13351,6 +13357,10 @@ the instance refuses still reads **Piwi: connect**, since only signing in again 
 When the desktop app answers but cannot prove it holds its token, which happens with a desktop app older than the
 editor or with another program on its port, the item reads **Piwi: restart the desktop app**: the editor does not
 send the app's token there. Restart or update the desktop app; the editor reads it again as soon as the app starts.
+
+The **Piwi** failures view says the same in both editors, naming the instance and why it does not answer, with
+**Retry**. When the editor service itself stops answering, VS Code's view offers **Piwi: Restart the editor service**,
+as does a **Piwi: Refresh** it did not answer.
 
 **Piwi: Open settings** in VS Code opens the extension's settings.
 
