@@ -492,14 +492,23 @@ counted from 1 in each shard; a worker Playwright starts again after a failure t
 to, at `page.pause()`, or at a failure held for a look. Each tool names it by why it stopped, in the same words
 (**Stopped at a breakpoint**, **Paused**, …).
 
+The test timeout stops while a test is paused at a breakpoint, and so does the paused call's own budget
+(`actionTimeout`, or `expect.timeout` for an assertion on that line). A wait the test started before the stop keeps its
+own deadline: `expect.poll`, `toPass`, or a `waitForRequest`, `waitForResponse` or `waitForEvent` around the paused call
+can run out while you look and fail the test: the pause bar then goes away, before Playwright's failure screenshot and
+the `afterEach` hooks. The test's duration leaves the time paused out, and every step keeps its clock time: the
+dashboard's timelines draw each stop as a **Paused** band, and its step statistics (slowest step, wasted time) leave it
+out.
+
 ### Hold failures
 
 **Whether a failed test waits at its line for an answer, in one run.** It is the run's own: on from the start of a run
-started with breakpoints, a debug run or a reproduction, off otherwise, and any tool that follows the run turns it on
-or off, the editors, Piwi Picker's Runs window, the desktop app, or an agent (`run_follow`). Off, a failure goes on at
-once, as without Piwi. A run nobody attends never holds one: a Flake Lab run, a bisect, a lab job, a run with
-`--repeat-each` above 1 and UI mode go on past each failure. Each tool shows it as the last one set it: the desktop
-app's switch turns it off as the app's last window closes only when no other tool set it since.
+started with breakpoints, a debug run or a reproduction, off otherwise, unless an editor window chose
+it for every run it starts ([How a run starts](/features/editor-runs#how-a-run-starts)); and any tool that follows the
+run turns it on or off, the editors, Piwi Picker's Runs window, the desktop app, or an agent (`run_follow`). Off, a
+failure goes on at once, as without Piwi. A run nobody attends never holds one: a Flake Lab run, a bisect, a lab job,
+a run with `--repeat-each` above 1 and UI mode go on past each failure. Each tool shows it as the last one set it: the
+desktop app's switch turns it off as the app's last window closes only when no other tool set it since.
 
 ### Presence, driving a stop
 
@@ -517,6 +526,15 @@ tools that watch that page (an editor's view, the desktop app's window, Piwi Pic
 instance while the run is shared live; nothing on your machine keeps them. **Share live** lets a teammate watch a run on
 your machine from its page on the team instance ([Share a run live](/features/share-live)); a CI run is watched without
 being shared ([Live view of a run](/features/live-view)).
+
+### Verification
+
+**A test run several times without retries and without the breakpoints, to see how often it passes** (**Verify ×3**
+in the editors, `--repeat-each=3 --retries=0`). It says how many of its runs passed (`Passed 3 of 3`, `Failed 1 of 3`).
+Each run is a result of its own on the instance, and the editor counts them from the results the run streams as it
+executes; when it missed some, a failing verification says `Failed at least 1 of 3`. When its run never reached an
+instance, the exit code says it, which cannot tell a pass from a skip: `None of 3 runs failed: tests/checkout.spec.ts:42`,
+or `Failed at least 1 of 3: tests/checkout.spec.ts:42 (exit code 1)`. It never holds a failure.
 
 ## Failures
 
@@ -9587,9 +9605,8 @@ second of its end.
   not know yet, such as one you just [recorded](./editor-recording#run-it-or-verify-it-three-times), runs by the line of
   its `test(…)` call (`npx playwright test tests/checkout.spec.ts:42`), with or without an instance. Both save the spec
   first.
-- **Piwi: Verify the test at the cursor ×3** (**Verify the Test at the Caret ×3**) runs that test three times, without
-  retries and without the breakpoints (`--repeat-each=3 --retries=0`), and says how many of the runs passed:
-  [When your run ends](#when-your-run-ends).
+- **Piwi: Verify the test at the cursor ×3** (**Verify the Test at the Caret ×3**) runs that test three times as a
+  [verification](/guide/concepts#verification) ([When your run ends](#when-your-run-ends)).
 - **Piwi: Run the tests that reach this file** runs every test reaching the active file through
   [code reach](/features/code-reach); also in the editor's **Piwi** submenu.
 - **Piwi: Run selection…** runs a saved [selection](/features/test-selection).
@@ -9602,6 +9619,15 @@ Rerun and Debug too. It sets `PIWI_ORIGIN=editor` and its own `PIWI_ORIGIN_REF`
 ([run origin](/reference/test-metadata#run-origin)), by which the editor finds its run. Breakpoints pause it in the
 browser, with Piwi's picker one click away: [Breakpoints in the browser](./editor-breakpoints); the editor pauses,
 steps and resumes it too: [Pause and step from the editor](./editor-run-control).
+
+## How a run starts
+
+Two choices apply to every test run you start: **Run headed** (`--headed`, a verification included) and
+[**Hold failures**](/guide/concepts#hold-failures) **Auto**, **On** or **Off** from the run's start. Auto lets Piwi
+decide: on, and headed, with your breakpoints or a `page.pause()`. In VS Code,
+**Piwi: Run options…** sets them (`piwi.runHeaded`, `piwi.runHoldFailures`), shown in the status bar's tooltip;
+in a JetBrains IDE, **Tools → Piwi → Run Headed** and **Hold Failures from Each Run's Start…**. A
+[debug run](./debug-in-editor), a Flake Lab line and a fix plan's check leave them out.
 
 ## The Testing view (VS Code)
 
@@ -9652,12 +9678,8 @@ checkout.spec.ts › pays)`, then the tests it failed that were not failing befo
 **Open in dashboard** and, when something fails, **Re-run failing**. The `piwi.runNotifications` setting (**Settings →
 Tools → Piwi** in a JetBrains IDE) shows it always, only when something fails, or never.
 
-A verification (**Verify ×3**) says how many of its runs passed instead, whatever the setting: `Piwi: run #124 ·
-Passed 3 of 3`, or `Failed 1 of 3`. Each run is a result of its own on the instance, and the editor counts them from
-the results the run streams as it executes; when it missed some, a failing verification says `Failed at least 1 of 3`.
-When its run never reached an instance, the exit code says it, which cannot tell a pass from a skip:
-`None of 3 runs failed: tests/checkout.spec.ts:42`, or
-`Failed at least 1 of 3: tests/checkout.spec.ts:42 (exit code 1)`.
+A [verification](/guide/concepts#verification) (**Verify ×3**) says how many of its runs passed instead, whatever the
+setting: `Piwi: run #124 · Passed 3 of 3`, or `Failed 1 of 3`.
 
 ## The status bar
 
@@ -9959,7 +9981,7 @@ or pick a better locator, which lands back on that line in the editor. The stop 
 
 ## Pause a run
 
-1. Set a line breakpoint on a line with a Playwright call, in a spec or a page object:
+1. Set a line breakpoint on a line with a Playwright call, in a spec, a page object or a fixture:
    `await page.getByText('Pay now').click();`, `await page.goto('/checkout');`, `await page.keyboard.press('Tab');`
    or `await expect(page).toHaveURL(/cart/);`. On a statement broken over lines, any of its lines will do.
 2. Run the test from Piwi: **Run this test**, or any command of [Runs from the editor](./editor-runs#run-tests).
@@ -9982,12 +10004,8 @@ or pick a better locator, which lands back on that line in the editor. The stop 
 </figure>
 
 The page under the bar stays live: scroll it, open the browser's developer tools, or click through it before you
-resume. The test timeout stops while the test is paused, and so does the paused call's own budget (`actionTimeout`, or
-`expect.timeout` for an assertion on that line). A wait the test started before the stop keeps its own deadline:
-`expect.poll`, `toPass`, or a `waitForRequest`, `waitForResponse` or `waitForEvent` around the paused call can run out
-while you look and fail the test: the bar then goes away, before Playwright's failure screenshot and the `afterEach`
-hooks. The test's duration leaves the time paused out, and every step keeps its clock time: the dashboard's timelines
-draw each stop as a **Paused** band, and its step statistics (slowest step, wasted time) leave it out.
+resume. The test timeout stops while the test is paused; [a stop](/guide/concepts#stop) says which waits keep their
+deadline, and how the dashboard counts the time paused.
 
 ## Where the pick lands
 
@@ -10375,7 +10393,8 @@ counted, and a line without a locator says nothing.
 In a run Piwi started, a failing test holds its page once the test function, its hooks and its fixtures are done,
 instead of closing it, when someone can see it: in a headed browser, where the pause bar shows the failure (a run
 started with breakpoints, or for a spec with `page.pause()`, is headed, and its
-[**Hold failures**](/guide/concepts#hold-failures) is on from its start), or while you turn the run's Hold failures on,
+[**Hold failures**](/guide/concepts#hold-failures) is on from its start, unless
+[your run options](./editor-runs#how-a-run-starts) choose otherwise), or while you turn the run's Hold failures on,
 from the editor (**Piwi: Hold failures: turn on or off for the run**, **Tools → Piwi → Turn Hold Failures On or Off**)
 or Piwi Picker's [Runs window](./runs-window). The editor shows it as a stop of its own, at the
 line where the error entered the test's code, or at the call a test timeout cut short:
