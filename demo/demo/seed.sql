@@ -2660,6 +2660,41 @@ CREATE UNIQUE INDEX `idx_test_run_environment_snapshots_run_kind_scope` ON `test
 
 ALTER TABLE `projects` ADD `tag_keys` text;
 
+CREATE TABLE `run_plans` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`project_id` integer NOT NULL,
+	`selection_key` text NOT NULL,
+	`commit` text,
+	`branch` text,
+	`plan` text NOT NULL,
+	`created_by` integer,
+	`created_at` integer NOT NULL,
+	`expires_at` integer NOT NULL,
+	FOREIGN KEY (`project_id`) REFERENCES `projects`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`created_by`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE set null
+);
+
+CREATE INDEX `idx_run_plans_project_expires` ON `run_plans` (`project_id`,`expires_at`);
+CREATE INDEX `idx_run_plans_created_by` ON `run_plans` (`created_by`);
+
+CREATE TABLE `reused_results` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`run_id` integer NOT NULL,
+	`test_case_id` integer NOT NULL,
+	`projects` text NOT NULL,
+	`source_run_id` integer,
+	`source_execution_ids` text NOT NULL,
+	`source_commit` text NOT NULL,
+	`plan_id` integer NOT NULL,
+	`created_at` integer NOT NULL,
+	FOREIGN KEY (`run_id`) REFERENCES `test_runs`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`test_case_id`) REFERENCES `test_cases`(`id`) ON UPDATE no action ON DELETE cascade
+);
+
+CREATE UNIQUE INDEX `idx_reused_results_run_case` ON `reused_results` (`run_id`,`test_case_id`);
+CREATE INDEX `idx_reused_results_test_case` ON `reused_results` (`test_case_id`);
+ALTER TABLE `test_runs` ADD `reused_count` integer DEFAULT 0 NOT NULL;
+
 BEGIN TRANSACTION;
 
 -- Tags
@@ -2887,6 +2922,7 @@ INSERT INTO test_runs (id, project_id, status, start_time, duration, total_tests
 INSERT INTO test_runs (id, project_id, status, start_time, duration, total_tests, passed_tests, failed_tests, skipped_tests, did_not_run_tests, flaky_tests, avg_test_duration, p90_test_duration, environment, branch, label, metadata, origin, commit_sha, stream_token, instance_id, playwright_version, reporter_version, is_full_run, filter_details, kept_at, kept_by, keep_source, keep_reason, created_at, updated_at) VALUES (72, 5, 'passed', 1745269966, 227857, 10, 10, 0, 0, 0, 0, 5111, 11083, 'integration', 'main', NULL, '{"ci":{"provider":"GitHub Actions","buildNumber":"1190","jobName":"test","workflow":"CI","buildUrl":"https://github.com/example/admin-dashboard/actions/runs/5590"},"scm":{"commit":"d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708","branch":"main","author":"Carol White","commitMessage":"feat: add CSV export to monthly reports"},"htmlReport":{"projects":[{"name":"Chromium","use":{"browserName":"chromium","viewport":{"width":1440,"height":900}}}]}}', 'ci', 'd5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708', NULL, NULL, '1.51.0', '0.7.0', 1, NULL, NULL, NULL, NULL, NULL, 1745269966, 1745270193);
 INSERT INTO test_runs (id, project_id, status, start_time, duration, total_tests, passed_tests, failed_tests, skipped_tests, did_not_run_tests, flaky_tests, avg_test_duration, p90_test_duration, environment, branch, label, metadata, origin, commit_sha, stream_token, instance_id, playwright_version, reporter_version, is_full_run, filter_details, kept_at, kept_by, keep_source, keep_reason, created_at, updated_at) VALUES (73, 5, 'passed', 1745234658, 223294, 10, 10, 0, 0, 0, 1, 5546, 11274, 'development', 'main', NULL, '{"ci":{"provider":"GitHub Actions","buildNumber":"1189","jobName":"test","workflow":"CI","buildUrl":"https://github.com/example/admin-dashboard/actions/runs/5589"},"scm":{"commit":"d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708","branch":"main","author":"Carol White","commitMessage":"feat: add CSV export to monthly reports"},"htmlReport":{"projects":[{"name":"Chromium","use":{"browserName":"chromium","viewport":{"width":1440,"height":900}}}]}}', 'ci', 'd5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708', NULL, NULL, '1.51.0', '0.7.0', 1, NULL, NULL, NULL, NULL, NULL, 1745234658, 1745234881);
 INSERT INTO test_runs (id, project_id, status, start_time, duration, total_tests, passed_tests, failed_tests, skipped_tests, did_not_run_tests, flaky_tests, avg_test_duration, p90_test_duration, environment, branch, label, metadata, origin, commit_sha, stream_token, instance_id, playwright_version, reporter_version, is_full_run, filter_details, kept_at, kept_by, keep_source, keep_reason, created_at, updated_at) VALUES (74, 1, 'failed', 1745564400, 18860, 1, 0, 1, 0, 0, 0, 6860, 6860, 'development', 'fix/cart-total', NULL, '{"piwiOrigin":{"kind":"editor"},"scm":{"commit":"a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4","branch":"fix/cart-total","author":"Alice Chen","commitMessage":"feat: add new payment provider integration"},"htmlReport":{"projects":[{"name":"Chromium","use":{"browserName":"chromium","viewport":{"width":1280,"height":720}}}]}}', 'editor', 'a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4', NULL, NULL, '1.64.1', '0.59.0', 0, '{"files":["tests/checkout/cart.spec.ts:33"]}', NULL, NULL, NULL, NULL, 1745564400, 1745564419);
+INSERT INTO test_runs (id, project_id, status, start_time, duration, total_tests, passed_tests, failed_tests, skipped_tests, did_not_run_tests, flaky_tests, avg_test_duration, p90_test_duration, environment, branch, label, metadata, origin, commit_sha, stream_token, instance_id, playwright_version, reporter_version, is_full_run, filter_details, kept_at, kept_by, keep_source, keep_reason, created_at, updated_at, reused_count) VALUES (75, 5, 'passed', 1745566200, 9000, 0, 0, 0, 0, 0, 0, NULL, NULL, 'production', 'feature/pass-reuse', 'Plan: full, every test reused', '{"ci":{"provider":"GitHub Actions","buildNumber":"1200-plan","jobName":"test","workflow":"CI"},"scm":{"commit":"9a8b7c6d5e4f30211203f4e5d6c7b8a99a8b7c6d","branch":"feature/pass-reuse","author":"Alice Chen","commitMessage":"style: dark theme pass over secondary actions"},"htmlReport":{"projects":[]},"piwiPlan":{"id":1}}', 'ci', '9a8b7c6d5e4f30211203f4e5d6c7b8a99a8b7c6d', NULL, NULL, '1.52.0', '0.7.0', 0, NULL, NULL, NULL, NULL, NULL, 1745566200, 1745566209, 10);
 
 -- Release markers linked to a run (they keep that run forever)
 INSERT INTO markers (id, project_id, occurred_at, label, description, category, environment, source, run_id, created_at, updated_at) VALUES (4, 1, 1745569800, 'v2.4.0', 'Tagged and shipped from this run.', 'release', NULL, 'manual', 1, 1745569800, 1745569800);
@@ -6822,6 +6858,18 @@ Call log:
   - spinbutton "Quantity": "2"
   - status: $54.98
   - button "Checkout"', NULL, NULL, 0, 1745564400000, NULL, NULL, 1745564400000, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 1, 0, 0);
+
+-- Reused results of a pass reuse plan (reference test_runs and test_cases)
+INSERT INTO reused_results (id, run_id, test_case_id, projects, source_run_id, source_execution_ids, source_commit, plan_id, created_at) VALUES (1, 75, 44, '["Chromium"]', 63, '[709]', '9a8b7c6d5e4f30211203f4e5d6c7b8a99a8b7c6d', 1, 1745566200);
+INSERT INTO reused_results (id, run_id, test_case_id, projects, source_run_id, source_execution_ids, source_commit, plan_id, created_at) VALUES (2, 75, 45, '["Chromium"]', 63, '[710]', '9a8b7c6d5e4f30211203f4e5d6c7b8a99a8b7c6d', 1, 1745566200);
+INSERT INTO reused_results (id, run_id, test_case_id, projects, source_run_id, source_execution_ids, source_commit, plan_id, created_at) VALUES (3, 75, 46, '["Chromium"]', 71, '[791]', 'd5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708', 1, 1745566200);
+INSERT INTO reused_results (id, run_id, test_case_id, projects, source_run_id, source_execution_ids, source_commit, plan_id, created_at) VALUES (4, 75, 47, '["Chromium"]', 63, '[712]', '9a8b7c6d5e4f30211203f4e5d6c7b8a99a8b7c6d', 1, 1745566200);
+INSERT INTO reused_results (id, run_id, test_case_id, projects, source_run_id, source_execution_ids, source_commit, plan_id, created_at) VALUES (5, 75, 48, '["Chromium"]', 63, '[713]', '9a8b7c6d5e4f30211203f4e5d6c7b8a99a8b7c6d', 1, 1745566200);
+INSERT INTO reused_results (id, run_id, test_case_id, projects, source_run_id, source_execution_ids, source_commit, plan_id, created_at) VALUES (6, 75, 49, '["Chromium"]', 63, '[714]', '9a8b7c6d5e4f30211203f4e5d6c7b8a99a8b7c6d', 1, 1745566200);
+INSERT INTO reused_results (id, run_id, test_case_id, projects, source_run_id, source_execution_ids, source_commit, plan_id, created_at) VALUES (7, 75, 50, '["Firefox"]', 64, '[725]', '9a8b7c6d5e4f30211203f4e5d6c7b8a99a8b7c6d', 1, 1745566200);
+INSERT INTO reused_results (id, run_id, test_case_id, projects, source_run_id, source_execution_ids, source_commit, plan_id, created_at) VALUES (8, 75, 51, '["Chromium"]', 63, '[716]', '9a8b7c6d5e4f30211203f4e5d6c7b8a99a8b7c6d', 1, 1745566200);
+INSERT INTO reused_results (id, run_id, test_case_id, projects, source_run_id, source_execution_ids, source_commit, plan_id, created_at) VALUES (9, 75, 52, '["Chromium"]', 63, '[717]', '9a8b7c6d5e4f30211203f4e5d6c7b8a99a8b7c6d', 1, 1745566200);
+INSERT INTO reused_results (id, run_id, test_case_id, projects, source_run_id, source_execution_ids, source_commit, plan_id, created_at) VALUES (10, 75, 53, '["Chromium"]', 63, '[718]', '9a8b7c6d5e4f30211203f4e5d6c7b8a99a8b7c6d', 1, 1745566200);
 
 -- Files (screenshot/trace/video attachments — reference test_runs_cases, so must come after)
 INSERT INTO files (id, test_runs_case_id, test_run_id, type, subtype, label, path, size, created_at) VALUES (16, 37, 4, 'attachment', 'screenshot', 'image/png', 'demo/screenshots/checkout-error-banner.png', 20887, 1745474572);
@@ -11058,6 +11106,7 @@ UPDATE bug_reproductions SET created_at = created_at + (SELECT delta_sec FROM _r
 UPDATE users SET created_at = created_at + (SELECT delta_sec FROM _rebase), updated_at = updated_at + (SELECT delta_sec FROM _rebase);
 UPDATE app_settings SET updated_at = updated_at + (SELECT delta_sec FROM _rebase);
 UPDATE test_selections SET created_at = created_at + (SELECT delta_sec FROM _rebase), updated_at = updated_at + (SELECT delta_sec FROM _rebase);
+UPDATE reused_results SET created_at = created_at + (SELECT delta_sec FROM _rebase);
 UPDATE test_suites SET created_at = created_at + (SELECT delta_sec FROM _rebase), updated_at = updated_at + (SELECT delta_sec FROM _rebase);
 UPDATE test_cases SET created_at = created_at + (SELECT delta_sec FROM _rebase), updated_at = updated_at + (SELECT delta_sec FROM _rebase);
 UPDATE test_runs SET start_time = start_time + (SELECT delta_sec FROM _rebase), created_at = created_at + (SELECT delta_sec FROM _rebase), updated_at = updated_at + (SELECT delta_sec FROM _rebase), kept_at = kept_at + (SELECT delta_sec FROM _rebase);

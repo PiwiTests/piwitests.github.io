@@ -1,1 +1,0 @@
-import{ft as e}from"./DVRkMeDb.js";import{r as t}from"./BaljTvXR.js";var n=new Set;function r(t){n.add(t),e(()=>n.delete(t))}async function i(){n.size===0?await t():await Promise.all([...[...n].map(e=>e()),t(`capabilities-instance`)])}export{r as n,i as t};
