@@ -466,6 +466,38 @@ That derived owner is used in [pull-request comments](/features/pr-feedback), on
 A public repository's CODEOWNERS is read without a token; a private one needs an
 [SCM token](./source-control), and without it ownership falls back to annotations alone.
 
+## Live runs
+
+The words every tool uses for a run while it goes ([Watch a run](/features/watch-a-run)).
+
+### Run number
+
+**A run's id on the instance it reports to, `#78`, and its page there.** The reporter learns it as the run starts and
+tells it to the editor or the desktop app that follows the run, so every tool links the same page.
+
+### Run name
+
+**The name a run carries before it has a number** (`piwiRunRef` in its metadata): the one its launcher gave it, an
+editor's ref, a run request's id, else `local-<pid>-<time>` for a run outside CI. A CI run has none: its number names
+it. See [Test metadata](/reference/test-metadata#run-origin).
+
+### Worker
+
+**One of the run's Playwright processes, named by its lane, `Worker 2`.** A lane is Playwright's `parallelIndex`,
+counted from 1 in each shard; a worker Playwright starts again after a failure takes the same lane.
+
+### Stop
+
+**A test standing at a call, waiting to be answered:** at a breakpoint, after a step, at a Pause, at the line it was run
+to, at `page.pause()`, or at a failure held for a look. Each tool names it by why it stopped, in the same words
+(**Stopped at a breakpoint**, **Paused**, …).
+
+### Watch, Share live
+
+**Watch** shows a worker's page as its test runs or stands stopped. **Share live** lets a teammate watch a run on your
+machine from its page on the team instance ([Share a run live](/features/share-live)); a CI run is watched without
+being shared ([Live view of a run](/features/live-view)).
+
 ## Failures
 
 ### Error fingerprint & failure cluster
@@ -3780,6 +3812,96 @@ A flaky test adds a **Flakiness** tab with its [suspects](./flaky-tests#suspects
 - [Capture fixtures](/guide/capture-fixtures): the one file that produces the network, console, Web Vitals and locator evidence
 - [AI diagnosis](./ai-diagnosis): an explanation of the failure against your git diff
 - [Offline export](./offline-export): take the investigation out of the dashboard as one file
+
+<!-- https://piwitests.dev/features/watch-a-run -->
+
+# Watch a run
+
+A run that reports to a Piwi instance has one number there, `#78`, and one page. Every tool that shows the run while it
+goes names it by that number, links that page, and says how far the run is and where a test stopped in the same words,
+so a run started in VS Code reads the same in the terminal, in Piwi Picker's Runs window and on the dashboard.
+
+## The run's number and page
+
+The reporter learns the run's number as the run starts: from the global setup that registered it, else as its stream
+to the instance opens. It prints the page once, and tells it to the editor or the desktop app that follows the run.
+The page is under the instance's public address when the instance sets `PIWI_SITE_URL`, else under the address the
+reporter reached it at. A tool links it only on this machine or under an instance it connects to itself: in an editor,
+the instance of a Playwright config of the window; in the desktop app, the team instance whose run requests it takes. A
+page elsewhere, which the test's own code could name, is not shown, and the run reads as one with no number.
+
+| Where | What it shows |
+|---|---|
+| The terminal | `[Piwi Dashboard] View live progress: https://piwi.example.com/test-runs/78`, once, as the run starts |
+| VS Code | The run-control item: `#78 · 3 of 9`, its tooltip **Open run #78**; the status bar item, while your run goes: **Open run #78 (running)** first in its tooltip; **Piwi: Open the run page** and **Piwi: Open the run in progress** in the Command Palette |
+| JetBrains IDEs | The status bar item: `Piwi: run #78 · 3 of 9`, kept beside a stop or a share; **Open Run #78** in its menu; **Open Run #78 (Running)** in place of **Open the Latest Run in the Dashboard** while it goes |
+| Piwi Picker's [Runs window](./runs-window) | **Run #78**, **Open** and **Copy link** on the run's card, while it runs and after it ended, with its progress and how it ended |
+| The desktop app's [Local runs tray](./desktop-runs) | **Run #78 · Open** under each run of its hub, a run a team instance asked for included, whose page opens in the browser; **Open run #78** on a run the app's own server holds |
+| **Debug in my editor** | Once the editor runs the test: "Following run #81 in VS Code · Open" beside the button |
+
+A run that reports to no instance, or that runs with `streaming: false` and no global setup, has no number until its
+results are sent, and the tools show it without one.
+
+## How far it is
+
+The reporter's own process tells the editor or the desktop app how many tests the run holds, how many ended and how,
+and how the run ended with its first failure. The editors' status bars and the Runs window count it the same way: each
+test once, by its last attempt. The desktop tray counts the lines of the run's output instead, a retry again.
+
+In VS Code, a run in progress that is not yours, a CI run or a teammate's on your branch or on the branch your results
+are compared with, names itself so: the status bar says `CI run #125` or `run #126`, and the Testing view shows it as
+`Piwi: CI run #125 on main`, its tests' results as they end, never as your tests running. Your own run stays in the status bar whichever Playwright config the
+active file belongs to.
+
+## Where a test stopped
+
+A test of a run on your machine stops at a breakpoint, after a step, at a Pause, at the line it was run to, or at
+`page.pause()`. Every tool says why in the same words:
+
+- **Stopped at a breakpoint**
+- **Stopped after a step**
+- **Paused**
+- **Stopped at the line it ran to**
+- **Stopped at page.pause()**
+- **Stopped**, for a reason a newer reporter names
+
+A stop an agent asked for reads **Paused by the agent** in the editors. A failure held for a look says how the test
+failed instead. The run page shows the stop on the test's row ([stops, shared or not](./share-live#stops-shared-or-not)),
+the editors above the stopped line, the Runs window on the worker, and the terminal on a line of its own:
+
+```text
+[piwi] Stopped at a breakpoint at tests/cart.spec.ts:12 before Click: Resume, Step or Finish in Visual Studio Code.
+```
+
+The line names the editor that steers the run, or the desktop app. After you edit the file at a stop, the Runs window
+names the stopped line where it stands now, as the editor does.
+
+## The terminal's lines
+
+A run prints one line for its page, and one when it follows an editor
+([runs started outside Piwi](./terminal-runs)). A run whose output goes to a file or a pipe follows no editor and
+says so, once, when an editor's workspace holds it:
+
+```text
+[Piwi Dashboard] Not following this run in Visual Studio Code (pid 41230): its output goes to no terminal. PIWI_EDITOR=on follows it.
+```
+
+The other lines of a run's start (its project and Playwright version, its shard, the stream opening on time) are
+printed with `PIWI_VERBOSE=true` alone. A stream that opens late, a failure link and a warning are always printed.
+
+## When the run does not reach the instance
+
+When a run the editor started ends without reaching the instance, the editor says which of two things happened: its
+reporter ran but sent nothing (its lines in the run's output say why: the server address, the key, or an instance that
+refused it), or the Playwright config has no Piwi reporter.
+
+## Related
+
+- [Live view of a run](./live-view): watch a running test's page from its run page
+- [Share a run live](./share-live): let a teammate watch a run on your machine
+- [Runs window](./runs-window): follow and steer the editor's runs from Piwi Picker
+- [Pause and step from the editor](./editor-run-control): the controls at a stop
+- [Concepts](/guide/concepts#run-number): the words used here
 
 <!-- https://piwitests.dev/features/live-view -->
 
@@ -9560,8 +9682,9 @@ process is the terminal's or the IDE's. It says so as it starts:
 ```
 
 It runs as its config says, headless by default, so the editor shows a stop as
-[a headless run's](./editor-run-control#a-headless-run): an image of its page, which Piwi Picker can watch live. To see
-the browser, add `--headed` to the command, or to the Playwright options of the run configuration.
+[a headless run's](./editor-run-control#a-headless-run): an image of its page, which the editor's paused page and Piwi
+Picker's Runs window can watch live. To see the browser, add `--headed` to the command, or to the Playwright options
+of the run configuration.
 
 ## Which editor
 
@@ -9576,7 +9699,8 @@ whose runs would connect through a folder another user can open.
 
 - **Only a run whose output goes to a terminal, or that a test runner started**: one that names its reporter's file
   in `PW_TEST_REPORTER`, as a JetBrains IDE's Playwright runner does. Any other, whose output goes to a file or a pipe,
-  runs alone unless it sets `PIWI_EDITOR=on`.
+  runs alone unless it sets `PIWI_EDITOR=on`, and says so once when an editor's workspace holds it
+  ([the terminal's lines](./watch-a-run#the-terminal-s-lines)).
 - **Never** under CI, with Playwright's own debugger (`--debug`, `PWDEBUG=1`) or UI mode, when the run names its own
   `PIWI_RUN_CHANNEL`, or when the desktop app or another launcher started it.
 - **`PIWI_EDITOR=off`** runs it alone.
@@ -9648,7 +9772,7 @@ under it. **Resume** lets it end as it failed; **Pick** replaces the failing loc
 
 **Share live**, under the run's name, lets a teammate watch the run from its page on your team's instance, in a
 project whose live view is on. The first time in a window, it says what goes out and to whom; shared, the run says
-how many views are open, with its page's link to copy, until **Stop sharing**. A run that cannot be shared says why in
+how many views are open until **Stop sharing**. A run that cannot be shared says why in
 its place: [Share a run live](./share-live).
 
 ## Code from a stop
@@ -9708,7 +9832,8 @@ A hint under the view says so the first time. What you hold down is let go befor
 
 **Pick on the image**, above the image, or a `Shift`+click on the image or the view, names the element a click
 under the pointer would reach (a dialog or a banner over the page included), without touching the page: the locator
-the pause bar's **Pick a locator** would rank first for it, sent to the editor in place of the stopped line's. The window shows that locator, or why there is none. It works on a headed stop's image too. `Esc`
+the pause bar's **Pick a locator** would rank first for it, sent to the editor in place of the stopped line's. The window shows that locator, or why there is none, with
+**Copy** when no editor took it. It works on a headed stop's image too. `Esc`
 turns it off. It needs Playwright 1.60 or later, and says so on an older one.
 
 ## The run shortcut
@@ -9957,11 +10082,12 @@ test** have no key in VS Code: bind one in **Preferences: Open Keyboard Shortcut
 of an answer, until that worker stops, a key answers no other worker and starts no debug session.
 
 - **In VS Code**, the controls sit in the status bar beside the run's progress while they apply (`Pausing…` until a
-  paused test stops), and in the palette (**Piwi: Pause the run** and its kin, **Piwi: Show the paused page**). The
-  progress (`3 of 9`, and how many failed) comes from the run itself, so it counts offline and with the desktop app.
+  paused test stops), and in the palette (**Piwi: Pause the run** and its kin, **Piwi: Show the paused page**).
 - **In a JetBrains IDE**, they are under **Tools → Piwi**, enabled while they apply, and in the status bar item's
-  menu, which reads `Piwi: paused · checkout.page.ts:12` while a test is stopped, and `Piwi: 3 of 9` while the
-  run goes on.
+  menu, whose text starts `Piwi: paused · checkout.page.ts:12` while a test is stopped.
+
+The progress beside them comes from the run itself, so it counts offline and with the desktop app
+([Watch a run](./watch-a-run#how-far-it-is)).
 
 **Pause** stops every run Piwi started in this window (in a JetBrains IDE, this project), each worker before its next
 call that Playwright's debugger stops at ([which calls](./editor-breakpoints#limits)): a long call or a `waitForTimeout`
@@ -9977,9 +10103,9 @@ line, and marks it:
 an arrow in the gutter, the debugger's execution point color, and above it the call, as Playwright names it, with the
 controls:
 
-`Paused · Fill "MORNING10" getByLabel('Coupon code') · attempt 2`  Resume  Step  Run to cursor  Finish  End test
+`Stopped at a breakpoint · Fill "MORNING10" getByLabel('Coupon code') · attempt 2`  Resume  Step  Run to cursor  Finish  End test
 
-`attempt 2` shows on a retry. In VS Code the line is a CodeLens, the marked line's hover holding the controls;
+It says [why the test stopped](./watch-a-run#where-a-test-stopped); `attempt 2` shows on a retry. In VS Code the line is a CodeLens, the marked line's hover holding the controls;
 the color is `piwi.executionPointBackground`. In a JetBrains IDE the line is an inlay whose words are links,
 the arrow's click lists the controls, and the color is **Settings → Editor → Color Scheme → Piwi → Line a run is
 stopped at**. The mark goes when the test goes on (from the editor or the bar), ends, or closes its page.
@@ -11037,7 +11163,7 @@ until you turn it off. Your clicks, the wheel and your keys on the view go to th
 to the tray, and `Tab` leaves the view unless a click into it took the keyboard. The frames go from the test's worker
 to the windows that watch that stop, the app's and Piwi Picker's Runs window, and nothing keeps them.
 
-**Pause and watch**, on a running test of the run's page in the app (**Live in Piwi** on the run in the tray), pauses
+**Pause and watch**, on a running test of the run's page in the app (**Open run #N** on the run in the tray), pauses
 the test as **Pause** does, watching its worker: the tray opens at the stop, the page live. The row
 then says where the test stopped, with **Show its page** to open the tray on it again.
 
