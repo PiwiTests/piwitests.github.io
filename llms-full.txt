@@ -9581,7 +9581,7 @@ second of its end.
   IDE) run the tests they name when clicked; those of a server file record its
   [coverage](./editor-coverage#refresh-the-marks-with-a-local-run).
 - **Piwi: Run the test at the cursor** (`Ctrl+Shift+Alt+K`, `Cmd+Shift+Alt+K` on macOS) runs the test whose `test(…)`
-  call holds the cursor, and **Piwi: Run this spec** the spec's tests Piwi knows; both in the editor's **Piwi** submenu
+  call holds the cursor, and **Piwi: Run this spec** every test of the spec; both in the editor's **Piwi** submenu
   on a spec (**Run the Test at the Caret** and **Run This Spec** in a JetBrains IDE). In VS Code, **Run** in the hover
   of a test's line runs that test, and so does [the Testing view](#the-testing-view-vs-code). A test the instance does
   not know yet, such as one you just [recorded](./editor-recording#run-it-or-verify-it-three-times), runs by the line of
@@ -12797,7 +12797,7 @@ Lines above the code (CodeLens):
 
 | File | What it shows | Click |
 |---|---|---|
-| A spec | the tests Piwi knows in it; beside each `test(…)`, its latest result in the gutter, a failing test's body tinted, and on hover its pass rate, [flaky](/features/flaky-tests) score and root cause, quarantine and selections | opens the test in the dashboard |
+| A spec | the tests Piwi knows in it; beside each `test(…)`, its latest result in the gutter, a failing test's body tinted, and on hover its pass rate, [flaky](/features/flaky-tests) score and root cause, quarantine and selections | runs those tests |
 | A page object or spec | above each locator line, the tests using it, their actions, and how many fail or are flaky | runs those tests |
 | An application file | the tests that reach it, from [code reach](/features/code-reach); with [coverage](./editor-coverage), each function's too | runs those tests |
 | A page file (Nuxt `pages/**`) | the tests acting on that page, its locators and how many are brittle | runs those tests |
@@ -12862,7 +12862,7 @@ VS Code's names; a JetBrains IDE has its own under **Tools → Piwi**, and no **
 | Piwi: Refresh the latest run | Read the latest run again, as a status bar click does |
 | Piwi: Run the test at the cursor | Run the test whose `test(…)` call holds the cursor: [Run tests](./editor-runs#run-tests) |
 | Piwi: Verify the test at the cursor ×3 | Run it three times without retries and say how many runs passed |
-| Piwi: Run this spec | Run the tests of the spec Piwi knows |
+| Piwi: Run this spec | Run every test of the spec as it stands |
 | Piwi: Run the tests that reach this file | Run them in a terminal, as `piwi run` would |
 | Piwi: Re-run the failing tests | Run every test still failing: [Re-run the failing tests](./editor-runs#re-run-the-failing-tests) |
 | Piwi: Open in dashboard | Open this file's test, or the latest run |
@@ -13044,9 +13044,10 @@ the gutter and the lines above the tests still show the failures.
 ## Your local runs
 
 A later finished run on the branch, from the editor, `piwi run`, `npx playwright test` or the desktop app, overlays the
-latest CI run per test and Playwright project: a test it fixed leaves the Problems panel, its lens saying *fixed
-locally in run #124*; a test failing in it is an error labeled *local run #124*, or *your run #124* when this editor
-started it. The editor reads a run within a second of its end: [After a run](./editor-runs#after-a-run).
+latest CI run per test and Playwright project: a test it fixed leaves the Problems panel, its lens saying *fixed locally
+in run #124*; a test failing in it is an error that starts *Local failure:* and names *local run #124*, or *your run
+#124* when this editor started it. The editor reads a run within a second of its end: [After a
+run](./editor-runs#after-a-run).
 
 ## Failures follow your edits
 
