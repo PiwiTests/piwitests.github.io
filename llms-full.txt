@@ -13041,8 +13041,8 @@ over them, and follow each failing line through your edits until a run covers it
 The failures of the latest complete [CI run](/reference/test-metadata#run-origin) on the checked-out branch, else the
 default branch, are in the Problems panel, at the line that failed: the call in the error's stack when that file
 is in your workspace (often a page object), else the `test(…)` line, with the failure's headline. In the spec, the
-line a failing test failed at (the line that calls the page object, when it failed in one) is tinted darker, with the
-reason, **Run this test**, **Screenshot** and **Trace** above it.
+line a failing test failed at (often its call into a page object) is tinted darker, with **✗ Failed here**, the
+reason unless a Piwi problem says it, **Run this test**, **Screenshot** and **Trace** above it.
 
 On a failure, the quick fixes are:
 
@@ -13195,8 +13195,8 @@ the marks mean.
 
 In VS Code the marks are a bar at the left edge of each line, in `piwi.coverageRunBorder`, `piwi.coverageNotRunBorder`,
 `piwi.coverageChangedBorder` and `piwi.uncoveredChangeBorder`, which a theme or `workbench.colorCustomizations` can
-restyle; all but the lines run also show in the overview ruler. In a JetBrains IDE they are at the left of the gutter and in the
-scroll bar, and hovering either shows what the lines are and what the marks mean. Restyle them under **Settings →
+restyle; all but the lines run also show in the overview ruler. In a JetBrains IDE they are at the left of the gutter
+and, all but the lines run, in the scroll bar, and hovering either shows what the lines are and what the marks mean. Restyle them under **Settings →
 Editor → Color Scheme → Piwi → Coverage**, where the error stripe color is the mark's, and a background, none by
 default, tints the lines too.
 
