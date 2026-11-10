@@ -490,7 +490,8 @@ counted from 1 in each shard; a worker Playwright starts again after a failure t
 
 **A test standing at a call, waiting to be answered:** at a breakpoint, after a step, at a Pause, at the line it was run
 to, at `page.pause()`, or at a failure held for a look. Each tool names it by why it stopped, in the same words
-(**Stopped at a breakpoint**, **Paused**, …).
+(**Stopped at a breakpoint**, **Paused**, …). At a stop of a headed run, **Show the browser** brings the test's
+window to the front ([Watch a run](/features/watch-a-run#where-a-test-stopped)).
 
 The test timeout stops while a test is paused at a breakpoint, and so does the paused call's own budget
 (`actionTimeout`, or `expect.timeout` for an assertion on that line). A wait the test started before the stop keeps its
@@ -3914,6 +3915,11 @@ the editors above the stopped line, the Runs window on the worker, and the termi
 
 The line names the editor that steers the run, or the desktop app. After you edit the file at a stop, the Runs window
 names the stopped line where it stands now, as the editor does.
+
+At a stop of a headed run, every tool offers **Show the browser**, which brings the test's window to the front, as far
+as your system lets a window come forward: **Piwi: Show the stopped test's browser** in VS Code and the stop's hover,
+**Tools → Piwi → Show the Stopped Test's Browser** in a JetBrains IDE, and a button in the Runs window and the desktop
+app's tray. A headless run has no window to show, and an older reporter offers none: update it.
 
 ## The terminal's lines
 
