@@ -9824,7 +9824,8 @@ stays in the editor. A live run of several workers shows one at a time, behind t
 **Pause all** and **Resume all** under its name. A new stop takes the tab from a worker neither stopped nor watched,
 and **Resume** or **End the test** moves it to the next stopped test. **Stop the run** ends a run an editor or the
 desktop app started, not a terminal's or test runner's. Resume, Step and Finish have
-[keys](/reference/keyboard-shortcuts#piwi-picker-s-runs-window).
+[keys](/reference/keyboard-shortcuts#piwi-picker-s-runs-window), and the
+[run shortcut](/reference/keyboard-shortcuts#the-run-shortcut) resumes or pauses every run from any window.
 
 A failing test is held at its line, a headless one while its run's
 [**Hold failures**](/guide/concepts#hold-failures) is on: **Failed at** in red, its error under it. **Resume** lets it
@@ -9873,13 +9874,14 @@ At a headless stop, nobody sees the test's page. Watched, the picker, the record
 in the view, and you answer them there as in a headed browser; their code reaches the editor the same way.
 
 <figure>
-  <img src="/screenshots/picker-runs-live.png" width="488" alt="The Runs window at a headless stop, watching the shop page live: Watch live pressed in the page card's head, the Live badge on the view, the picker over the page, with Resume, Step and Finish in one group, End the test apart, and Pick, Record, Assert and More under Code">
+  <img src="/screenshots/picker-runs-live.png" width="488" alt="The Runs window at a headless stop, watching the shop page live: Watch live and Interact pressed in the page card's head, the Live badge on the view, the picker over the page, with Resume, Step and Finish in one group, End the test apart, and Pick, Record, Assert and More under Code">
   <figcaption>A headless test's page watched live, with Pick started in it.</figcaption>
 </figure>
 
 ## Click and type on the view
 
-While you watch, your input on the view goes to the page as a person's would, the picker and the recorder included:
+While you watch, [**Interact**](./watch-running-test#interact), beside **Watch live** or **Watch**, sends your input on
+the view to the page as a person's would, the picker and the recorder included:
 
 - **The pointer**: moves, left and right clicks, double and triple clicks as your system counts them, drags, and the
   wheel once the view has the focus. `Ctrl`, `Alt` and `⌘` held with a click are held in the page too.
@@ -9898,14 +9900,6 @@ under the pointer would reach (a dialog or a banner over the page included), wit
 the pause bar's **Pick a locator** would rank first for it, sent to the editor in place of the stopped line's. The window shows that locator, or why there is none, with
 **Copy** when no editor took it. It works on a headed stop's image too. `Esc`
 turns it off. It needs Playwright 1.60 or later, and says so on an older one.
-
-## The run shortcut
-
-The run shortcut resumes the stopped tests, else pauses every run, but a run
-[nobody attends](/guide/concepts#hold-failures); Piwi Picker's toolbar icon shows what it did for a moment. It has no
-key until you set one: **Set a
-shortcut** opens the browser's shortcuts page, where you give it a key and, in Chrome and Edge, the **Global** scope.
-In Firefox, it works while Firefox has the focus.
 
 ## The desktop app's runs
 
@@ -10193,16 +10187,17 @@ opens it at any stop.
   <figcaption>A headless run paused before it clicks Apply: the page at the stop, beside the editor.</figcaption>
 </figure>
 
-Clicking the image picks a locator when the reporter supports it, on Playwright 1.60 or later: the locator replaces
-the one on the stopped line, and the tab shows the result or refusal.
+Clicking the image picks a locator when the reporter supports it, on Playwright 1.60 or later: it replaces the
+stopped line's, and the tab shows the result or refusal.
 
-**Watch live** updates the paused page in the same tab. Choose **Interact** separately to click, scroll or type on
-the page; **Escape** releases the keyboard, and **Shift+click** picks a locator. Watching stops when you hide or close
-the tab, resume the test or switch stops. Interact starts off at each stop. The caption names who drives and watches the
-stop: input or a pick takes it from an agent ([driving a stop](/guide/concepts#presence-driving-a-stop)).
-The preview needs no Picker installation, pairing, project live-view setting or extra port forwarding: it uses the
-editor's connection. Reporters without live-view support keep the still image. To watch a test while it runs, before
-it stops: [Watch a running test](./watch-running-test).
+**Watch live** updates the paused page until you hide or close the tab, resume the test or switch stops. Choose
+[**Interact**](./watch-running-test#interact) to click, scroll or type on it; your first one drives the stop.
+Interact stays on through the worker's stops, and goes off, giving the stop back, on Escape, another
+[lane](/guide/concepts#worker)'s stop, a stop without input, **Watch live** off or refused, the tab hidden or closed,
+or the run's end. The caption names who drives and watches the stop
+([driving a stop](/guide/concepts#presence-driving-a-stop)).
+The preview uses the editor's connection: no Picker, pairing, live-view setting or port forwarding. Older reporters
+keep the still image. To watch the test before it stops: [Watch a running test](./watch-running-test).
 
 ## Breakpoints while the run goes on
 
@@ -10273,6 +10268,16 @@ image.
 
 Watching pauses while the view is out of sight (another tab in front of an editor's panel or tab, a minimized Runs
 window) and starts again as it shows. It ends when you turn it off or close the view, or as the run ends.
+
+## Interact
+
+At a stop, **Interact**, beside **Watch live** or **Watch** in each view once the view is on, sends your clicks, the
+wheel and your keys on the view to the page as a person's would. The first of them takes control of the stop, so an
+agent waits until you give it back ([driving a stop](/guide/concepts#presence-driving-a-stop)). It stays on across the
+worker's next stops, where your first click or key takes the stop again. Turning it or watching off, **Give back** or
+`Esc` on the view turns it off and gives the stop back, once the input sent before has reached the page. A `Shift`+click
+picks a locator instead. The keys that stay the window's are listed under
+[keyboard shortcuts](/reference/keyboard-shortcuts#piwi-picker-s-runs-window).
 
 ## What is sent, and what is kept
 
@@ -11194,7 +11199,7 @@ off again as the app's last window closes. A run [nobody attends](/guide/concept
 its switch says why.
 
 <figure>
-  <img src="/screenshots/desktop-run-live.png" alt="The Local runs tray of the desktop app: a running run with its Hold failures switch, and its checkout test stopped at its page.pause() before its click on Pay now, its page watched live, with Resume, Step, Finish, Assert a region and Mock a request">
+  <img src="/screenshots/desktop-run-live.png" alt="The Local runs tray of the desktop app: a running run with its Hold failures switch, and its checkout test stopped at its page.pause() before its click on Pay now, its page watched live with Interact on, with Resume, Step, Finish, Assert a region and Mock a request">
   <figcaption>A run the desktop app started, stopped at a <code>page.pause()</code> and watched live.</figcaption>
 </figure>
 
@@ -11216,13 +11221,13 @@ the output here**, brings the output back; the window closes with the app.
 ## Watch live
 
 **Watch**, on a running worker in the tray or its test on the run's page, shows its page as the test runs and at each
-stop, until you turn it off; at a stop, the image takes your input as **Watch live** does. After **Step**, **Resume**
+stop, until you turn it off; at a stop, **Interact** sends your input there as with **Watch live**. After **Step**, **Resume**
 or a test's end, the last image stays dimmed, marked **Running…**, until the next. An older reporter offers none:
 update it.
 
 **Watch live** shows the stopped page as it paints, in place of its image, and stays on for the worker's next stops
-until you turn it off. Your clicks, the wheel and your keys on the view go to the page. `Esc` gives the keyboard back
-to the tray, and `Tab` leaves the view unless a click into it took the keyboard. Nothing keeps the
+until you turn it off. [**Interact**](./watch-running-test#interact), beside it, sends your clicks, the wheel and your
+keys on the view to the page; `Tab` leaves the view unless a click into it took the keyboard. Nothing keeps the
 [frames](/guide/concepts#watch-share-live).
 
 **Pause and watch**, on a running test of the run's page in the app (**Open run #N** on the run in the tray), pauses
@@ -17444,12 +17449,19 @@ stopped test shown: a run's worker tabs show one worker at a time. Step and Fini
 | `F10` | Step |
 | `Shift` + `F11` | Finish |
 
-While you [watch a stop](/features/runs-window#click-and-type-on-the-view), the view takes your keys, but the
-browser's shortcuts, the function keys and `Esc` stay the window's: `Esc` gives the keys back to the window and moves
-the focus to **Watch** or **Watch live**. `Tab` moves the focus on past the view, unless you clicked into it: then
-`Tab` and `Shift+Tab` go to the page too, until `Esc`. Characters an input method composes (Chinese, Japanese,
-Korean) do not reach the page; paste them instead. On a run's worker tabs, the arrow keys, `Home` and `End` move
-between the workers.
+While **Interact** is on at a [watched stop](/features/runs-window#click-and-type-on-the-view), the view takes your
+keys, but the browser's shortcuts, the function keys and `Esc` stay the window's: `Esc` turns **Interact** off, gives
+the stop back and moves the focus to **Interact**. `Tab` moves the focus on past the view, unless you clicked into
+it: then `Tab` and `Shift+Tab` go to the page too, until `Esc`. Characters an input method composes (Chinese,
+Japanese, Korean) do not reach the page; paste them instead. The desktop app's Local runs tray takes the same keys.
+On a run's worker tabs, the arrow keys, `Home` and `End` move between the workers.
+
+## The run shortcut
+
+Piwi Picker's run shortcut works from any window. It resumes the stopped tests, else pauses every run, but a run
+[nobody attends](/guide/concepts#hold-failures); Piwi Picker's toolbar icon shows what it did for a moment. It has no
+key until you set one: **Set a shortcut**, in the Runs window, opens the browser's shortcuts page, where you give it a
+key and, in Chrome and Edge, the **Global** scope. In Firefox, it works while Firefox has the focus.
 
 ## Assistant panel
 
