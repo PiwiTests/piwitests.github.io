@@ -491,7 +491,9 @@ counted from 1 in each shard; a worker Playwright starts again after a failure t
 **A test standing at a call, waiting to be answered:** at a breakpoint, after a step, at a Pause, at the line it was run
 to, at `page.pause()`, or at a failure held for a look. Each tool names it by why it stopped, in the same words
 (**Stopped at a breakpoint**, **Paused**, …). At a stop of a headed run, **Show the browser** brings the test's
-window to the front ([Watch a run](/features/watch-a-run#where-a-test-stopped)).
+window to the front ([Watch a run](/features/watch-a-run#where-a-test-stopped)). A test ended there with
+[End the test](/features/end-the-test) is skipped, and marked **Ended at a stop** on the run's and the test's pages,
+in the Runs window, the Local runs tray and the editors.
 
 The test timeout stops while a test is paused at a breakpoint, and so does the paused call's own budget
 (`actionTimeout`, or `expect.timeout` for an assertion on that line). A wait the test started before the stop keeps its
@@ -4097,16 +4099,61 @@ whose project enables live view, and connect to an editor or the desktop app for
 | Piwi Picker's [Runs window](./runs-window) | **Share live** under the run's name | **Stop sharing** |
 | The desktop app's [Local runs tray](./desktop-runs) | **Share live** above the run's workers | **Stop sharing** |
 
-The first share in a window asks for confirmation. The shared run shows its destination, viewer count and a link to copy.
+The first share asks for confirmation; in an editor, it also asks whether to share this run or
+[the window's runs](#a-window-s-runs). The shared run shows its destination, viewer count and a link to copy.
 
-Until then, its workers send nothing, and its running tests say **Not shared live** where **Watch** would be, or where
-they [stopped](#stops-shared-or-not). Once shared, images go only to those watching. **Stop sharing** closes the views within seconds. Closing the
-editor or the desktop app stops it too.
+Until then, its workers send nothing, and the run's **Tests** tab says **Not shared live** once, beside its search,
+with [**Ask to watch**](#ask-to-watch) for a teammate who may ask; its running tests say where they
+[stopped](#stops-shared-or-not). Once shared, images go only to those watching. **Stop sharing** closes the views
+within seconds. Closing the editor or the desktop app stops it too.
 
 A run that cannot be shared says why: it reports to no instance or to the desktop app, it does not stream its results,
 its project has the live view off, the reporter's global setup did not register it, or the instance did not register the run
 as it started. A sharing that stops on its own says why (the live view turned off, or the instance stopped answering), and **Share live** shows again: shared again, the run streams once the instance answers with its live view
 on, a restarted instance taking the run's key back. A run the instance no longer holds live cannot be shared again.
+
+### From a terminal
+
+A run you start in a terminal that no editor or app follows has no **Share live** to choose: set `PIWI_SHARE_LIVE=1`
+to share it from its start. The reporter prints what goes out and where before any image does, or why the run cannot
+be shared. A tool that follows the run can still stop it.
+
+::: code-group
+
+```bash [Linux / macOS]
+PIWI_SHARE_LIVE=1 npx playwright test
+```
+
+```powershell [Windows (PowerShell)]
+$env:PIWI_SHARE_LIVE='1'; npx playwright test
+```
+
+:::
+
+### A window's runs
+
+**Piwi: Share this window's runs live until I stop** in VS Code, and **Tools → Piwi → Share This Project's Runs Live
+Until I Stop** in a JetBrains IDE, share each run the window starts from then on, each one said as it is shared, until
+you stop (**…Stop sharing this window's runs live**, or a click on the status bar's **Live · this window**) or close
+the window. On the team instance, the page of the run before says **Continued in run #78**, linked, and a teammate who
+has it open is taken to the new run, on the worker they were watching.
+
+## Ask to watch
+
+A teammate who opens a running run of yours that is not shared can ask you to share it: **Ask to watch**, beside
+**Not shared live**. The tool you launched the run from asks you, naming the person who asks, and offers
+**Share live** and **Not now**; a run that no tool follows prints the ask in its terminal. Their page shows your answer:
+**Asked to watch** while it waits, **The developer answered Not now**, or the live view once you share.
+
+- **Who** — anyone signed in who may open the run. With sign-in off on the instance, nobody is named, and asking is
+  not offered.
+- **How often** — one ask per person and run every 5 minutes; their page says when they may ask again.
+- **Which runs** — a running run from a developer's machine that holds a live view key, never a CI run, whose
+  workers stream as they start.
+- **Turn it off** — a Project admin turns off **Let signed-in readers ask to watch a run nobody shares** in the
+  project's **Live view** settings; it is on by default. Turning it off, or the live view, drops the asks that wait.
+
+Asks are kept in the instance's memory, never stored, and end with the run.
 
 ## Stops, shared or not
 
@@ -10584,7 +10631,8 @@ entries and dialogs of the hold are not recorded. Playwright's own trace and vid
 
 At a stop, **End the test** ends the test there, as if it had called `test.skip()` at that line: the locator call it
 stopped before never runs (Playwright 1.62 or later), nor the rest of the test, and Playwright reports it as skipped,
-its `skip` annotation reading `Ended from Piwi`. The run goes on with its next test. Use it once you have seen what you stopped for, or recorded the
+its `skip` annotation reading `Ended from Piwi`. Its result reads **Ended at a stop**, never a plain skip, on the run's
+page, the test's pages, Piwi Picker's Runs window, the desktop app's Local runs tray and both editors. The run goes on with its next test. Use it once you have seen what you stopped for, or recorded the
 steps you were missing, and the rest of the test has nothing to show you.
 
 ## Where it is
@@ -10628,11 +10676,32 @@ Test** ends it:
 - **A retry** is an attempt of its own. Playwright does not retry a skipped test; a failure you let end runs the next
   attempt, which stops at your breakpoints as the first did.
 
+## How the result reads
+
+The test keeps Playwright's status, skipped: it counts among the skipped tests, and its run passes or fails on its
+other tests. What changes is the mark each tool puts on it:
+
+- **The dashboard**: the test's row on the run page, its execution's status chip and its line in the test's recent
+  executions read **Ended at a stop** instead of Skipped, and the run page's header marks the run beside its status
+  (**Ended at a stop**, or `3 ended at a stop` for more than one). Copy run summary names them among the skipped:
+  `4 skipped (1 ended at a stop)`.
+- **Piwi Picker's Runs window**: the run's progress line counts them, `9 of 9 tests · 1 ended at a stop`, in the
+  window's language; the desktop app's Local runs tray reads `Passed · 1 ended at a stop` once the run ended.
+- **The editors**: the status bar's run progress counts them (`1 ended at a stop`), and the notification of a run the
+  editor started names them beside the skipped, `3 passed, 0 failed, 1 skipped (1 ended at a stop)`.
+
+The count reaches the editors, Piwi Picker and the desktop app from a reporter newer than 0.68.0; with an older one
+they count the test as skipped. The dashboard reads the `skip` annotation, so it marks results already stored too.
+
 ## Limits
 
 - **Playwright's calls alone.** The test's own code between two calls, a loop or a helper, runs until its next call.
 - **One test.** It ends the stopped worker's test; the run's other tests run. To end the run, **Stop** it (one Piwi
   started, from the editor, the desktop app or the [Runs window](./runs-window)) or end it in its terminal.
+
+## Try it in the demo
+
+- [E2E Checkout › a cart test ended at its breakpoint](https://piwitests.dev/demo/test-run-cases/834): A run started from the editor stopped the test at its breakpoint and ended it there with End the test: Playwright skipped it, and its execution reads Ended at a stop.
 
 ## Related
 
