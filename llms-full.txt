@@ -509,7 +509,8 @@ it for every run it starts ([How a run starts](/features/editor-runs#how-a-run-s
 run with it on; and any tool that follows the run turns it on or off, the editors, Piwi Picker's Runs window, the
 desktop app, or an agent (`run_follow`). Off, a failure goes on at once, as without Piwi. A run nobody attends never
 holds one: a Flake Lab run, a bisect, a lab job, a run with `--repeat-each` above 1 that does not stop at its first
-failure (`--max-failures=1`) and UI mode go on past each failure. Each tool shows it as the last one set it: the
+failure (`--max-failures=1`) and UI mode go on past each failure. So do an editor's **Verify ×3**, a fix plan's
+verification and a Flake Lab line, still listed, paused and stopped as the editor's other runs. Each tool shows it as the last one set it: the
 desktop app's switch turns it off as the app's last window closes only when no other tool set it since.
 
 ### Presence, driving a stop
@@ -3888,6 +3889,10 @@ results are sent, and the tools show it without one.
 The reporter's own process tells the editor or the desktop app how many tests the run holds, how many ended and how,
 and how the run ended with its first failure. The editors' status bars and the Runs window count it the same way: each
 test once, by its last attempt. The desktop tray counts the lines of the run's output instead, a retry again.
+
+The status bar item's tooltip also says what each worker runs now (`Worker 2 · cart › adds a mug · stopped`). In VS
+Code, the Testing view's test run of your run writes in its output each test a worker starts, each stop and why, with
+the line it stands at, and each stop answered.
 
 In VS Code, a run in progress that is not yours, a CI run or a teammate's on your branch or on the branch your results
 are compared with, names itself so: the status bar says `CI run #125` or `run #126`, and the Testing view shows it as
@@ -9917,7 +9922,11 @@ picks a locator on its image. The editor shows the same stops: [Pause and step f
 With Piwi Picker [paired with VS Code or a JetBrains IDE](./editor-recording#send-from-piwi-picker), or with the
 [desktop app](./bug-reports#running-it-with-playwright-in-the-desktop-app), the popup shows a **Runs** tile under
 **More tools**, muted with **Not connected** while none of them answers. It opens the Runs window, to keep beside the
-test's browser, where you left it last. For each run the editor [started](./editor-runs), it shows the folder and the command, how many of
+test's browser, where you left it last. While a test waits at a stop for you (a breakpoint, a **Pause**, a failure held
+at its line, not a stop an agent drives), the tile says how many in amber, as do the toolbar's badge and the Runs
+window's title (`1 waiting · Runs · Piwi Picker`); while none waits and tests failed, they say how many failed, in red,
+those of a run that failed while the Runs window was not in front included until you bring it there. For each run
+the editor [started](./editor-runs), the window shows the folder and the command, how many of
 its tests ended (`3 of 9 tests · 1 failed`), then each worker's test and whether it runs or where it stopped: the file
 and line, the call about to run, and an image of the page. A run that ended says how: passed, failed with its first
 failure, timed out or interrupted. The count and the outcome need `@piwitests/reporter` newer than 0.67.0. While none
@@ -9994,12 +10003,9 @@ the view to the page as a person's would, the picker and the recorder included:
 
 - **The pointer**: moves, left and right clicks, double and triple clicks as your system counts them, drags, and the
   wheel once the view has the focus. `Ctrl`, `Alt` and `⌘` held with a click are held in the page too.
-- **The keys**, while the view has the focus (a focus ring around it): characters are typed, named keys (Enter, the
-  arrows, Backspace, Delete, Home, End) pressed, with Shift, and `Ctrl` (`⌘` on macOS) with A, Z, Y, Enter and the
-  editing keys. A paste types the clipboard's text.
-- **What stays the window's**: the browser's other shortcuts, the function keys, `Esc` (but while a pick or a check
-  runs on the page) and `Tab`, as the [keyboard shortcuts](/reference/keyboard-shortcuts#piwi-picker-s-runs-window)
-  say.
+- **The keys**, while the view has the focus (a focus ring around it), and a paste, which types the clipboard's text.
+  Which keys go to the page and which stay the window's: the
+  [keyboard shortcuts](/reference/keyboard-shortcuts#piwi-picker-s-runs-window).
 
 A hint under the view says so the first time. What you hold down is let go before the test goes on.
 
@@ -10896,13 +10902,23 @@ except in the desktop app, which requires its local access token as the Bearer v
 Replace `<your-piwi-url>` with your dashboard base URL (for example `http://localhost:3000`). For a client that signs
 in through OAuth, leave out the `headers` entry (`--header` on a command line); otherwise replace `pd_YOUR_API_KEY`
 with a real API key. The **MCP server** page of the dashboard shows both forms. In the
-[desktop app](/features/desktop#connecting-ai-assistants), the MCP server page detects the installed clients and
-writes their entry in one click instead.
+[desktop app](#in-the-desktop-app), the MCP server page detects the installed clients and writes their entry in one
+click instead.
 
 <figure>
   <img src="/screenshots/mcp-client-setup.png" alt="The MCP server page's client setup card: the agents listed on the left, Claude Desktop picked, its config entry on the right">
   <figcaption>The <strong>MCP server</strong> page writes the setup for each client with this dashboard's URL already filled in.</figcaption>
 </figure>
+
+### In the desktop app
+
+In the [desktop app](/features/desktop#connecting-ai-assistants), **Settings → MCP server** detects Claude Code, Claude Desktop, Cursor, Opencode, VS Code, Windsurf and Gemini CLI and
+connects each in one click, writing a `piwi-desktop` entry that runs the app's built-in bridge
+(`piwi-desktop mcp-stdio`). No address or token is copied; the bridge finds the app at start, so the app must run, and sends the token only
+to a server that proves it holds it. It writes only its own entry and keeps the first backup beside
+the config. A disk image (DMG), a translocated copy or a dev build writes nothing, for Connect, Disconnect and the
+startup repair alike; each client shows **Manual setup** with the reason. After a move, startup points that entry at the app again,
+as it does for an earlier version's address-and-token entry. One you edited shows **Needs update**; **Update** replaces it. Restart the client afterwards. The page also installs the [agent skills](/features/agent-skills) into a linked folder.
 
 ### Claude Desktop
 
@@ -11028,7 +11044,7 @@ The six workflow [agent skills](/features/agent-skills) are prompts too (`invest
 - [MCP tools](/reference/mcp-tools): every tool, by module and capability
 - [Run control for agents](/features/agent-run-control): the runs an editor or the desktop app starts, as tools
 - [Agent skills](/features/agent-skills): workflows that tell an agent what to do with these tools
-- [Desktop app](/features/desktop#connecting-ai-assistants): one-click client setup
+- [Desktop app](/features/desktop#connecting-ai-assistants): the local tools its MCP server adds
 
 <!-- https://piwitests.dev/features/agent-skills -->
 
@@ -11158,17 +11174,20 @@ Download the installer from the [latest release](https://github.com/PiwiTests/pi
 The installers are **unsigned**: on macOS, open the app once, then **Open Anyway** in **Privacy & Security**; on
 Windows, **More info** then **Run anyway** in SmartScreen.
 
-Data lives in the app-data folder (`%APPDATA%\io.piwitests.dashboard\.data` on Windows,
-`~/Library/Application Support/io.piwitests.dashboard/.data` on macOS, `~/.local/share/io.piwitests.dashboard/.data`
-on Linux): `piwi.db` (SQLite) and `storage/`. **Settings → Storage → Data location** and the tray's **Open data
-folder** show it. Back up the parent folder while the app is closed: its `secret.key` decrypts stored AI keys and SCM tokens.
+Where its data lives, and how to back it up: [the desktop app's data](/operate/backup-restore#the-desktop-app).
 
 Closing the window quits the app unless **Run in background** is on in the tray menu; **Start on login** launches it
-hidden in the tray. The windows open where you left them. The app's
-[keyboard shortcuts](/reference/keyboard-shortcuts#desktop-app) open Settings, import a report, go back and forward
-and zoom; on macOS the app menu holds the first four and the docs. The tray lists the tests running from the app, each with Stop, and the machine stays awake while they run.
-While you look away, a failed run bounces the Dock icon or flashes the taskbar button, a bisect or a lab only at its verdict; a run the tray does not list (a `piwi flake` from a terminal or an
-editor, a probe, another window's, or from before a reload) never does. In the background,
+hidden in the tray. The windows open where you left them. The app has its own
+[keyboard shortcuts](/reference/keyboard-shortcuts#desktop-app). The tray lists the tests running from the app, each with Stop, and the machine stays awake while they run.
+While a test waits at a stop for you, the tray menu's **Show the stopped test** opens the window on it.
+While a run reports into the app, from the app, an editor, a terminal or CI, its progress shows on the taskbar button
+or the Dock icon and in the window's title (`Running 3/9`), and a dot on the tray icon (and the taskbar button, on
+Windows) says how it stands: blue while it runs, red once a test failed, amber while a test of the app's runs waits at a
+stop for you (`1 test waits for you`). A run the window started from its tray flashes its outcome as it ends, whatever
+else runs, and, failed while you look away, bounces the Dock icon or flashes the taskbar button, a bisect or a lab only
+at its verdict; an editor's, a terminal's or CI's run, or one from before a reload, never does. On Windows, the taskbar
+button's thumbnail has **Open**, which restores the window, and **Stop**, which stops the window's run started last, the
+next one at a second click. In the background,
 [notifications](/features/notifications#browser) arrive as OS notifications with no setup, plus an unread count on the
 dock icon or tray tooltip.
 
@@ -11257,13 +11276,8 @@ The app serves the [MCP server](/features/mcp) with local tools a hosted instanc
 `apply_locator_fix` (a recommended locator fix applied to the file, previewed by default), and the
 [run tools](./desktop-runs#for-agents) for the runs it starts. It registers as `piwi-desktop`, beside a hosted Piwi.
 
-**Settings → MCP server** detects Claude Code, Claude Desktop, Cursor, Opencode, VS Code, Windsurf and Gemini CLI and
-connects each in one click, writing a `piwi-desktop` entry that runs the app's built-in bridge
-(`piwi-desktop mcp-stdio`). No address or token is copied; the bridge finds the app at start, so the app must run, and sends the token only
-to a server that proves it holds it. It writes only its own entry and keeps the first backup beside
-the config. A disk image (DMG), a translocated copy or a dev build writes nothing, for Connect, Disconnect and the
-startup repair alike; each client shows **Manual setup** with the reason. After a move, startup points that entry at the app again,
-as it does for an earlier version's address-and-token entry. One you edited shows **Needs update**; **Update** replaces it. Restart the client afterwards. The page also installs the [agent skills](/features/agent-skills) into a linked folder.
+**Settings → MCP server** connects Claude Code, Cursor and the other clients it detects in one click:
+[the desktop app's client setup](/features/mcp#in-the-desktop-app).
 
 ## Updates
 
@@ -15289,7 +15303,13 @@ Then confirm the running version at **Settings → About**, and that recent runs
 
 ## The desktop app
 
-The [desktop build](/features/desktop) bundles its own server, and its database and storage live in a per-machine data directory *outside* the app bundle, migrated on first launch exactly as the server does — so the same forward-only rule applies. Back up that data directory before a major version jump; a newer build will migrate it, an older one cannot open it.
+The [desktop build](/features/desktop) bundles its own server, and its database and storage live in a per-machine data directory *outside* the app bundle, migrated on first launch exactly as the server does — so the same forward-only rule applies. Back up the folder below before a major version jump; a newer build will migrate it, an older one cannot open it.
+
+The data lives in the app-data folder (`%APPDATA%\io.piwitests.dashboard\.data` on Windows,
+`~/Library/Application Support/io.piwitests.dashboard/.data` on macOS, `~/.local/share/io.piwitests.dashboard/.data`
+on Linux): `piwi.db` (SQLite) and `storage/`. **Settings → Storage → Data location** and the tray's **Open data
+folder** show it. Back up the parent folder while the app is closed: its `secret.key` decrypts stored AI keys and SCM
+tokens.
 
 ## When to back up
 
@@ -17570,7 +17590,9 @@ stopped test shown: a run's worker tabs show one worker at a time. Step and Fini
 | `Shift` + `F11` | Finish |
 
 While **Interact** is on at a [watched stop](/features/runs-window#click-and-type-on-the-view), the view takes your
-keys, but the browser's shortcuts, the function keys and `Esc` stay the window's: `Esc` turns **Interact** off, gives
+keys: characters are typed, named keys (Enter, the arrows, Backspace, Delete, Home, End) pressed, with Shift, and
+`Ctrl` (`⌘` on macOS) with A, Z, Y, Enter and the editing keys. The browser's other shortcuts, the function keys and
+`Esc` stay the window's: `Esc` turns **Interact** off, gives
 the stop back and moves the focus to **Interact**. While a pick or a check runs on the page, `Esc` goes to the page
 instead, as its own key. `Tab` moves the focus on past the view, unless you clicked into
 it: then `Tab` and `Shift+Tab` go to the page too, until `Esc` turns **Interact** off. Characters an input method composes (Chinese,
