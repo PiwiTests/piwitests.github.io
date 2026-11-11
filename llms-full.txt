@@ -3929,12 +3929,12 @@ app's tray. A headless run has no window to show, and an older reporter offers n
 
 ## The terminal's lines
 
-A run prints one line for its page, and one when it follows an editor
-([runs started outside Piwi](./terminal-runs)). A run whose output goes to a file or a pipe follows no editor and
-says so, once, when an editor's workspace holds it:
+A run prints one line for its page, and one when it follows an editor or the desktop app
+([runs started outside Piwi](./terminal-runs)). A run whose output goes to a file or a pipe follows it unattended and
+says so:
 
 ```text
-[Piwi Dashboard] Not following this run in Visual Studio Code (pid 41230): its output goes to no terminal. PIWI_EDITOR=on follows it.
+[Piwi Dashboard] Following this run in Visual Studio Code (pid 41230), unattended: its output goes to no terminal, so no failure waits and only a Pause stops it. PIWI_EDITOR=on attends it, PIWI_EDITOR=off runs it alone.
 ```
 
 The other lines of a run's start (its project and Playwright version, its shard, the stream opening on time) are
@@ -9849,12 +9849,16 @@ process is the terminal's or the IDE's. It says so as it starts:
 [Piwi Dashboard] Following this run in Visual Studio Code (pid 41230), whose breakpoints stop it: PIWI_EDITOR=off runs it alone.
 ```
 
+With no editor window on its folder, a run in a folder [the desktop app](./desktop) links follows the app (a reporter
+newer than 0.68.0): its Local runs tray lists it, pauses it and watches its workers, as it does
+[the runs it starts](./desktop-runs), and Piwi Picker's Runs window holds its failures as you ask.
+
 It runs as its config says, headless by default, so the editor shows a stop as
 [a headless run's](./editor-run-control#a-headless-run): an image of its page, which the editor's paused page and Piwi
 Picker's Runs window can watch live. To see the browser, add `--headed` to the command, or to the Playwright options
 of the run configuration.
 
-## Which editor
+## Which editor, or the desktop app
 
 Each editor window's Piwi service writes a file in `~/.piwi/editors` (`PIWI_EDITORS_DIR` names another folder) with
 its workspace folders and where its runs connect. The run follows the window one of whose folders holds its Playwright
@@ -9863,11 +9867,15 @@ last. A window of another machine, another user's, or one whose process ended is
 written before the machine last started, any file of a folder another user can open, or (but on Windows) a window
 whose runs would connect through a folder another user can open.
 
+No window holding it, the run follows the desktop app whose linked folder holds it: the app names where its runs
+connect in `~/.piwi/desktop.json` (`PIWI_DESKTOP_CONFIG` names another file) once its server is up, by the same rules.
+
 ## When it follows one
 
-- **Only a run whose output goes to a terminal, or that a test runner started**: one that names its reporter's file
-  in `PW_TEST_REPORTER`, as a JetBrains IDE's Playwright runner does. Any other, whose output goes to a file or a pipe,
-  runs alone unless it sets `PIWI_EDITOR=on`, and says so once when an editor's workspace holds it
+- **A run whose output goes to a terminal, or that a test runner started** (one that names its reporter's file in
+  `PW_TEST_REPORTER`, as a JetBrains IDE's Playwright runner does), is attended: it stops at the breakpoints.
+- **A run whose output goes to a file or a pipe**, as an agent's, follows unattended: it is listed and **Pause** stops
+  it, but no breakpoint does and no failure waits. `PIWI_EDITOR=on` attends it. It says so as it starts
   ([the terminal's lines](./watch-a-run#the-terminal-s-lines)).
 - **Never** under CI, with Playwright's own debugger (`--debug`, `PWDEBUG=1`) or UI mode, when the run names its own
   `PIWI_RUN_CHANNEL`, or when the desktop app or another launcher started it.
@@ -9880,6 +9888,7 @@ whose runs would connect through a folder another user can open.
   any, it runs as it would, and **Pause** stops it.
 - **The controls**: Pause, Resume, Step, Run to cursor, Finish and [End the test](./end-the-test), and the code a stop
   makes, Assert a region and Mock a request, written in the editor ([Code from a pause](./editor-stop-code)).
+- **Record here and Assert** in the test's window, through the editor's recorder, as for a run Piwi starts.
 - **Failures.** A failure goes on, as without Piwi, until you turn the run's
   [**Hold failures**](/guide/concepts#hold-failures) on, in the editor or the Runs window: nobody may be there to answer
   it otherwise.
@@ -9890,16 +9899,18 @@ the editor starts.
 
 ## Limits
 
-- **No Pick, Record or Assert in the test's window.** They need the pairing a run Piwi starts carries: start the test
-  from the editor to use them. Pick on the image (Playwright 1.60 or later) names the locator, for you to copy,
-  without writing it.
+- **No Pick a locator in the test's window under an editor.** It needs the pairing a run Piwi starts carries: start the
+  test from the editor to use it. Pick on the image (Playwright 1.60 or later) names the locator, for you to copy,
+  without writing it. Under the desktop app, a pick comes to its window to copy, and Record here and Assert, which need
+  an editor, are not offered.
 - **No Stop.** End the run in its terminal, or with the IDE's own **Stop**.
 - **Debug stops twice.** Under a JetBrains IDE's **Debug**, a breakpoint stops the test in the debugger, then at Piwi's
   stop, whose controls take no key while the debug session runs. `PIWI_EDITOR=off` in the run configuration's
   environment leaves the breakpoints to the debugger.
 - **Piwi's reporter in the config.** The run looks for an editor as the reporter starts (`wrapConfig` adds it): with
   the capture fixtures alone, it runs alone.
-- **Your machine.** A run in a dev container or over SSH follows an editor whose service runs there too.
+- **Your machine.** A run in a dev container or over SSH follows an editor whose service runs there too; the desktop
+  app's folders are this machine's alone.
 
 ## Related
 
@@ -9907,6 +9918,7 @@ the editor starts.
 - [Breakpoints in the browser](./editor-breakpoints): the breakpoints a run takes.
 - [Runs from the editor](./editor-runs): the runs Piwi starts.
 - [Runs window](./runs-window): the same runs, in Piwi Picker.
+- [Desktop app runs](./desktop-runs): the Local runs tray, which follows a run in a linked folder.
 
 <!-- https://piwitests.dev/features/runs-window -->
 
@@ -11179,11 +11191,12 @@ Where its data lives, and how to back it up: [the desktop app's data](/operate/b
 Closing the window quits the app unless **Run in background** is on in the tray menu; **Start on login** launches it
 hidden in the tray. The windows open where you left them. The app has its own
 [keyboard shortcuts](/reference/keyboard-shortcuts#desktop-app). The tray lists the tests running from the app, each with Stop, and the machine stays awake while they run.
-While a test waits at a stop for you, the tray menu's **Show the stopped test** opens the window on it.
+While a test waits at a stop for you, the tray menu's **Show the stopped test** opens the window on it. **Open in a
+window**, on a worker of the [Local runs tray](./desktop-runs), keeps that worker in a window above the others.
 While a run reports into the app, from the app, an editor, a terminal or CI, its progress shows on the taskbar button
 or the Dock icon and in the window's title (`Running 3/9`), and a dot on the tray icon (and the taskbar button, on
-Windows) says how it stands: blue while it runs, red once a test failed, amber while a test of the app's runs waits at a
-stop for you (`1 test waits for you`). A run the window started from its tray flashes its outcome as it ends, whatever
+Windows) says how it stands: blue while it runs, red once a test failed, amber while a test of the app's runs, or of an
+editor's, waits at a stop for you (`1 test waits for you`). A run the window started from its tray flashes its outcome as it ends, whatever
 else runs, and, failed while you look away, bounces the Dock icon or flashes the taskbar button, a bisect or a lab only
 at its verdict; an editor's, a terminal's or CI's run, or one from before a reload, never does. On Windows, the taskbar
 button's thumbnail has **Open**, which restores the window, and **Stop**, which stops the window's run started last, the
@@ -11240,7 +11253,8 @@ A run, an execution, a cluster or a test runs again here with the folder's own P
   from Piwi Picker runs there too.
 - **Wrong folder?** With none of the tests in it, the button opens the link's dialog.
 - **Watch, pause and step** each worker from the tray, running or at a stop: [Desktop app
-  runs](/features/desktop-runs).
+  runs](/features/desktop-runs). While it goes on, the run's own page shows the same (**On your machine**), with its
+  **Stop**, **Hold failures** and output.
 
 ### Reproducing a failure and finding the breaking commit
 

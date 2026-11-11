@@ -1,0 +1,1 @@
+var e=`piwi:run-output`;function t(e){return`piwi-run-output-${e}`}function n(e,t,n){let r=e.length>0&&t.lines.length>0&&t.lines[0].id===e.at(-1).id+1?[...e,...t.lines]:t.lines.length>0?t.lines:e;return r.length>n?r.slice(r.length-n):r}export{n,t as r,e as t};
