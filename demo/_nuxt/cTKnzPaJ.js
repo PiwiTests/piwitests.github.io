@@ -1,0 +1,1 @@
+var e={breakpoint:`Stopped at a breakpoint`,step:`Stopped after a step`,pause:`Paused`,"run-to":`Stopped at the line it ran to`,"page-pause":`Stopped at page.pause()`,failure:`Held at its failure`,other:`Stopped`};function t(t){return t in e?e[t]:e.other}export{t};
