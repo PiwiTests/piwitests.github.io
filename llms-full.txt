@@ -9996,8 +9996,9 @@ the view to the page as a person's would, the picker and the recorder included:
 - **The keys**, while the view has the focus (a focus ring around it): characters are typed, named keys (Enter, the
   arrows, Backspace, Delete, Home, End) pressed, with Shift, and `Ctrl` (`⌘` on macOS) with A, Z, Y, Enter and the
   editing keys. A paste types the clipboard's text.
-- **What stays the window's**: the browser's other shortcuts, the function keys, `Esc` and `Tab`, as the
-  [keyboard shortcuts](/reference/keyboard-shortcuts#piwi-picker-s-runs-window) say.
+- **What stays the window's**: the browser's other shortcuts, the function keys, `Esc` (but while a pick or a check
+  runs on the page) and `Tab`, as the [keyboard shortcuts](/reference/keyboard-shortcuts#piwi-picker-s-runs-window)
+  say.
 
 A hint under the view says so the first time. What you hold down is let go before the test goes on.
 
@@ -10298,9 +10299,10 @@ opens it at any stop.
 Clicking the image picks a locator when the reporter supports it, on Playwright 1.60 or later: it replaces the
 stopped line's, and the tab shows the result or refusal.
 
-**Watch live** updates the paused page until you hide or close the tab, resume the test or switch stops. Choose
+**Watch live** updates the paused page until you hide or close the tab, resume or switch stops. Choose
 [**Interact**](./watch-running-test#interact) to click, scroll or type on it; your first one drives the stop.
-Interact stays on through the worker's stops, and goes off, giving the stop back, on Escape, another
+Interact stays on through the worker's stops, and goes off, giving the stop back, on Escape outside a pick or check,
+another
 [lane](/guide/concepts#worker)'s stop, a stop without input, **Watch live** off or refused, the tab hidden or closed,
 or the run's end. The caption names who drives and watches the stop
 ([driving a stop](/guide/concepts#presence-driving-a-stop)).
@@ -10383,7 +10385,9 @@ At a stop, **Interact**, beside **Watch live** or **Watch** in each view once th
 wheel and your keys on the view to the page as a person's would. The first of them takes control of the stop, so an
 agent waits until you give it back ([driving a stop](/guide/concepts#presence-driving-a-stop)). It stays on across the
 worker's next stops, where your first click or key takes the stop again. Turning it or watching off, **Give back** or
-`Esc` on the view turns it off and gives the stop back, once the input sent before has reached the page. A `Shift`+click
+`Esc` on the view turns it off and gives the stop back, once the input sent before has reached the page. While a
+pick or a check runs on the page, started there or from its pause bar, `Esc` goes to the page instead, as its own
+key: it skips the pick or closes the check. A recording takes no `Esc` of its own, so there `Esc` gives the stop back. A `Shift`+click
 picks a locator instead. The keys that stay the window's are listed under
 [keyboard shortcuts](/reference/keyboard-shortcuts#piwi-picker-s-runs-window).
 
@@ -17566,8 +17570,9 @@ stopped test shown: a run's worker tabs show one worker at a time. Step and Fini
 
 While **Interact** is on at a [watched stop](/features/runs-window#click-and-type-on-the-view), the view takes your
 keys, but the browser's shortcuts, the function keys and `Esc` stay the window's: `Esc` turns **Interact** off, gives
-the stop back and moves the focus to **Interact**. `Tab` moves the focus on past the view, unless you clicked into
-it: then `Tab` and `Shift+Tab` go to the page too, until `Esc`. Characters an input method composes (Chinese,
+the stop back and moves the focus to **Interact**. While a pick or a check runs on the page, `Esc` goes to the page
+instead, as its own key. `Tab` moves the focus on past the view, unless you clicked into
+it: then `Tab` and `Shift+Tab` go to the page too, until `Esc` turns **Interact** off. Characters an input method composes (Chinese,
 Japanese, Korean) do not reach the page; paste them instead. The desktop app's Local runs tray takes the same keys.
 On a run's worker tabs, the arrow keys, `Home` and `End` move between the workers.
 
