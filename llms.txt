@@ -127,7 +127,7 @@
 - [Localization](https://piwitests.dev/operate/localization): Set the date and time format and the time zone: each viewer's own choice, and the instance default an administrator sets.
 - [Choose what you use](https://piwitests.dev/operate/capabilities): Pick the capabilities your instance and each project use from Settings → Capabilities, and decline the rest so the dashboard stops showing them.
 - [Integrations](https://piwitests.dev/operate/integrations): Connect Jira Cloud to the dashboard: the token and permissions it needs, trusted hosts, status sync and the inbound webhook.
-- [Zephyr Scale Cloud](https://piwitests.dev/operate/zephyr-scale): Connect Zephyr Scale Cloud to the dashboard: the region, the API token, the sign-in check and the environment variables.
+- [Zephyr Scale Cloud](https://piwitests.dev/operate/zephyr-scale): Connect Zephyr Scale Cloud to the dashboard and bind a project to a Zephyr project: the region, the token, the catalog of test cases and how tests map onto it.
 - [Configuration reference](https://piwitests.dev/reference/configuration): Every PIWI_* environment variable the dashboard reads, with its default and what it does, generated from the typed registry.
 - [Configuration generator](https://piwitests.dev/reference/configuration/generator): Build a ready-to-paste .env, Docker, Kubernetes or systemd configuration in your browser, from the same registry as the configuration reference.
 - [Database](https://piwitests.dev/operate/database): SQLite by default or PostgreSQL for a shared instance, how to switch between them, and where retention and backups are covered.
