@@ -12879,7 +12879,7 @@ your API keys. The desktop app keeps its own token. For the runs the editor star
 
 ## Commands
 
-VS Code's names; a JetBrains IDE has its own under **Tools → Piwi**, and no **Open the log** or **Get started**.
+VS Code's names; a JetBrains IDE has its own under **Tools → Piwi**, and no **Get started**.
 
 | Command | What it does |
 |---|---|
@@ -12900,7 +12900,7 @@ VS Code's names; a JetBrains IDE has its own under **Tools → Piwi**, and no **
 | Piwi: Stop recording, Pause recording, Resume recording | Control the recording in progress |
 | Piwi: Pause the run, Resume the run, Step to the next call, Run to the cursor, Finish the test without stopping again, End the test here, Stop the run, Show the paused page, Write code at the stop… | [Pause and step from the editor](./editor-run-control), [Code from a pause](./editor-stop-code) |
 | Piwi: Toggle the coverage marks | Show or hide the [coverage marks](./editor-coverage) |
-| Piwi: Open the log | Show the editor service's log; the `piwi.trace.server` setting adds its traffic |
+| Piwi: Restart the editor service, Open the log | Start the editor service again; show its log of starts, stops, errors and failed requests, where VS Code's `piwi.trace.server` setting adds its traffic |
 | Piwi: Get started | Open the walkthrough |
 
 Three commands have the same shortcut in VS Code and the JetBrains IDEs (where some keymaps and plugins already use
@@ -12953,6 +12953,10 @@ In a project opened in safe mode, Piwi runs nothing and says it waits for your t
 then the desktop app. When the environment or the workspace `.env` names another instance, the page says so above the
 fields, and an empty **Server URL** shows its address. While the service cannot start, the page and the **Piwi** tool
 window offer **Node.js Settings…**, and the service starts again once you close the settings.
+
+When the service stops, the **Piwi** tool window says so and offers **Restart the Editor Service** and **Open Log**, as
+does a balloon that says it is not running; both are also under **Tools → Piwi** and in the tool window's gear. The
+**Log** tab holds the service's starts and stops, why it could not start, its errors and the requests that failed.
 
 The first trusted project with a Playwright config that nothing connects yet shows one notification, once per
 installation, with **Connect…**, **Open the Failures** and **Learn More**.
