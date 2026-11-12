@@ -568,6 +568,15 @@ from your project's own Playwright. The trace's path never leaves that service: 
 saying why when the viewer does not start. In Playwright 1.59 to 1.64 the viewer shows the trace as it stood when it
 opened: close it, then choose the button again, for what came since.
 
+**Inspect** on a lane watched in the desktop app's tray reads the same checked file on the app's server, while the
+tray shows it and the window is not hidden; the window hears each page's call and reads the page rendered, never the
+file's path. Each page is cleaned as a worker cleans it for the run page, the values any frame's secret fields held
+hidden in every page kept, iframes included, and stays in memory until the test ends. As Inspect opens, it reads a
+page's snapshots since its navigation, 8,192 or 16 MB at most; every lane's pages, with the snapshots read to build
+them, share 256 MB, past which it keeps no more. A page with a frame it cannot read whole shows again from its next
+navigation, and the reading stops when the trace folder, a folder above it or its `resources` folder becomes a link
+or no longer a folder: Inspect says why each time.
+
 ### Verification
 
 **A test run several times without retries and without the breakpoints, to see how often it passes** (**Verify ×3**
@@ -4354,7 +4363,8 @@ Under a worker's [live view](./live-view), **Inspect** shows its test's page as 
 DOM Playwright's trace takes at each call (before the call, at its action and after it), rendered by the dashboard
 with its stylesheets and images, and the locator picker on it. It is for a CI test that waits on an element: you see
 the page as the test sees it, at the call it is stuck on, and pick the locator to use while the test still waits. It
-works in a CI run or a run [shared from a developer's machine](./share-live), and the dashboard stores none of it.
+works in a CI run or a run [shared from a developer's machine](./share-live), and the dashboard stores none of it. The
+[desktop app](./desktop-runs#watch-live) shows the same view of its own runs, from the test's own trace.
 
 ## Use it
 
@@ -4449,8 +4459,7 @@ Inspect says why:
 
 ## In the demo
 
-The live demo runs no browser, so its runs have no worker to watch in full: [Watch all](./watch-all#in-the-demo) names
-each worker's step, and Inspect needs a running test.
+The live demo runs no browser, and Inspect needs a running test: [Watch all](./watch-all#in-the-demo).
 
 ## Related
 
@@ -4545,6 +4554,9 @@ stream sends the call's title, its file and line, the test's title and since whe
 an image. A test that stands stopped is never marked [**Stuck?**](./stuck-tests).
 
 ## From the desktop app
+
+A **Re-run** in a folder whose `.env` or Playwright config names your team's instance reports to it, and can be
+shared: **Share live**, above the run's workers, asks first the first time since the app started.
 
 A run that reports to the [desktop app](./desktop-runs) itself (a reproduction, a bisect, a **Re-run** in a folder
 that names no instance, a run your editor started) cannot be shared: the app hands out no live view key, since no
@@ -11927,6 +11939,10 @@ an image, with its call), kept in memory alone. **Open the trace so far**, in a 
 trace viewer on the running test's trace up to now, on your machine, with a reporter newer than 0.68.0: [Watch a
 running test](./watch-running-test#open-the-trace-so-far).
 
+**Inspect**, beside it, shows that test's page at each call as [on the run page](./live-inspect), with the locator
+picker, read from the test's own trace on your machine while open and the window shows, and let go as the test ends
+([what it reads](/guide/concepts#trace-so-far)).
+
 ## Code to copy
 
 The app holds no editor, so the code a stop makes comes to the tray, under **Code from the runs**, rather than into
@@ -11949,10 +11965,8 @@ on disk in the folder linked to the project.
 
 ## Share live
 
-A run that reports to your team's Piwi instance, as a **Re-run** in a folder whose `.env` or Playwright config
-names it does, can be shared there for a teammate to watch: **Share live**, above the run's workers, asks first the
-first time since the app started. Who sees what, and why a run cannot be shared: [Share a
-run live](./share-live#from-the-desktop-app).
+A run that reports to your team's Piwi instance can be [shared live](./share-live#from-the-desktop-app) there for a
+teammate to watch: who sees what, and why a run cannot be.
 
 ## For agents
 
@@ -12188,7 +12202,7 @@ it; a run in UI mode, or one that repeats its tests past a failure, offers none.
 reloads shows again, with **Stop**.
 **Assert a region** and **Mock a request** make their code in the window, to copy: Piwi Runner has no editor and
 writes no file. **Share live** shows the run's stops to your team on the instance it reports to, as in the desktop
-app.
+app. **Inspect** of a watched worker, which reads the test's pages from its trace, is the desktop app's alone.
 
 Piwi Runner is the hub of its own runs only: Piwi Picker, the editors and an agent reach the runs the desktop app or an
 editor starts, not Piwi Runner's.
