@@ -11556,7 +11556,8 @@ Everything binds to `127.0.0.1`.
 
 ## Where it is
 
-Download the installer from the [latest release](https://github.com/PiwiTests/piwi/releases/latest):
+Download the installer from the [latest release](https://github.com/PiwiTests/piwi/releases/latest), the files named
+`Piwi-Desktop_…` (the `Piwi-Runner_…` files are [Piwi Runner](./piwi-runner)):
 
 | OS | Installer |
 |----|-----------|
@@ -11660,7 +11661,7 @@ gets the verdict and can share it on the team instance with its own key, which t
 
 ## Importing local files
 
-Drop a Playwright blob report or trace (`.zip`) on the window, or open one with **Open with → Piwi Dashboard**, and
+Drop a Playwright blob report or trace (`.zip`) on the window, or open one with **Open with → Piwi Desktop**, and
 pick the project: it imports as on the [import page](/guide/importing-runs), several traces forming one run. A
 [`.piwibug`](/reference/bug-report-file) becomes a [bug report](./bug-reports).
 
@@ -11847,8 +11848,8 @@ out of everything the team sees.
 
 ## Experimental
 
-**Experimental.** Run on my machine is off by default, and only the desktop app takes requests in this release. The
-design is in the
+**Experimental.** Run on my machine is off by default. The desktop app and [Piwi Runner](./piwi-runner), the same
+requests without the dashboard, take them. The design is in the
 [Run on my machine design record](https://github.com/PiwiTests/piwi/blob/main/proposals/run-on-my-machine.md).
 
 ## Turn it on
@@ -11968,6 +11969,62 @@ the [deployment page](/operate/deployment) requires.
 - [Desktop app](./desktop): the app that takes requests, and its Settings page
 - [Desktop app runs](./desktop-runs): the runs the desktop app starts and how you follow them
 - [Share links](./share-links): showing one execution to someone without an account
+
+<!-- https://piwitests.dev/features/piwi-runner -->
+
+# Piwi Runner
+
+Piwi Runner takes [Run on my machine](./run-on-my-machine) requests from one team instance, without the dashboard:
+one window for the connection, the confirmation of each request and the runs it started. It is for a machine that only
+runs what the instance asks, where the [desktop app](./desktop) and its local dashboard are more than needed. It
+keeps no database and serves no dashboard.
+
+## Where it is
+
+Download the installer from the [latest release](https://github.com/PiwiTests/piwi/releases/latest), the files named
+`Piwi-Runner_…`:
+
+| OS | Installer |
+|----|-----------|
+| **Windows** | `.exe` (per-user, no admin) or `.msi` (per-machine) |
+| **macOS** 13.5+ (Apple silicon) | `.dmg` |
+| **Linux** (x86-64) | `.AppImage`, `.deb` or `.rpm`, each needing a system WebKitGTK (`webkit2gtk-4.1`) |
+
+The installers are **unsigned**: on macOS, open the app once, then **Open Anyway** in **Privacy & Security**; on
+Windows, **More info** then **Run anyway** in SmartScreen. Piwi Runner has no in-app updates yet: install a new version
+over the old one, which keeps your connection and linked folders.
+
+## Beside the desktop app
+
+Piwi Runner and the desktop app install side by side, and neither installer replaces the other: each has its own
+name, install folder, Linux package, settings, linked folders and keychain entry. Connected to the same instance, both
+are listed in **Connected apps**, and a request goes to the one you pick on the page.
+
+## Connect it
+
+Its window connects to an instance the way the desktop app does: enter the instance's address and click **Connect**,
+then allow **Piwi Runner** on the instance's page with the code the window shows. Its key stays in the operating
+system's keychain. Each project's folder is linked on the first request for it. The rest, from the confirmation to
+**Stop**, is described in [Run on my machine](./run-on-my-machine#in-the-app).
+
+## In the tray
+
+Closing the window leaves Piwi Runner in the tray, still connected, so the instance can reach it; a request brings the
+window forward. The tray menu has:
+
+- **Open Piwi Runner** (a click on the icon does the same) and **Show logs**;
+- **Run in background**, on by default: turned off, closing the window quits the app, once you agree to stop the runs
+  still going;
+- **Start on login**, which launches it in the tray when you sign in;
+- **Quit Piwi Runner**, which stops its runs, after asking.
+
+Its icon is the Piwi mark on a teal tile with a play sign, so it reads apart from the desktop app's in the tray and the
+taskbar.
+
+## Related
+
+- [Run on my machine](./run-on-my-machine): who may ask, how an administrator turns it on, and what a request holds
+- [Desktop app](./desktop): the other app that takes requests, with a local dashboard
 
 <!-- https://piwitests.dev/features/extension -->
 
