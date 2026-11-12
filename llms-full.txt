@@ -503,6 +503,12 @@ the `afterEach` hooks. The test's duration leaves the time paused out, and every
 dashboard's timelines draw each stop as a **Paused** band, and its step statistics (slowest step, wasted time) leave it
 out.
 
+### CI position
+
+**The call a running test of a CI run is at, in your code:** a plain mark at the end of its line in the editors,
+read-only. Never a stop: nothing waits there, and no tool answers it
+([A CI run of your branch](/features/watch-running-test#a-ci-run-of-your-branch)).
+
 ### Hold failures
 
 **Whether a failed test waits at its line for an answer, in one run.** It is the run's own: on from the start of a run
@@ -530,7 +536,9 @@ person's Resume, Step and Finish always answer the stop, and the stop a person's
 tools that watch that page (an editor's view, the desktop app's window, Piwi Picker's Runs window), and to the team
 instance while the run is shared live; nothing on your machine keeps them. **Share live** lets a teammate watch a run on
 your machine from its page on the team instance ([Share a run live](/features/share-live)); a CI run is watched without
-being shared ([Live view of a run](/features/live-view)).
+being shared ([Live view of a run](/features/live-view)). **Watch all** shows every worker of such a run at once, a
+tile each, and **Follow what needs attention** moves the view to the worker whose test failed, got stuck or stopped
+([Watch all workers](/features/watch-all)).
 
 ### Verification
 
@@ -3993,17 +4001,15 @@ setup. A CI job is told by its provider's variable (`GITHUB_ACTIONS`, `GITLAB_CI
 ```
 
 A spec file that imports `test` from `@playwright/test` instead of your [capture fixtures](/guide/capture-fixtures)
-has no view: the log names the first one. A CI run without a view logs why instead: the setting is off, the run does
-not stream (`streaming: false`), `wrapConfig`'s global setup did not register it, or the instance did not register the run as
-it started, with the error it answered.
+has no view: the log names the first one. A CI run without a view logs why instead, for a reason
+[Check availability](#check-availability) lists, with the error the instance answered.
 
-Turning it off ends every view at once; a run that started while it was off stays without one. Turned on again, a
-run that had a view and still runs gets it back within a minute.
+Turning it off ends every view at once. Turned on again, a run that had a view and still runs gets it back within a
+minute.
 
-A CI run's workers keep their view through an outage of the dashboard or its restart: each tries again after 1, 2, 4,
-8 and 16 seconds, then every 30 to 60 seconds while the run lasts; one the instance refuses waits that long at once. A
-worker whose view stays out says so once in the run's log, with the cause, and once more as it is back, outside any
-test's output.
+A CI run's workers keep their view through an outage or a restart of the dashboard: each tries again after 1, 2, 4,
+8 and 16 seconds, then every 30 to 60 seconds while the run lasts. A worker whose view stays out says so once in the
+run's log, with the cause, and once more as it is back.
 
 ## Check availability
 
@@ -4020,15 +4026,17 @@ A running run's **Tests** tab says **Live view available**, or what is missing, 
 ## Watch a worker
 
 On the run page's **Tests** tab, **Watch** at the end of a running test's row opens its worker's view, docked beside
-the page (a sheet on a smaller screen): the test's page as the browser paints it, headless or not, under it the call
-the image was taken at (`Click getByRole('button', { name: 'Pay' }) · checkout.spec.ts:30`). A still page sends no new
-image, so the caption names the step the test began since. Widen the panel by its edge or open it full screen; a click
-on the image zooms.
+the page (a sheet on a smaller screen): the test's page as the browser paints it, under it the call the image was
+taken at (`Click getByRole('button', { name: 'Pay' }) · checkout.spec.ts:30`). A still page sends no new image, so the
+caption names the step the test began since. Widen the panel or open it full screen; a click on the image zooms.
+Under it, the page's [events, text and filmstrip](./live-view-layers); [Watch all](./watch-all) shows every worker at
+once.
 
-In a CI run, the view follows that call: how long it has run, Playwright's log of it as a failed call's error
-prints it, and while it waits, what its locator matches (no element yet, several, or one not enabled), outlined on the
-image, with the point a click acts on; **Zoom to the element** crops the image around it. A shared run shows the call
-alone. Following the call needs Playwright 1.64: 1.63 shows its log without the matches, an older one the call alone.
+The view follows that call: how long it has run, Playwright's log of it as a failed call's error prints it, and while
+it waits, what its locator matches (no element yet, several, or one not enabled), outlined on the image, with the point
+a click acts on; **Zoom to the element** crops the image around it. In a CI run this needs Playwright 1.64 (1.63
+shows the log without the matches, an older one the call alone); a shared run reads it inside the worker, pausing
+nothing.
 
 A view follows its worker's lane: it says how each test ended, lists the lane's earlier tests and goes on, across
 worker restarts; untick **Follow the worker's next test** to end it with its test. The page's address names the lane
@@ -4044,12 +4052,13 @@ shared or not ([its stops](./share-live#stops-shared-or-not)).
   [stops](./share-live#stops-shared-or-not) show as text.
 - **Nothing while nobody watches.** Each worker of a CI or shared run keeps one connection to the dashboard and says
   only when its test stops and goes on. No image is taken.
-- **While someone watches a worker**, that worker sends JPEG images of its test's page, at most 640 by 400 pixels at
-  quality 50, four a second at most and about 256 KB a second: a heavier image holds the next one back longer. A test
-  whose trace or video already films the page shares that recording's images, 800 pixels wide at quality 90, and so
-  sends fewer of them. The recording stays whole. A test that starts its own `page.screencast` gets it, and the view
-  goes on with an image a second. A CI run's worker also sends the call's log. Nothing of the view is a step of the
-  test or an action of its trace.
+- **While someone watches a worker**, that worker sends JPEG images of its test's page at quality 50, at the size the
+  view shows them in device pixels, 1280 by 800 at most: four a second to a view,
+  one to a [Watch all](./watch-all) tile, and about 256 KB a second, a heavier image holding the next one back longer.
+  A test whose trace or video already films the page shares that recording's images, 800 pixels wide at quality 90.
+  The recording stays whole. A test that starts its own `page.screencast` gets it, and the view
+  goes on with an image a second. A view also gets the call's log. Nothing of the view is a step of the test or an
+  action of its trace.
 - **Only to people who may open the run**: watching needs what opening the run needs, the project's
   [roles](/operate/project-access). On an instance with authentication off, that is anyone who can reach it.
 - **Nothing is kept.** The dashboard relays each image to the people watching that worker and drops it: never written
@@ -4059,30 +4068,173 @@ shared or not ([its stops](./share-live#stops-shared-or-not)).
 **Masked in the worker**, with `@piwitests/reporter` 0.64.0 or later (an older one masks nothing): before an image
 leaves it, the worker paints over password fields, fields whose `autocomplete` asks for a one-time code or a card's
 number or code, and the project's **Masked elements** (Playwright locators). While one shows, two images a second go at
-most. A zoomed-in page sends no image. A secret in the page's own text still shows; the caption and the log hide credentials and typed text. The workers reach the dashboard with a key
+most. A zoomed-in page sends no image. A secret in the page's own text still shows; the caption and the log hide
+credentials and typed text. The workers reach the dashboard with a key
 the run got as it registered: it opens this run's live view and nothing else, ends with the run, and is never in the
-environment of the tests, their hooks or their fixtures, so a process they start does not get it. The dashboard keeps
-the key's SHA-256 digest with the run, never the key, so a dashboard that restarts takes the key back from the
-workers that present it while the run lasts.
+environment of the tests, their hooks or their fixtures. The dashboard keeps the key's SHA-256 digest with the run,
+never the key, so a dashboard that restarts takes it back from the workers while the run lasts.
 
 ## Limits
 
 - **Watch only.** No input and no controls: a test is stepped from the [editor](./editor-run-control) or the
   [Runs window](./runs-window).
 - **The test's `page`.** The view shows the page of Playwright's `page` fixture; a popup or a second page is not shown.
-- **Sixteen views of a run at a time**, four of them one person's with authentication on: a fifth closes that
-  person's oldest.
-- **One dashboard server.** The view is relayed in the memory of one server, as the run's live events are, so it needs
-  a deployment of one server ([Resource requirements](/operate/deployment#resource-requirements)). Sticky sessions do
-  not make up for it: the run's setup, its CI workers and the people watching are separate clients.
+- **Sixteen pages watching a run at a time**, four of them one person's with authentication on: a fifth closes
+  that person's oldest. Its workers send 4 MB of images a second at most together.
+- **One dashboard server.** The view is relayed in the memory of one server, so it needs a deployment of one server
+  ([Resource requirements](/operate/deployment#resource-requirements)). Sticky sessions do not make up for it: the
+  run's setup, its CI workers and the people watching are separate clients.
 
 ## Related
 
+- [Page events, text and filmstrip](./live-view-layers): what the page and its requests said, beside the image
+- [Watch all workers](./watch-all): every worker's page at once, and following what needs attention
 - [Capture fixtures](/guide/capture-fixtures): the worker side of the view
 - [Share a run live](./share-live): let a teammate watch a run on your machine
 - [Runs window](./runs-window): the live view of a test your editor runs, with its controls
 - [Desktop app runs](./desktop-runs): the desktop app's runs, and Share live from its tray
 - [Failure evidence](./evidence): what a finished test keeps
+
+<!-- https://piwitests.dev/features/watch-all -->
+
+# Watch all workers
+
+**Watch all**, on a running run's **Tests** tab, shows a tile for each worker in the run's
+[live view](./live-view): the page its test is on, one image a second, with the worker's number, its test and the step
+it is on. A click on a tile shows that worker in full, in the panel **Watch** opens. It is for a run of many workers
+where you do not know yet which one to look at. It needs what the live view needs: the project's live view on, and a
+CI run or a run [shared from a developer's machine](./share-live).
+
+## What a tile shows
+
+- **The page**, as the worker's test sees it: one image a second, 320 pixels wide, the latest alone. A still page sends
+  none until it changes.
+- **The worker**, by its lane (`Worker 2`, as the rows and the Timeline name it), the test it runs and its step.
+- **What its test needs attention for**: where it stands stopped (`Stopped at a breakpoint`), or **Stuck?** once the
+  dashboard marks it ([Stuck tests](./stuck-tests)).
+
+The tile of the worker shown in full is outlined. A worker that leaves the run's live view leaves the grid; the one
+Playwright starts in its lane after a failure takes its place.
+
+## Follow what needs attention
+
+In the full view, **Follow what needs attention** moves the view on its own to a worker whose test failed, was marked
+**Stuck?**, or stopped (a breakpoint, a `page.pause()` or **Pause**), and says why it moved:
+`Moved to worker 3: “pays with a saved card” failed.` It follows these rules:
+
+- It goes where the newest of them happened, in another worker of the run's live view.
+- It stays at least 5 seconds after it moved or you chose a worker yourself (a tile, a row's **Watch**).
+- It stays on a worker that needs attention itself: one stopped or marked **Stuck?**, for as long as it lasts, and one
+  whose test failed, for 10 seconds.
+- A failure from before you turned it on, or that the run page saw more than 30 seconds ago, the view open or closed,
+  moves nothing; nor does anything from before you last chose a worker yourself.
+
+After a failure, Playwright starts a new worker in the lane: the view shows its next test, and the line under its
+checkboxes says which test failed. The view moves within its panel, which stays in full screen if you put it there.
+
+## One connection
+
+The run page holds one connection to the dashboard for everything it watches: the tiles and the full view travel
+together, and showing another worker or resizing the panel changes what it carries without opening another. The full
+view's images come at the size the panel shows them, up to 1280 by 800 pixels; a worker shown in full and as a tile
+sends the larger. Each worker sends images only while a page shows it, in full or as a tile, and nothing is stored:
+[what is sent, to whom, and what is kept](./live-view#what-is-sent-to-whom-and-what-is-kept) applies to every tile.
+
+A run takes 16 such pages at a time, whatever each shows, and its workers send 4 MB of images a second at most together.
+Each page gets 1 MB of images a second at most, the latest of each worker waiting for the next second, and a page that
+reads nothing for 5 seconds is cut off, then connects again. A tile carries no call log, nor the
+[events, text or filmstrip](./live-view-layers) of the full view, and an image of 48 KB at most:
+a worker someone else watches in full at a large size says so in its tile. In a tab hidden for 10 minutes, the page
+stops asking for tiles, and asks again as you come back. An older reporter sends its images at 640 by 400 pixels, four a
+second, whatever the view asks; the dashboard passes one a second of them to a tile.
+
+## In the demo
+
+The live demo runs no browser: **Watch all** on a simulated run shows each running worker's step where its image
+would be, and its stops and **Stuck?** marks. A tile opens no full view there, so no page events, text or filmstrip.
+
+## Related
+
+- [Live view of a run](./live-view): turning it on, and the full view of one worker
+- [Stuck tests](./stuck-tests): when a test is marked **Stuck?**
+- [Share a run live](./share-live): let a teammate watch a run on your machine
+- [Watch a run](./watch-a-run): where a run is followed, on every tool
+
+<!-- https://piwitests.dev/features/live-view-layers -->
+
+# Page events, text and filmstrip
+
+Under the image of a worker's [live view](./live-view), the panel also shows what the image cannot: what the page and
+the test's requests said, the page as text, and a filmstrip of the test's calls. It is for a test that fails or waits
+for a reason the pixels do not show: a console error, a request that never answered, a 500 and the exception the
+backend logged for it. Each part comes from the worker only while the panel shows it, in a CI run or a run
+[shared from a developer's machine](./share-live), and the dashboard stores none of it.
+
+## Page events
+
+**Page events**, open by default, lists as they happen, newest first:
+
+- **Console errors** and **uncaught errors** the page threw;
+- **failed requests**: no answer, or a status of 400 or more;
+- **pending requests**, once one has waited 5 seconds for its answer: one line whose time grows
+  (`POST /api/checkout`, pending for 17 s), then says how long it took;
+- what the backend **logged** while it answered, errors and warnings, under the request it answered, from its
+  [backend instrumentation](/guide/backend-logs);
+- the test's **API calls** through Playwright's `request`, with their status and time: a test with no page shows these.
+
+Addresses and texts reach the dashboard with their credentials hidden. A worker sends 20 events a second at most and
+counts the others, the dashboard counts those a page reading too slowly could not take, and the list keeps the latest
+100; each says how many it left out. Folding the section stops them coming.
+
+## Page text
+
+**Page text**, folded by default, shows the page as roles and names when you open it, as Playwright's ARIA snapshot
+writes it (`- button "Pay €84.90" [disabled]`): what a screen reader would read, searchable and selectable at any width.
+
+- **Where it comes from**: the test's own trace, when the project's trace takes ARIA snapshots (`snapshots.aria`;
+  `wrapConfig`'s does not), a new one after each call. Otherwise the worker reads the page as you open the section or
+  choose **Read again**: about 8 levels deep, which can hold a heavy page's test up for 120 to 300 milliseconds.
+- **Find in the text** ignores case and accents, and says how many matches it has.
+- **The element the call waits on**, when its locator names it by role and name, label, placeholder or text
+  (`getByRole('button', { name: 'Pay' })`), is marked in the text.
+- **Masked in the worker**: the value of a password, PIN, one-time code or card field, anything that reads as a card's
+  number, the values the page's secret fields hold, and the project's **Masked elements** read `<hidden>`. A masked
+  element the snapshot cannot name sends no text, and the section says why.
+
+A text is 96 K characters and 192 KB at most, and says so when it is cut.
+
+## Filmstrip
+
+Under the image, the **filmstrip** shows the page after each call of the test that ended, one small image a call; a
+click on one shows it larger, with its call's title. The worker takes them from the view's own images, masked as its
+frames are, 320 by 200 pixels at most, only while someone watches, and keeps the current test's strip in its memory,
+40 images at most. A view that opens later gets that strip at once: from the test's start, when someone watched it all
+along.
+
+## What is sent, and what is kept
+
+- **Only what a panel shows.** The worker sends events while a panel shows **Page events**, the text as one opens
+  **Page text**, and the filmstrip while a panel shows the worker; to those panels alone.
+- **Bounded.** The dashboard relays at most 40 events, 4 texts and 16 filmstrip images a second of a worker; the images
+  count against the [bytes](./live-view#limits) a run's workers and each page may send, and a page past its bytes gets
+  the filmstrip's images a little later, in their order.
+- **Nothing is kept.** As with the images, the dashboard relays each part and drops it: never written to the database,
+  the logs or an export. The panel holds the parts of the test it shows in the browser's memory, until the view moves
+  to the next test or closes.
+
+A worker of an older reporter sends none of them: the sections stay empty, and **Page text** says no text came.
+
+## In the demo
+
+The live demo runs no browser, so its runs have no worker to watch in full: [Watch all](./watch-all#in-the-demo)
+names each worker's step, and the panel with its events, text and filmstrip never opens.
+
+## Related
+
+- [Live view of a run](./live-view): turning it on, and the image and call of one worker
+- [Watch all workers](./watch-all): every worker of a run at once
+- [Backend logs](/guide/backend-logs): what the backend instrumentation attaches to a response
+- [Failure evidence](./evidence): the console, network and ARIA a finished test keeps
 
 <!-- https://piwitests.dev/features/share-live -->
 
@@ -9884,7 +10036,7 @@ setting: `Piwi: run #124 · Passed 3 of 3`, or `Failed 1 of 3`.
 ## The status bar
 
 The latest complete run on the branch: how many tests passed, failed and were flaky, or what still fails and what your
-local runs fixed (`2 failing · 1 fixed locally`). While a run started from this editor, or another run of the branch,
+local runs fixed (`2 failing · 1 fixed locally`). While a run started from this editor, or [another run of the branch](./watch-running-test#a-ci-run-of-your-branch),
 is in progress, the item counts it instead (`4/9 · 1 failing · your run`) and returns to the latest run when it ends.
 
 With several Playwright configs, the item speaks for the config of the file you are editing, the deepest config folder
@@ -10004,26 +10156,25 @@ the editor starts.
 
 # Runs window
 
-Piwi Picker's Runs window follows the test runs VS Code or a JetBrains IDE starts, from a window of its own beside
-the test's browser. It pauses, steps and resumes them, writes code from a stop through the editor, and, for a test
-that runs headless or in a remote container, shows its page live while it runs, takes your clicks and keys on it, and
-picks a locator on its image. The editor shows the same stops: [Pause and step from the editor](./editor-run-control).
+Piwi Picker's Runs window, a window of its own beside the test's browser, follows the runs VS Code or a JetBrains IDE
+starts: it pauses, steps and resumes them, writes code from a stop through the editor and, for a headless or remote
+test, shows its page live, takes your clicks and keys on it, and picks a locator on its image. The editor shows the
+same stops: [Pause and step from the editor](./editor-run-control).
 
 ## Open it
 
 With Piwi Picker [paired with VS Code or a JetBrains IDE](./editor-recording#send-from-piwi-picker), or with the
 [desktop app](./bug-reports#running-it-with-playwright-in-the-desktop-app), the popup shows a **Runs** tile under
-**More tools**, muted with **Not connected** while none of them answers. It opens the Runs window, to keep beside the
-test's browser, where you left it last. While a test waits at a stop for you (a breakpoint, a **Pause**, a failure held
+**More tools**, muted with **Not connected** while none of them answers. It opens the Runs window where you left it last. While a test waits at a stop for you (a breakpoint, a **Pause**, a failure held
 at its line, not a stop an agent drives), the tile says how many in amber, as do the toolbar's badge and the Runs
-window's title (`1 waiting · Runs · Piwi Picker`); while none waits and tests failed, they say how many failed, in red,
-those of a run that failed while the Runs window was not in front included until you bring it there. For each run
-the editor [started](./editor-runs), the window shows the folder and the command, how many of
-its tests ended (`3 of 9 tests · 1 failed`), then each worker's test and whether it runs or where it stopped: the file
-and line, the call about to run, and an image of the page. A run that ended says how: passed, failed with its first
-failure, timed out or interrupted. The count and the outcome need `@piwitests/reporter` newer than 0.67.0. While none
-of its tests is stopped, a run without [**Watch**](#watch-live) says how one stops: at a breakpoint, a `page.pause()`
-or **Pause**. A run [started outside Piwi](./terminal-runs) shows too, marked **Terminal** or **Test runner**.
+window's title (`1 waiting · Runs · Piwi Picker`); while none waits, how many failed, in red, a run that failed while
+the Runs window was not in front counted until you bring it there. For each run
+the editor [started](./editor-runs): its folder and command, how many of its tests ended (`3 of 9 tests · 1 failed`),
+then each worker's test and whether it runs or where it stopped (the file and line, the call about to run, an image of
+the page). A run that ended says how: passed, failed with its first
+failure, timed out or interrupted. The count and the outcome need `@piwitests/reporter` newer than 0.67.0. A run
+without [**Watch**](#watch-live) and no test stopped says how one stops: a breakpoint, a `page.pause()` or **Pause**. A run [started outside Piwi](./terminal-runs) shows too, marked **Terminal** or **Test runner**.
+[CI runs](./watch-running-test#a-ci-run-of-your-branch) show read-only.
 
 ## The controls
 
@@ -10038,8 +10189,8 @@ desktop app started, not a terminal's or test runner's. Resume, Step and Finish 
 [run shortcut](/reference/keyboard-shortcuts#the-run-shortcut) resumes or pauses every run from any window.
 
 A failing test is held at its line, a headless one while its run's
-[**Hold failures**](/guide/concepts#hold-failures) is on: **Failed at** in red, its error under it. **Resume** lets it
-end as it failed; **Pick** replaces the failing locator. **Hold failures**, on each run, turns it on or off.
+[**Hold failures**](/guide/concepts#hold-failures), a switch on each run, is on: **Failed at** in red, its error under
+it. **Resume** lets it end as it failed; **Pick** replaces the failing locator.
 
 **Share live**, under the run's name, shares the run with your team: [Share a run live](./share-live).
 
@@ -10055,8 +10206,8 @@ The actions under **Code** (the last two in **More** once five show) send code t
 stopped line, when its Piwi extension and your reporter take them. **Pick** and **Record** start the pause bar's **Pick
 a locator** and **Record here**, **Assert** the recorder's **Check an element**, and **Assert a region** a pick whose
 ARIA snapshot becomes `toMatchAriaSnapshot`.
-They run in the test's page: where the pause bar shows, or, at a headless stop, once you [watch it](#watch-live),
-driven through the view; until then they show held, saying **Watch to use**. **Mock a request** lists the page's fetch
+They run in the test's page: where the pause bar shows, or, at a headless stop you [watch](#watch-live), through the
+view; else they show held, saying **Watch to use**. **Mock a request** lists the page's fetch
 and XHR requests, credentials hidden: the one you choose becomes a `page.route`. Under the test, the window says the
 code went to the editor, with what to review in it, or why not.
 
@@ -10072,16 +10223,19 @@ it too: [Watch a running test](./watch-running-test). The last frame stays, mark
 comes. An older reporter's row says to update it; with one newer than 0.61.0, its stops have **Watch live**, which
 watches each stop alone and, left on, the worker's next ones.
 
-The view fills the window's width, at most ten frames a second, with a red **Live** badge. Only the window that asked
-gets the frames, and nothing stores them: they go from the test's worker to the editor service and the extension's
-background worker, on your machine or through the port your IDE forwards from a [remote
-window](/guide/remote-development).
-
+The view fills the window's width, ten frames a second at most, under a red **Live** badge. Only the window that
+asked gets the frames, stored nowhere, from the test's worker through the editor service and the extension's
+background worker, on your machine or the port your IDE forwards from a [remote window](/guide/remote-development).
 Watching ends when you turn it off, the run ends or you close the window, and pauses while the window is minimized or
-the connection to the editor is lost.
+the editor is out of reach.
 
-At a headless stop, nobody sees the test's page. Watched, the picker, the recorder's panel and the check panel appear
-in the view, and you answer them there as in a headed browser; their code reaches the editor the same way.
+Under the page, from a reporter newer than 0.68.0, the window shows what pixels cannot, as the editor does
+([beside the image](./watch-running-test#beside-the-image)): **Why it waits**, **Events**, **Text** (**Show the
+page's text** reads it at each test, secret fields hidden, then follows the test's trace) and **Filmstrip** (a click
+enlarges an image, with its call), kept in memory alone.
+
+At a headless stop, which nobody sees, the picker, the recorder's panel and the check panel appear in the watched
+view, answered there as in a headed browser; their code reaches the editor the same way.
 
 <figure>
   <img src="/screenshots/picker-runs-live.png" width="488" alt="The Runs window at a headless stop, watching the shop page live: Watch live and Interact pressed in the page card's head, the Live badge on the view, the picker over the page, with Resume, Step and Finish in one group, End the test apart, and Pick, Record, Assert and More under Code">
@@ -10096,7 +10250,7 @@ the view to the page as a person's would, the picker and the recorder included:
 - **The pointer**: moves, left and right clicks, double and triple clicks as your system counts them, drags, and the
   wheel once the view has the focus. `Ctrl`, `Alt` and `⌘` held with a click are held in the page too.
 - **The keys**, while the view has the focus (a focus ring around it), and a paste, which types the clipboard's text.
-  Which keys go to the page and which stay the window's: the
+  Which go to the page and which stay the window's: the
   [keyboard shortcuts](/reference/keyboard-shortcuts#piwi-picker-s-runs-window).
 
 A hint under the view says so the first time. What you hold down is let go before the test goes on.
@@ -10105,18 +10259,17 @@ A hint under the view says so the first time. What you hold down is let go befor
 
 **Pick on the image**, above the image, or a `Shift`+click on the image or the view, names the element a click
 under the pointer would reach (a dialog or a banner over the page included), without touching the page: the locator
-the pause bar's **Pick a locator** would rank first for it, sent to the editor in place of the stopped line's. The window shows that locator, or why there is none, with
-**Copy** when no editor took it. It works on a headed stop's image too. `Esc`
-turns it off. It needs Playwright 1.60 or later, and says so on an older one.
+the pause bar's **Pick a locator** would rank first for it, sent to the editor in place of the stopped line's. The
+window shows it, or why there is none, with **Copy** when no editor took it, on a headed stop's image too. `Esc` turns
+it off. It needs Playwright 1.60 or later, and says so on an older one.
 
 ## The desktop app's runs
 
 [Paired](./bug-reports#running-it-with-playwright-in-the-desktop-app) with the [desktop app](./desktop), the window
 lists the runs the app starts beside your editor's, marked **Desktop app**: reproductions, bisect steps and bug reports
 included, with the same controls and live view. With no editor paired, it follows the app alone. The app holds no
-editor, so **Pick**, **Record** and **Assert** in the test's window are not offered; the code **Assert a region** and
-**Mock a request** make goes to the app's window, to copy there, and the window here says so: [Desktop app
-runs](./desktop-runs).
+editor, so **Pick**, **Record** and **Assert** in the test's window are not offered; the code of **Assert a region**
+and **Mock a request** goes to the app's window to copy, as the window here says: [Desktop app runs](./desktop-runs).
 
 ## Limits
 
@@ -10132,7 +10285,7 @@ runs](./desktop-runs).
 - [Code from a pause](./editor-stop-code): what each action writes, and where.
 - [Browser extension](./extension): Piwi Picker's other tools, and its permissions.
 - [Remote development](/guide/remote-development): the runs of a dev container or a remote window.
-- [Desktop app runs](./desktop-runs): the same runs, in the desktop app's window.
+- [A CI run of your branch](./watch-running-test#a-ci-run-of-your-branch): listed here read-only.
 - [Piwi Picker and your editor](./editor-pairing): how the pairing reaches each editor window and the desktop app,
   on your machine alone.
 
@@ -10468,6 +10621,33 @@ stops it before its next call too. It needs `@piwitests/reporter` newer than 0.6
 Worker's Test** in a JetBrains IDE, and a button beside **Watch** in the Runs window and the desktop app. With several
 workers to choose from, the editor asks which.
 
+## A CI run of your branch
+
+A CI run of the branch your workspace reads or has checked out shows beside your own runs while it runs, read-only:
+nothing in your editor or Piwi Picker pauses, steps, holds or shares it.
+
+- **VS Code**: the **CI Runs** view of the Piwi panel lists it as `CI run #78`, its branch and progress beside it,
+  then **Open run #78** and its tests: those running, then the latest that ended, failures first. A running test
+  opens the call it is at, else its spec.
+- **JetBrains IDEs**: the **CI Run** tab of the Piwi tool window, added while one runs, lists the same rows; a double
+  click opens one.
+- **The line each running test is at** ends with a plain mark in the CodeLens or inlay color, `CI run #78 · worker 2:
+  Click getByRole('button')`: a CI position, never a stop. The line is the run's commit's.
+- **Piwi Picker's Runs window** lists the CI runs in progress of the projects your
+  [connection](./extension-connection) maps, through that instance, with **Open**.
+- **Watch**, under a running test of a run whose project has the [live view](./live-view) on, opens its lane in the
+  editor, read-only: the VS Code worker panel or the JetBrains **Worker** tab, named `CI run #78 · worker 2`, with
+  **Watch** alone, no **Interact** and no pick. It follows the lane through its next tests, and ends with the run, as
+  you hide or close the view, or as the instance closes it, saying why.
+- **Watch on the dashboard**, beside it, opens the lane's view on the run's page: the choice where the editor cannot
+  show it (an older instance, a refused **Watch**, which offers it).
+
+The editor follows the two newest CI runs of a branch through the connection to the instance it already holds, and
+Piwi Picker reads the list every 15 seconds while its Runs window is open. While the editor follows a run, the run's
+reporter streams the call each test is at. A CI lane's images come from the team instance, read with your editor's
+key: the CI worker paints over the same fields before they leave it, the editor service keeps none, and the watch
+counts among the instance's watches of the run for the key's owner, as a dashboard tab does.
+
 ## What you see
 
 Each view names the worker by its slot in the run (`Worker 2`) and says what it does: its running test, the call a Pause waits in, where it
@@ -10477,6 +10657,20 @@ page that does not change sends no new image.
 
 Watching pauses while the view is out of sight (another tab in front of an editor's panel or tab, a minimized Runs
 window) and starts again as it shows. It ends when you turn it off or close the view, or as the run ends.
+
+## Beside the image
+
+Under the image, the editor's view shows what the pixels cannot, a CI run's lane included:
+
+- **Why it waits**: the call the test is in, how long it has run, how many elements its locator matches and whether
+  the first is enabled, and the last lines of Playwright's log.
+- **Events**: console and uncaught errors, failed requests, requests pending long (`POST /api/checkout pending 17 s`)
+  and the errors the backend logged, newest first.
+- **Text**: the page as roles and names, its secret fields hidden. Find searches it.
+- **Filmstrip**: one image per call the test finished; click one to see it larger.
+
+The text and the filmstrip are read only while open. The view says when an older reporter, or team instance, may send
+none of them.
 
 ## Interact
 
@@ -10499,7 +10693,8 @@ serves every viewer at once: the editor's, Piwi Picker's and, for a run [shared 
 
 ## Limits
 
-- **One worker per editor.** The panel or tab watches one worker: watching another moves it there.
+- **One worker per editor.** The panel or tab watches one worker, a CI run's lane included: watching another moves it
+  there.
 - **The test's `page`.** A popup or a second page the test opens is not shown. A download a click on the view starts
   and a dialog the page opens go to the test as its own would: Playwright deletes the download with the test's
   context, and dismisses the dialog unless the test handles it.
@@ -10516,6 +10711,7 @@ serves every viewer at once: the editor's, Piwi Picker's and, for a run [shared 
 - [Pause and step from the editor](./editor-run-control): the controls and the paused page, in the editor.
 - [Desktop app runs](./desktop-runs): the runs the desktop app starts, and its tray.
 - [Live view of a run](./live-view): a CI run's or a shared run's page, on the team instance.
+- [Runs from the editor](./editor-runs): your own runs, and the status bar that counts a CI run of your branch.
 
 <!-- https://piwitests.dev/features/editor-stop-code -->
 
@@ -11425,21 +11621,21 @@ Nothing leaves your machine unless you [share a run live](#share-live).
 
 ## Each worker
 
-While a run goes on, the tray shows each worker's test, its Playwright project and its attempt, and whether it runs.
+While a run goes on, the tray shows each worker's test, project and attempt, and whether it runs.
 **Pause** stops the test before its next call that acts on or checks the page. A test also stops at a `page.pause()`,
 and a headed one shows Piwi's [pause bar](./editor-breakpoints#pause-a-run) there.
 
 At a stop, the tray says why the test stopped, the call about to run (**Next**) and its place in your code (**At**),
 with an image of the page. **Resume** lets the test go on, **Step** runs one call and stops before the next, **Finish**
-runs the test to its end without stopping again, and [**End the test**](./end-the-test) skips the rest of it.
+runs it to its end without stopping again, and [**End the test**](./end-the-test) skips the rest.
 
 A run of several workers shows one at a time, behind a tab each (**worker 2**) marked with its state. A new stop takes
 the tab from a worker that runs unwatched, and **Resume** or **End the test** there moves it to the next stopped test.
 **Pause all** and **Resume all** steer every worker at once.
 
-**Hold failures**, on each running run in the tray, holds a failing test at its line: **Failed at**, its error under
+**Hold failures**, on each running run, holds a failing test at its line: **Failed at**, its error under
 it, and **Resume** to let it end as it failed. It is on from the start for **Reproduce**, which runs to show you the
-failure, and for a run started with it on; **Run again** keeps it. It is [the run's own](/guide/concepts#hold-failures),
+failure, and a run started with it on; **Run again** keeps it. It is [the run's own](/guide/concepts#hold-failures),
 off again as the app's last window closes. A run [nobody attends](/guide/concepts#hold-failures) never holds one, and
 its switch says why.
 
@@ -11448,20 +11644,20 @@ its switch says why.
   <figcaption>A run the desktop app started, stopped at a <code>page.pause()</code> and watched live.</figcaption>
 </figure>
 
-The tray opens at each stop: a headless test waits for you there. While the window is in the background, the system
-tells you of a failure or a `page.pause()`, never of a step or a pause you asked for. The window listens on every
-page, and again as soon as it reloads while a run of the app goes on. On a page without the tray, as an analytics
-dashboard in TV mode or an error page, the system tells you of every stop, whatever the window shows, and no failure
-is held; a `page.pause()`, a step or a breakpoint still waits there until something answers it: the tray once a page
-shows it again, [Piwi Picker's Runs window](./runs-window) or [an agent](#for-agents). When no run of the app is going
-on, the window stops listening, and a stop goes on at once.
+The tray opens at each stop, where a headless test waits for you. With the window in the background, the system tells
+you of a failure or a `page.pause()`, never of a step or a pause you asked for. The window listens on every page, again
+as soon as it reloads while a run of the app goes on. On a page without the tray (an analytics dashboard in TV mode,
+an error page), the system tells you of every stop, whatever the window shows, and no failure is held; a
+`page.pause()`, a step or a breakpoint waits until the tray shows it again, or [Piwi Picker's Runs
+window](./runs-window) or [an agent](#for-agents) answers it. With no run of the app going on, the window stops
+listening, and a stop goes on at once.
 
 ## Its output
 
-Each run shows its output under its workers, in the colors Playwright prints in a terminal. **Open the output in a
-separate window**, the window button on the run, moves it to a window of its own, to keep beside your editor or on
-another screen: it goes on updating and has the run's **Stop**. Closing that window, or the same button, now **Show
-the output here**, brings the output back; the window closes with the app.
+Each run shows its output under its workers, in Playwright's terminal colors. **Open the output in a
+separate window**, the window button on the run, moves it to a window of its own, beside your editor or on another
+screen, still updating, with the run's **Stop**. Closing that window, or the same button, now **Show the output
+here**, brings it back; the window closes with the app.
 
 ## Watch live
 
@@ -11475,11 +11671,16 @@ keys on the view to the page; `Tab` leaves the view unless a click into it took 
 [frames](/guide/concepts#watch-share-live).
 
 **Pause and watch**, on a running test of the run's page in the app (**Open run #N** on the run in the tray), pauses
-the test as **Pause** does, watching its worker: the tray opens at the stop, the page live. The row
-then says where the test stopped, with **Show its page** to open the tray on it again.
+the test as **Pause** does and watches its worker: the tray opens at the stop, the page live, and the row says where
+it stopped, with **Show its page** to open the tray on it again.
 
 **Pick on the image** (Playwright 1.60 or later), or a `Shift`+click on the image or the view, names the element under
 the pointer: its locator shows under the test, with **Copy**.
+
+Under a watched page, from a reporter newer than 0.68.0, the tray shows what pixels cannot, as the editor does
+([beside the image](./watch-running-test#beside-the-image)): **Why it waits**, **Events**, **Text** (**Show the page's
+text** reads it at each test, secret fields hidden, then follows the test's trace) and **Filmstrip** (a click enlarges
+an image, with its call), kept in memory alone.
 
 ## Code to copy
 
@@ -11493,8 +11694,8 @@ your file:
 - **A locator picked**, on the image or with the pause bar's **Pick a locator**, shows with the line it was picked
   for.
 
-Each code shows the line it goes above, and its import lines apart, each with **Copy**. The code is made from the file
-as it is on disk, in the folder linked to the project.
+Each code shows the line it goes above and, apart, its import lines, each with **Copy**, made from the file as it is
+on disk in the folder linked to the project.
 
 <figure>
   <img src="/screenshots/desktop-run-live-code.png" alt="Code from the runs in the desktop app's tray: a mocked request, the page.route call to write above tests/checkout.spec.ts:18, with Copy">
@@ -11508,20 +11709,14 @@ names it does, can be shared there for a teammate to watch: **Share live**, abov
 first time since the app started. Who sees what, and why a run cannot be shared: [Share a
 run live](./share-live#from-the-desktop-app).
 
-## From Piwi Picker
-
-Paired with the app, [Piwi Picker's Runs window](./runs-window#the-desktop-app-s-runs) follows and steers these runs
-too, and the code it starts at their stops comes to this tray.
-
 ## For agents
 
-The app's [MCP server](./mcp), which its **MCP server** page connects your coding agent to, serves these runs with
-the tools of [Run control for agents](./agent-run-control): `run_list`, `run_follow`, `run_control`,
-`page_snapshot`, `page_act`, `page_locator` and `code_write`. An agent follows a run, pauses or steps it, and reads
+The app's [MCP server](./mcp) (its **MCP server** page connects your coding agent) serves these runs with
+the tools of [Run control for agents](./agent-run-control). An agent follows a run, pauses or steps it, and reads
 and acts on the stopped page as you can and no further: [what keeps it safe](./agent-run-control#what-keeps-it-safe).
 
-What it does shows in the tray: a stop it asked for says so (**Paused by the agent**), and so does its first action
-at a stop. The code `code_write` makes (the steps it took, an assertion, or a locator for the stopped line) comes under
+The tray shows what it does: a stop it asked for says so (**Paused by the agent**), as does its first action at a
+stop. The code `code_write` makes (the steps it took, an assertion, or a locator for the stopped line) comes under
 **Code from the runs**, to copy, and back to the agent in its answer: no file is written. A run nobody attends is not
 served, so an agent sees no Flake Lab run, bisect or lab job.
 
@@ -11552,7 +11747,8 @@ for an agent that left.
 - [Desktop app](./desktop): what it runs, and how it links a project to its folder.
 - [Pause and step from the editor](./editor-run-control): the same stops, in VS Code and the JetBrains IDEs.
 - [Code from a pause](./editor-stop-code): what each action writes.
-- [Runs window](./runs-window): Piwi Picker's window for the same runs.
+- [Runs window](./runs-window#the-desktop-app-s-runs): Piwi Picker's window, paired with the app, for the same runs;
+  the code it starts at their stops comes to this tray.
 - [Run control for agents](./agent-run-control): the tools an agent steers the runs with.
 - [Flake Lab](./flake-lab#in-the-desktop-app): **Reproduce this flake** and a flake-aware bisect, run by the app.
 
