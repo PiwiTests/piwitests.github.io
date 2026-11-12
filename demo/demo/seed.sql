@@ -2763,6 +2763,9 @@ ALTER TABLE `project_integrations` ADD `title_prefix` text;
 
 ALTER TABLE `project_integrations` ADD `declared_issue_types` text;
 
+ALTER TABLE `test_runs` ADD `reporter_id` integer REFERENCES users(id);
+CREATE INDEX `idx_test_runs_reporter` ON `test_runs` (`reporter_id`);
+
 BEGIN TRANSACTION;
 
 -- Tags
