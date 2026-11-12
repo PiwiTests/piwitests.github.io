@@ -562,6 +562,11 @@ after it), rendered without its scripts, with the locator picker on it; the work
 fields' values removed, only while someone has Inspect open, and the instance keeps them in memory alone
 ([Inspect a running test's page](/features/live-inspect)).
 
+On your machine, a view's images follow the test's own screencast: when the test records its own (a video, a trace
+with screenshots), the view takes its size and quality; when none can start, it is an image of the page twice a
+second. A frame over 384 KB gives way to a lighter image of the page, twice a second; when even that is too heavy, the
+view says so in its place.
+
 ### Trace so far
 
 **A running test's trace up to now, opened in Playwright's trace viewer** (**Open the trace so far**, [Watch a running
@@ -569,7 +574,9 @@ test](/features/watch-running-test#open-the-trace-so-far)). The editor service o
 machine the run runs on, asks the test's worker where its trace grows, checks that file, and starts the viewer there
 from your project's own Playwright. The trace's path never leaves that service: each tool hears a sentence alone,
 saying why when the viewer does not start. In Playwright 1.59 to 1.64 the viewer shows the trace as it stood when it
-opened: close it, then choose the button again, for what came since.
+opened: close it, then choose the button again, for what came since. The attempt must be traced: `trace: 'on'` or
+`'retain-on-failure'` (`wrapConfig`'s default when your config sets none) traces every attempt, `'on-first-retry'` and
+`'on-all-retries'` a retry alone. Its trace starts with its first browser context.
 
 **Inspect** on a lane watched in the desktop app's tray reads the same checked file on the app's server, while the
 tray shows it and the window is not hidden; the window hears each page's call and reads the page rendered, never the
@@ -4486,8 +4493,8 @@ whose project enables live view, and connect to an editor or the desktop app for
 
 | Where | Share | Stop |
 |---|---|---|
-| VS Code | **Piwi: Share the run live on the team instance**, or the status bar's broadcast icon | **Piwi: Stop sharing the run live**, or the status bar's **Live** |
-| JetBrains IDEs | **Tools → Piwi → Share the Run Live** | **Tools → Piwi → Stop Sharing the Run Live** |
+| VS Code | **Piwi: Share the run live on the team instance**, or the status bar's broadcast icon | **Piwi: Stop sharing the run live**, or **Stop sharing…** in the menu of the status bar's **Live**, beside **Open the run page** and **Copy the run page's link**, after a confirmation |
+| JetBrains IDEs | **Tools → Piwi → Share the Run Live** | **Tools → Piwi → Stop Sharing the Run Live…**, or **Stop Sharing the Run…** in the status bar item's menu, after a confirmation |
 | Piwi Picker's [Runs window](./runs-window) | **Share live** under the run's name | **Stop sharing** |
 | The desktop app's [Local runs tray](./desktop-runs) | **Share live** above the run's workers | **Stop sharing** |
 
@@ -4526,7 +4533,7 @@ $env:PIWI_SHARE_LIVE='1'; npx playwright test
 
 **Piwi: Share this window's runs live until I stop** in VS Code, and **Tools → Piwi → Share This Project's Runs Live
 Until I Stop** in a JetBrains IDE, share each run the window starts from then on, each one said as it is shared, until
-you stop (**…Stop sharing this window's runs live**, or a click on the status bar's **Live · this window**) or close
+you stop (**…Stop sharing this window's runs live**, or the menu of the status bar's **Live · this window**) or close
 the window. On the team instance, the page of the run before says **Continued in run #78**, linked, and a teammate who
 has it open is taken to the new run, on the worker they were watching.
 
@@ -10220,15 +10227,15 @@ folder: as a task in VS Code, in a terminal of its own (**Tasks: Rerun Last Task
 window in a JetBrains IDE (**Rerun** starts it again), or in the IDE's Playwright runner (test tree, Debug, **Rerun
 Failed Tests**), a choice of **Settings → Tools → Piwi** that keeps every control of a Piwi run, through the runner's
 Rerun and Debug too. It sets `PIWI_ORIGIN=editor` and its own `PIWI_ORIGIN_REF`
-([run origin](/reference/test-metadata#run-origin)), by which the editor finds its run. Breakpoints pause it in the
-browser, with Piwi's picker one click away: [Breakpoints in the browser](./editor-breakpoints); the editor pauses,
+([run origin](/reference/test-metadata#run-origin)), by which the editor finds its run. Breakpoints pause it:
+[Breakpoints in the browser](./editor-breakpoints); the editor pauses,
 steps and resumes it too: [Pause and step from the editor](./editor-run-control).
 
 ## How a run starts
 
 Two choices apply to every test run you start: **Run headed** (`--headed`, a verification included) and
 [**Hold failures**](/guide/concepts#hold-failures) **Auto**, **On** or **Off** from the run's start. Auto lets Piwi
-decide: on, and headed, with your breakpoints or a `page.pause()`. In VS Code,
+decide: on with your breakpoints or a `page.pause()`, headed for the latter. In VS Code,
 **Piwi: Run options…** sets them (`piwi.runHeaded`, `piwi.runHoldFailures`), shown in the status bar's tooltip;
 in a JetBrains IDE, **Tools → Piwi → Run Headed** and **Hold Failures from Each Run's Start…**. A
 [debug run](./debug-in-editor), a Flake Lab line and a fix plan's check leave them out.
@@ -10250,10 +10257,11 @@ gutter marks a test with no recent result with a dashed ring.
 </figure>
 
 **Run with Piwi**, the view's run profile, runs the tests you pick as the commands above do, one command per
-Playwright config with your breakpoints, and **Verify ×3 with Piwi** runs them three times. A test the run gave Piwi no
+Playwright config with your breakpoints, and **Verify ×3 with Piwi** runs them three times. Tests show running as
+they begin, offline too. A test the run gave Piwi no
 result for, such as one the instance does not know yet, passes when the command exited with 0 and is an error
 otherwise. The view shows results; it does not discover tests nor debug them: a spec the instance has not seen joins
-the tree once you open it. The `piwi.testExplorer` setting turns the view's Piwi tests off.
+the tree once you open it. `piwi.testExplorer` turns the view's Piwi tests off.
 
 ## Re-run the failing tests
 
@@ -10600,9 +10608,14 @@ or pick a better locator, which lands back on that line in the editor. The stop 
    `await page.getByText('Pay now').click();`, `await page.goto('/checkout');`, `await page.keyboard.press('Tab');`
    or `await expect(page).toHaveURL(/cart/);`. On a statement broken over lines, any of its lines will do.
 2. Run the test from Piwi: **Run this test**, or any command of [Runs from the editor](./editor-runs#run-tests).
-3. The run opens a headed browser. Before the call on your line runs, the pause bar appears with the call as
-   Playwright names it, `Paused at login.spec.ts:42 · Click getByText('Pay now')`, and a locator call's element is
-   highlighted.
+3. The test stops before the call on your line runs. A run Piwi starts follows your config, headless unless it sets
+   `headless: false` or you chose **Run headed** ([How a run starts](./editor-runs#how-a-run-starts)): the editor
+   marks the line and shows the stopped page ([A headless run](./editor-run-control#a-headless-run)). In a headed run,
+   the pause bar appears in the
+   browser with the call as Playwright names it, `Paused at login.spec.ts:42 · Click getByText('Pay now')`, and a
+   locator call's element is highlighted.
+
+The pause bar's buttons:
 
 | Button                      | What it does                                                                                                                                                                                                    |
 | --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -10675,13 +10688,14 @@ starts at the editor's breakpoints** under **Settings → Tools → Piwi** in a 
   stops, and the run's output names it once.
 - **A run started from Piwi**, or [started outside Piwi](./terminal-runs). The editor passes the breakpoints under the
   Playwright config's folder to the run as `PIWI_PAUSE_AT` (`tests/login.spec.ts:42;tests/pages/checkout.page.ts:9`,
-  relative to that folder), with its pairing address as `PIWI_EDITOR_SEND`, and adds `--headed` to the command unless it
-  already has `--headed`, `--ui` or `--debug`. Set `PIWI_PAUSE_AT` yourself to
+  relative to that folder), with its pairing address as `PIWI_EDITOR_SEND`. It adds `--headed` when you chose
+  **Run headed**, or when the reporter stops only headed: older than 0.62.0, of an unknown version, or with no run
+  channel to show a headless stop. Set `PIWI_PAUSE_AT` yourself to
   [pause a run you start](/features/locator-healing#pause-at-a-breakpoint-local-runs).
 
 ## Limits
 
-- **Headed and local only.** Under CI (a provider's variable such as `GITHUB_ACTIONS`, or `CI` not `false` or `0`) or
+- **The bar needs a headed browser, and a local run.** Under CI (a provider's variable such as `GITHUB_ACTIONS`, or `CI` not `false` or `0`) or
   Playwright's debugger (`--debug`, `PWDEBUG`), the run ignores breakpoints, saying why once, as does a headless
   run of yours with `PIWI_PAUSE_AT`; one Piwi starts stops with no bar, and the editor shows its page
   ([A headless run](./editor-run-control#a-headless-run)).
@@ -10787,8 +10801,8 @@ has none.
 
 ## A headless run
 
-A run Piwi starts with breakpoints is headed, with a pause bar. Without breakpoints it follows your config, headless
-by default. A headless stop opens **Piwi: paused page** beside VS Code's editor, or **Paused Page** in the JetBrains
+A run Piwi starts follows your config, headless by default, unless you choose
+[**Run headed**](./editor-runs#how-a-run-starts) or an [older reporter](./editor-breakpoints#what-it-needs) needs it. A headless stop opens **Piwi: paused page** beside VS Code's editor, or **Paused Page** in the JetBrains
 Piwi tool window, which keeps its stop until it goes on, and after a **Step** or **Run to cursor** from the editor
 waits up to 10 seconds for its next stop. **Piwi: Show the paused page** (**Tools → Piwi → Show the Paused Page**)
 opens it at any stop.
@@ -10920,6 +10934,11 @@ Under the image, the editor's view shows what the pixels cannot, a CI run's lane
 The text and the filmstrip are read only while open. The view says when an older reporter, or team instance, may send
 none of them.
 
+While an editor watches a worker of your run, the line of the call its test is in is marked until the test ends or
+stops, the call named after it (VS Code dims the line, `Worker 2 · Click getByRole('button')`; a JetBrains IDE adds an
+inlay), and the page's events go to VS Code's **Piwi: Page** output, its console and uncaught errors to the
+JetBrains Piwi tool window's **Page** tab, each test named as it begins.
+
 ## Open the trace so far
 
 **Open the trace so far** opens Playwright's trace viewer on the running test's trace up to now, on the machine the
@@ -10930,9 +10949,7 @@ window and the desktop app's tray, while the worker runs a test, stopped or not,
 It shows only where it can open: the machine the run runs on has a display (on Linux, `DISPLAY` or `WAYLAND_DISPLAY`
 set), the editor or the desktop app knows the run's folder, and a Runs window reaches the hub without a forwarded port.
 
-The attempt must be traced: `trace: 'on'` or `'retain-on-failure'` (`wrapConfig`'s default when your config sets
-none) traces every attempt, `'on-first-retry'` and `'on-all-retries'` a retry alone. Its trace starts with its first
-browser context.
+The attempt must be traced: [which attempts are](/guide/concepts#trace-so-far).
 
 ## Interact
 
@@ -10953,10 +10970,8 @@ picks a locator instead. The keys that stay the window's are listed under
 - **The test's `page`.** A popup or a second page the test opens is not shown. A download a click on the view starts
   and a dialog the page opens go to the test as its own would: Playwright deletes the download with the test's
   context, and dismisses the dialog unless the test handles it.
-- **A test's own screencast.** When the test records its own (a video, a trace with screenshots), the view takes its
-  size and quality; when none can start, it is an image of the page twice a second.
-- **A heavy page.** A frame over 384 KB gives way to a lighter image of the page, twice a second; when even that is
-  too heavy, the view says so in its place.
+- **The images** follow the test's own screencast and give way on a heavy page:
+  [Watch](/guide/concepts#watch-share-live).
 - **An older reporter** shows a stopped test alone: the Runs window's row and the desktop app's tray hold their
   **Watch**, saying to update it, and the editors offer no Watch for its workers.
 
@@ -10988,8 +11003,8 @@ are on [Pause and step from the editor](./editor-run-control).
 | **Assert a region** | `await expect(…).toMatchAriaSnapshot(…)` with the ARIA snapshot of the region you pick | The test's window |
 | **Mock a request** | `await page.route(…)` that answers as the server answered a request the page made | The editor alone, at any stop |
 
-The first four need the pause bar, so a headed browser: a run Piwi starts with breakpoints is headed. **Mock a
-request** works headless too.
+The first four need the pause bar, so a headed browser: choose **Run headed**
+([How a run starts](./editor-runs#how-a-run-starts)). **Mock a request** works headless too.
 
 - **In VS Code**, they are behind **Write code…** in the line above the stopped line, after the controls, in its hover,
   in the palette while a stop offers them (**Piwi: Assert in the stopped test's page**, **Piwi: Mock a request of the
@@ -11070,7 +11085,7 @@ counted, and a line without a locator says nothing.
 
 In a run Piwi started, a failing test holds its page once the test function, its hooks and its fixtures are done,
 instead of closing it, when someone can see it: in a headed browser, where the pause bar shows the failure (a run
-started with breakpoints, or for a spec with `page.pause()`, is headed, and its
+started with **Run headed**, or for a spec with `page.pause()`, is headed; with breakpoints or a `page.pause()`, its
 [**Hold failures**](/guide/concepts#hold-failures) is on from its start, unless
 [your run options](./editor-runs#how-a-run-starts) choose otherwise), or while you turn the run's Hold failures on,
 from the editor (**Piwi: Hold failures: turn on or off for the run**, **Tools → Piwi → Turn Hold Failures On or Off**)
@@ -13777,8 +13792,11 @@ The rest is native, and every action is under **Tools → Piwi**:
   Its right-click menu holds **Run with Piwi** and **Verify ×3 with Piwi**, which report to the instance as Piwi's own
   runs do.
 - **The status bar** shows the latest run, or the run in progress, of the selected file's Playwright config, with an
-  icon for its state and the error color while its tests fail; a click opens a menu of the actions, led by what the
-  item calls for: [the status bar](./editor-runs#the-status-bar).
+  icon for its state and the error color while its tests fail. It counts a run you started (`3 of 9 · 1 failed`) as
+  the run itself reports it, with no instance too; with one, the run's node in the Piwi tool window counts it the same
+  way. A click opens a menu of the actions, led by what the item calls for:
+  [the status bar](./editor-runs#the-status-bar). While a run is [shared live](./share-live), the menu opens its page,
+  copies its link, and has **Stop Sharing the Run…**, which asks first.
 - **The editor's context menu** has one **Piwi** submenu, in the VS Code extension's order: on a spec, **Run the Test at
   the Caret**, **Verify the Test at the Caret ×3** and **Run This Spec**, then **Run the Tests That Reach This File**,
   **Record Here** and a recording's controls. There and in **Tools → Piwi**, an entry that does not apply is left out.
@@ -13791,6 +13809,9 @@ The rest is native, and every action is under **Tools → Piwi**:
   tab, where a click on the image picks the locator of the element under it (Playwright 1.60 or later). On a JetBrains
   Gateway backend, forward the ports **Pair with Piwi Picker** names:
   [Remote development](/guide/remote-development#jetbrains-gateway).
+- **[A running test](./watch-running-test)**: while the **Worker** tab watches one, an inlay after the line of
+  the call it runs names it, and the **Page** tab lists its page's console and uncaught errors, each test named first
+  (closed, it stays closed until the next run).
 - **[Code from a pause](./editor-stop-code)**: the inlay, the arrow's menu, the status bar item's menu and **Tools →
   Piwi** also offer **Pick a Locator**, **Record Here**, **Assert**, **Assert a Region** and **Mock a Request** (the
   inlay names them shorter), whose code goes above the stopped line in one undoable edit; the end of the caret's line
