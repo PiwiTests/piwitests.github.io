@@ -1463,8 +1463,9 @@ fatal.
 Between the title and the link is the failure's one-line [headline](./first-failure). The per-test link opens the
 failing execution's page, even while the run is still going.
 
-**GitHub Actions (automatic)** — step outputs, a job summary listing the failed tests with their links
-(20 at most, the rest counted as "+N more"), and a `::notice::` annotation:
+**GitHub Actions (automatic)** — a `::notice::` titled **Piwi live run** as the run starts, so the job's log links the
+run while it runs; then step outputs, a job summary listing the failed tests with their links (20 at most, the rest
+counted as "+N more"), and a `::notice::` annotation titled **Piwi test run**:
 
 ```yaml
 - run: npx playwright test
@@ -1550,15 +1551,9 @@ of the contract:
 **0** satisfied, **1** violated, **2** could not evaluate, so a misconfigured pipeline never passes,
 **3** [inconclusive](/features/environment-incidents).
 
-Worth knowing:
-
-- **A quarantined test does not count** toward `--max-failed`, `--max-new-regressions`, `--max-new-flaky`,
-  `--require-tag` or `--require-selection`, and the gate reports how many failures it excluded.
-
-- **A test that passed on retry satisfies `--require-tag`.**
-- **A required tag that matches no test is a violation**, so a typo cannot pass.
-- **The CI key's evaluations are stored**, so [merges overriding a failed gate](/features/pr-feedback#the-gate-verdict)
-  are counted; a read-only key gets the verdict only.
+**A quarantined test does not count** toward `--max-failed`, `--max-new-regressions`, `--max-new-flaky`,
+`--require-tag` or `--require-selection`, and the gate reports how many failures it excluded. How the rules count
+retried tests and a required tag that matches no test is in the [CLI reference](/reference/cli#gate).
 
 `npx @piwitests/reporter gate --help` lists every option; `--json` prints the raw result for a pipeline to parse.
 
@@ -3892,6 +3887,11 @@ The reporter's own process tells the editor or the desktop app how many tests th
 and how the run ended with its first failure. The editors' status bars and the Runs window count it the same way: each
 test once, by its last attempt. The desktop tray counts the lines of the run's output instead, a retry again.
 
+On the dashboard, Home's **Recent activity**, a project's runs list and the **Projects** page show a running run with
+the count bar and how many results are in: `120 of 400 · 2 failed`. Its row moves on by itself as results reach the
+instance, at most every 2 seconds, without the page reading the list again. Until the run ends these count each result
+as the reporter sends it, a retry again; the run's page counts each test once.
+
 The status bar item's tooltip also says what each worker runs now (`Worker 2 · cart › adds a mug · stopped`). In VS
 Code, the Testing view's test run of your run writes in its output each test a worker starts, each stop and why, with
 the line it stands at, and each stop answered.
@@ -3941,6 +3941,11 @@ says so:
 
 The other lines of a run's start (its project and Playwright version, its shard, the stream opening on time) are
 printed with `PIWI_VERBOSE=true` alone. A stream that opens late, a failure link and a warning are always printed.
+
+In a terminal outside CI, the run's page is a link. Windows Terminal and ConEmu show how far the run is in the tab and
+the taskbar, and Ghostty 1.2 or later atop the terminal, red once a test failed. `PIWI_TERMINAL_PROGRESS=off` turns
+both off, and `PIWI_TERMINAL_PROGRESS=on` sends the progress to any terminal: one that reads it as a notification
+shows one at each step.
 
 ## When the run does not reach the instance
 
@@ -4220,6 +4225,17 @@ waits for. The badge leaves the row when the attempt ends. A test that stands st
 
 A page opened after the test was said to be stuck shows it too: the dashboard keeps it with the running test.
 
+## On the Timeline
+
+While a run runs, its **Timeline** tab shows each worker's lane, grouped by shard, with a bar for every attempt. A
+running attempt's bar grows to now over a pale bar of its test's usual time: the longest of the last passing runs this
+rule reads. Once it runs past that time, a white tick marks where it would usually have ended, and it turns amber once
+the test is marked **Stuck?**. A test with too few passing runs has no pale bar. The header counts the stuck tests, and
+a sharded run's says which of its shards have started: `shards 1 and 3 of 4 started`.
+
+On the **Tests** tab, `is:stuck` lists the stuck tests, and `worker:` and `shard:` narrow the list to one worker or one
+shard ([Test search](/reference/test-search)).
+
 ## The notification
 
 `test.stuck` fires once per attempt, through the channels of the project's
@@ -4246,13 +4262,15 @@ runs as `local`: set `PIWI_ORIGIN=ci` on it ([run origin](/reference/test-metada
 ## Try it in the demo
 
 In the [live demo](https://piwitests.dev/demo/), pick **Stuck test** in **Simulate a test run**: the PayPal checkout
-waits on a payment that never answers, and its row carries the **Stuck?** badge once it runs past its usual time.
+waits on a payment that never answers, and its row carries the **Stuck?** badge once it runs past its usual time; on
+the **Timeline** tab its bar turns amber past the pale bar of that time.
 **Stopped at a breakpoint** plays a run from VS Code whose PayPal test stands at a breakpoint for five minutes: its row
 says where, and never reads **Stuck?**.
 
 ## Related
 
 - [Live view of a run](./live-view): watch a stuck test's page and what it waits for
+- [Test search](/reference/test-search): `is:stuck`, `worker:` and `shard:`
 - [Notifications & alerts](./notifications): channels and subscriptions
 - [Notification events & webhooks](/reference/notification-events)
 
@@ -6808,6 +6826,12 @@ partial run from a developer's machine or the desktop app ([run origin](/referen
   the [uncovered changes](./uncovered-changes) section names. When the run has a
   diff to read, a second status that never fails joins it, `/change-coverage`
   ([what it counts](./uncovered-changes#on-the-pull-request)).
+- **A pending status while a CI run runs**, under the same context: how many of its tests have a result and how many
+  results failed (`Running: 120 of 400 tests, 2 failed`; a retry counts its failed attempt until the run ends), linking
+  the live run, the first as the run reports and then at most once a minute. Bitbucket shows it as in progress. The
+  run's final status replaces it; a run cancelled, deleted, interrupted or with no result to report ends it with an
+  error status that says so. A pending status an instance posted before it restarted is replaced by the run's final
+  status alone.
 
 What the comment says, in this order:
 
@@ -16355,6 +16379,9 @@ term: `"guest checkout"`.
 | `priority:` | | The `piwi:priority` annotation | Run and project |
 | `feature:` | | The `piwi:feature` annotation | Run and project |
 | `id:` | | The test's [external ID](/reference/test-metadata#external-test-ids) | Run and project |
+| `is:` | | `is:stuck`: a running test marked [Stuck?](/features/stuck-tests), while the run is live | Run |
+| `worker:` | | The [worker lane](/reference/test-metadata#worker-lanes) the execution ran on, from 1 in each shard; a result from a reporter that sends no lane matches none | Run |
+| `shard:` | | The shard the execution ran in, from 1 | Run |
 
 How the terms combine:
 
@@ -16362,7 +16389,10 @@ How the terms combine:
   `file:checkout/*.spec.ts`. The other qualifiers match a whole value.
 - Case and accents never matter: `resume` finds `Résumé`, and `CAFÉ` finds `cafe`.
 - Every term must match. The exception is a qualifier of which a test has only one value (`file:`, `browser:`, `owner:`,
-  `priority:`, `feature:`, `id:`): repeated, it matches any of the values, so `file:cart file:checkout` lists both files.
+  `priority:`, `feature:`, `id:`, `worker:`, `shard:`): repeated, it matches any of the values, so
+  `file:cart file:checkout` lists both files and `shard:1 shard:2` the first two shards.
+- `is:stuck` reads what the dashboard knows of a running test while the run is live: on a run that has ended, it finds
+  nothing.
 - A leading `-` excludes: `-tag:slow`, `-describe:legacy`, `-flaky`.
 - A qualifier the tab does not have, such as `error:` on a project, is read as a word.
 
@@ -16375,6 +16405,8 @@ How the terms combine:
 | `timeout browser:webkit` | On a run: the WebKit executions whose title, blocks, path or error mention `timeout` |
 | `owner:@team/payments priority:critical` | The critical tests the payments team owns |
 | `title:"refund*email"` | The tests whose title has `refund`, then `email` further on |
+| `is:stuck shard:2` | On a live run: the running tests of shard 2 that have run far longer than they usually do |
+| `worker:3 -tag:slow` | On a run: what worker 3 ran, its `@slow` tests left out |
 
 ## Completion
 
@@ -16660,6 +16692,12 @@ npx @piwitests/reporter gate --max-new-regressions 0 --fail-on-flaky
 | `-h`, `--help` | Show help |
 
 The run source is resolved first-match-wins: `--run-id`, then `--from-file`, then `PIWI_OUTPUT_FILE`, then `./piwi-run.json`. At least one policy rule is required.
+
+- **A quarantined test does not count** toward the failure rules ([CI & sharding](/guide/ci#blocking-a-merge)).
+- **A test that passed on retry satisfies `--require-tag`.**
+- **A required tag that matches no test is a violation**, so a typo cannot pass.
+- **The CI key's evaluations are stored**, so [merges overriding a failed gate](/features/pr-feedback#the-gate-verdict)
+  are counted; a read-only key gets the verdict only.
 
 ## `report`
 

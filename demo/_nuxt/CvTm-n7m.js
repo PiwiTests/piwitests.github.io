@@ -1,0 +1,1 @@
+import{D as e,b as t,k as n,mt as r}from"./DVRkMeDb.js";import{t as i}from"./CxBHHn8Q.js";var a={class:`space-y-6`,"data-tour":`connect-page`},o=n({__name:`connect`,setup(n){return(n,o)=>{let s=i;return r(),t(`div`,a,[e(s)])}}});export{o as default};
