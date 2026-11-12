@@ -1,0 +1,1 @@
+function e(e,t){let n=Math.max(0,Math.min(t,e.length)),r=e.charCodeAt(n-1);return n>0&&n<e.length&&r>=55296&&r<=56319&&--n,e.slice(0,n)}function t(t){return typeof t==`string`&&e(t.replace(/\s+/g,` `).trim(),40).trim()||null}export{t};
