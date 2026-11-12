@@ -53,6 +53,12 @@ why the snippet creates `.data` with the right owner; see
 [Permission issues with volumes](/operate/deployment#permission-issues-with-volumes) if the container cannot write to
 it. [Deployment](/operate/deployment) covers Docker Compose, PostgreSQL and Kubernetes.
 
+The desktop app installs from the latest release. [Piwi Runner](/features/piwi-runner), below it, is not a dashboard:
+it runs the tests a team instance asks for, on a machine without the desktop app, which takes the same requests.
+
+- Piwi Desktop: The dashboard on your computer, with your local runs. On the [latest release](https://github.com/PiwiTests/piwi/releases/latest): Windows x64, per user (.exe): `Piwi-Desktop_x64-setup.exe`; Windows x64, per machine (.msi): `Piwi-Desktop_x64.msi`; macOS, Apple silicon (.dmg): `Piwi-Desktop_aarch64.dmg`; Linux x86-64, any distribution (.AppImage): `Piwi-Desktop_amd64.AppImage`; Debian, Ubuntu, x86-64 (.deb): `Piwi-Desktop_amd64.deb`; Fedora, RHEL, x86-64 (.rpm): `Piwi-Desktop_x86_64.rpm`.
+- Piwi Runner: Runs the tests a team instance asks for, without the dashboard. Not needed beside the desktop app, which takes the same requests. On the [latest release](https://github.com/PiwiTests/piwi/releases/latest): Windows x64, per user (.exe): `Piwi-Runner_x64-setup.exe`; Windows x64, per machine (.msi): `Piwi-Runner_x64.msi`; macOS, Apple silicon (.dmg): `Piwi-Runner_aarch64.dmg`; Linux x86-64, any distribution (.AppImage): `Piwi-Runner_amd64.AppImage`; Debian, Ubuntu, x86-64 (.deb): `Piwi-Runner_amd64.deb`; Fedora, RHEL, x86-64 (.rpm): `Piwi-Runner_x86_64.rpm`.
+
 With the desktop app, keep it running: a reporter with no server configured finds it by itself. Its URL and access
 token, for when you need them, are in its **Settings → Desktop app** under **Send results to this app**.
 
@@ -11675,8 +11681,9 @@ Everything binds to `127.0.0.1`.
 
 ## Where it is
 
-Download the installer from the [latest release](https://github.com/PiwiTests/piwi/releases/latest), the files named
-`Piwi-Desktop_…` (the `Piwi-Runner_…` files are [Piwi Runner](./piwi-runner)):
+- Piwi Desktop: The dashboard on your computer, with your local runs. On the [latest release](https://github.com/PiwiTests/piwi/releases/latest): Windows x64, per user (.exe): `Piwi-Desktop_x64-setup.exe`; Windows x64, per machine (.msi): `Piwi-Desktop_x64.msi`; macOS, Apple silicon (.dmg): `Piwi-Desktop_aarch64.dmg`; Linux x86-64, any distribution (.AppImage): `Piwi-Desktop_amd64.AppImage`; Debian, Ubuntu, x86-64 (.deb): `Piwi-Desktop_amd64.deb`; Fedora, RHEL, x86-64 (.rpm): `Piwi-Desktop_x86_64.rpm`.
+
+What each installer needs:
 
 | OS | Installer |
 |----|-----------|
@@ -11961,7 +11968,7 @@ for an agent that left.
 # Run on my machine
 
 Run on my machine lets a signed-in person ask the desktop app or [Piwi Runner](./piwi-runner) on their own machine to
-run tests they found on the dashboard. The instance carries the request; the app asks them before every run, in its own window, and runs the tests
+run tests they found on the dashboard; either one is enough. The instance carries the request; the app asks them before every run, in its own window, and runs the tests
 in their own folder. The run it starts reports back to the instance as a **requested run**: theirs alone, and kept
 out of everything the team sees.
 
@@ -12099,8 +12106,9 @@ keeps no database and serves no dashboard.
 
 ## Where it is
 
-Download the installer from the [latest release](https://github.com/PiwiTests/piwi/releases/latest), the files named
-`Piwi-Runner_…`:
+- Piwi Runner: Runs the tests a team instance asks for, without the dashboard. Not needed beside the desktop app, which takes the same requests. On the [latest release](https://github.com/PiwiTests/piwi/releases/latest): Windows x64, per user (.exe): `Piwi-Runner_x64-setup.exe`; Windows x64, per machine (.msi): `Piwi-Runner_x64.msi`; macOS, Apple silicon (.dmg): `Piwi-Runner_aarch64.dmg`; Linux x86-64, any distribution (.AppImage): `Piwi-Runner_amd64.AppImage`; Debian, Ubuntu, x86-64 (.deb): `Piwi-Runner_amd64.deb`; Fedora, RHEL, x86-64 (.rpm): `Piwi-Runner_x86_64.rpm`.
+
+What each installer needs:
 
 | OS | Installer |
 |----|-----------|
@@ -12121,11 +12129,15 @@ Piwi Runner files can reach the release a few minutes after the desktop app's; u
 or fails, and the next one finds them. On a desktop that shows no tray icon, install a new version from the latest release over
 the old one.
 
-## Beside the desktop app
+## Piwi Runner or the desktop app
 
-Piwi Runner and the desktop app install side by side, and neither installer replaces the other: each has its own
-name, install folder, Linux package, settings, linked folders and keychain entry. Connected to the same instance, both
-are listed in **Connected apps**, and a request goes to the one you pick on the page.
+You need one of the two, not both. The desktop app takes the same requests, with the same confirmation and checks,
+and adds the dashboard on your machine and a requested run you can pause, step and watch live from its window, where
+Piwi Runner shows the run's output and **Stop**. Piwi Runner is for a machine that only runs what the instance asks.
+
+Installed together, they live side by side, and neither installer replaces the other: each has its own name, install
+folder, Linux package, settings, linked folders and keychain entry. Connected to the same instance, both are listed in
+**Connected apps**, and a request goes to the one you pick on the page.
 
 ## Connect it
 
