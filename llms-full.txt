@@ -4016,7 +4016,7 @@ page elsewhere, which the test's own code could name, is not shown, and the run 
 |---|---|
 | The terminal | `[Piwi Dashboard] View live progress: https://piwi.example.com/test-runs/78`, once, as the run starts |
 | VS Code | The run-control item: `#78 · 3 of 9`, its tooltip **Open run #78**; the status bar item, while your run goes: **Open run #78 (running)** first in its tooltip; **Piwi: Open the run page** and **Piwi: Open the run in progress** in the Command Palette |
-| JetBrains IDEs | The status bar item: `Piwi: run #78 · 3 of 9`, kept beside a stop or a share; **Open Run #78** in its menu; **Open Run #78 (Running)** in place of **Open the Latest Run in the Dashboard** while it goes |
+| JetBrains IDEs | The status bar item: `Piwi: run #78 · 3 of 9`, kept beside a stop or a share; **Open run #78** in its menu; **Open run #78 (running)** in place of **Open the latest run in the dashboard** while it goes |
 | Piwi Picker's [Runs window](./runs-window) | **Run #78**, **Open** and **Copy link** on the run's card, while it runs and after it ended, with its progress and how it ended |
 | The desktop app's [Local runs tray](./desktop-runs) | **Run #78 · Open** under each run of its hub, a run a team instance asked for included, whose page opens in the browser; **Open run #78** on a run the app's own server holds |
 | **Debug in my editor** | Once the editor runs the test: "Following run #81 in VS Code · Open" beside the button |
@@ -4069,7 +4069,7 @@ names the stopped line where it stands now, as the editor does.
 
 At a stop of a headed run, every tool offers **Show the browser**, which brings the test's window to the front, as far
 as your system lets a window come forward: **Piwi: Show the stopped test's browser** in VS Code and the stop's hover,
-**Tools → Piwi → Show the Stopped Test's Browser** in a JetBrains IDE, and a button in the Runs window and the desktop
+**Tools → Piwi → Show the stopped test's browser** in a JetBrains IDE, and a button in the Runs window and the desktop
 app's tray. A headless run has no window to show, and an older reporter offers none: update it.
 
 ## Share with Playwright tools
@@ -4510,7 +4510,7 @@ whose project enables live view, and connect to an editor or the desktop app for
 | Where | Share | Stop |
 |---|---|---|
 | VS Code | **Piwi: Share the run live on the team instance**, or the status bar's broadcast icon | **Piwi: Stop sharing the run live**, or **Stop sharing…** in the menu of the status bar's **Live**, beside **Open the run page** and **Copy the run page's link**, after a confirmation |
-| JetBrains IDEs | **Tools → Piwi → Share the Run Live** | **Tools → Piwi → Stop Sharing the Run Live…**, or **Stop Sharing the Run…** in the status bar item's menu, after a confirmation |
+| JetBrains IDEs | **Tools → Piwi → Share the run live** | **Tools → Piwi → Stop sharing the run live…**, or **Stop sharing the run…** in the status bar item's menu, after a confirmation |
 | Piwi Picker's [Runs window](./runs-window) | **Share live** under the run's name | **Stop sharing**, after a confirmation |
 | The desktop app's [Local runs tray](./desktop-runs) | **Share live** above the run's workers | **Stop sharing…**, after a confirmation |
 
@@ -4547,8 +4547,8 @@ $env:PIWI_SHARE_LIVE='1'; npx playwright test
 
 ### A window's runs
 
-**Piwi: Share this window's runs live until I stop** in VS Code, **Tools → Piwi → Share This Project's Runs Live
-Until I Stop** in a JetBrains IDE, and **Share this editor window's runs** under an editor's run in Piwi Picker's Runs
+**Piwi: Share this window's runs live until I stop** in VS Code, **Tools → Piwi → Share this project's runs live
+until I stop** in a JetBrains IDE, and **Share this editor window's runs** under an editor's run in Piwi Picker's Runs
 window share each run the window starts from then on, each one said as it is shared, until you stop (**…Stop sharing
 this window's runs live**, the menu of the status bar's **Live · this window**, or **Stop sharing this window's runs**
 on the Runs window's line that says the window shares its runs, whatever runs it lists) or close the window. A run's
@@ -10042,7 +10042,7 @@ works in VS Code (and Cursor, VSCodium) and in the JetBrains IDEs with the
 | Editor | Record at the cursor | Record a new test file |
 |---|---|---|
 | VS Code | **Piwi: Record here**, from the command palette, the editor's context menu (**Piwi** submenu) or a spec's editor title; any editor's title shows **Stop recording** while one runs | **Piwi: Record a new test file** |
-| JetBrains IDE | **Tools → Piwi → Record Here**, **Alt+Enter** or **Alt+Insert** (Generate), or the editor's context menu (**Piwi** submenu) | **File → New → Record a New Test File…** |
+| JetBrains IDE | **Tools → Piwi → Record here**, **Alt+Enter** or **Alt+Insert** (Generate), or the editor's context menu (**Piwi** submenu) | **File → New → Record a new test file…** |
 
 Before the browser opens, the editor asks for:
 
@@ -10236,12 +10236,12 @@ second of its end.
   [coverage](./editor-coverage#refresh-the-marks-with-a-local-run).
 - **Piwi: Run the test at the cursor** (`Ctrl+Shift+Alt+K`, `Cmd+Shift+Alt+K` on macOS) runs the test whose `test(…)`
   call holds the cursor, and **Piwi: Run this spec** every test of the spec; both in the editor's **Piwi** submenu
-  on a spec, and under VS Code's editor title Run button (**Run the Test at the Caret** and **Run This Spec** in a
+  on a spec, and under VS Code's editor title Run button (**Run the test at the caret** and **Run this spec** in a
   JetBrains IDE). Both save the spec first. **Run** in VS Code's test hover runs it, as
   [the Testing view](#the-testing-view-vs-code) does. A test the instance does not know yet, such as one you just
   [recorded](./editor-recording#run-it-or-verify-it-three-times), runs by the line of its `test(…)` call
   (`npx playwright test tests/checkout.spec.ts:42`), with or without an instance.
-- **Piwi: Verify the test at the cursor ×3** (**Verify the Test at the Caret ×3**) runs that test three times as a
+- **Piwi: Verify the test at the cursor ×3** (**Verify the test at the caret ×3**) runs that test three times as a
   [verification](/guide/concepts#verification) ([When your run ends](#when-your-run-ends)).
 - **Piwi: Run the tests that reach this file** runs every test reaching the active file through
   [code reach](/features/code-reach); also in the editor's **Piwi** submenu.
@@ -10262,19 +10262,19 @@ Two choices apply to every test run you start: **Run headed** (`--headed`, a ver
 [**Hold failures**](/guide/concepts#hold-failures) **Auto**, **On** or **Off** from the run's start. Auto lets Piwi
 decide: on with your breakpoints or a `page.pause()`, headed for the latter. In VS Code,
 **Piwi: Run options…** sets them (`piwi.runHeaded`, `piwi.runHoldFailures`), shown in the status bar's tooltip;
-in a JetBrains IDE, **Tools → Piwi → Run Headed** and **Hold Failures from Each Run's Start…**. A
+in a JetBrains IDE, **Tools → Piwi → Run headed** and **Hold failures from each run's start…**. A
 [debug run](./debug-in-editor), a Flake Lab line and a fix plan's check leave them out.
 
 ## The Testing view (VS Code)
 
 VS Code's Testing view lists Piwi's tests: the specs your instance knows, as they stand in the editor, under their
-folders and `test.describe` blocks, each test with its latest result, and for a failure why and where it failed
-(**Peek Error**). The results are published as a test run (`Piwi: run #120 on main`) when the latest run, its baseline
-or the runs laid over it change, and a run in progress is a test run of its own, each test shown as it begins and
-ends. The view's gutter shows each test's result in place of Piwi's icon; the line keeps Piwi's hover. The view has no
-flaky result, so a flaky test shows as passed there: its item says **flaky** beside its title, the `flaky` tag
-(`@piwi:flaky` in the view's filter) lists them, and its line in the editor ends with *flaky*. With the view off, Piwi's
-gutter marks a test with no recent result with a dashed ring.
+folders and `test.describe` blocks, each test with its latest result, and why and where a failure failed
+(**Peek Error**). The results are published as a test run (`Piwi: run #120 on main`) whenever the runs it shows change,
+and a run in progress is one of its own, each test shown as it begins and ends. Its gutter shows each result in place of
+Piwi's icon; the line keeps Piwi's hover. The view has no flaky result, so a flaky test shows as passed: its item says
+**flaky**, and its line in the editor ends with *flaky*. An item also says a test's average duration and quarantine, and
+its filter finds tests by `@piwi:flaky`, `@piwi:quarantined`, a Playwright tag (`@piwi:@smoke`) or an owner
+(`@piwi:owner:ada`). With the view off, Piwi's gutter marks a test with no recent result with a dashed ring.
 
 <figure>
   <img src="/screenshots/vscode-testing.png" alt="VS Code: the Testing view lists the spec's tests with their latest results, and a failing test's error is peeked at its line in the spec">
@@ -10291,7 +10291,7 @@ the tree once you open it. `piwi.testExplorer` turns the view's Piwi tests off.
 ## Re-run the failing tests
 
 **Piwi: Re-run the failing tests** (`Ctrl+Shift+Alt+F`, `Cmd+Shift+Alt+F` on macOS; **Tools → Piwi → Re-run the
-Failing Tests**) runs every test still failing, or edited since its run, one command per Playwright config, or those
+failing tests**) runs every test still failing, or edited since its run, one command per Playwright config, or those
 of one config from its node in the [failures view](./editor-failures#the-failures-view); when none fails, it says so.
 
 ## After a run
@@ -10309,12 +10309,11 @@ exit code from the process it started, in every shell, a rerun included.
 
 ## When your run ends
 
-Once a run you started from the editor ends and the editor has read it, a notification (a balloon in a JetBrains IDE)
-says what it changed: `Piwi: run #124 · 1 of 3 CI failures fixed, 2 still failing (login.spec.ts › logs in,
-checkout.spec.ts › pays)`, then the tests it failed that were not failing before. It offers **Open the failures**,
-**Open in dashboard**, and **Re-run failing** when something fails, else **Only on failure**. The
-`piwi.runNotifications` setting (**Settings → Tools → Piwi** in JetBrains) shows it always, on failures only, or
-never.
+Once a run you started from the editor ends and the editor has read it, a notification (a balloon titled by its run in a
+JetBrains IDE) says what it changed: `Piwi: run #124 · 1 of 3 CI failures fixed, 2 still failing (login.spec.ts › logs
+in, checkout.spec.ts › pays)` and new failures, with **Open the failures**, **Open in dashboard** and **Re-run
+failing**. The `piwi.runNotifications` setting (**Settings → Tools → Piwi** in JetBrains) shows it when a test fails,
+the default, always (a passing run then offers **Only on failure**), or never.
 
 A [verification](/guide/concepts#verification) (**Verify ×3**) says how many of its runs passed instead, whatever the
 setting: `Piwi: run #124 · Passed 3 of 3`, or `Failed 1 of 3`.
@@ -10331,17 +10330,17 @@ Its tooltip names the config (`The active file's Playwright config, in apps/admi
 counts, the baseline, your local runs since, the run in progress, and when the run was read (`Updated 12 s ago · live`
 while the event stream is connected, `· read every minute` without it).
 
-In VS Code, a click reads the latest run and its failures again (**Piwi: Refresh the latest run**), without the
-indexes **Piwi: Refresh** fetches, and the tooltip ends with **Open run #120**, **Open in dashboard**, **Compare
-with…** and **Connect**. When the extension is not connected, the item says why, and a click runs **Piwi: Connect**,
-or retries an [unreachable instance](./editor-connection#an-unreachable-instance) or a desktop app to restart.
+In VS Code, a click reads the latest run and its failures again (**Piwi: Refresh the latest run**), without the indexes
+**Reload Piwi** fetches, and the tooltip ends with **Open run #120**, **Open in dashboard**, **Compare with…** and
+**Connect**. When the extension is not connected, the item says why, and a click runs **Piwi: Connect**, or retries an
+[unreachable instance](./editor-connection#an-unreachable-instance) or a desktop app to restart.
 
-In a JetBrains IDE, an icon before the text shows the state of the run the item counts (running, failing, passed) or
-of the connection, and the text takes the theme's error color while tests of that run fail, a run in progress
-included. A click opens a menu of the **Tools → Piwi** actions that apply, led by what the item calls for: **Refresh the
-Latest Run**, **Refresh** for an unreachable instance or a desktop app to restart, **Connect…** while not
-connected, **Node.js Settings…** when Node.js is missing or too old, or **Go to the Recorded Lines** while a recording
-runs, with **Pause Recording**, **Resume Recording** and **Stop Recording**.
+In a JetBrains IDE, an icon before the text shows the state of the run the item counts (running, failing, passed) or of
+the connection, and the text takes the theme's error color while tests of that run fail, a run in progress included. A
+click opens a menu of the **Tools → Piwi** actions that apply, led by what the item calls for: **Refresh the latest
+run**, **Reload Piwi** for an unreachable instance or a desktop app to restart, **Connect…** while not connected,
+**Node.js settings…** when Node.js is missing or too old, or **Go to the recorded lines** while a recording runs, with
+**Pause recording**, **Resume recording** and **Stop recording**.
 
 ## Related
 
@@ -10794,7 +10793,7 @@ a stop, the editor also writes code from the page: [Code from a pause](./editor-
 | **Run to cursor** | Stops at the first call on the cursor's line (on a statement broken over lines, at its call), or at a breakpoint before it | `Ctrl+F10` | Run to Cursor's, `Alt+F9` |
 | **Finish** | Runs the test on without stopping at a breakpoint again in this attempt | `Shift+F11` | Step Out's, `Shift+F8` |
 | **End the test** | [Skips the rest of the test](./end-the-test), and a stopped locator call from Playwright 1.62 | none | none |
-| **Stop** | Ends the run's process | `Shift+F5` | **Stop the Run**, or the Run tool window's Stop |
+| **Stop** | Ends the run's process | `Shift+F5` | **Stop the run**, or the Run tool window's Stop |
 
 The keys are the IDE's debugger keys (in a JetBrains IDE, [your keymap's](./jetbrains)), Piwi's only while their control
 applies and the debugger does not take them. On macOS, `Cmd+F10` runs to the cursor in VS Code. **Pause** and **End the
@@ -10804,8 +10803,8 @@ of an answer, until that worker stops, a key answers no other worker and starts 
 - **In VS Code**, the controls sit in the status bar beside the run's progress while they apply (`Pausing…` until a
   test stops), in the palette (**Piwi: Pause the run** and its kin) and the editor title (Resume, the rest under
   `…`).
-- **In a JetBrains IDE**, they are under **Tools → Piwi**, enabled while they apply, and in the status bar item's
-  menu, whose text starts `Piwi: paused · checkout.page.ts:12` while a test is stopped.
+- **In a JetBrains IDE**, they are under **Tools → Piwi**, enabled while they apply, and in the status bar item's menu,
+  whose text says why and where a test stopped.
 
 The progress beside them comes from the run, so it counts offline and with the desktop app
 ([Watch a run](./watch-a-run#how-far-it-is)); its tooltip names the other tools that have the run open.
@@ -10849,9 +10848,9 @@ has none.
 ## A headless run
 
 A run Piwi starts follows your config, headless by default, unless you choose
-[**Run headed**](./editor-runs#how-a-run-starts) or an [older reporter](./editor-breakpoints#what-it-needs) needs it. A headless stop opens **Piwi: paused page** beside VS Code's editor, or **Paused Page** in the JetBrains
+[**Run headed**](./editor-runs#how-a-run-starts) or an [older reporter](./editor-breakpoints#what-it-needs) needs it. A headless stop opens **Piwi: paused page** beside VS Code's editor, or **Paused page** in the JetBrains
 Piwi tool window, which keeps its stop until it goes on, and after a **Step** or **Run to cursor** from the editor
-waits up to 10 seconds for its next stop. **Piwi: Show the paused page** (**Tools → Piwi → Show the Paused Page**)
+waits up to 10 seconds for its next stop. **Piwi: Show the paused page** (**Tools → Piwi → Show the paused page**)
 opens it at any stop.
 
 <figure>
@@ -10925,12 +10924,12 @@ sent](/guide/concepts#watch-share-live).
 | Where | Open it | At a stop |
 |---|---|---|
 | VS Code | **Piwi: Watch a worker's test**, or a click on the run's progress in the status bar: **Piwi: worker 2** beside the editor | A headless stop of the worker shows there, with **Interact** and the pick on a click, instead of the paused page |
-| JetBrains IDEs | **Tools → Piwi → Watch a Worker's Test**: the **Worker 2** tab of the Piwi tool window | The tab only watches: a headless stop opens the **Paused Page** beside it, for **Interact**, unless that tab holds another stop |
+| JetBrains IDEs | **Tools → Piwi → Watch a worker's test**: the **Worker 2** tab of the Piwi tool window | The tab only watches: a headless stop opens the **Paused page** beside it, for **Interact**, unless that tab holds another stop |
 | Piwi Picker | **Watch** on a worker's row of the [Runs window](./runs-window#watch-live) | The controls show above the view, and the stopped worker scrolls into view |
 | Desktop app | **Watch** on a running row of its own runs, which opens the [Local runs](./desktop-runs#watch) tray on it | The tray shows the stopped worker, behind its tab in a run of several |
 
-**Pause and watch** is **Piwi: Pause and watch a worker's test** in VS Code, **Tools → Piwi → Pause and Watch a
-Worker's Test** in a JetBrains IDE, and a button beside **Watch** in the Runs window and the desktop app. With several
+**Pause and watch** is **Piwi: Pause and watch a worker's test** in VS Code, **Tools → Piwi → Pause and watch a
+worker's test** in a JetBrains IDE, and a button beside **Watch** in the Runs window and the desktop app. With several
 workers to choose from, the editor asks which.
 
 ## A CI run of your branch
@@ -10941,7 +10940,7 @@ nothing in your editor or Piwi Picker pauses, steps, holds or shares it.
 - **VS Code**: the **CI Runs** view of the Piwi panel lists it as `CI run #78`, its branch and progress beside it,
   then **Open run #78** and its tests: those running, then the latest that ended, failures first. A running test
   opens the call it is at, else its spec.
-- **JetBrains IDEs**: the **CI Run** tab of the Piwi tool window, added while one runs, lists the same rows; a double
+- **JetBrains IDEs**: the **CI run** tab of the Piwi tool window, added while one runs, lists the same rows; a double
   click opens one.
 - **The line each running test is at** ends with a plain mark in the CodeLens or inlay color, `CI run #78 · worker 2:
   Click getByRole('button')`: a CI position, never a stop. The line is the run's commit's.
@@ -10991,7 +10990,7 @@ JetBrains Piwi tool window's **Page** tab, each test named as it begins.
 
 **Open the trace so far** opens Playwright's trace viewer on the running test's trace up to now, on the machine the
 run runs on ([what it shows](/guide/concepts#trace-so-far)): beside **Watch** in the VS Code panel (or **Piwi: Open the
-trace so far**), as **Open the Trace So Far** in the JetBrains **Worker** tab, and in a watched page's head in the Runs
+trace so far**), as **Open the trace so far** in the JetBrains **Worker** tab, and in a watched page's head in the Runs
 window and the desktop app's tray, while the worker runs a test, stopped or not, with a reporter newer than 0.68.0.
 
 It shows only where it can open: the machine the run runs on has a display (on Linux, `DISPLAY` or `WAYLAND_DISPLAY`
@@ -11058,7 +11057,7 @@ The first four need the pause bar, so a headed browser: choose **Run headed**
   in the palette while a stop offers them (**Piwi: Assert in the stopped test's page**, **Piwi: Mock a request of the
   stopped test**…), and behind the status bar's `</>` item, **Piwi: Write code at the stop…**. - **In a JetBrains IDE**,
   they are links in the inlay above the stopped line (by the same short names), in the gutter icon's menu, in the status
-  bar item's menu, and under **Tools → Piwi** (**Assert at the Stop**, **Mock a Request at the Stop**…).
+  bar item's menu, and under **Tools → Piwi** (**Assert at the stop**, **Mock a request at the stop**…).
 
 None has a default key: bind one in **Preferences: Open Keyboard Shortcuts** or **Settings → Keymap** (search
 `piwi`). A stop offers only the actions its reporter takes: with one that predates them, none.
@@ -11136,11 +11135,11 @@ instead of closing it, when someone can see it: in a headed browser, where the p
 started with **Run headed**, or for a spec with `page.pause()`, is headed; with breakpoints or a `page.pause()`, its
 [**Hold failures**](/guide/concepts#hold-failures) is on from its start, unless
 [your run options](./editor-runs#how-a-run-starts) choose otherwise), or while you turn the run's Hold failures on,
-from the editor (**Piwi: Hold failures: turn on or off for the run**, **Tools → Piwi → Turn Hold Failures On or Off**)
+from the editor (**Piwi: Hold failures: turn on or off for the run**, **Tools → Piwi → Turn hold failures on or off**)
 or Piwi Picker's [Runs window](./runs-window). The editor shows it as a stop of its own, at the
 line where the error entered the test's code, or at the call a test timeout cut short:
 
-`Failed · Timed out 5000ms waiting for getByRole('button', { name: 'Apply' }) · attempt 2`  Resume  Pick  Record …
+`Held at its failure · Timed out 5000ms waiting for getByRole('button', { name: 'Apply' }) · attempt 2`  Resume  Pick  Record …
 
 Its line is marked in red. **Resume** lets the test end as it failed (**Step** and **Finish** do the same, so VS Code's
 status bar offers Resume alone); **Pick** replaces the failing locator, **Record** writes the steps that were missing
@@ -11187,8 +11186,8 @@ It is offered at any stop but a failure, with a reporter newer than 0.62.0:
 
 - **VS Code**: **End test** in the stopped line's hover, the status bar beside **Finish**, and **Piwi: End the test
   here, skipping the rest of it** in the palette. It has no key: bind one in **Preferences: Open Keyboard Shortcuts**
-  (search `piwi`). - **A JetBrains IDE**: **End Test** in the stopped line's inlay and the arrow's menu, **Tools → Piwi
-  → End the Test** and the status bar item's menu. Give it a key in **Settings → Keymap**. - **The [pause
+  (search `piwi`). - **A JetBrains IDE**: **End test** in the stopped line's inlay and the arrow's menu, **Tools → Piwi
+  → End the test** and the status bar item's menu. Give it a key in **Settings → Keymap**. - **The [pause
   bar](./editor-breakpoints#pause-a-run)**: **End the test**. - **Piwi Picker's [Runs window](./runs-window)** and the
   desktop app's [Local runs tray](./desktop-runs): **End the test**, beside **Finish**. - **An
   [agent](./agent-run-control)**: `run_control` with `end`, answered as the test ends.
@@ -11200,7 +11199,7 @@ It is offered at any stop but a failure, with a reporter newer than 0.62.0:
 desktop app's tray say the call it waits in and, for a locator call, how long it has run, and offer **End the test**
 there. In VS Code, the status bar reads `Pausing… 12 s`, the call in its tooltip, with **End the test** beside it; in
 a JetBrains IDE, the status bar item reads `Piwi: pausing… · waits in` and the call, and **Tools → Piwi → End the
-Test** ends it:
+test** ends it:
 
 - **A locator call or an assertion**, with Playwright 1.62 or later, is given up at once, and the test is skipped.
 - **Another call** (a `waitForTimeout`, a navigation) finishes first, and the test is skipped at its next locator
@@ -11359,13 +11358,13 @@ beside **Piwi**, which then leaves the desktop app's run tools of the same names
 Each editor's server listens on `127.0.0.1` once the extension starts, at a port and behind a token the extension
 keeps for this workspace (in a JetBrains IDE, this project). If another program holds that port, the server moves,
 with a new token, and says so. To give an agent one window's runs alone, copy its entry: **Piwi: Copy the runs' MCP
-server configuration for agents** in VS Code, **Tools → Piwi → Copy the Runs' MCP Server Configuration for Claude Code
+server configuration for agents** in VS Code, **Tools → Piwi → Copy the runs' MCP server configuration for Claude Code
 or Cursor** (an `http` entry, the token as a bearer header) or **…for Agents** (one that runs
 `npx -y mcp-remote@0.14.3 <url> --transport http-only`, for the JetBrains AI Assistant) in a JetBrains IDE.
 
 **The configuration holds the token.** Keep it in your user settings, never in a file of the repository such as a
 project's `.mcp.json`: whoever reads it can drive your runs while the editor is open. **Reset the token** (**Piwi:
-Reset the runs' MCP server token**; **Tools → Piwi → Reset the Runs' MCP Server Token**) gives the server a new one:
+Reset the runs' MCP server token**; **Tools → Piwi → Reset the runs' MCP server token**) gives the server a new one:
 an agent with the old one is refused until you copy the configuration again. `piwi.serveRunsToAgents` in VS Code, and
 **Settings → Tools → Piwi** in a JetBrains IDE, turn the server off.
 
@@ -13810,7 +13809,7 @@ VS Code's names; a JetBrains IDE has its own under **Tools → Piwi**, and no **
 | Command | What it does |
 |---|---|
 | Piwi: Connect, Disconnect | See [Editor connection](./editor-connection) |
-| Piwi: Refresh | Fetch the indexes and the latest run again |
+| Piwi: Reload Piwi | Fetch the indexes and the latest run again |
 | Piwi: Refresh the latest run | Read the latest run again, as a status bar click does |
 | Piwi: Run the test at the cursor | Run the test whose `test(…)` call holds the cursor: [Run tests](./editor-runs#run-tests) |
 | Piwi: Verify the test at the cursor ×3 | Run it three times without retries and say how many runs passed |
@@ -13869,23 +13868,24 @@ Android Studio lack the LSP API the plugin needs.
 
 The plugin starts the editor service with the project's Node.js interpreter, 20 or later (**Settings → Languages &
 Frameworks → Node.js**, which the status bar opens when it is missing or older), once it finds a Playwright config
-within four folders of the project's (in Rider, the solution's) or of its Git root, and looks again on **Tools → Piwi
-→ Refresh**. It reads the connection the reporter already uses; otherwise, **Settings → Tools → Piwi** signs you in
+within four folders of the project's (in Rider, the solution's) or of its Git root, and looks again on **Tools → Piwi →
+Reload Piwi**. It reads the connection the reporter already uses; otherwise, **Settings → Tools → Piwi** signs you in
 with the browser: [Editor connection](./editor-connection).
 
 In a project opened in safe mode, Piwi runs nothing and says it waits for your trust; trusting the project starts it.
 
 **Settings → Tools → Piwi** opens on the connection in use, with **Reconnect**, then the instance saved for the project,
 then the desktop app. When the environment or the workspace `.env` names another instance, the page says so above the
-fields, and an empty **Server URL** shows its address. While the service cannot start, the page and the **Piwi** tool
-window offer **Node.js Settings…**, and the service starts again once you close the settings.
+fields, and an empty **Server URL** shows its address. **Test connection** beside the URL says whether the address typed
+there answers and asks for a key, before you apply it. While the service cannot start, the page and the **Piwi** tool
+window offer **Node.js settings…**, and the service starts again once you close the settings.
 
-When the service stops, the **Piwi** tool window says so and offers **Restart the Editor Service** and **Open Log**, as
+When the service stops, the **Piwi** tool window says so and offers **Restart the editor service** and **Open log**, as
 does a balloon that says it is not running; both are also under **Tools → Piwi** and in the tool window's gear. The
 **Log** tab holds the service's starts and stops, why it could not start, its errors and the requests that failed.
 
 The first trusted project with a Playwright config that nothing connects yet shows one notification, once per
-installation, with **Connect…**, **Open the Failures** and **Learn More**.
+installation, with **Connect…**, **Open the failures** and **Learn more**.
 
 Piwi reads Playwright Test suites in JavaScript and TypeScript. A Rider solution whose Playwright tests are written in
 C# (a `.csproj` referencing `Microsoft.Playwright`) and that holds no Playwright config gets no tool window or status
@@ -13901,7 +13901,8 @@ The IDE's LSP client shows warnings, quick fixes (Alt+Enter) and hover in open f
   <figcaption>The heal of a broken locator, offered with Alt+Enter.</figcaption>
 </figure>
 
-The rest is native, and every action is under **Tools → Piwi**:
+The rest is native, and every action that is not about a selected item is under **Tools → Piwi**, **Go to the stopped
+line** on the debugger's Show Execution Point key:
 
 - **The Piwi tool window** names the connection and holds the [failures view](./editor-failures#the-failures-view),
   since the IDE highlights open files only.
@@ -13916,16 +13917,16 @@ The rest is native, and every action is under **Tools → Piwi**:
   the run itself reports it, with no instance too; with one, the run's node in the Piwi tool window counts it the same
   way. A click opens a menu of the actions, led by what the item calls for:
   [the status bar](./editor-runs#the-status-bar). While a run is [shared live](./share-live), the menu opens its page,
-  copies its link, and has **Stop Sharing the Run…**, which asks first.
-- **The editor's context menu** has one **Piwi** submenu, in the VS Code extension's order: on a spec, **Run the Test at
-  the Caret**, **Verify the Test at the Caret ×3** and **Run This Spec**, then **Run the Tests That Reach This File**,
-  **Record Here** and a recording's controls. There and in **Tools → Piwi**, an entry that does not apply is left out.
-- **[Recording](./editor-recording)** starts from **Record Here**, Alt+Enter or Alt+Insert, and **File → New → Record
-  a New Test File…**; its controls are in a banner above the editor.
+  copies its link, and has **Stop sharing the run…**, which asks first.
+- **The editor's context menu** has one **Piwi** submenu, in the VS Code extension's order: on a spec, **Run the test at
+  the caret**, **Verify the test at the caret ×3** and **Run this spec**, then **Run the tests that reach this file**,
+  **Record here** and a recording's controls. There and in **Tools → Piwi**, an entry that does not apply is left out.
+- **[Recording](./editor-recording)** starts from **Record here**, Alt+Enter or Alt+Insert, and **File → New → Record
+  a new test file…**; its controls are in a banner above the editor.
 - **[A paused run](./editor-run-control)**: the line a run is stopped at, Piwi's or [one the IDE's own **Run**
   started](./terminal-runs), has an arrow in the gutter and an inlay above it with **Resume**, **Step**, **Run to
-  Caret**, **Finish** and **End Test**; they are also in the status bar item's menu, after each stop to go to, and
-  under **Tools → Piwi**, with **Pause the Run** and **Stop the Run**. A headless test's page shows in the Piwi tool window's **Paused Page**
+  caret**, **Finish** and **End test**; they are also in the status bar item's menu, after each stop to go to, and
+  under **Tools → Piwi**, with **Pause the run** and **Stop the run**. A headless test's page shows in the Piwi tool window's **Paused page**
   tab, where a click on the image picks the locator of the element under it (Playwright 1.60 or later). On a JetBrains
   Gateway backend, forward the ports **Pair with Piwi Picker** names:
   [Remote development](/guide/remote-development#jetbrains-gateway).
@@ -13933,9 +13934,9 @@ The rest is native, and every action is under **Tools → Piwi**:
   the call it runs names it, and the **Page** tab lists its page's console and uncaught errors, each test named first
   (closed, it stays closed until the next run).
 - **[Code from a pause](./editor-stop-code)**: the inlay, the arrow's menu, the status bar item's menu and **Tools →
-  Piwi** also offer **Pick a Locator**, **Record Here**, **Assert**, **Assert a Region** and **Mock a Request** (the
+  Piwi** also offer **Pick a locator**, **Record here**, **Assert**, **Assert a region** and **Mock a request** (the
   inlay names them shorter), whose code goes above the stopped line in one undoable edit; the end of the caret's line
-  says how many elements its locator matches on the stopped page, and a failure held there reads `Failed · …`.
+  says how many elements its locator matches on the stopped page, and a failure held there reads `Held at its failure · …`.
 - **The IDE's Playwright runner**: **Settings → Tools → Piwi → Runs → Run the tests in the IDE's Playwright runner**,
   off by default, runs Piwi's test runs there, with its test tree, Debug and Rerun Failed Tests, rather than in the Run
   tool window's console. The runner comes with the IDE's JavaScript plugin, as in WebStorm, IntelliJ IDEA Ultimate
@@ -13946,11 +13947,11 @@ The rest is native, and every action is under **Tools → Piwi**:
 - **Piwi's MCP server for the agent**: **Settings → Tools → Piwi → AI Assistant** chooses whether the copied
   configuration holds the IDE's key or has the agent sign in through the browser
   ([Piwi's MCP server for the agent](./editors#piwi-s-mcp-server-for-the-agent)).
-- **[Run control for agents](./agent-run-control)**: **Tools → Piwi → Copy the Runs' MCP Server Configuration for
-  Agents** gives the AI Assistant or another agent the test runs the project starts, to follow, stop and act on, and
-  **…for Claude Code or Cursor** the HTTP entry they read; **Reset the Runs' MCP Server Token** gives it a new token;
+- **[Run control for agents](./agent-run-control)**: **Tools → Piwi → Copy the runs' MCP server configuration for
+  agents** gives the AI Assistant or another agent the test runs the project starts, to follow, stop and act on, and
+  **…for Claude Code or Cursor** the HTTP entry they read; **Reset the runs' MCP server token** gives it a new token;
   **Settings → Tools → Piwi → AI Assistant** turns it off. A stop's menu and **Tools → Piwi** offer **Share the
-  Stopped Browser with Playwright Tools**, after a warning.
+  stopped browser with Playwright tools**, after a warning.
 - **[Open in editor](./ide-integration#jetbrains-ides-the-piwi-plugin)**: a path clicked in the dashboard or the desktop
   app opens at its line, with nothing to set up.
 
@@ -14054,10 +14055,11 @@ the progress of the run you started (`running 4/9`). Under it:
 - **Your runs since** lists the runs laid over it, such as `#124 · your run · 2 min ago · 1 passed, 0 failed`; a click
   opens one in the dashboard.
 - The failures, grouped by spec (the default), by [failure cluster](/features/failure-clusters), by owner, or flat:
-  **Group by…** in the view's title bar, **Group By** in the tool window's toolbar. The choice is kept for the
+  **Group by…** in the view's title bar, **Group by** in the tool window's toolbar. The choice is kept for the
   workspace, and each group counts its failures.
 - A failure shows its title, where it failed (`tests/login.spec.ts:42 · chromium · new`), and an icon for failing,
-  edited since the run, or fixed locally, with the headline and its run (`your run #124`, `edited since run #120`).
+  edited since the run, or fixed locally, with its run (`your run #124`, `edited since run #120`), its headline in the
+  hover.
 
 In a workspace with several Playwright configs, each config with a run, your runs or failures has a node of its own,
 named by its folder (`apps/admin`), with its project and counts beside it (`Admin · 2 failing`). Its run and failures
@@ -14075,9 +14077,9 @@ The title bar, or the toolbar, holds Refresh the latest run, **Re-run the failin
 run in the dashboard** (the run the status bar shows; in a JetBrains IDE, the page of the selected failure or run),
 **Compare with…** (for the active file's config) and the grouping. In VS Code, **Follow the active editor**, in the `…`
 menu, selects the first failure of the file you switch to, and the badge counts the failing tests, as the tool window's
-title and its icon's red dot do. A JetBrains IDE keeps Connect, Piwi Picker's pairing, the MCP configurations and the
-settings in the tool window's gear menu, and a hover on a node says what VS Code's does. The tree is read again when a
-run ends or an edit moves a failure.
+title and its icon's red dot do. The JetBrains tool window's gear menu keeps Connect, Piwi Picker's pairing, the MCP
+configurations, **Reload Piwi**, the settings and **Documentation**, and a node's hover says what VS Code's does. The
+tree is read again when a run ends or an edit moves a failure.
 
 With no failure to list, the view says why, in both editors: no failure in the run read; no run yet, or none for the
 baseline chosen, with **Compare with…**; an instance that does not answer, naming it and why, with **Retry** (Piwi tries
@@ -14087,7 +14089,7 @@ again on its own too); a desktop app to restart or update; an instance still bei
 ## Compare with another run
 
 By default, failures are read against the checked-out branch's latest complete run, else the default branch's. **Piwi:
-Compare with…** (**Tools → Piwi → Compare With…** in a JetBrains IDE, and the failures view's title bar) chooses another
+Compare with…** (**Tools → Piwi → Compare with…** in a JetBrains IDE, and the failures view's title bar) chooses another
 run to compare with: a branch's latest complete run, a run by its id, or **My local runs only**, your runs from this
 machine, the desktop app or an editor, without CI. Your runs since are laid over each. The status bar tooltip and the
 failures view name it (`Baseline: CI run #120 on feature/x`), ending with `(no run)` when it found none. That run need
@@ -14212,7 +14214,7 @@ options.
 | Editor | Command |
 |---|---|
 | VS Code | **Piwi: Toggle the coverage marks** |
-| JetBrains IDE | **Tools → Piwi → Show Coverage Marks** |
+| JetBrains IDE | **Tools → Piwi → Show coverage marks** |
 
 The command shows up once a file showed marks. The marks are shown by default; the choice is kept for the workspace in
 VS Code and in `.idea/workspace.xml` in a JetBrains IDE, on your machine only. The lenses and the hover stay.
@@ -14358,8 +14360,8 @@ authority goes in `NODE_EXTRA_CA_CERTS` in the environment the IDE was started w
 
 When the instance does not answer, or answers with an error, the status bar reads **Piwi: unreachable** instead of
 **Piwi: connect**: the connection is kept, and the editor reads the instance again on its own, 15 seconds later, then
-twice as long each time, up to every five minutes. A click on the item, or **Piwi: Refresh**, reads it at once. A key
-the instance refuses still reads **Piwi: connect**, since only signing in again helps.
+twice as long each time, up to every five minutes. A click on the item, or **Reload Piwi**, reads it at once. A key the
+instance refuses still reads **Piwi: connect**, since only signing in again helps.
 
 When the desktop app answers but cannot prove it holds its token, which happens with a desktop app older than the
 editor or with another program on its port, the item reads **Piwi: restart the desktop app**: the editor does not
@@ -14367,7 +14369,7 @@ send the app's token there. Restart or update the desktop app; the editor reads 
 
 The **Piwi** failures view says the same in both editors, naming the instance and why it does not answer, with
 **Retry**. When the editor service itself stops, VS Code's status bar reads **Piwi: not running** and its view offers
-**Piwi: Restart the editor service**, as does a **Piwi: Refresh** it did not answer.
+**Piwi: Restart the editor service**, as does a **Reload Piwi** it did not answer.
 
 **Piwi: Open settings** in VS Code opens the extension's settings.
 
