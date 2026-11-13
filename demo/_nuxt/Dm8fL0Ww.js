@@ -1,0 +1,1 @@
+var e=globalThis.process?.getBuiltinModule?.(`node:crypto`);async function t(t){if(e)return e.createHash(`sha256`).update(t).digest(`hex`);let n=await globalThis.crypto.subtle.digest(`SHA-256`,new TextEncoder().encode(t));return[...new Uint8Array(n)].map(e=>e.toString(16).padStart(2,`0`)).join(``)}export{t};
