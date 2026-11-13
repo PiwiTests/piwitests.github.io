@@ -2361,7 +2361,7 @@ or a codespace. What the editor shows from the service works there as it does on
 runs in the browser on your computer and reaches the editor through a pairing address on the loopback interface,
 which in remote development is the local end of a forwarded port.
 
-The editor's **Watch live** and **Interact** controls use its existing connection. They need no Picker pairing or
+The editor's **Watch** and **Interact** controls use its existing connection. They need no Picker pairing or
 extra port forwarding. The steps below are for using Picker's separate Runs window and Send to editor.
 
 ## VS Code
@@ -4064,6 +4064,14 @@ as your system lets a window come forward: **Piwi: Show the stopped test's brows
 **Tools → Piwi → Show the Stopped Test's Browser** in a JetBrains IDE, and a button in the Runs window and the desktop
 app's tray. A headless run has no window to show, and an older reporter offers none: update it.
 
+## Share with Playwright tools
+
+At a stop, **Share with Playwright tools** (the stop's hover and **Piwi: Share the stopped test's browser with
+Playwright tools** in VS Code; the stop's menu and **Tools → Piwi** in a JetBrains IDE) binds the test's browser for
+Playwright's own tools, so `npx playwright cli attach piwi-<run>-w<worker>` and Playwright's dashboard can join it.
+It is off until you ask, every time, and asks first: a shared browser is open to any process of yours, which can read
+its pages and run code in them. It is shared until the test ends, and no agent can share it.
+
 ## The terminal's lines
 
 A run prints one line for its page, and one when it follows an editor or the desktop app
@@ -4111,7 +4119,7 @@ teammate's paused test, without waiting for the trace. Nothing you do in the vie
 |---|---|
 | A CI run, or a run shared from a developer's machine | Its page on the team instance: **Watch** |
 | A run you start from VS Code, a JetBrains IDE or a terminal | Its browser when headed; Piwi Picker's [Runs window](./runs-window#watch-live) and the editor's [worker view](./watch-running-test), running or stopped |
-| A run the desktop app starts | Its [Local runs](./desktop-runs#watch-live) tray and the Runs window, running or stopped |
+| A run the desktop app starts | Its [Local runs](./desktop-runs#watch) tray and the Runs window, running or stopped |
 
 A stop is a breakpoint, a `page.pause()` or **Pause**. A run that reports to the desktop app gets no live view key, so
 no team **Watch**.
@@ -4374,7 +4382,7 @@ DOM Playwright's trace takes at each call (before the call, at its action and af
 with its stylesheets and images, and the locator picker on it. It is for a CI test that waits on an element: you see
 the page as the test sees it, at the call it is stuck on, and pick the locator to use while the test still waits. It
 works in a CI run or a run [shared from a developer's machine](./share-live), and the dashboard stores none of it. The
-[desktop app](./desktop-runs#watch-live) shows the same view of its own runs, from the test's own trace.
+[desktop app](./desktop-runs#watch) shows the same view of its own runs, from the test's own trace.
 
 ## Use it
 
@@ -4495,11 +4503,11 @@ whose project enables live view, and connect to an editor or the desktop app for
 |---|---|---|
 | VS Code | **Piwi: Share the run live on the team instance**, or the status bar's broadcast icon | **Piwi: Stop sharing the run live**, or **Stop sharing…** in the menu of the status bar's **Live**, beside **Open the run page** and **Copy the run page's link**, after a confirmation |
 | JetBrains IDEs | **Tools → Piwi → Share the Run Live** | **Tools → Piwi → Stop Sharing the Run Live…**, or **Stop Sharing the Run…** in the status bar item's menu, after a confirmation |
-| Piwi Picker's [Runs window](./runs-window) | **Share live** under the run's name | **Stop sharing** |
-| The desktop app's [Local runs tray](./desktop-runs) | **Share live** above the run's workers | **Stop sharing** |
+| Piwi Picker's [Runs window](./runs-window) | **Share live** under the run's name | **Stop sharing**, after a confirmation |
+| The desktop app's [Local runs tray](./desktop-runs) | **Share live** above the run's workers | **Stop sharing…**, after a confirmation |
 
-The first share asks for confirmation; in an editor, it also asks whether to share this run or
-[the window's runs](#a-window-s-runs). The shared run shows its destination, viewer count and a link to copy.
+The first share asks for confirmation; in an editor, and in the Runs window for an editor's run, it also asks whether
+to share this run or [the window's runs](#a-window-s-runs). The shared run shows its destination, viewer count and a link to copy.
 
 Until then, its workers send nothing, and the run's **Tests** tab says **Not shared live** once, beside its search,
 with [**Ask to watch**](#ask-to-watch) for a teammate who may ask; its running tests say where they
@@ -4531,10 +4539,19 @@ $env:PIWI_SHARE_LIVE='1'; npx playwright test
 
 ### A window's runs
 
-**Piwi: Share this window's runs live until I stop** in VS Code, and **Tools → Piwi → Share This Project's Runs Live
-Until I Stop** in a JetBrains IDE, share each run the window starts from then on, each one said as it is shared, until
-you stop (**…Stop sharing this window's runs live**, or the menu of the status bar's **Live · this window**) or close
-the window. On the team instance, the page of the run before says **Continued in run #78**, linked, and a teammate who
+**Piwi: Share this window's runs live until I stop** in VS Code, **Tools → Piwi → Share This Project's Runs Live
+Until I Stop** in a JetBrains IDE, and **Share this editor window's runs** under an editor's run in Piwi Picker's Runs
+window share each run the window starts from then on, each one said as it is shared, until you stop (**…Stop sharing
+this window's runs live**, the menu of the status bar's **Live · this window**, or **Stop sharing this window's runs**
+on the Runs window's line that says the window shares its runs, whatever runs it lists) or close the window. A run's
+own **Stop sharing** in the Runs window stops that run alone.
+
+<figure>
+  <img src="/screenshots/picker-runs-share-window.png" width="488" alt="The Runs window under its heading saying Visual Studio Code's window shares its runs live until you stop, with Stop sharing this window's runs under that line, and a run shared as one of them, with its own Stop sharing">
+  <figcaption>An editor window's runs, shared from the Runs window.</figcaption>
+</figure>
+
+On the team instance, the page of the run before says **Continued in run #78**, linked, and a teammate who
 has it open is taken to the new run, on the worker they were watching.
 
 ## Ask to watch
@@ -4571,7 +4588,7 @@ shared: **Share live**, above the run's workers, asks first the first time since
 A run that reports to the [desktop app](./desktop-runs) itself (a reproduction, a bisect, a **Re-run** in a folder
 that names no instance, a run your editor started) cannot be shared: the app hands out no live view key, since no
 teammate reaches it. Its tray offers no **Share live** for it, the app's project settings have no **Live view**
-section, and on the run's page its running tests offer [**Watch** and **Pause and watch**](./desktop-runs#watch-live),
+section, and on the run's page its running tests offer [**Watch** and **Pause and watch**](./desktop-runs#watch),
 shown in the app's tray from the app itself. A run your editor started says **See its page at a stop** there: its page
 shows where the editor steers it.
 
@@ -9958,7 +9975,7 @@ extension, does the same steps from the browser, and the desktop app runs them o
 |---|---|---|---|
 | Write the test | **Record a new test file**, or **Record here** at the cursor | Piwi Picker's **Record actions**, then **Send to editor** | [Record tests from the editor](./editor-recording), [Recorded code](./recorded-code) |
 | Run it | **Run with Piwi** from the gutter, the Testing view or the test at the cursor; **Verify ×3** | the desktop app's **Re-run** of tests | [Runs from the editor](./editor-runs), [Desktop app runs](./desktop-runs) |
-| Watch it | the status bar, and the run's page on the instance | the Runs window, and the page itself once you **Watch live** at a stop | [Live view of a run](./live-view), [Runs window](./runs-window) |
+| Watch it | the status bar, and the run's page on the instance | the Runs window, and the page itself once you **Watch** at a stop | [Live view of a run](./live-view), [Runs window](./runs-window) |
 | Stop it | a breakpoint, **Pause**, **Step**, **Run to cursor** | the pause bar in the test's page | [Breakpoints in the browser](./editor-breakpoints), [Pause and step from the editor](./editor-run-control) |
 | Fix it at the stop | **Pick a locator**, **Record here**, **Assert**, **Mock a request** | **Pick a locator** and **Record here** from the pause bar; all four from the Runs window | [Code from a pause](./editor-stop-code) |
 | Debug a failure | **Debug in my editor**, from the failure's page | the failure page's Locator fix | [Debug in my editor](./debug-in-editor), [Locator healing](./locator-healing) |
@@ -10391,6 +10408,22 @@ When the editor closes, or its service stops, the connection closes, and a stop 
 of the editor's connection reaches the run's workers alone, out of the tests' environment while they run, as for a run
 the editor starts.
 
+## A reproduction from the desktop app
+
+A job [the desktop app](./desktop) runs in a throwaway worktree of a commit (**Reproduce here**, a bisect step, a
+[Flake Lab](./flake-lab) run) follows the editor window whose workspace holds the project's linked folder, by the same
+rules, else the app as before. It follows only an editor extension that knows these reproductions (an older one
+leaves it to the app), and a bisect step or a Flake Lab run, which nobody attends, only one that knows such runs too.
+
+- **Its stops show in the editor** at the failing line of the worktree's file, outside the workspace, marked
+  **the desktop app's reproduction at commit abc1234, in a throwaway checkout**. A reproduction holds its failures from
+  its start, as in the app.
+- **Its code is to copy.** Assert, Assert a region and Mock a request offer the code with **Copy the code** and write
+  nothing: "This reproduction runs at commit abc1234 in a throwaway checkout: copy the code into your own file."
+  Record here is refused there, and a pick goes to the app's window, to copy.
+- **The app keeps it.** Its Local runs tray says where its tests wait (**In Visual Studio Code**), read only, stops it,
+  and shows its verdict when it ends; the editor offers no Stop.
+
 ## Limits
 
 - **Under the desktop app, a pick comes to its window to copy**, and Record here and Assert, which need an editor, are
@@ -10435,7 +10468,7 @@ then each worker's test and whether it runs or where it stopped (the file and li
 the page). A run that ended says how: passed, failed with its first
 failure, timed out or interrupted. The count and the outcome need `@piwitests/reporter` newer than 0.67.0. A run
 without [**Watch**](#watch-live) and no test stopped says how one stops: a breakpoint, a `page.pause()` or **Pause**. A run [started outside Piwi](./terminal-runs) shows too, marked **Terminal** or **Test runner**.
-[CI runs](./watch-running-test#a-ci-run-of-your-branch) show read-only.
+[CI runs](./watch-running-test#a-ci-run-of-your-branch) show read-only, with **Watch** on a running test.
 
 ## The controls
 
@@ -10481,8 +10514,8 @@ code went to the editor, with what to review in it, or why not.
 
 **Watch**, on a worker's row, shows its test's page as it paints, running or stopped, and **Pause and watch** pauses
 it too: [Watch a running test](./watch-running-test). The last frame stays, marked **Running…**, until the next one
-comes. An older reporter's row says to update it; with one newer than 0.61.0, its stops have **Watch live**, which
-watches each stop alone and, left on, the worker's next ones.
+comes. An older reporter's row says to update it; with one newer than 0.61.0, its stops have their own **Watch**,
+which watches each stop alone and, left on, the worker's next ones.
 
 The view fills the window's width, ten frames a second at most, under a red **Live** badge. Only the window that
 asked gets the frames, stored nowhere, from the test's worker through the editor service and the extension's
@@ -10501,13 +10534,18 @@ At a headless stop, which nobody sees, the picker, the recorder's panel and the 
 view, answered there as in a headed browser; their code reaches the editor the same way.
 
 <figure>
-  <img src="/screenshots/picker-runs-live.png" width="488" alt="The Runs window at a headless stop, watching the shop page live: Watch live and Interact pressed in the page card's head, the Live badge on the view, the picker over the page, with Resume, Step and Finish in one group, End the test apart, and Pick, Record, Assert and More under Code">
+  <img src="/screenshots/picker-runs-live.png" width="488" alt="The Runs window at a headless stop, watching the shop page live: Watch and Interact pressed in the page card's head, the Live badge on the view, the picker over the page, with Resume, Step and Finish in one group, End the test apart, and Pick, Record, Assert and More under Code">
   <figcaption>A headless test's page watched live, with Pick started in it.</figcaption>
+</figure>
+
+<figure>
+  <img src="/screenshots/picker-runs-ci.png" width="488" alt="The Runs window listing CI run #78 on main with its two running tests, each with Watch and Watch on the dashboard, the second watched: its page live under a Live badge, with the call it is at">
+  <figcaption>A CI run's test, watched read-only.</figcaption>
 </figure>
 
 ## Click and type on the view
 
-While you watch, [**Interact**](./watch-running-test#interact), beside **Watch live** or **Watch**, sends your
+While you watch, [**Interact**](./watch-running-test#interact), beside **Watch**, sends your
 pointer, wheel and keys on the view to the page as a person's would, the picker and the recorder included. Which
 reach the page, a paste included, and which stay the window's: the
 [keyboard shortcuts](/reference/keyboard-shortcuts#piwi-picker-s-runs-window).
@@ -10526,7 +10564,8 @@ it off. It needs Playwright 1.60 or later, and says so on an older one.
 
 [Paired](./bug-reports#running-it-with-playwright-in-the-desktop-app) with the [desktop app](./desktop), the window
 lists the runs the app starts beside your editor's, marked **Desktop app**: reproductions, bisect steps and bug reports
-included, with the same controls and live view. With no editor paired, it follows the app alone. The app holds no
+included, with the same controls and live view, and its failures to reach the app name the app (**Not connected to the
+desktop app**). With no editor paired, it follows the app alone. The app holds no
 editor, so **Pick**, **Record** and **Assert** in the test's window are not offered; the code of **Assert a region**
 and **Mock a request** goes to the app's window to copy, as the window here says: [Desktop app runs](./desktop-runs).
 
@@ -10574,7 +10613,7 @@ gives the image and the controls alone.
 An editor window you open later shows in the Runs window within seconds: each window's service names the others,
 without their tokens, and the worker asks the paired editor for them. While the Runs window is open, it also asks
 every minute. A run whose window stops answering stays listed, grayed and as last heard, until that window answers
-again, ten minutes at most, and a stop's **Watch live** starts again then.
+again, ten minutes at most, and a stop's **Watch** starts again then.
 
 ## When the editor does not answer
 
@@ -10815,11 +10854,11 @@ opens it at any stop.
 Clicking the image picks a locator when the reporter supports it, on Playwright 1.60 or later: it replaces the
 stopped line's, and the tab shows the result or refusal.
 
-**Watch live** updates the paused page until you hide or close the tab, resume or switch stops. Choose
+**Watch** updates the paused page until you hide or close the tab, resume or switch stops. Choose
 [**Interact**](./watch-running-test#interact) to click, scroll or type on it; your first one drives the stop.
 Interact stays on through the worker's stops, and goes off, giving the stop back, on Escape outside a pick or check,
 another
-[lane](/guide/concepts#worker)'s stop, a stop without input, **Watch live** off or refused, the tab hidden or closed,
+[lane](/guide/concepts#worker)'s stop, a stop without input, **Watch** off or refused, the tab hidden or closed,
 or the run's end. The caption names who drives and watches the stop
 ([driving a stop](/guide/concepts#presence-driving-a-stop)).
 The preview uses the editor's connection: no Picker, pairing, live-view setting or port forwarding. Older reporters
@@ -10880,7 +10919,7 @@ sent](/guide/concepts#watch-share-live).
 | VS Code | **Piwi: Watch a worker's test**, or a click on the run's progress in the status bar: **Piwi: worker 2** beside the editor | A headless stop of the worker shows there, with **Interact** and the pick on a click, instead of the paused page |
 | JetBrains IDEs | **Tools → Piwi → Watch a Worker's Test**: the **Worker 2** tab of the Piwi tool window | The tab only watches: a headless stop opens the **Paused Page** beside it, for **Interact**, unless that tab holds another stop |
 | Piwi Picker | **Watch** on a worker's row of the [Runs window](./runs-window#watch-live) | The controls show above the view, and the stopped worker scrolls into view |
-| Desktop app | **Watch** on a running row of its own runs, which opens the [Local runs](./desktop-runs#watch-live) tray on it | The tray shows the stopped worker, behind its tab in a run of several |
+| Desktop app | **Watch** on a running row of its own runs, which opens the [Local runs](./desktop-runs#watch) tray on it | The tray shows the stopped worker, behind its tab in a run of several |
 
 **Pause and watch** is **Piwi: Pause and watch a worker's test** in VS Code, **Tools → Piwi → Pause and Watch a
 Worker's Test** in a JetBrains IDE, and a button beside **Watch** in the Runs window and the desktop app. With several
@@ -10899,11 +10938,12 @@ nothing in your editor or Piwi Picker pauses, steps, holds or shares it.
 - **The line each running test is at** ends with a plain mark in the CodeLens or inlay color, `CI run #78 · worker 2:
   Click getByRole('button')`: a CI position, never a stop. The line is the run's commit's.
 - **Piwi Picker's Runs window** lists the CI runs in progress of the projects your
-  [connection](./extension-connection) maps, through that instance, with **Open**.
-- **Watch**, under a running test of a run whose project has the [live view](./live-view) on, opens its lane in the
-  editor, read-only: the VS Code worker panel or the JetBrains **Worker** tab, named `CI run #78 · worker 2`, with
-  **Watch** alone, no **Interact** and no pick. It follows the lane through its next tests, and ends with the run, as
-  you hide or close the view, or as the instance closes it, saying why.
+  [connection](./extension-connection) maps, through that instance, with **Open** and their running tests.
+- **Watch**, under a running test of a run whose project has the [live view](./live-view) on, opens its lane
+  read-only (the VS Code worker panel, the JetBrains **Worker** tab, named `CI run #78 · worker 2`, or under the run in
+  the Runs window): **Watch** alone, no **Interact** and no pick. It follows the lane
+  through its next tests, and ends with the run, as you hide or close the view, or as the instance closes it, saying
+  why.
 - **Watch on the dashboard**, beside it, opens the lane's view on the run's page: the choice where the editor cannot
   show it (an older instance, a refused **Watch**, which offers it).
 
@@ -10953,7 +10993,7 @@ The attempt must be traced: [which attempts are](/guide/concepts#trace-so-far).
 
 ## Interact
 
-At a stop, **Interact**, beside **Watch live** or **Watch** in each view once the view is on, sends your clicks, the
+At a stop, **Interact**, beside **Watch** in each view once the view is on, sends your clicks, the
 wheel and your keys on the view to the page as a person's would. The first of them takes control of the stop, so an
 agent waits until you give it back ([driving a stop](/guide/concepts#presence-driving-a-stop)). It stays on across the
 worker's next stops, where your first click or key takes the stop again. Turning it or watching off, **Give back** or
@@ -11107,6 +11147,7 @@ entries and dialogs of the hold are not recorded. Playwright's own trace and vid
 
 - **Runs Piwi started only**, with a reporter that takes the actions; an editor extension older than the reporter
   holds no failure.
+- **A desktop reproduction's** code is [to copy](./terminal-runs#a-reproduction-from-the-desktop-app).
 - **Assert offers what a recording's check panel offers**: a value, a text, a name, visible or hidden, enabled or
   disabled, with no `toBeChecked` or `toHaveCount` choice.
 - **Assert a region** leaves out the value of a password, one-time code or card field, in a shadow root too, and a link
@@ -11375,15 +11416,11 @@ characters). Piwi refuses to write a secret field's value, and a text or a value
 ## In the desktop app
 
 The [desktop app](./desktop-runs#for-agents)'s MCP server serves the same tools for the runs it starts; there,
-`code_write` writes no file and a run nobody attends is not served.
-
-## Share with Playwright tools
-
-At a stop, **Share with Playwright tools** (the stop's hover and **Piwi: Share the stopped test's browser with
-Playwright tools** in VS Code; the stop's menu and **Tools → Piwi** in a JetBrains IDE) binds the test's browser for
-Playwright's own tools, so `npx playwright cli attach piwi-<run>-w<worker>` and Playwright's dashboard can join it.
-It is off until you ask, every time, and asks first: a shared browser is open to any process of yours, which can read
-its pages and run code in them. It is shared until the test ends, and no agent can share it.
+`code_write` writes no file and a run nobody attends is not served. `run_start` takes a spec of a linked folder,
+which the app's window starts as you would from its Local runs tray, titled `Started by <agent>`, while a window is
+open. It runs each test once, outside UI mode, and counts among the three runs agents start at once until its process
+ends; a line in no test, or a spec whose name starts with `-`, is refused. `npx @piwitests/reporter mcp` sends the
+app a spec no editor's workspace holds.
 
 ## Limits
 
@@ -11397,6 +11434,7 @@ its pages and run code in them. It is shared until the test ends, and no agent c
 - [Code from a pause](./editor-stop-code)
 - [MCP server](./mcp)
 - [Runs window](./runs-window)
+- [Share a stop with Playwright tools](./watch-a-run#share-with-playwright-tools)
 
 <!-- https://piwitests.dev/features/mcp -->
 
@@ -11833,7 +11871,7 @@ folder, **without touching your checkout**:
 - **Reproduce here** checks out the failing commit in a throwaway
   [`git worktree`](https://git-scm.com/docs/git-worktree), installs its dependencies (reusing yours on an
   unchanged lockfile outside a workspace) and any missing browser, and runs the failing test with that commit's own
-  Playwright.
+  Playwright, [stopping in your editor](./terminal-runs#a-reproduction-from-the-desktop-app) when one is open.
 - **Find the breaking commit here** bisects between the last green commit and the failing one, with live progress and
   a **Stop** that kills the test and what it started, resets the bisect and removes the worktree. The first bad commit
   is linked to your SCM host and recorded on the failure cluster.
@@ -11890,7 +11928,8 @@ signature-checked.
 Every Playwright run the [desktop app](./desktop) starts names the app as its hub: a **Re-run** of tests, a reproduction, a
 bisect step, a [Flake Lab](./flake-lab) run and a bug report's run. Its **Local runs** tray shows each worker of the
 run beside its output, and steers the test as the editor does: [Pause and step from the editor](./editor-run-control).
-Nothing leaves your machine unless you [share a run live](#share-live).
+Nothing leaves your machine unless you [share a run live](#share-live). The tray's runs themselves, their progress,
+their output and a reload: [Local runs tray](./local-runs-tray).
 
 ## Each worker
 
@@ -11925,23 +11964,16 @@ an error page), the system tells you of every stop, whatever the window shows, a
 window](./runs-window) or [an agent](#for-agents) answers it. With no run of the app going on, the window stops
 listening, and a stop goes on at once.
 
-## Its output
-
-Each run shows its output under its workers, in Playwright's terminal colors. **Open the output in a
-separate window**, the window button on the run, moves it to a window of its own, beside your editor or on another
-screen, still updating, with the run's **Stop**. Closing that window, or the same button, now **Show the output
-here**, brings it back; the window closes with the app.
-
-## Watch live
+## Watch
 
 **Watch**, on a running worker in the tray or its test on the run's page, shows its page as the test runs and at each
-stop, until you turn it off; at a stop, **Interact** sends your input there as with **Watch live**. Between two
-images, and with an older reporter: [Watch a running test](./watch-running-test).
+stop, until you turn it off. Between two images, and with an older reporter: [Watch a running
+test](./watch-running-test).
 
-**Watch live** shows the stopped page as it paints, in place of its image, and stays on for the worker's next stops
-until you turn it off. [**Interact**](./watch-running-test#interact), beside it, sends your clicks, the wheel and your
-keys on the view to the page; `Tab` leaves the view unless a click into it took the keyboard. Nothing keeps the
-[frames](/guide/concepts#watch-share-live).
+At a stop of a worker nobody watches, **Watch** shows the stopped page as it paints, in place of its image, and stays
+on for the worker's next stops until you turn it off. [**Interact**](./watch-running-test#interact), beside it, sends
+your clicks, the wheel and your keys on the view to the page; `Tab` leaves the view unless a click into it took the
+keyboard. Nothing keeps the [frames](/guide/concepts#watch-share-live).
 
 **Pause and watch**, on a running test of the run's page in the app (**Open run #N** on the run in the tray), pauses
 the test as **Pause** does and watches its worker: the tray opens at the stop, the page live, and the row says where
@@ -11984,13 +12016,15 @@ on disk in the folder linked to the project.
 ## Share live
 
 A run that reports to your team's Piwi instance can be [shared live](./share-live#from-the-desktop-app) there for a
-teammate to watch: who sees what, and why a run cannot be.
+teammate to watch: who sees what, and why a run cannot be. **Stop sharing…** asks first, naming what closes there.
 
 ## For agents
 
 The app's [MCP server](./mcp) (its **MCP server** page connects your coding agent) serves these runs with
 the tools of [Run control for agents](./agent-run-control). An agent follows a run, pauses or steps it, and reads
 and acts on the stopped page as you can and no further: [what keeps it safe](./agent-run-control#what-keeps-it-safe).
+Its `run_start` has the window start a spec of a linked folder as a run of the tray, titled with the agent's name,
+while a window is open ([in the desktop app](./agent-run-control#in-the-desktop-app)).
 
 The tray shows what it does: a stop it asked for says so (**Paused by the agent**), as does its first action at a
 stop. The code `code_write` makes (the steps it took, an assertion, or a locator for the stopped line) comes under
@@ -12010,21 +12044,98 @@ for an agent that left.
 - **No recording.** **Record here**, and **Pick** and **Assert** in the test's window, end in an editor: run the test
   from VS Code or a JetBrains IDE to use them.
 - **A linked folder.** A reproduction or a bisect step runs in a throwaway worktree, which no project links: its
-  stops make no code.
+  stops make no code here. With an editor open on the linked folder, the job runs on that editor instead, which offers
+  its code to copy ([A reproduction from the desktop app](./terminal-runs#a-reproduction-from-the-desktop-app)).
 - **A file changed since the run started** makes no code: run the test again.
-- **A reload forgets the tray's runs.** A run still going shows among the app's other runs, without **Hold
-  failures**: its failures go on, a reproduction's included.
 - **Run to cursor** stays in the editor, which has the file.
 
 ## Related
 
 - [Desktop app](./desktop): what it runs, and how it links a project to its folder.
+- [Local runs tray](./local-runs-tray): the tray's runs, their progress, their output and a compact list.
 - [Pause and step from the editor](./editor-run-control): the same stops, in VS Code and the JetBrains IDEs.
 - [Code from a pause](./editor-stop-code): what each action writes.
 - [Runs window](./runs-window#the-desktop-app-s-runs): Piwi Picker's window, paired with the app, for the same runs;
   the code it starts at their stops comes to this tray.
 - [Run control for agents](./agent-run-control): the tools an agent steers the runs with.
 - [Flake Lab](./flake-lab#in-the-desktop-app): **Reproduce this flake** and a flake-aware bisect, run by the app.
+
+<!-- https://piwitests.dev/features/local-runs-tray -->
+
+# Local runs tray
+
+The **Local runs** tray of the [desktop app](./desktop) lists every run the app starts: a **Re-run**, a reproduction, a
+bisect, a [Flake Lab](./flake-lab) run, a bug report's run, a run an agent started. It sits at the bottom right of
+the window and opens as a run starts, at each stop, and from **1 local run** in the sidebar. Closing it stops nothing.
+Each run's workers, their stops and their page: [Desktop app runs](./desktop-runs).
+
+<figure>
+  <img src="/screenshots/desktop-runs-tray.png" alt="The Local runs tray: a run counted 5 of 12 tests, 1 failed, its first worker stopped at its page.pause() with Resume, Step and Finish and its page, beside Stop and Hold failures">
+  <figcaption>A run that goes on, counted as its own process counts its tests.</figcaption>
+</figure>
+
+## Each run
+
+A run says how far it is as its own process counts its tests: **5 of 12 tests · 1 failed**, a test held at its
+failure among the failed, then the flaky ones and those [ended at a stop](./end-the-test). Its run button on the page
+and **1 local run** in the sidebar count the same. Before its first test, and with a reporter that does not count,
+the run counts the results Playwright prints.
+
+Once it reported to the app, a run links **Open run #N**, and **Compare with run #N** when its tests come from another
+run. A failed one leads to its failure: **Open the failure**, on the run and in the message at its end, opens the
+page of its first failed test, the one its process named first; the run's page when the run names none. A run of
+several Playwright projects reports one run for each: the failure is the first one of the first project that failed,
+in that project's run. **Run again**
+starts an ended run as it ran, with its options and its **Hold failures**.
+
+A reproduction, a bisect step or a Flake Lab run that went to the editor open on the project's linked folder
+([A reproduction from the desktop app](./terminal-runs#a-reproduction-from-the-desktop-app)) says where its tests wait,
+**In Visual Studio Code**, read only, with no **Hold failures**: the editor holds them. Its line reads **Waiting** while
+one does, **Stop** still ends it, and it ends with its own verdict.
+
+## Compact list
+
+**Compact list**, in the tray's head, shows each run as one line: its state (**Running**, **Waiting** at a stop,
+**Passed**, **Failed**), its name, how far it is, and the one action it needs now: **Show the stop**, **Stop**,
+**Open the failure**, **Open run #N** or **Run again**. A click on a line shows the run whole, and **Show as one
+line** folds it again. A stop shows its run whole, as the tray opens on it. The tray remembers the choice.
+
+<figure>
+  <img src="/screenshots/desktop-runs-tray-compact.png" alt="The Local runs tray as a compact list: a run waiting at a stop with Show the stop, one that passed with Run again, and one that failed with Open the failure">
+  <figcaption>Three runs, one line each, each with the action it needs.</figcaption>
+</figure>
+
+## Its output
+
+Each run shows its output under its workers, in Playwright's terminal colors. **Open the output in a
+separate window**, the window button on the run, moves it to a window of its own, beside your editor or on another
+screen, still updating, with the run's **Stop**. Closing that window, or the same button, now **Show the output
+here**, brings it back. The window stays open whatever page the app shows, an analytics dashboard in TV mode
+included, and through a reload; it closes as its run leaves the tray (**Clear finished runs**) and with the app. A
+window the reloaded tray no longer shows a run in closes.
+
+## A reload
+
+A reload of the window keeps the tray's runs. A run still going is followed again: its output goes on, with its
+**Hold failures**, its separate window, and how far each of its ended projects came, as you left them. A run whose
+step ended during the reload ends with that step's exit code, and goes on to its next step if it has one; a
+reproduction, a bisect or a Flake Lab job that ended meanwhile still records its verdict, once. A run of tests that
+was starting, its first Playwright project or its next, goes on with the one the app started. Any other run that was
+starting as the window reloaded ends, saying so: run it again. What the run printed while the window reloaded is lost, and the tray
+keeps the last 300 lines of each run's output through a reload.
+
+## Limits
+
+- **One window's runs.** Another window of the app lists its own; this tray shows their workers under **Other runs
+  of the desktop app**.
+- **A run that reports to the team instance** (a run it asked for) links no Piwi run here: its page is on the
+  instance.
+
+## Related
+
+- [Desktop app runs](./desktop-runs): each worker, its stops, its page and the code a stop makes.
+- [Desktop app](./desktop): what it runs, and how it links a project to its folder.
+- [Share a run live](./share-live): let a teammate watch a run of the tray.
 
 <!-- https://piwitests.dev/features/run-on-my-machine -->
 
@@ -12213,11 +12324,12 @@ system's keychain. Each project's folder is linked on the first request for it. 
 
 Each run Piwi Runner starts shows in its window live, as the desktop app's runs show in its
 [Local runs tray](./desktop-runs): each worker's test and where it stands, **Pause**, **Step**, **Resume** and
-**Finish**, **Pause all** and **Resume all**, and the stopped test's page, live with **Watch live**. A `page.pause()`,
+**Finish**, **Pause all** and **Resume all**, and the stopped test's page, live with **Watch**. A `page.pause()`,
 a step or a breakpoint waits in the window until you answer it, and the window comes to the front. **Hold failures**,
 on each running run you attend and off until you turn it on, keeps a failing test at its line too, until you resume
-it; a run in UI mode, or one that repeats its tests past a failure, offers none. A run that goes on while the window
-reloads shows again, with **Stop**.
+it; a run in UI mode, or one that repeats its tests past a failure, offers none. Once the run reported to the
+instance, its card names it, **Run #78 · Open**, which opens its page there, and keeps it after the run ended. A run
+that goes on while the window reloads shows again, with **Stop**.
 **Assert a region** and **Mock a request** make their code in the window, to copy: Piwi Runner has no editor and
 writes no file. **Share live** shows the run's stops to your team on the instance it reports to, as in the desktop
 app. **Inspect** of a watched worker, which reads the test's pages from its trace, is the desktop app's alone.
@@ -17638,11 +17750,12 @@ Serve the run tools of this machine to a coding agent, as one MCP server over st
 Piwi (whose runs are served to agents) and of the [desktop app](/features/desktop), under one entry for every
 repository. It finds each editor's server in the editors' discovery files, and the desktop app's in its own, once the
 app's server proved it holds the token there. It holds no run logic: `run_list` asks every host and names each run's
-host, `run_start` goes to the editor whose workspace holds the spec, and every other tool goes to the host of its
-`run`; a host that does not answer is named in the answer. See [Run control for agents](/features/agent-run-control).
+host, `run_start` goes to the editor whose workspace holds the spec, else to the desktop app, which runs a spec of a
+folder it links to a project, and every other tool goes to the host of its `run`; a host that does not answer is named
+in the answer. See [Run control for agents](/features/agent-run-control).
 
 A relative `file` of `run_start` is read against the agent's working directory, else against each editor's workspace
-folders, and a spec reached through a link goes to the editor under its own folder. Each host is named with its first
+folders and the desktop app's linked folders, and a spec reached through a link goes to the editor under its own folder. Each host is named with its first
 folder (`Visual Studio Code (shop)`), and an agent's cancel of a call reaches its host. `@latest` runs the newest
 reporter, whichever version a repository installs.
 
