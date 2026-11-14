@@ -9980,7 +9980,7 @@ connection it already has. Elsewhere, **Piwi: Copy the MCP server configuration*
 running `mcp-remote`. It holds your API key: keep it out of the repository.
 
 The key carries your whole role, write tools included. For a token of the agent's own, set `piwi.mcpAuthorization`
-to `sign-in` (**Settings → Tools → Piwi → AI Assistant** in a JetBrains IDE): the server comes without a key, and the
+to `sign-in` (**Settings → Tools → Piwi → Agents (MCP)** in a JetBrains IDE): the server comes without a key, and the
 agent [signs in](/features/mcp#authentication) in your browser when it first connects. You revoke that token with
 your API keys. The desktop app keeps its own token. For the runs the editor starts:
 [Run control for agents](./agent-run-control).
@@ -10000,6 +10000,11 @@ recorded and the stopped line under **Settings → Editor → Color Scheme → P
 `agent-let-go` (a stop an agent held goes on once the agent went idle), `window-shared` (a run is shared live, as the
 window's runs are), `unattended-resumed` (a test stopped where nobody attends the run goes on) and `reporter-missing`
 (a run did not reach the instance, from a config without the Piwi reporter). Remove a kind to see its message again.
+
+VS Code's Piwi settings come in four groups, Connection, Runs, Agents (MCP) and Advanced, as JetBrains' settings page
+does. Your own choices (how runs start and notify, breakpoints, the status bar's alert, the agent's sign-in) hold in
+every workspace: a repository's `.vscode/settings.json` sets only the instance and the project, the failure severity,
+serving runs to agents and Piwi's tests in the Testing view.
 
 ## Commands
 
@@ -10256,13 +10261,13 @@ line** on the debugger's Show Execution Point key:
 - **The severity of a failure**: **Settings → Tools → Piwi → Runs** chooses it
   ([CI failures in the Problems panel](./editor-failures#ci-failures-in-the-problems-panel)); an information shows as a
   weak warning.
-- **Piwi's MCP server for the agent**: **Settings → Tools → Piwi → AI Assistant** chooses whether the copied
+- **Piwi's MCP server for the agent**: **Settings → Tools → Piwi → Agents (MCP)** chooses whether the copied
   configuration holds the IDE's key or has the agent sign in through the browser
   ([Piwi's MCP server for the agent](./editors#piwi-s-mcp-server-for-the-agent)).
 - **[Run control for agents](./agent-run-control)**: **Tools → Piwi → Copy the runs' MCP server configuration for
   agents** gives the AI Assistant or another agent the test runs the project starts, to follow, stop and act on, and
   **…for Claude Code or Cursor** the HTTP entry they read; **Reset the runs' MCP server token** gives it a new token;
-  **Settings → Tools → Piwi → AI Assistant** turns it off. A stop's menu and **Tools → Piwi** offer **Share the
+  **Settings → Tools → Piwi → Agents (MCP)** turns it off. A stop's menu and **Tools → Piwi** offer **Share the
   stopped test's browser with Playwright tools**, after a warning.
 - **[Open in editor](./ide-integration#jetbrains-ides-the-piwi-plugin)**: a path clicked in the dashboard or the desktop
   app opens at its line, with nothing to set up.
