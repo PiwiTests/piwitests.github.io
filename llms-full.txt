@@ -10339,11 +10339,25 @@ offers **Only on failure**), or never; **Settings** opens it in VS Code.
 A [verification](/guide/concepts#verification) (**Verify ×3**) says how many of its runs passed instead, whatever the
 setting: `Piwi: run #124 · Passed 3 of 3`, or `Failed 1 of 3`.
 
-## The status bar
+## Related
+
+- [The editor's status bar](./editor-status-bar): the latest run, the run in progress, and when the item turns red.
+- [Failures in the editor](./editor-failures): the failures a run leaves, at their lines and in the failures view.
+- [Editor extensions](./editors): what the editor shows from your suite.
+- [Editor connection](./editor-connection): the instance the editor reads, and its key.
+- [Test selection](/features/test-selection): the selections **Run a saved selection…** runs.
+
+<!-- https://piwitests.dev/features/editor-status-bar -->
+
+# The editor's status bar
+
+The Piwi item in the status bar of the [editor extensions](./editors) says how the latest run of your branch went, or
+how far a run in progress is, for the Playwright config of the file you are editing.
 
 The latest complete run on the branch: how many tests passed, failed and were flaky, or what still fails and what your
 local runs fixed (`2 failing · 1 fixed locally`). While a run started from this editor, or [another run of the branch](./watch-running-test#a-ci-run-of-your-branch),
-is in progress, the item counts it instead (`4/9 · 1 failing · your run`) and returns to the latest run when it ends.
+is in progress, the item counts it instead (`run #124 · 4 of 9 · 1 failed`) and returns to the latest run when it
+ends.
 
 With several Playwright configs, the item speaks for the config of the file you are editing, the deepest config folder
 that holds it, and follows you from file to file; outside every config folder, it shows the first connected config.
@@ -10356,8 +10370,13 @@ Enter reads the latest run and its failures again (**Refresh the latest run**), 
 When the extension is not connected, the item says why, and its first entry is **Connect…**, or **Reload Piwi** for an
 [unreachable instance](./editor-connection#an-unreachable-instance) or a desktop app to restart.
 
-In a JetBrains IDE, an icon before the text shows the state of the run the item counts (running, failing, passed) or of
-the connection, and the text takes the theme's error color while tests of that run fail, a run in progress included. A
+The item turns red (its background in VS Code, its text in a JetBrains IDE) only for a test a run you started from
+the editor failed that the baseline does not fail, until a run fixes it or the editor restarts: a CI failure or a
+teammate's is counted, never red, and so is a run in progress. `piwi.statusBarAlert` in VS Code, and **The status bar item's text turns red** on
+Settings → Tools → Piwi in a JetBrains IDE, choose any failing test or never instead.
+
+In a JetBrains IDE, an icon before the text shows the state of the run the item counts (running, failing, passed), of
+a recording, or of the connection. A
 click opens a menu of the **Tools → Piwi** actions that apply, led by what the item calls for: **Refresh the latest
 run**, **Reload Piwi** for an unreachable instance or a desktop app to restart, **Connect…** while not connected,
 **Node.js settings…** when Node.js is missing or too old, or **Go to the recorded lines** while a recording runs, with
@@ -10365,10 +10384,9 @@ run**, **Reload Piwi** for an unreachable instance or a desktop app to restart, 
 
 ## Related
 
+- [Runs from the editor](./editor-runs): run tests from the editor and see their results.
 - [Failures in the editor](./editor-failures): the failures a run leaves, at their lines and in the failures view.
-- [Editor extensions](./editors): what the editor shows from your suite.
 - [Editor connection](./editor-connection): the instance the editor reads, and its key.
-- [Test selection](/features/test-selection): the selections **Run a saved selection…** runs.
 
 <!-- https://piwitests.dev/features/terminal-runs -->
 
@@ -10944,7 +10962,7 @@ sent](/guide/concepts#watch-share-live).
 
 | Where | Open it | At a stop |
 |---|---|---|
-| VS Code | **Piwi: Watch a worker's test**, or a click on the run's progress in the status bar: **Piwi: worker 2** beside the editor | A headless stop of the worker shows there, with **Interact** and the pick on a click, instead of the paused page |
+| VS Code | **Piwi: Watch a worker's test**, also in the status bar's menu while a run goes on: **Piwi: worker 2** beside the editor | A headless stop of the worker shows there, with **Interact** and the pick on a click, instead of the paused page |
 | JetBrains IDEs | **Tools → Piwi → Watch a worker's test**: the **Worker 2** tab of the Piwi tool window | The tab only watches: a headless stop opens the **Paused page** beside it, for **Interact**, unless that tab holds another stop |
 | Piwi Picker | **Watch** on a worker's row of the [Runs window](./runs-window#watch-live) | The controls show above the view, and the stopped worker scrolls into view |
 | Desktop app | **Watch** on a running row of its own runs, which opens the [Local runs](./desktop-runs#watch) tray on it | The tray shows the stopped worker, behind its tab in a run of several |
@@ -13863,7 +13881,7 @@ the lines above the code with Code Vision, and its actions under **Tools → Piw
 ## Related
 
 - [Failures in the editor](./editor-failures): the CI failures at their lines, the quick fixes and the failures view.
-- [Runs from the editor](./editor-runs): run tests, and follow the run in the status bar.
+- [Runs from the editor](./editor-runs): run tests, and follow the run in [the status bar](./editor-status-bar).
 - [Record tests from the editor](./editor-recording): steps written at the cursor as you take them in a browser.
 - [Editor connection](./editor-connection): the instance the editor reads, and its key.
 
@@ -13934,10 +13952,10 @@ line** on the debugger's Show Execution Point key:
   Its right-click menu holds **Run with Piwi** and **Verify ×3 with Piwi**, which report to the instance as Piwi's own
   runs do.
 - **The status bar** shows the latest run, or the run in progress, of the selected file's Playwright config, with an
-  icon for its state and the error color while its tests fail. It counts a run you started (`3 of 9 · 1 failed`) as
+  icon for its state, and the error color for a new failure a run you started produced. It counts a run you started (`3 of 9 · 1 failed`) as
   the run itself reports it, with no instance too; with one, the run's node in the Piwi tool window counts it the same
   way. A click opens a menu of the actions, led by what the item calls for:
-  [the status bar](./editor-runs#the-status-bar). While a run is [shared live](./share-live), the menu opens its page,
+  [the status bar](./editor-status-bar). While a run is [shared live](./share-live), the menu opens its page,
   copies its link, and has **Stop sharing the run**, which asks first.
 - **The editor's and the project view's context menus** have a **Piwi** submenu, in the VS Code extension's order:
   run, then record. **Tools → Piwi** has six sections: run, record, a paused run, dashboard, agents, connection. Each
@@ -14071,7 +14089,7 @@ commit, or a commit your clone lacks, the files as saved when the editor first s
 
 The latest run's failures as a tree: the **Failures** view of the **Piwi** panel in VS Code, the Piwi tool window in a
 JetBrains IDE. Its first node is the run, `Run #120 · CI · feature/x · 3 failing · 1 fixed locally`, with its age, or
-the progress of the run you started (`running 4/9`). Under it:
+the progress of your run, `running 4 of 9`. Under it:
 
 - **Your runs since** lists the runs laid over it, such as `#124 · your run · 2 min ago · 1 passed, 0 failed`; a click
   opens one in the dashboard.
