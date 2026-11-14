@@ -4509,7 +4509,7 @@ whose project enables live view, and connect to an editor or the desktop app for
 
 | Where | Share | Stop |
 |---|---|---|
-| VS Code | **Piwi: Share the run live on the team instance**, or the status bar's broadcast icon | **Piwi: Stop sharing the run live**, or **Stop sharing** in the menu of the status bar's **Live**, beside **Open the run page** and **Copy the run page's link**, after a confirmation |
+| VS Code | **Piwi: Share the run live on the team instance**, or the Piwi item's menu | **Piwi: Stop sharing the run live**, or **Stop sharing** in the Piwi item's menu under **Shared live**, beside **Open the run page** and **Copy the run page's link**, after a confirmation |
 | JetBrains IDEs | **Tools → Piwi → Share the run live on the team instance** | **Tools → Piwi → Stop sharing the run live**, or **Stop sharing the run** in the status bar item's menu, after a confirmation |
 | Piwi Picker's [Runs window](./runs-window) | **Share live** under the run's name | **Stop sharing**, after a confirmation |
 | The desktop app's [Local runs tray](./desktop-runs) | **Share live** above the run's workers | **Stop sharing…**, after a confirmation |
@@ -4550,7 +4550,7 @@ $env:PIWI_SHARE_LIVE='1'; npx playwright test
 **Piwi: Share this window's runs live until I stop** in VS Code, **Tools → Piwi → Share this project's runs live
 until I stop** in a JetBrains IDE, and **Share this editor window's runs** under an editor's run in Piwi Picker's Runs
 window share each run the window starts from then on, each one said as it is shared, until you stop (**…Stop sharing
-this window's runs live**, the menu of the status bar's **Live · this window**, or **Stop sharing this window's runs**
+this window's runs live**, **Shared live** in the Piwi item's menu, or **Stop sharing this window's runs**
 on the Runs window's line that says the window shares its runs, whatever runs it lists) or close the window. A run's
 own **Stop sharing** in the Runs window stops that run alone.
 
@@ -10369,8 +10369,10 @@ how far a run in progress is, for the Playwright config of the file you are edit
 
 The latest complete run on the branch: how many tests passed, failed and were flaky, or what still fails and what your
 local runs fixed (`2 failing · 1 fixed locally`). While a run started from this editor, or [another run of the branch](./watch-running-test#a-ci-run-of-your-branch),
-is in progress, the item counts it instead (`run #124 · 4 of 9 · 1 failed`) and returns to the latest run when it
-ends.
+is in progress, the item says where its test stands stopped or the call a paused one waits in, that it is shared live,
+and how far it is (`Piwi: held at its failure · checkout.page.ts:12 · run #124 · 4 of 9 · 1 failed`), in the same
+words in both editors, and returns to the latest run when it ends. A test that waits for you marks the item until you
+answer it: its background turns yellow in VS Code, and its icon takes a dot in a JetBrains IDE.
 
 With several Playwright configs, the item speaks for the config of the file you are editing, the deepest config folder
 that holds it, and follows you from file to file; outside every config folder, it shows the first connected config.
@@ -10379,7 +10381,9 @@ counts, the baseline, your local runs since, the run in progress, and when the r
 while the event stream is connected, `· read every minute` without it).
 
 In VS Code, a click opens **Piwi: Open the Piwi menu**, in the JetBrains menu's sections, the item's own action first:
-Enter reads the latest run and its failures again (**Refresh the latest run**), without the indexes **Reload Piwi** fetches.
+Enter reads the latest run and its failures again (**Refresh the latest run**), without the indexes **Reload Piwi** fetches,
+or goes to the stopped line while a test is stopped. The run's controls and its share are in the menu while a run is
+live.
 When the extension is not connected, the item says why, and its first entry is **Connect…**, or **Reload Piwi** for an
 [unreachable instance](./editor-connection#an-unreachable-instance) or a desktop app to restart.
 
@@ -10852,13 +10856,12 @@ applies and the debugger does not take them. On macOS, `Cmd+F10` runs to the cur
 test** have no key in VS Code: bind one in **Preferences: Open Keyboard Shortcuts** (search `piwi`). Within two seconds
 of an answer, until that worker stops, a key answers no other worker and starts no debug session.
 
-- **In VS Code**, the controls sit in the status bar beside the run's progress while they apply (`Pausing…` until a
-  test stops), in the palette (**Piwi: Pause the run** and its kin) and the editor title (Resume, the rest under
-  `…`).
+- **In VS Code**, the controls are in the Piwi item's menu while they apply, after **Go to the stopped line**, in the
+  palette (**Piwi: Pause the run** and its kin) and the editor title (Resume, the rest under `…`).
 - **In a JetBrains IDE**, they are under **Tools → Piwi**, enabled while they apply, and in the status bar item's menu,
   whose text says why and where a test stopped.
 
-The progress beside them comes from the run, so it counts offline and with the desktop app
+The item's line comes from the run, so it counts offline and with the desktop app
 ([Watch a run](./watch-a-run#how-far-it-is)); its tooltip names the other tools that have the run open.
 
 **Pause** stops every run Piwi started in this window (in a JetBrains IDE, this project), each worker before its next
@@ -10883,7 +10886,7 @@ the arrow's click lists the controls, and the color is **Settings → Editor →
 stopped at**. The mark goes when the test goes on (from the editor or the bar), ends, or closes its page.
 
 <figure>
-  <img src="/screenshots/vscode-run-control-hover.png" alt="VS Code: a test paused at a page object's line, its hover naming the call that runs next with Resume, Step, Run to cursor and Finish, and Resume, Step and Finish above the line and in the status bar">
+  <img src="/screenshots/vscode-run-control-hover.png" alt="VS Code: a test paused at a page object's line, its hover naming the call that runs next with Resume, Step, Run to cursor and Finish, and Resume, Step and Finish above the line">
   <figcaption>A run paused before it types the coupon.</figcaption>
 </figure>
 
@@ -11193,8 +11196,8 @@ line where the error entered the test's code, or at the call a test timeout cut 
 
 `Held at its failure · Timed out 5000ms waiting for getByRole('button', { name: 'Apply' }) · attempt 2`  Resume  Pick  Record …
 
-Its line is marked in red. **Resume** lets the test end as it failed (**Step** and **Finish** do the same, so VS Code's
-status bar offers Resume alone); **Pick** replaces the failing locator, **Record** writes the steps that were missing
+Its line is marked in red. **Resume** lets the test end as it failed (**Step** and **Finish** do the same, so the status
+menu offers Resume alone); **Pick** replaces the failing locator, **Record** writes the steps that were missing
 above the failing line, and the code actions work as at any stop. Every attempt that fails is held, never an expected
 failure. A headless failure in any other run, such as a plain **Run**, goes on at once, and the editor shows nothing of
 it.
@@ -11249,9 +11252,8 @@ It is offered at any stop but a failure, with a reporter newer than 0.62.0:
 **Pause** stops a test before its next call, so a test inside a long one (a click that waits for a button, a
 `waitForTimeout`) stops only once it returns. Meanwhile, with a reporter newer than 0.67.0, the Runs window and the
 desktop app's tray say the call it waits in and, for a locator call, how long it has run, and offer **End the test**
-there. In VS Code, the status bar reads `Pausing… 12 s`, the call in its tooltip, with **End the test** beside it; in
-a JetBrains IDE, the status bar item reads `Piwi: pausing… · waits in` and the call, and **Tools → Piwi → End the
-test** ends it:
+there. The Piwi item reads `Piwi: pausing… · waits in` the call and how long it has waited, in both editors, and **End
+the test** in its menu (**Tools → Piwi → End the test** in a JetBrains IDE) ends it:
 
 - **A locator call or an assertion**, with Playwright 1.62 or later, is given up at once, and the test is skipped.
 - **Another call** (a `waitForTimeout`, a navigation) finishes first, and the test is skipped at its next locator
