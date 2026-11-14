@@ -2511,7 +2511,7 @@ header and every tab that reads run history; with no branch picked it reads the
   [AI instructions](./ai-diagnosis#custom-instructions), the [live view](./live-view),
   [capabilities](/operate/capabilities), coverage, [targets](./analytics#targets), the
   [issue tracker](./issue-tracking), [CI](./ci-rerun), keys in test tags, [test management](./test-management),
-  [browser extension URLs](./extension-connection#url-patterns) and, in the desktop app, the
+  [URL patterns](./extension-connection#url-patterns) and, in the desktop app, the
   [local folder](./desktop#running-tests-from-the-app).
 
 ## Locators
@@ -10583,7 +10583,7 @@ In a remote window (Remote SSH, WSL, Dev Containers, or a codespace opened in VS
 1. Run **Piwi: Pair with Piwi Picker** in that window. VS Code forwards the window's Send to editor port to your
    computer, on the same number when it is free there, and copies the local end on `127.0.0.1`, whatever name VS
    Code gives it: `http://127.0.0.1:<port>/piwi/send#<token>`.
-2. Paste it in Piwi Picker's settings under **Send to editor** and click **Pair**.
+2. Paste it in Piwi Picker's settings under **Editor** and click **Pair**.
 
 Piwi Picker then sends locators and recordings to the remote window, and its
 [Runs window](/features/runs-window) lists the runs that window starts, and shows a headless test's page live: when
@@ -10609,7 +10609,7 @@ platform offers plugins no supported way to forward a port to your computer, so 
 1. Run **Tools → Piwi → Pair with Piwi Picker** in the remote IDE. Besides copying the pairing address, its
    notification names the IDE's port (63342 by default) and the ports of the open projects' runs.
 2. In the JetBrains Client, forward each of them under **Ports**, with the local port the same as the host port.
-3. Paste the pairing address in Piwi Picker's settings under **Send to editor**.
+3. Paste the pairing address in Piwi Picker's settings under **Editor**.
 
 The numbers must match: Piwi Picker checks the IDE's proof for the port it asked on, and a run's hub accepts its own
 port alone. A project's run port changes when its editor service starts again (the IDE restarted, the project was
@@ -12253,7 +12253,7 @@ through one pairing. The desktop app has a pairing of its own, which the Runs wi
 
 1. In the editor, run **Piwi: Pair with Piwi Picker** (**Tools → Piwi → Pair with Piwi Picker** in a JetBrains IDE).
    It copies a pairing address, `http://127.0.0.1:<port>/…#<token>`.
-2. In Piwi Picker's settings, paste it under **Send to editor** and click **Pair**; the browser asks once for access to
+2. In Piwi Picker's settings, paste it under **Editor** and click **Pair**; the browser asks once for access to
    that local address.
 
 In a remote window (Remote SSH, WSL, Dev Containers), the pairing address is the local end of a port VS Code forwards
@@ -12369,7 +12369,7 @@ While the results are open, the picked element stays outlined on the page, and t
 the page when they would cover it. **Pick another** closes them and starts picking the next element, without going
 back to the popup or the shortcut.
 
-Each locator leads with a word: `stable`, `could break` or `brittle` for one that finds the element alone, by what the
+Each locator leads with a word: `stable`, `watch` or `brittle` for one that finds the element alone, by what the
 [stability rules](/reference/locator-stability#levels) say of it, and `unique by position`, `3 matches` or
 `not checked` otherwise, the words the DevTools sidebar uses. Its **Details** give the reasons
 (`unique · brittle: CSS class`) and the stability score.
@@ -12583,7 +12583,7 @@ branch's tests will not find, before the branch's suite runs. The lists follow t
 ## Brittle locators
 
 The overlay marks an element a [brittle locator](/reference/locator-stability#levels) finds with an orange corner;
-**Brittle**, in the panel, hides the marks. A locator at the *Watch* level reads **Could break** on the element's card.
+**Brittle**, in the panel, hides the marks. A locator at the *Watch* level reads **Watch** on the element's card, followed by the rules that flag it.
 
 The **At risk** tab lists the brittle locators finding something on the page, those used by a failing or flaky test
 first, then those shared by the most tests, with their tests and call sites. For one that finds a single element, it
@@ -12651,7 +12651,7 @@ shows:
 
 ```
 getByTestId('cart-button')                        ✓ unique · stable
-getByRole('button', { name: 'Cart, 2 items' })    ✓ unique · could break: number in text
+getByRole('button', { name: 'Cart, 2 items' })    ✓ unique · watch: number in text
 getByText('🛒 2')                                 ✓ unique · stable
 ```
 
@@ -12700,11 +12700,11 @@ page navigates; the recording and replay panels on the page stay too, for when D
 - **Session** lists the elements named with **Add to session**, and copies them as a page object, a Markdown table or
   JSON.
 
-The toolbar starts the popup's tools on the inspected page without leaving DevTools: **Pick** is
-[Pick an element](./pick-an-element), **Lint** the [lint overlay](./lint-overlay), and **Tested
-elements** shows what your tests reach, once Piwi Picker is connected to your instance and the site is mapped to a
-project (the button says what is missing until then). The first time on a site, the click asks for access to it, as
-recording does. Then **Viewport**, **Playwright view** and **Save login for tests** set the page up for a test (below).
+The toolbar starts the popup's tools on the inspected page without leaving DevTools:
+[**Pick an element**](./pick-an-element), the [**Lint overlay**](./lint-overlay), and **Tested elements**, which shows
+what your tests reach once Piwi Picker is connected to your instance and the site is mapped to a project (the button
+says what is missing until then). In a narrow panel the tools show their icons alone, named by their tooltips. The
+first time on a site, the click asks for access to it, as recording does. Then **Viewport**, **Playwright view** and **Save login for tests** set the page up for a test (below).
 
 ## Save login for tests
 
@@ -18149,9 +18149,8 @@ of three levels:
 
 - **Brittle**: at least one rule gives it that level. The [Tested elements](/features/tested-elements#brittle-locators)
   overlay lists it under **At risk**, and offers a replacement; the Locators page says why.
-- **Watch**, which Piwi Picker writes **could break** (in its pick results, the DevTools sidebar and the Tested
-  elements cards): a rule has something to say, but the locator does not break on its own. Shown on the element's card
-  and on the Locators page, never listed under **At risk**.
+- **Watch**: a rule has something to say, but the locator does not break on its own. Shown on the Locators page, and
+  in Piwi Picker's pick results, DevTools sidebar and Tested elements cards; never listed under **At risk**.
 - **Stable**: no rule has anything to say.
 
 A locator takes the level of its worst part: a stable container cannot save a brittle target, and a brittle container
