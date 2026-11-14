@@ -9976,8 +9976,8 @@ a warning, with the chains it breaks on hover, and one quick fix that rewrites e
 
 In VS Code 1.101 and later, the extension provides Piwi's [MCP server](/features/mcp) to the editor's agent with the
 connection it already has. Elsewhere, **Piwi: Copy the MCP server configuration** puts an entry on the clipboard: VS Code's
-`mcp.json` or Cursor's `mcpServers`, as you choose; the AI Assistant's in a JetBrains IDE, an `mcpServers` entry
-running `mcp-remote`. It holds your API key: keep it out of the repository.
+`mcp.json` or Cursor's `mcpServers`, as you choose; in a JetBrains IDE, an `mcpServers` entry running `mcp-remote`,
+for your agent's MCP settings (the AI Assistant's, when it is installed and enabled). It holds your API key: keep it out of the repository.
 
 The key carries your whole role, write tools included. For a token of the agent's own, set `piwi.mcpAuthorization`
 to `sign-in` (**Settings → Tools → Piwi → Agents (MCP)** in a JetBrains IDE): the server comes without a key, and the
@@ -10002,12 +10002,11 @@ window's runs are), `unattended-resumed` (a test stopped where nobody attends th
 (a run did not reach the instance, from a config without the Piwi reporter). Remove a kind to see its message again.
 
 VS Code's Piwi settings come in five groups, Connection, Runs, In the editor, Agents (MCP) and Advanced, as JetBrains'
-settings page does. **In the editor** chooses the lines Piwi writes above the code (`piwi.codeLens`: every one, a
-failure's and an uncovered change's alone, or none; a test's gutter mark stays), and turns off the brittle locators'
-warnings (`piwi.locatorWarnings`), the failing test's tint (`piwi.failingTestTint`) and the CI positions
-(`piwi.ciPositions`). Your own choices (how runs start and notify, breakpoints, the status bar's alert, the agent's sign-in) hold in
+settings page does: [Editor settings](/reference/editor-settings) lists each one, what the editor shows among them.
+Your own choices (how runs start and notify, breakpoints, the status bar's alert, the agent's sign-in) hold in
 every workspace: a repository's `.vscode/settings.json` sets only the instance and the project, the failure severity,
-serving runs to agents and Piwi's tests in the Testing view.
+serving runs to agents and Piwi's tests in the Testing view. A JetBrains IDE keeps the same choices in its own
+settings, for every project, and the failure severity and serving runs to agents for each project.
 
 ## Commands
 
@@ -10268,7 +10267,7 @@ line** on the debugger's Show Execution Point key:
   configuration holds the IDE's key or has the agent sign in through the browser
   ([Piwi's MCP server for the agent](./editors#piwi-s-mcp-server-for-the-agent)).
 - **[Run control for agents](./agent-run-control)**: **Tools → Piwi → Copy the runs' MCP server configuration for
-  agents** gives the AI Assistant or another agent the test runs the project starts, to follow, stop and act on, and
+  agents** gives an agent that starts commands (the AI Assistant among them) the test runs the project starts, to follow, stop and act on, and
   **…for Claude Code or Cursor** the HTTP entry they read; **Reset the runs' MCP server token** gives it a new token;
   **Settings → Tools → Piwi → Agents (MCP)** turns it off. A stop's menu and **Tools → Piwi** offer **Share the
   stopped test's browser with Playwright tools**, after a warning.
@@ -10918,7 +10917,7 @@ the test goes on.
 ## The setting
 
 Breakpoints are on by default. Turn them off with the `piwi.breakpoints` setting in VS Code, or **Pause the runs Piwi
-starts at the editor's breakpoints** under **Settings → Tools → Piwi** in a JetBrains IDE, kept on your machine only.
+starts at the editor's breakpoints** under **Settings → Tools → Piwi** in a JetBrains IDE, your choice in every project.
 
 ## What it needs
 
@@ -11548,8 +11547,9 @@ options.
 **Piwi: Show or hide the coverage marks**, under **Tools → Piwi** in a JetBrains IDE, where a check mark says the
 marks show.
 
-The command shows up once a file showed marks. The marks are shown by default; the choice is kept for the workspace in
-VS Code and in `.idea/workspace.xml` in a JetBrains IDE, on your machine only. The lenses and the hover stay.
+The command shows up once a file showed marks. The marks are shown by default; the choice is yours in every project,
+the [setting](/reference/editor-settings#in-the-editor) `piwi.coverageMarks` in VS Code's user settings and the IDE's
+own settings in a JetBrains IDE. The lenses and the hover stay.
 
 ## C# and Razor files
 
@@ -19024,6 +19024,84 @@ The lines above the code and the quick fixes also run commands no menu lists: **
 
 - [Editor extensions](/features/editors): what the extensions show, and how they connect.
 - [JetBrains plugin](/features/jetbrains): what the plugin needs and draws differently.
+
+<!-- https://piwitests.dev/reference/editor-settings -->
+
+# Editor settings
+
+Both editors group their options as this page does: VS Code in its settings editor (search `piwi.`), and
+**Settings → Tools → Piwi** in a JetBrains IDE, whose help button and **Documentation** links open this page. A row that
+names one editor is that editor's alone; the JetBrains page has no Advanced group, and opens with the connection in use
+and a group for the desktop app.
+
+Each option is one of three kinds:
+
+- **The team's**: one value for everyone on the project. VS Code reads it from the user or the workspace settings,
+  which a repository may commit (`.vscode/settings.json`); a JetBrains IDE keeps it in `.idea/piwi.xml`, which the team
+  can share.
+- **Yours, which a project may set**: your choice, which a workspace's settings can set for that project. A JetBrains IDE
+  keeps it for you in the project's `.idea/workspace.xml`.
+- **Yours**: the same in every project. VS Code reads it from the user settings alone, so a repository cannot change it;
+  a JetBrains IDE keeps it in the IDE's own settings (`options/piwi.xml`).
+
+In Rider, a project's `.idea` files sit under `.idea/.idea.<Name>/.idea/`, as the settings page says.
+
+## Connection
+
+| Setting | What it chooses | Default | Kind |
+|---|---|---|---|
+| `piwi.serverUrl` | The Piwi instance. `PIWI_DASHBOARD_URL` in the environment or the workspace `.env` comes first, then this, then the desktop app while it runs: [Editor connection](/features/editor-connection) | none | The team's |
+| `piwi.project` | The project's name or id on the instance | none | The team's |
+| JetBrains: **Read this project from the desktop app while it runs** | Whether the desktop app comes first while it runs; VS Code chooses it with **Piwi: Connect…** | off | Yours, which a project may set |
+| JetBrains: **Desktop app project** | The project's name in the desktop app; empty uses the one linked there to this folder | none | Yours, which a project may set |
+
+The API key is kept in the editor's secret storage (VS Code) or the IDE's password safe, for its instance alone, and
+the choice of the desktop app on this machine only.
+
+## Runs
+
+| Setting | What it chooses | Default | Kind |
+|---|---|---|---|
+| `piwi.runNotifications` | When a run ends, whether a notification says what it changed: always, only when something fails, or never | Say what it changed when something fails | Yours |
+| `piwi.runNotificationsScope` | The runs it says it for: the runs started here, or also the branch's CI runs | The runs started here and the branch's CI runs | Yours |
+| `piwi.statusBarAlert` | When the status bar item turns red: for a new failure a run started here caused, for any failing test, or never | For a new failure a run started here caused | Yours |
+| `piwi.breakpoints` | Whether the runs Piwi starts pause at the editor's breakpoints: [Editor breakpoints](/features/editor-breakpoints) | on | Yours |
+| `piwi.runHeaded` | Whether every run Piwi starts runs headed, its browser window shown | off | Yours |
+| `piwi.runHoldFailures` | [Hold failures](/features/watch-a-run) from each run's start: Auto, On or Off | Auto | Yours |
+| `piwi.testExplorer` | VS Code: whether the Testing view lists Piwi's tests, with their results | on | Yours, which a project may set |
+| JetBrains: **Run the tests in the IDE's Playwright runner** | Whether a run starts in the IDE's Playwright runner (a test tree, Debug, Rerun Failed Tests) or in the Run tool window's console | off | Yours |
+
+## In the editor
+
+| Setting | What it chooses | Default | Kind |
+|---|---|---|---|
+| `piwi.codeLens` | The lines Piwi writes above the code: every line, a failure's and an uncovered change's alone, or none. A test's gutter mark stays | Every line | Yours |
+| `piwi.gutterIcons` | VS Code: each test's latest result in the gutter; off, its line keeps the hover. A JetBrains IDE switches it under **Settings → Editor → General → Gutter Icons → Piwi test results** | on | Yours |
+| `piwi.coverageMarks` | The coverage marks at the left of the lines: [Editor coverage](/features/editor-coverage) | on | Yours |
+| `piwi.failureSeverity` | How a failure shows at its line: an error, a warning, information (a weak warning in a JetBrains IDE), or nothing in the problems | An error | Yours, which a project may set |
+| `piwi.locatorWarnings` | Whether a locator the [locator stability rules](/reference/locator-stability) find brittle is warned at, with its stable alternative as a quick fix | on | Yours |
+| `piwi.failingTestTint` | Whether a failing test and the line it failed at are tinted; the gutter still marks them, unless `piwi.gutterIcons` is off | on | Yours |
+| `piwi.ciPositions` | Whether a CI run of the branch shows where it stands, at the end of each line: [Editor CI runs](/features/editor-ci-runs) | on | Yours |
+
+## Agents (MCP)
+
+| Setting | What it chooses | Default | Kind |
+|---|---|---|---|
+| `piwi.mcpAuthorization` | How the agent signs in to Piwi's MCP server: with the editor's API key, or a sign-in in the browser | The editor's API key | Yours |
+| `piwi.serveRunsToAgents` | Whether the test runs started here are served to the agents of this machine, as an MCP server on `127.0.0.1` | on | Yours, which a project may set |
+
+## Advanced
+
+| Setting | What it chooses | Default | Kind |
+|---|---|---|---|
+| `piwi.hiddenMessages` | VS Code: the kinds of messages **Don't Show Again** hid; remove one to see it again | none | Yours |
+| `piwi.trace.server` | VS Code: whether the traffic with the editor service is traced in the Piwi output channel | Off | Yours |
+
+## Related
+
+- [Editor extensions](/features/editors): what the extensions show, and how they connect.
+- [JetBrains plugin](/features/jetbrains): what the plugin needs and draws differently.
+- [Editor commands](/reference/editor-commands): every command of both editors.
 
 <!-- https://piwitests.dev/reference/notification-events -->
 

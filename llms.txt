@@ -171,6 +171,7 @@
 - [Analytics widgets](https://piwitests.dev/reference/analytics-widgets): Every widget of the Analytics page and of analytics dashboards, band by band, with what it shows and whether it follows a test filter, generated from the widget registry.
 - [Metrics](https://piwitests.dev/reference/metrics): Every number the analytics widgets, quality reports, MCP tools and exports show, with its unit, which direction is better and its definition, generated from the metric catalog.
 - [Editor commands](https://piwitests.dev/reference/editor-commands): Every command of the Piwi extension for VS Code and of the Piwi plugin for the JetBrains IDEs: connection, runs, the failures, recording, run control, code at a stop, sharing live and agents, with what each does.
+- [Editor settings](https://piwitests.dev/reference/editor-settings): Every setting of the Piwi extension for VS Code and of the Piwi plugin for the JetBrains IDEs, by group: connection, runs, what the editor shows, agents and advanced, with whose choice each is and where it is kept.
 - [MCP tools](https://piwitests.dev/reference/mcp-tools): Every tool the dashboard's MCP server serves, by module, with the capability that removes it when declined, generated from the tool catalog.
 - [Notification events & webhooks](https://piwitests.dev/reference/notification-events): Every notification event Piwi fires, when it fires, and the JSON body a webhook channel receives, with its signature and payload fields.
 
