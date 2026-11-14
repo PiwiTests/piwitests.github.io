@@ -702,7 +702,7 @@ on all of them. A **group** is a named set of users that receives project roles 
 | Execution | `/test-run-cases/:id` | [Failure evidence](/features/evidence#one-execution-diagnosis-first) |
 | Failure cluster | `/failure-clusters/:id` | [Failure clusters & the inbox](/features/failure-clusters) |
 | Cross-project view | `/analytics` | [Analytics](/features/analytics) |
-| Quality report | *Export* on `/analytics` and `/projects/:id` | [Quality reports](/features/quality-reports) |
+| Quality report | *Quality report* on `/analytics` and `/projects/:id` | [Quality reports](/features/quality-reports) |
 | Report schedule, report snapshot | `/reports`, `/reports/:id` | [Quality reports](/features/quality-reports#report-schedules) |
 
 ## Related
@@ -1430,14 +1430,16 @@ logged, and the feature shows nothing rather than failing a run.
 
 ## Set the token
 
-- **Instance-wide**: **Settings → AI → What the model receives → Repository access token**. Every project uses it unless it has its own.
-- **Per project**: the **Source control** section of the project's **Settings** tab, field **SCM token**. It overrides
-  the instance-wide token for that project. Prefer one per project for write access: an instance-wide write token can
+- **Instance-wide**: **Settings → Source control**, field **SCM token** in its **Repository access** card. Every
+  project uses it unless it has its own.
+- **Per project**: **Project → Settings → Source control**, field **SCM token**. It overrides the instance-wide
+  token for that project. Prefer one per project for write access: an instance-wide write token can
   write everywhere it reaches.
 
 A token is stored encrypted with [`PIWI_SECRET_KEY`](/reference/configuration#general) and never returned by the API;
-the field shows that one is stored. Leave the field empty to keep it. To remove it, save the instance-wide field empty,
-or click **Remove stored token** under the project field.
+the field shows that one is stored. Leave the field empty to keep it. To remove it, click **Remove** beside the
+instance-wide token, then **Save**, or **Remove stored token** under the project field. The page stays open when the
+Source control [capability](/operate/capabilities) is declined, so a stored token can still be removed.
 
 Public repositories work without a token for the read features, within the host's rate limit for anonymous calls.
 A private repository needs one, except on the desktop app with a linked folder (below).
@@ -2464,11 +2466,13 @@ sidebar.
 
 ## Analytics
 
-`/analytics`: trends across projects and over time, where Home shows what is happening now. The filters at the top
+`/analytics`: trends across projects and over time, where Home shows what is happening now. It opens your
+[default dashboard](./dashboards#your-default-dashboard), else the one an administrator set for everyone, else the
+built-in *Overview*; `/analytics/d/:id` opens one
+[dashboard](./dashboards), which the header switcher picks, and `/analytics/dashboards` lists them all. The filters at the top
 scope every widget; the widgets are listed on [Analytics widgets](/reference/analytics-widgets), and the filters and
-period comparisons on [Analytics](./analytics). The page is the built-in *Overview* [dashboard](./dashboards), and the
-header switcher opens the others. [Timeline markers](./timeline-markers) overlay deploys and infrastructure changes on
-the trend charts.
+period comparisons on [Analytics](./analytics). [Timeline markers](./timeline-markers) overlay deploys and
+infrastructure changes on the trend charts.
 
 ## Quality reports
 
@@ -2488,9 +2492,10 @@ and quarantined tests, each a link. The **Filters** block under it (environment,
 header and every tab that reads run history; with no branch picked it reads the
 [default branch](./branches#the-default-branch), and a note counts the runs it hides,
 [your own](/guide/getting-started#_3-run-your-tests) aside, which the runs table lists all the same. Beside the
-[**Import**](/guide/importing-runs) button, **More actions** holds Edit,
-[Test functions](./test-functions), [Selections](./test-selection), [Locators](#locators), [Bug reports](./bug-reports),
-**Schedule a quality report…**, Delete and Refresh. The tabs:
+[**Quality report**](./quality-reports) and [**Import**](/guide/importing-runs) buttons, **More actions** holds Edit,
+[Test functions](./test-functions), [Selections](./test-selection), [Locators](#locators),
+[Bug reports](#bug-reports), **Schedule a quality report…**, Delete and Refresh. On a project's pages, the command
+palette lists its tabs and the pages of this menu. The tabs:
 
 - **Runs**: the run trend chart, with its [timeline markers](./timeline-markers), over the filtered runs, and the runs table,
   25 to a page; select two and **Compare** [what changed](./run-changes) between them, or select any
@@ -2518,6 +2523,12 @@ header and every tab that reads run history; with no branch picked it reads the
 
 `/projects/:id/locators`: check pasted locators against the ones the project's tests use, and browse every locator
 chain in the locator index, per branch. See [Who uses a locator](./locator-usage#the-locators-page).
+
+## Bug reports
+
+`/projects/:id/bug-reports`: the project's [bug reports](./bug-reports), newest first, by status.
+`/bug-reports/:id`: one report, with the tabs **Steps**, **Evidence**, **Reproductions** and **Spec**
+([The report's page](./bug-reports#the-report-s-page)).
 
 ## Test run detail
 
@@ -2556,8 +2567,9 @@ that threw, a spec that did not load) show under the facts line. The tabs:
 
 `/test-run-cases/:id`, the **execution page**: one attempt, read from its situation block
 ([Your first failure, explained](/guide/first-failure)) down through its evidence ([Failure evidence](./evidence)), and
-exportable as a file ([Offline export](./offline-export)). `/test-cases/:id`: the test's history
-([The test case page](./evidence#the-test-case-page)).
+exportable as a file ([Offline export](./offline-export)). `/test-cases/:id`: the test's history, in the tabs
+**Overview**, **Trend** and, for a flaky test,
+**Flakiness** ([The test case page](./evidence#the-test-case-page)).
 
 ## Failure cluster detail
 
@@ -2566,12 +2578,14 @@ the ways to fix it ([The cluster page](./failure-clusters#the-cluster-page)).
 
 ## Settings
 
-`/settings` (user menu, or `g` then `s`): your **Account** and connected accounts ([OAuth](/operate/authentication#oauth-google-github)),
+`/settings`, from the user menu at the foot of the sidebar (**Settings**, or your name once signed in), the
+command palette or `g` then `s`: your **Account** and connected accounts ([OAuth](/operate/authentication#oauth-google-github)),
 **Users** ([Authentication](/operate/authentication), [API keys](/operate/api-keys)), **Groups**
 ([Groups](/operate/project-access#groups)), **Permissions** ([Permission grid](/operate/project-access#permission-grid)),
 **Roles** (what each role can do, read-only), **Storage**
 ([Storage](/operate/storage#storage-management)), **Tags**, **Pull requests** ([Pull-request feedback](./pr-feedback)),
-**Auto-heal** ([Auto-heal PRs](./auto-heal)), **Integrations** ([Integrations](/operate/integrations)),
+**Auto-heal** ([Auto-heal PRs](./auto-heal)), **Source control**
+([SCM token](/guide/source-control#set-the-token)), **Integrations** ([Integrations](/operate/integrations)),
 **Performance** ([wasted-time patterns](./slow-tests#wasted-time) and timeout hygiene), **AI** ([AI provider](/guide/ai-provider)),
 **Notifications** ([Notifications & alerts](./notifications)), **Localization**
 ([Localization](/operate/localization)) and **About**, and in the [desktop app](./desktop) **Desktop app** first. A setting backed by
@@ -2582,7 +2596,8 @@ an environment variable is shown read-only with the variable's name ([Configurat
 The **Setup** section of Settings: **Connect a suite**, the
 [connect wizard](/guide/getting-started#_2-connect-your-suite); **Capabilities**, for administrators, which optional
 capabilities this instance uses ([Choose what you use](/operate/capabilities)); **MCP server**
-([MCP server](./mcp)); **API reference**, the instance's own OpenAPI reference; and **Companion tools**.
+([MCP server](./mcp)); **API reference**, the instance's own OpenAPI reference; and **Companion tools**, also in the user
+menu.
 
 ## Live demo
 
@@ -5872,7 +5887,7 @@ Turn it off, with the resource ledger, through `captureResources: false` (or `PI
 
 The [live demo](https://piwitests.dev/demo/) holds a leaky run whose machine runs short of CPU and memory.
 
-- [Web Dashboard › the newest run’s Timeline tab](https://piwitests.dev/demo/test-runs/62?tab=workers): Above the worker rows, the machine’s CPU and the run’s memory climb with the pages its login fixture leaves open; hover them for the values at each moment.
+- [Web Dashboard › the newest run’s Timeline tab](https://piwitests.dev/demo/test-runs/62?tab=timeline): Above the worker rows, the machine’s CPU and the run’s memory climb with the pages its login fixture leaves open; hover them for the values at each moment.
 
 ## Related
 
@@ -6573,7 +6588,7 @@ A comment and a commit status get posted when a run finishes, unless it is one o
 - **A commit status**: passed or failed against the run's commit, pull request or not, so a pull request shows the result in its checks
   list. Required for a branch-protection rule. A run whose only failures are [quarantined](./flaky-tests#quarantine-with-a-way-out)
   tests passes, and the status says how many (`118/120 passed, 2 quarantined`); turn on **Quarantined failures fail
-  the commit status** under the project's **Settings → Source control** to fail it on any failure. **Only comment on
+  the commit status** under **Project → Settings → Source control** to fail it on any failure. **Only comment on
   failures** follows the same rule: such a run gets no comment, unless it fixed a failure cluster, left a new leak,
   closed one, or its change left a file no test reached, which the [uncovered changes](./uncovered-changes) section
   names. When the run has a
@@ -6624,7 +6639,7 @@ rewritten locator.
 
 ## The gate verdict
 
-With **Gate status** on under the project's **Settings → Source control**, each verdict of the
+With **Gate status** on under **Project → Settings → Source control**, each verdict of the
 [CI merge gate](./merge-gate) made with the CI key is also posted as your status context plus `/gate`
 (`piwi/tests/gate`), so a branch rule can require the gate rather than the run. It needs **Set a commit status** on.
 What is stored, and how merges past a failed gate are counted:
@@ -7018,7 +7033,7 @@ An evaluation made with a key that can upload or control the project's runs (Upl
 key `piwi gate` uses) is stored with its policy, its verdict, its violations and warnings, and the pull request it
 judged. Any other reader of the project gets the verdict only: nothing is stored or posted.
 
-- **A commit status of its own.** Turn on **Gate status** under the project's **Settings → Source control**, and each
+- **A commit status of its own.** Turn on **Gate status** under **Project → Settings → Source control**, and each
   stored verdict is also posted as your status context plus `/gate` (`piwi/tests/gate`): green with *Gate policy
   satisfied*, red with the first violation. A branch rule can then require the gate rather than the run. It needs
   [pull-request feedback](/features/pr-feedback#turn-it-on) on, with **Set a commit status**, and `PIWI_SITE_URL`
@@ -7972,7 +7987,7 @@ reaches is named a **declared, never hit** blind spot instead of staying invisib
   the application's routes at `/__piwi/manifest` in development and test, and the reporter uploads it with the run.
 - **A committed manifest.** A `piwi.manifest.json` next to your Playwright config (`{ "routes": [...], "pages": [...] }`)
   is uploaded whenever present, whatever the backend.
-- **An OpenAPI URL**, set per project under Project → Settings → Capabilities → Scenario gaps. Piwi reads the document
+- **An OpenAPI URL**, set per project under Project → Settings → Coverage → Scenario gaps. Piwi reads the document
   when the URL is saved, every night and on a recompute, declares each path under the path of the document's first
   server (or Swagger's `basePath`), and records each route's documented response codes, so a *success only* gap can
   name the error codes a route documents but never returned under test. A route a later read no longer finds stops
@@ -8703,7 +8718,7 @@ Piwi keeps no hit counts and no branches.
 A project's coverage scope decides which files count: include and exclude patterns over repository-relative paths, in
 the syntax CODEOWNERS uses. With no include pattern every file counts; an exclude wins. The defaults leave out tests,
 build output (`bin/`, `obj/`, `dist/`, `.next/`, `.nuxt/`, `.output/`, `.svelte-kit/`) and generated sources; a folder
-pattern matches at any depth. Set it in the project's **Settings › Coverage**, or with the
+pattern matches at any depth. Set it in **Project → Settings → Coverage**, or with the
 [API](https://piwitests.dev/demo/settings/api) (`coverageScope`). The upload sends only the files in scope, and the commit's
 inventory: its tracked files in scope and their blob ids.
 
@@ -9002,7 +9017,7 @@ It needs:
   `PIWI_SERVER_PROBES=true`. Both apply faults only in development and test environments by default. The ASP.NET Core package applies throw,
   status, delay and extreme-value faults; its data and dependency probes record as *inconclusive*;
 - the same `PIWI_PROBE_SECRET` where `piwi probe` runs;
-- **Server probes** turned on under **Scenario gaps** in the **Capabilities** section of the project's **Settings** tab,
+- **Server probes** turned on under **Scenario gaps** in **Project → Settings → Coverage**,
   where the fault classes and routes are allow-listed. A test gets the first class in the list that its route allows,
   `dependency` aside, so list first the class that matters most; a dependency fault goes to a test the other classes
   left, on a route whose handler calls a dependency. Dependency faults on state-changing routes (`POST`, `PUT`,
@@ -9119,7 +9134,8 @@ The rollups also [export](/operate/metrics) to a BI tool or a Prometheus scraper
 
 ## Widgets and metrics
 
-The page is the built-in **Overview** [analytics dashboard](./dashboards), in four bands. [Analytics widgets](/reference/analytics-widgets)
+The page opens on the built-in **Overview** [analytics dashboard](./dashboards), in four bands, unless you or an
+administrator [made another the default](./dashboards#your-default-dashboard). [Analytics widgets](/reference/analytics-widgets)
 lists every widget an [analytics dashboard](./dashboards) can place, and [Metrics](/reference/metrics) defines every
 number they show, with its unit and which direction is better.
 
@@ -9188,7 +9204,7 @@ projects is under [Where markers show up](./timeline-markers#where-markers-show-
 ## Related
 
 - [Dashboards](./dashboards): analytics dashboards of your own
-- [Quality reports](./quality-reports): this page as a document, with **Export**
+- [Quality reports](./quality-reports): this page as a document, with **Quality report**
 - [Flaky tests](./flaky-tests): the per-project analysis these widgets aggregate
 - [Timeline markers](./timeline-markers): annotate the trends with real-world events
 - [Cut costly flakiness](/recipes/flaky-cleanup): from the flaky leaderboard to an afternoon of fixes
@@ -9214,7 +9230,8 @@ The scope and what the numbers mean are on [Analytics](./analytics); sending one
 
 The header's switcher lists every dashboard you can open, with a search:
 
-- **Built-in**: Overview (the analytics page, four bands and sixteen widgets), and the report dashboards
+- **Built-in**: Overview (four bands and sixteen widgets, where `/analytics` opens unless a
+  [default](#your-default-dashboard) is set), and the report dashboards
   Executive, Engineering and Gaps digest (only where the [Test Map](./scenario-gaps) is not declined), whose
   contents [Quality reports](./quality-reports#what-a-report-contains) describes. The Team dashboard is a quality
   report only, offered when the report's tests have an owner. A built-in dashboard cannot be changed, only duplicated.
@@ -9326,7 +9343,7 @@ instead.
 
 ## Scheduling and exporting a dashboard
 
-*Export* renders the dashboard on screen as a [quality report](./quality-reports) (the saved dashboard
+*Quality report* renders the dashboard on screen as a [quality report](./quality-reports) (the saved dashboard
 is offered first), and *Schedule…* creates a [report schedule](./quality-reports#report-schedules) on
 it. Deleting a dashboard that schedules render names them first; they stop, shown as inactive with the
 reason on the Reports page, until their owner picks another dashboard.
@@ -9378,14 +9395,14 @@ each metric's definition, and its limits: lists of tests reach back only as far 
 
 ### The verdict is built by rules
 
-The opening sentence ("The pass rate on main fell 2.1 points to 95.8%, and 3 failure causes were
+The opening sentence ("The pass rate on main fell 2.1 points to 95.8%, and 3 failure clusters were
 fixed.") comes from fixed rules over the numbers, never from a model. Its tone is **good** at a pass rate
 of 90% or more that did not drop by more than a point, **bad** under 50% or after a drop of 5 points or
 more, **mixed** otherwise.
 
 ## Exporting a report
 
-Click **Export** on the Analytics page (the current scope) or on a project page (that project, last 30
+Click **Quality report** on the Analytics page (the current scope) or on a project page (that project, last 30
 days). The dialog previews the report; pick another dashboard or the language, then **Download**:
 
 | Format | What you get |
@@ -9483,7 +9500,7 @@ quality report; unset, only minutes show. The cost is one instance-wide value.
 ## Turning reports off
 
 Quality reports are an optional [capability](/operate/capabilities#declining-a-capability). Declining it in **Settings → Capabilities** hides
-the *Export* and *Schedule…* actions and the *Quality reports* page, and drops `get_quality_report` from
+the *Quality report* and *Schedule…* actions and the *Quality reports* page, and drops `get_quality_report` from
 the MCP tools; the analytics page and the metric tools stay, since analytics is core. A schedule or a
 snapshot counts as use, so the capability stays on while one exists: delete them first.
 
@@ -13133,7 +13150,8 @@ The report keeps the language it was written in; the test Piwi writes from it is
 
 ## The report's page
 
-**Bug reports**, in a project's **More** menu, lists them newest first, by status. A report's page says what the
+**Bug reports**, in a project's **More actions** menu and in the command palette on its pages, lists them newest
+first, by status. A report's page says what the
 tester expected and what the page showed instead, where the report stands, and what to do next, with these tabs:
 
 - **Steps**: the steps in words, each marked step with its expected result, the value the page showed and the note.
@@ -13480,8 +13498,8 @@ page there, starting the app if needed (macOS: from Applications; Linux: after o
 ## Projects from local folders
 
 **Projects → New project → Choose folder…** creates a project from a checkout on this machine, named as it would
-report, and checks the setup (a Playwright config, Playwright, the reporter): `npx @piwitests/reporter init` in the
-folder fixes what is missing. The link stays on this machine, under **project page → Settings → Local folder**, with
+report, and checks the setup (a Playwright config, Playwright, the reporter): `npx @piwitests/reporter init` there
+fixes what is missing. The link stays on this machine, under **Project → Settings → Local folder**, with
 the same checks and **Change** and **Unlink**. Linking a folder offers to import the runs already in its `blob-report/` and `test-results/`;
 [Open in editor](/features/ide-integration) resolves source links against it when no workspace root is set; and a clone
 serves its git history without an [SCM token](/guide/source-control#on-the-desktop-app).
@@ -13495,7 +13513,7 @@ A run, an execution, a cluster or a test runs again here with the folder's own P
   options: tests by `file:line`, title or file, a trace, `--repeat-each` without retries (up to 1,000 in **Run with
   options…**), stopping at the first failing repetition, and [**Hold failures**](/features/watch-a-run#hold-failures).
   The button names what differs from Playwright's defaults (**· headed · ×5**); set the project's in
-  **Settings → Local folder**.
+  **Project → Settings → Local folder**.
 - **On a run**, the arrow also re-runs its flaky tests or all of them, and the **Tests** tab a selection.
 - **Runs keep going while you browse**, in the **Local runs** tray, each under what it runs; results come here, with
   **Compare with run #N**. A [bug report](/features/replay-a-bug-report#running-it-with-playwright)
@@ -15369,7 +15387,7 @@ Roles are granted from four places, which all edit the same grants:
 - **Settings → Permissions**, the [permission grid](#permission-grid): every group and user against every project.
 - **Settings → Users → Project roles**, the action next to a user: their role on All projects and on each project,
   with the groups that add to them.
-- A project's **Settings → Members**: the users and groups with a role on that project. Project admins see it for
+- **Project → Settings → Members**: the users and groups with a role on that project. Project admins see it for
   their own projects. Their picker lists the users who share a project with them; anyone else, such as a new account,
   is found by their whole username.
 - **Settings → Groups** for who belongs to each group; its roles are set on the grid or in a project's Members.
@@ -16848,7 +16866,7 @@ The run source is resolved first-match-wins: `--run-id`, then `--from-file`, the
 
 Print a [quality report](/features/quality-reports) from the dashboard, so a CI scheduler can post it every
 week. It calls the report endpoint with the API key; the scope and the dashboard are the ones the
-*Export* dialog offers.
+*Quality report* dialog offers.
 
 ```bash
 npx @piwitests/reporter report --project checkout --period 7d --format md
@@ -17415,7 +17433,7 @@ keep the tags that matter:
 #### Keys in test tags
 
 A tag can name the issue a test is tracked in (`SHOP-1234`) or the test case it covers (`SHOP-T123`). Two patterns, under
-**Project → Settings → Integrations → Keys in test tags**, tell Piwi which tags are which:
+**Project → Settings → Keys in test tags**, tell Piwi which tags are which:
 
 - **Issue key**: a tag naming an issue, such as `^[A-Z][A-Z0-9]+-[0-9]+$`. Piwi
   [links the issue](#issues-the-tests-declare) to the failure cluster of a test that carries the tag.

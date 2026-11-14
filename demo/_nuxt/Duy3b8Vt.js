@@ -1,1 +1,0 @@
-var e={coverage:[`test-map`,`coverage`],"flake-lab":[`flake-lab`]};function t(t,n){let r=e[t];return r?r.every(e=>n(e)):!1}export{t};
