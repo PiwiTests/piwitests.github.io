@@ -1,0 +1,1 @@
+function e(e){return e.map(([e,t])=>e===t?String(e):`${e}\u00a0to\u00a0${t}`).join(`, `)}export{e as t};
