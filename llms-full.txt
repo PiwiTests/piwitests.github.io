@@ -9,7 +9,7 @@
 Piwi is a **server plus a Playwright reporter**. The reporter runs inside `npx playwright test` and sends the results
 to the server, which keeps every run with its traces and renders the dashboard. Three steps set up both.
 [What Piwi does](./what-piwi-does) says what the server does with those runs: its four jobs, and the pieces around it.
-New to the vocabulary (*run*, *test case*, *execution*, *cluster*)? [Core concepts](./concepts) defines each term the
+New to the vocabulary (*run*, *test case*, *execution*, *cluster*)? [Core concepts](./core-concepts) defines each term the
 dashboard uses.
 
 <figure>
@@ -196,7 +196,7 @@ tool for each step.
 ## Related
 
 - [What Piwi does](./what-piwi-does): the four jobs, the two rules behind every feature, and the pieces
-- [Core concepts](./concepts): the vocabulary the dashboard and these docs use
+- [Core concepts](./core-concepts): the vocabulary the dashboard and these docs use
 - [Reporter](./reporter): manual setup, options, streaming and authentication
 - [Capture fixtures](./capture-fixtures): what the fixtures file adds
 - [Choose what you use](/operate/capabilities): turn off the capabilities you do not need
@@ -292,17 +292,18 @@ This execution is one member of a **[failure cluster](/features/failure-clusters
 
 - [Failure evidence](/features/evidence): each evidence tab, attempts, the page diff and the trace views
 - [Clue rules](/reference/clues): every rule behind the **Most likely** line
-- [Failure clusters & the inbox](/features/failure-clusters): triaging failures as groups
+- [Failure clusters](/features/failure-clusters): triaging failures as groups
 - [Capture fixtures](./capture-fixtures): the one file that unlocks the richer evidence
-- [Core concepts](./concepts): run, execution, cluster, fingerprint, baseline
+- [Core concepts](./core-concepts): run, execution, cluster, fingerprint, baseline
 
-<!-- https://piwitests.dev/guide/concepts -->
+<!-- https://piwitests.dev/guide/core-concepts -->
 
 # Core concepts
 
-Piwi reuses Playwright's vocabulary where it can, but a dashboard that keeps history needs a few
-distinctions Playwright doesn't have to make — most importantly between *a test* and *one run of that
-test*. This page defines the words the rest of the documentation and the UI use.
+Piwi reuses Playwright's vocabulary where it can, but a dashboard that keeps history needs a few distinctions
+Playwright doesn't have to make, most importantly between *a test* and *one run of that test*. This page names the
+dozen words a first run meets; the [Glossary](./concepts) defines every word the docs and the dashboard use, each
+under the anchor other pages link.
 
 ## The object model
 
@@ -313,384 +314,37 @@ test*. This page defines the words the rest of the documentation and the UI use.
 
 Read it in two directions:
 
-- **Down** — "what happened in this run?" A run holds executions; each execution points at the test it
-  is an attempt of.
-- **Across** — "how has this test behaved?" A test case holds every execution of itself, in every run,
-  over time. That's the axis flakiness, pass rate, and duration trends are computed on.
-
-## Results
-
-### Project
-
-A named container for one suite's results, usually one repository or one suite within it. A project is created the
-first time results arrive under a new `projectName`, and carries its own tags, [role grants](#role-and-group), source
-control connection, default branch, capability decisions and AI-diagnosis instructions; retention is set for the
-whole instance ([Storage & retention](/operate/storage)). Its **status** is the outcome of its latest run, or of its
-[status filter](/features/branches#the-project-status)'s.
-
-### Test run
-
-Everything one `npx playwright test` invocation produced: counts, duration, the HTML report, CI and git metadata, and
-its [executions](#execution). One CI pipeline's shards make one run ([Sharding](./ci#sharding)), and
-a run fills in while it goes ([Live streaming](./reporter#live-streaming)). A run **ran to its end** when it passed,
-failed or hit the global timeout; only such runs count in [a project's health](/reference/test-metadata#how-a-result-counts).
-A **requested run** is one a person asked for from the dashboard and ran on their own machine
-([Run on my machine](/features/run-on-my-machine#a-requested-run-is-yours-alone)).
-
-### Test case
-
-The **identity of a test across time**: its project, file, `describe` path and title. It is created and reused as
-results arrive, never submitted, so renaming a test or moving its file makes a new one
-([External test IDs](/reference/test-metadata#external-test-ids)). It is browser-independent: `login.spec.ts › signs
-in` is one test case on every browser of your matrix. "This test is flaky" is a statement about a test case. What a
-**run** of a test is on its pages: [How a result counts](/reference/test-metadata#how-a-result-counts).
-
-### Execution
-
-**One attempt of one test case, in one run, on one browser**: the error, steps, trace, screenshots and the diagnosis
-of one failure. A retry is an execution of its own, and so is each `--repeat-each` repetition. The docs also call it a
-*test-run case*. "Here is the stack trace" is a statement about an execution. When a test counts as flaky, failed or
-**interrupted** in a run, and how every view reads it: [How a result counts](/reference/test-metadata#how-a-result-counts).
-
-### Pass rate
-
-**The share of a test's, a run's or a project's results that passed**, counted over the results that passed or
-failed, so skipped tests do not lower it. Every view computes it by one rule, and shows a dash rather than a number
-when nothing passed or failed: [How a result counts](/reference/test-metadata#how-a-result-counts).
-
-### Flaky rate
-
-**The share of a test's runs that passed only on a retry**, over the same runs the [pass rate](#pass-rate) counts. A
-file's or a directory's flaky rate reads its tests' runs the same way. The [flakiness score](#flakiness-score) and
-Flake Lab's rate are other numbers: [How a result counts](/reference/test-metadata#how-a-result-counts).
-
-### Baseline (last green run)
-
-**The earlier run a run is compared with** to answer "what changed?": by default the same project's most recent
-passing run, chosen by environment first, then branch. The Changes tab, the regression signals, the CI gate,
-pull-request feedback and the AI diagnosis all read it, and so do the environment, visual and page diffs of one
-failing execution. Which run it is, and what happens when none passed: [The baseline](/features/run-changes#the-baseline).
-The default and base branches it falls back to: [Branches](/features/branches).
-
-### Environment
-
-A free-text label on a run (`production`, `staging`, a preview URL, whatever you use), set with the reporter's
-`environment` option or `PIWI_ENVIRONMENT`. It is a **scoping** dimension, not a configuration one: flaky analysis,
-analytics and timeline markers can be narrowed to one environment, so a staging suite's noise doesn't blend into
-production's numbers.
-
-### Environment incident
-
-A **test run** whose failures come from the environment under test being down or broken (staging refusing
-connections, a host that does not resolve), not from the tests or the code. Piwi flags it when the run finishes, or a
-person marks it, and leaves it out of the analysis that would blame the tests: see
-[What a flagged run changes](/features/environment-incidents#what-a-flagged-run-changes).
-
-### Tags & ownership
-
-Two ways to say what a test *is*, both declared in the spec file. **Tags** come from Playwright (`@smoke`); they slice
-the test catalog and the flaky leaderboard, and a [CI merge gate](/features/merge-gate) rule can require one.
-**Ownership metadata** comes from `piwi:` annotations such as `piwi:owner`: who answers for the test, shown as badges
-and carried into pull-request feedback. A test with no owner annotation takes its owner from `CODEOWNERS`. Accepted
-values and the fallback: [Test metadata](/reference/test-metadata#test-tags).
-
-## Live runs
-
-The words every tool uses for a run while it goes ([Watch a run](/features/watch-a-run)).
-
-### Run number
-
-**A run's id on the instance it reports to, `#78`, and its page there.** The reporter learns it as the run starts and
-tells it to the editor or the desktop app that follows the run, so every tool links the same page
-([The run's number and page](/features/watch-a-run#the-run-s-number-and-page)).
-
-### Run name
-
-**The name a run carries before it has a number** (`piwiRunRef` in its metadata): the one its launcher gave it, an
-editor's ref or a run request's id, else one Piwi makes up for a run outside CI. A CI run has none: its number names
-it. See [Test metadata](/reference/test-metadata#run-origin).
-
-### Worker
-
-**One of the run's Playwright processes, named by its lane, `Worker 2`.** A worker Playwright starts again after a
-failure takes the same lane ([Worker lanes](/reference/test-metadata#worker-lanes)).
-
-### Stop
-
-**A test standing at a call, waiting to be answered:** at a breakpoint, after a step, at a Pause, at `page.pause()`,
-or at a failure held for a look. Each tool names it by why it stopped, in the same words
-([Where a test stopped](/features/watch-a-run#where-a-test-stopped)). A test ended there is skipped
-([End the test](/features/end-the-test)). How the test timeout and the dashboard's durations treat the time paused:
-[Time paused at a stop](/features/slow-tests#time-paused-at-a-stop).
-
-### CI position
-
-**The call a running test of a CI run is at, in your code:** a plain, read-only mark at the end of its line in the
-editors. Never a stop: nothing waits there, and no tool answers it. Which CI runs the editor and Piwi Picker follow:
-[A CI run of your branch](/features/editor-ci-runs).
-
-### Hold failures
-
-**Whether a failed test waits at its line for an answer, in one run.** Off, a failure goes on at once, as without
-Piwi. Some runs start with it on, any tool that follows a run can turn it on or off, and a run nobody attends never
-holds a failure. Which runs, and what a held test keeps: [Hold failures](/features/watch-a-run#hold-failures).
-
-### Presence, driving a stop
-
-**Who else is on a run, and who acts at its stop.** Each tool says which others have the run open, who watches each
-worker's page, and who drives a stop. One tool drives a stop at a time, a person or an agent, and a person can take
-the stop from an agent. How a stop is taken and given back:
-[Who drives a stop](/features/runs-window#who-drives-a-stop).
-
-### Watch, Share live
-
-**Watch** shows a worker's page live, in your editor, Piwi Picker or the desktop app
-([Watch a running test](/features/watch-running-test)). **Share live** lets a teammate watch a run on your machine
-from its page on the team instance ([Share a run live](/features/share-live)), where a CI run is watched in the
-[live view](/features/live-view), every worker at once with [Watch all](/features/watch-all), and a running page read
-as a document with [Inspect](/features/live-inspect). What each sends and keeps is on those pages.
-
-### Trace so far
-
-**A running test's trace up to now, opened in Playwright's trace viewer** on the machine the run runs on, with **Open
-the trace so far**. The attempt must be traced. Where the button shows and what it needs:
-[Open the trace so far](/features/watch-running-test#open-the-trace-so-far); the desktop app's **Inspect**, which reads
-the same trace: [Desktop app runs](/features/desktop-runs#watch).
-
-### Verification
-
-**A test run several times without retries and without the breakpoints, to see how often it passes** (**Verify ×3**
-in the editors). It says how many of its runs passed (`Passed 3 of 3`, `Failed 1 of 3`) and never holds a failure.
-How it counts and what it says: [When your run ends](/features/editor-runs#when-your-run-ends).
-
-## Failures
-
-### Error fingerprint & failure cluster
-
-The **error fingerprint** is a hash of a failed execution's error with what changes from one occurrence to the next
-masked out: numbers, ids, URLs, timestamps, an assertion's values. Every failed execution sharing a fingerprint joins
-one **failure cluster**, so fifty red tests from one broken endpoint become one cluster you triage once, with a status
-(open / resolved / ignored) and a note. What is masked, and when clusters merge:
-[How failures are grouped](/features/failure-clusters#how-failures-are-grouped).
-
-### Story
-
-The **one explanation** a failure page leads with when several [clues](/features/evidence#clues) (deterministic,
-rule-based findings) form a known combination: *"the Pay button stayed disabled because POST /api/checkout/quote was
-still in flight"*, at the strongest member's strength, with every clue folded under it. The combinations, and what
-leads instead: [Clue rules](/reference/clues#stories).
-
-### Situation
-
-The **context** of a failing execution, on its page: since when it has been failing and whether a newer execution
-failed again or passed, then the cluster it joins, its status and its issue. It also reads, condensed, in
-[alerts](/features/notifications). Each line: [Your first failure, explained](./first-failure).
-
-### Next step
-
-The **one recommended action** a failure page leads with, chosen by a policy rather than offered as a menu: apply a
-diagnosed patch, replace a broken locator, reproduce locally, re-run in CI, mark a cluster resolved. Every other action
-lives in the toolbox. The policy and its order: [Fix plans](/features/fix-plans#the-next-step).
-
-### Cluster state
-
-Where a **failure cluster** stands, in one sentence with one verb next to a colored dot (*still failing*, *stopped
-failing*, *regressed*, …). It reconciles the human triage status with what the runs show, and offers the action that
-closes a gap between them. Every state and which runs count: [The state line](/features/failure-clusters#the-state-line).
-
-### Flakiness score
-
-A test case's **score** from how often it passed only on a retry and how often its status flips across runs, with a
-**root-cause class** and an **impact ranking** by the CI time it wastes. It is a property of the test case, computed
-over its history, so a test needs a few runs before it can be called flaky. The weights and the classes:
-[Flaky tests](/features/flaky-tests#flaky-test-detection).
-
-### Flake experiment
-
-A `piwi flake` session on one flaky test: a **control arm** with no condition, then one **arm** per suspect, each
-applying the suspect's condition (a delayed route, another test alongside) with retries off. An arm **reproduced** the
-flake when it fails, with the test's own error, significantly more often than the control; a **verify** experiment reruns
-that arm after a fix. The verdicts: [Flake Lab](/features/flake-lab#reading-the-verdict).
-
-### Fix attempt
-
-A change a person or an agent reports having made to fix a failure cluster (a patch, a locator edit, a fix plan
-carried out), on a commit or a branch. It is recorded **applied**, then **verified** when the cluster's tests pass on a
-run that carries it, or **regressed** when the cluster fails again. See
-[Agent skills](/features/agent-skills#what-agents-report-back).
-
-### Locator snapshot
-
-What an element looked like when a locator call on it succeeded (role, accessible name, test id, structural anchors),
-recorded by the [capture fixtures](./capture-fixtures) and keyed by the **call site** (`file:line`) rather than the
-selector text. When that locator later fails, its snapshots are what Piwi ranks replacement locators from. See
-[Locator healing](/features/locator-healing#what-it-does).
-
-## Analytics
-
-### Metric, dashboard and quality report
-
-A **metric** is a named number with one definition every surface reads ([Analytics](/features/analytics)). An
-**analytics dashboard** is a named arrangement of widgets with a default scope ([Dashboards](/features/dashboards)); *the dashboard* alone means the Piwi web app. A **quality report**
-is an analytics dashboard rendered as a document, not the run's Playwright **run report**; a **report schedule** sends
-it on a cadence, and each one sent is kept as a **report snapshot** ([Quality reports](/features/quality-reports)).
-
-## Test Map
-
-The **Test Map** is one graph per project of what the application exposes (pages, controls, links, routes, the
-handlers and dependencies behind them) and which tests reach each of them. See
-[Scenario gaps & the Test Map](/features/scenario-gaps).
-
-### Reach
-
-A test **reaches** a route, a page, a control or a link when a run observes it doing so: a request to the route, a
-locator call on the page, a locator that names the control. Triage can record reach too. The route and page gaps are
-read from observed reach; the code detectors read coverage. Only a trusted test's reach counts in full. The rules:
-[Gap detectors & exposure](/reference/gap-detectors#detectors).
-
-### Feature and hub
-
-A **feature** is a product area named by the [`piwi:feature` tag](/reference/test-metadata) on tests. It groups what
-those tests reach, and what they miss nearby. A **hub** is a node most tests reach, such as a session route: it belongs
-to no one feature. See [how features group](/reference/gap-detectors#features).
-
-### Code reach
-
-The application source files a test executed, in the page from Chromium's JavaScript coverage with
-[code reach](/features/code-reach) on, in the backend with [server coverage](/features/server-coverage) on: observed
-reach at file level, never line coverage. It feeds [impact-from-diff](/features/change-impact) and
-[Uncovered changes](/features/uncovered-changes).
-
-### Coverage
-
-Which source code a test ran, per file and **runtime** (`browser` or `server`), at a **granularity**: the files only,
-the functions that ran, or the executed lines too. [Code reach](#code-reach) is its file-level view. A test's coverage
-is **incomplete** when part of it could not be collected. The granularities and their cost:
-[Coverage cost](/reference/coverage-cost).
-
-### Coverage report and suite
-
-A **coverage report** is one tool's coverage of one suite's whole run at one commit, attributed to no test. A
-**suite** is the tests a report comes from, named when uploading (`unit-back`), of kind `unit` or `e2e`; not
-Playwright's `describe` block. The **coverage scope** decides which files a project's coverage counts. See
-[Combined coverage](/features/combined-coverage).
-
-### Coverage and the Test Map
-
-Two answers to "what do the tests miss". **Coverage** measures the code: which lines and functions ran, as a ratio;
-the lines no test or suite ran are **lines not run**. The **Test Map** measures the application: which routes, pages
-and controls the tests reach; what they miss becomes a [scenario gap](#scenario-gap), never a percentage. They meet on
-the project's [Coverage tab](/features/scenario-gaps#the-coverage-tab) and on a
-[file's coverage page](/features/code-reach#which-tests-run-a-file).
-
-### Uncovered change
-
-A changed file of a pull request that no test reached and no suite ran a changed line of. One rule decides it for the
-pull-request comment, the gate, MCP and the *changed, unreached* gap. **Patch coverage** is the same question by line:
-the share of the changed lines that ran. See
-[Uncovered changes](/features/uncovered-changes#one-rule-for-every-changed-file).
-
-### Reusable result
-
-A test result whose code had already passed unchanged: an earlier pass of the same test ran the same file versions, so
-the run could have kept that pass instead. A reusable result that failed came from the test, its data or its
-environment. See [Reuse forecast](/features/reuse-forecast#what-counts-as-reusable).
-
-### Suspect lines
-
-The lines changed since a failing test's last passing run that the failing tests executed, read from their
-[coverage](#coverage), ranked by how few passing tests executed them too. The failure pages, the cluster's diff, the
-AI diagnosis and the fix plan name them. How they are ranked:
-[Suspect lines](/features/server-coverage#suspect-lines).
-
-### Locator index
-
-The locator chains each test used in its steps, recorded per branch and per Playwright project. It answers which tests
-use a locator, and it feeds [Who uses a locator](/features/locator-usage) and
-[Tested elements](/features/tested-elements).
-
-### Locator break
-
-A locator of the index that a change stops matching: the diff removes or renames a string one of its calls finds the
-element by. [Locator preflight](/features/preflight) lists them, *likely* or *possible*.
-
-### Page key
-
-A page's URL reduced to its path pattern, ids replaced by placeholders: `/orders/123?tab=items` and `/orders/456` are
-both `/orders/:id`, on staging and in production alike. The Test Map's page nodes, the page each locator was used on
-and Piwi Picker's **This page** all use it. The rules: [What the graph includes](/reference/gap-detectors#what-the-graph-includes);
-Piwi Picker's path prefixes: [URL patterns](/features/extension-connection#url-patterns).
-
-### Brittle locator
-
-A locator a test uses that breaks on a change unrelated to what the test checks: a position, a styling class, the
-document structure, a generated id. Piwi judges each locator of the index *brittle*, *watch* or *stable*; see
-[Locator stability rules](/reference/locator-stability). Not to be confused with the *fragile*
-[gap class](#gap-class), which is about the tests reaching a node, not a locator.
-
-### Scenario gap
-
-A test the suite does not have yet, proposed from the Test Map with its evidence and a next step: a route no test
-reaches, a control nobody exercises, a changed file no test reaches. A gap is triaged like a failure cluster: accept
-it, snooze it, dismiss it with a reason, or mark it covered by an existing test ([Triage](/features/scenario-gaps#triage)).
-
-### Gap class
-
-How serious a gap is: **blind-spot** (nothing exercises it), **false-comfort** (the tests pass without checking it)
-or **fragile** (what reaches it could stop at any time). Server probes report **findings** instead, **unhandled** or
-**degraded**. What each class covers: [Detectors](/reference/gap-detectors#detectors).
-
-### Detector
-
-A rule that reads the Test Map and the run history and reports one kind of gap, such as *declared, never hit* or
-*single covering test*. Each gap names the detector that raised it; [Gap detectors & exposure](/reference/gap-detectors)
-lists them all.
-
-### Exposure
-
-How much a gap's node matters, from how often its files change and for how long, whether they were part of an earlier escaped
-failure, and the priority of the tests that reach it. A gap's score, which ranks it, is its exposure times the
-detector's confidence. The factors: [Exposure](/reference/gap-detectors#exposure).
-
-### Probe
-
-A re-run of a passing test with one injected fault (a 500, an empty body, a dropped field, a slow response),
-recording whether the test noticed. A client probe injects the fault at the Playwright boundary; a server probe asks
-the [backend instrumentation](./backend-logs#server-probes) to inject it inside the server. A **probe run** is marked
-as one ([What a probe run never counts](/features/probes#what-a-probe-run-never-counts)).
-
-### Declared surface
-
-The routes and pages the application says it has, from the instrumentation's route manifest, a committed
-`piwi.manifest.json` or an OpenAPI document, as opposed to the ones tests reached. A declared route nothing reaches
-is a *declared, never hit* gap ([Declared surface](/features/scenario-gaps#declared-surface)).
-
-### Page inventory
-
-The controls (role and accessible name) and links the reporter records on the pages a passing run visits, so the Test
-Map knows what a page offers beyond what the tests clicked. Off by default: turn it on with `capturePageInventory`.
-What it reads and keeps: [What the graph includes](/reference/gap-detectors#what-the-graph-includes).
-
-### Map health
-
-How complete a project's Test Map is, per input (the page inventory, route handlers, probes, the declared surface,
-change history…), with the detectors each input wakes. A quiet Gaps view can mean a map that cannot see; the panel
-names the step behind each input that is short ([Map health](/features/scenario-gaps#map-health)).
-
-### URL pattern
-
-A glob over a page's whole address that ties the pages of a site to a project, with an optional environment and
-branch. Each project keeps its own list, and the browser extension reads them to know which project the page it is
-on belongs to. See [Extension connection](/features/extension-connection#url-patterns).
-
-## Access
-
-### Role and group
-
-With [authentication](/operate/authentication) on, every account holds an **instance role**, **Administrator** or
-**Member**. A Member's rights in a project come from the **project roles** they hold there, granted on one project or
-on all of them. A **group** is a named set of users that receives project roles the way a user does. See
-[Access, roles and groups](/operate/project-access).
+- **Down**: "what happened in this run?" A run holds executions; each execution points at the test it is an attempt
+  of.
+- **Across**: "how has this test behaved?" A test case holds every execution of itself, in every run, over time.
+  That's the axis flakiness, pass rate and duration trends are computed on.
+
+## The words a first run meets
+
+- **[Project](./concepts#project)**: one suite's results, created the first time results arrive under a new
+  `projectName`.
+- **[Test run](./concepts#test-run)**: everything one `npx playwright test` invocation produced; one CI pipeline's
+  shards make one run.
+- **[Test case](./concepts#test-case)**: a test's identity across time (file, `describe` path and title), the same on
+  every browser. "This test is flaky" is about a test case.
+- **[Execution](./concepts#execution)**: one attempt of one test case, in one run, on one browser. A retry is an
+  execution of its own.
+- **[Pass rate](./concepts#pass-rate)** and **[flaky rate](./concepts#flaky-rate)**: the share of a test's results
+  that passed, and that passed only on a retry.
+- **[Baseline](./concepts#baseline-last-green-run)**: the earlier run a run is compared with to answer "what
+  changed?", by default the last passing one.
+- **[New regression, newly flaky](./concepts#new-regression-newly-flaky)**: what a test did differently from the
+  baseline.
+- **[Environment](./concepts#environment)**: a free-text label on a run (`staging`, `production`) that analysis can be
+  narrowed to.
+- **[Failure cluster](./concepts#error-fingerprint-failure-cluster)**: the failed executions that share an error
+  fingerprint, triaged once.
+- **[Cluster state](./concepts#cluster-state)**: where a cluster stands, in one sentence (*still failing*, *stopped
+  failing*, *regressed*).
+- **[Flakiness score](./concepts#flakiness-score)**: how flaky a test is over its history, which ranks the flaky
+  tests.
+- **[Tags & ownership](./concepts#tags-ownership)**: the tags and the owner a test declares, which filter the views
+  and route its failures.
 
 ## Where each concept lives in the UI
 
@@ -700,15 +354,17 @@ on all of them. A **group** is a named set of users that receives project roles 
 | Test run | `/test-runs/:id` | [UI overview](/features/ui-overview#test-run-detail) |
 | Test case | `/test-cases/:id` | [Failure evidence](/features/evidence#the-test-case-page) |
 | Execution | `/test-run-cases/:id` | [Failure evidence](/features/evidence#one-execution-diagnosis-first) |
-| Failure cluster | `/failure-clusters/:id` | [Failure clusters & the inbox](/features/failure-clusters) |
+| Failure cluster | `/failure-clusters/:id` | [Failure clusters](/features/failure-clusters) |
 | Cross-project view | `/analytics` | [Analytics](/features/analytics) |
 | Quality report | *Quality report* on `/analytics` and `/projects/:id` | [Quality reports](/features/quality-reports) |
 | Report schedule, report snapshot | `/reports`, `/reports/:id` | [Quality reports](/features/quality-reports#report-schedules) |
 
 ## Related
-- [Getting started](./getting-started) — get results flowing in
-- [UI overview](/features/ui-overview) — a map of every page
-- [Reporter](./reporter) — how each of these objects gets populated
+
+- [Glossary](./concepts): every word, with the page that holds its rule
+- [Getting started](./getting-started): get results flowing in
+- [Your first failure, explained](./first-failure): the words above on one failing test
+- [UI overview](/features/ui-overview): a map of every page
 
 <!-- https://piwitests.dev/guide/reporter -->
 
@@ -1115,7 +771,7 @@ A runnable example project exercising every capture path, a failing test include
 
 - [Reporter](./reporter): the setup the fixtures build on
 - [Reporter options](/reference/reporter-options#what-gets-captured): every capture option
-- [Core concepts](./concepts#locator-snapshot): what a locator snapshot stores, and what it doesn't
+- [Glossary](./concepts#locator-snapshot): what a locator snapshot stores, and what it doesn't
 - [Locator healing](/features/locator-healing): the feature the locator snapshots power
 
 <!-- https://piwitests.dev/guide/ci -->
@@ -1473,7 +1129,7 @@ only to a host you named. A run without a remote URL has nothing to diff.
 
 | Host | Read features | Write features |
 |---|---|---|
-| GitHub | read access to repository contents | `repo` (classic), or fine-grained `contents: write` and `pull_requests: write`; `actions: write` (classic `workflow`) for re-runs |
+| GitHub | read access to repository contents | `repo` (classic), or fine-grained **Contents: write**, **Pull requests: write** and **Commit statuses: write**; **Actions: write** for re-runs |
 | GitLab | `read_api` | `api` |
 | Bitbucket | repository read | repository write; `pullrequest` for pull-request comments; `pipeline:write` for re-runs |
 
@@ -2149,7 +1805,7 @@ Piwi is Playwright-only by design, pre-1.0, and not an "ask AI" button. [Why Piw
 ## Related
 
 - [Getting started](./getting-started) — pick a path and land your first run
-- [Core concepts](./concepts) — the vocabulary (run, execution, cluster, fingerprint, baseline)
+- [Core concepts](./core-concepts) — the vocabulary (run, execution, cluster, fingerprint, baseline)
 - [All features](/reference/features) — everything Piwi does, what each thing needs, and where it lives
 - [Why Piwi? (comparison & FAQ)](./comparison) — how it compares, and whether it's the right tool for you
 - [Live demo](https://piwitests.dev/demo/) — the real app on seeded data, entirely in your browser
@@ -2261,7 +1917,7 @@ Every outbound call the server makes is listed below; all but two are opt-in.
 | Your AI provider | Only if you configure [AI diagnosis](/features/ai-diagnosis) | The diagnosis context: error text, failing steps, test and related source files, console and network entries, page (ARIA/DOM) snapshots, server logs, the relevant git diff, and up to five failure screenshots by default (`PIWI_AI_MAX_IMAGES=0` sends none). [AI-step](/features/ai-steps) authoring sends masked page snapshots |
 | Your git host | Whenever runs report a GitHub, GitLab or Bitbucket remote (the reporter records `origin` by default) | Without a token: anonymous public-API reads of the repository's default branch and its CODEOWNERS; the desktop app reads a project's linked clone with `git` instead, and asks the host only for a commit the clone lacks. With a token: commits, diffs and files, plus the PR comments, commit statuses, heal branches and CI re-runs of the features you turn on |
 | A URL you attach as a link | When someone adds a link to a run, test or cluster | A request for its title (the git host's API for an issue or PR link) |
-| Your issue tracker (Jira) | Only if you [connect it](/features/issue-tracking) | Issue reads, and the issues and comments you file |
+| Your issue tracker (Jira) | Only if you [connect it](/features/issue-tracking) | Issue reads, and the issues and comments you file; avatars Jira names, fetched from Gravatar or Atlassian with no credentials |
 | Zephyr Scale Cloud | Only if you [connect it](/features/test-management) | A run's results |
 | Your CI server | Only if you [connect one](/features/ci-rerun) | The re-run or Flake Lab request |
 | Your SMTP server | Only if you configure [email notifications](/features/notifications) | Notification and account emails |
@@ -2302,7 +1958,7 @@ The **AI provider** alone receives your source code and the full failure context
 The [browser extension](/features/extension) works with no instance. Connecting sends the browser's and operating
 system's names. Connected, it reads a project's URL patterns, function catalog and locator index, and sends a URL
 pattern you add and a [bug report](/features/bug-reports), only on **Send** in its preview, which shows
-exactly what goes. It carries the recorded steps with the values
+what goes. It carries the recorded steps with the values
 typed (never a password, and none with **Leave out the values I typed**), and whichever evidence the reporter
 kept ticked: screenshots of the tab, a screenshot of each step when the instance takes them, console errors and warnings, failed requests (method, path without query values,
 status; never a header or a body) and an outline of the page. It goes only to the connected
@@ -2368,8 +2024,8 @@ worker, against an in-browser SQLite database of fake data. Nothing you click re
 
 ## Retention
 
-The data you keep is yours to manage: `PIWI_RETENTION_DAYS` prunes old runs and their files
-nightly, or delete in bulk from **Settings → Storage**.
+`PIWI_RETENTION_DAYS` prunes old runs and their files nightly; **Settings → Storage** deletes them in
+bulk.
 Deleting a run removes its executions, traces, reports, and any evidence payloads nothing else
 references: [Storage → Data retention](/operate/storage#data-retention).
 
@@ -2456,7 +2112,7 @@ path [opens in your IDE](./ide-integration).
 
 `/`: a health check across all projects. A **Filters** block (environment, full runs only), a **stat strip** whose every number but the average [pass rate](/guide/concepts#pass-rate) is a link, a **Project health** table with run-history bars and a tendency badge
 beside the recent activity, then the **failure inbox** of open clusters, triaged from the row or keyboard
-([Failure clusters & the inbox](./failure-clusters#the-failure-inbox)). **Starred projects** lead Project health and the
+([Failure inbox](./failure-inbox)). **Starred projects** lead Project health and the
 sidebar.
 
 <figure>
@@ -2585,7 +2241,7 @@ command palette or `g` then `s`: your **Account** and connected accounts ([OAuth
 **Roles** (what each role can do, read-only), **Storage**
 ([Storage](/operate/storage#storage-management)), **Tags**, **Pull requests** ([Pull-request feedback](./pr-feedback)),
 **Auto-heal** ([Auto-heal PRs](./auto-heal)), **Source control**
-([SCM token](/guide/source-control#set-the-token)), **Integrations** ([Integrations](/operate/integrations)),
+([SCM token](/guide/source-control#set-the-token)), **Integrations** ([Jira Cloud](/operate/integrations), [Zephyr Scale Cloud](/operate/zephyr-scale)),
 **Performance** ([wasted-time patterns](./slow-tests#wasted-time) and timeout hygiene), **AI** ([AI provider](/guide/ai-provider)),
 **Notifications** ([Notifications & alerts](./notifications)), **Localization**
 ([Localization](/operate/localization)) and **About**, and in the [desktop app](./desktop) **Desktop app** first. A setting backed by
@@ -2612,7 +2268,7 @@ restores the sample data. With no model,
 
 ## Related
 
-- [Core concepts](/guide/concepts): the words this map uses
+- [Core concepts](/guide/core-concepts): the words this map uses
 - [Your first failure, explained](/guide/first-failure): the page you open most, read top to bottom
 - [All features](/reference/features): every feature and where it lives
 - [Keyboard shortcuts](/reference/keyboard-shortcuts): the command palette and the go-to keys
@@ -2780,7 +2436,7 @@ Notification subscriptions can filter by branch and alert only on the default br
 - [CI & sharding](/guide/ci) — how the branch and PR number are detected on each provider
 - [Flaky tests](./flaky-tests) — the leaderboard and regression signals the branch filter scopes
 - [Analytics](./analytics) — trends you can read one branch at a time
-- [Core concepts](/guide/concepts) — where branch sits among run, execution and baseline
+- [Glossary](/guide/concepts) — where branch sits among run, execution and baseline
 
 <!-- https://piwitests.dev/features/run-changes -->
 
@@ -2844,7 +2500,8 @@ Two ways to compare against something else:
 - **New failures** — passed in the baseline, failing here.
 - **Fixed** — failed in the baseline, passing here.
 - **Still failing** — failing in both.
-- **Newly flaky / passed on retry** — passed here after an earlier attempt failed.
+- **Newly flaky / passed on retry** — passed here after an earlier attempt failed. Of these, a test that passed at
+  its first attempt in the baseline is also [newly flaky](#what-newly-flaky-says-about-your-change).
 - **Slower / faster** — the ten largest duration changes each way.
 - **Commits since the baseline** — the commit range, a copyable `git log` command and, when the SCM host is known, a link to the commits.
 - **Environment changes** — the fields that differ (environment, branch, CI provider, browsers, and the [test order](#shuffled-runs) of a shuffled run), in *This run* / *Baseline* columns.
@@ -2855,6 +2512,18 @@ Two ways to compare against something else:
 </figure>
 
 Comparing two runs is also how the [run comparison](./ui-overview#test-run-detail) works: select two runs on the project's Runs tab and the newer one opens on its Changes tab with the older as its baseline.
+
+### What newly flaky says about your change
+
+**Newly flaky** is a change between the two runs, as a new failure is: the test needed a retry here and passed at
+its first attempt in the baseline. It does not clear your change. A change can make a test flaky (a new race, a
+slower call, a shared state), and so can anything else that differs between the runs. Nor does it convict it: one
+first-attempt pass in the baseline is one sample, and a test that has been flaky for weeks passes first time often.
+
+The test's own history settles it. A [flaky rate](/guide/concepts#flaky-rate) near zero until this run points at
+the commits since the baseline; one that has been high for weeks points at a flake your run happened to meet, which
+[Flaky tests](./flaky-tests) ranks and quarantines. The [CI merge gate](./merge-gate) counts newly flaky tests
+apart from new regressions (`--max-new-flaky`), so a pipeline can hold a branch for either.
 
 ## Shuffled runs
 
@@ -2874,7 +2543,7 @@ not shuffled, or the other way round, the Changes tab lists the **Test order** u
 - [Regression or flake?](/recipes/regression-or-flaky): the Changes tab, used to decide whether one red test is new
 - [Branches](./branches#branch-aware-baselines) — why the default baseline is the same-branch run
 - [Flaky tests](./flaky-tests) — the per-project flaky, regression and spec-health signals
-- [Failure clusters & the inbox](./failure-clusters) — the failures grouped by cause
+- [Failure clusters](./failure-clusters) — the failures grouped by cause
 - [Timeline markers](./timeline-markers) — annotate the trend charts with real-world events
 
 <!-- https://piwitests.dev/features/offline-export -->
@@ -3113,9 +2782,9 @@ right there in the headings:
 </figure>
 
 If your test is under **Newly flaky / passed on retry**, its failure did not survive a retry: that points at
-flakiness, not a regression that breaks it every time. When it was stable in the baseline, a change can still have
-made it flaky; its history (next step) tells which. A long-standing flake belongs in
-[cutting flakiness](./flaky-cleanup).
+flakiness, not a regression that breaks it every time. It does not clear your change, which can have made the test
+flaky ([what newly flaky says](/features/run-changes#what-newly-flaky-says-about-your-change)): its history (next
+step) tells a new flake from an old one. A long-standing flake belongs in [cutting flakiness](./flaky-cleanup).
 
 ## 2. Check the test's own history
 
@@ -3170,7 +2839,7 @@ narrows it.
 
 ## Related
 - [Flaky tests](/features/flaky-tests) — how the composite score and root-cause categories are computed
-- [Core concepts](/guide/concepts) — *test case* vs *execution*, the distinction this recipe leans on
+- [Core concepts](/guide/core-concepts) — *test case* vs *execution*, the distinction this recipe leans on
 - [Timeline markers](/features/timeline-markers) — correlating a drop with a deploy
 
 <!-- https://piwitests.dev/recipes/mass-failure -->
@@ -3248,10 +2917,10 @@ instead of `run.failed`: you hear once when a genuinely new root cause appears, 
 and the payload carries a sample error excerpt and how many tests it affects.
 
 ## Related
-- [Failure clusters & the inbox](/features/failure-clusters): how failures are grouped, and whether the fix worked
+- [Failure clusters](/features/failure-clusters): how failures are grouped, and whether the fix worked
 - [AI diagnosis](/features/ai-diagnosis): semantic merging and the explanation of a cluster
 - [Regression or flake?](./regression-or-flaky) — when it's one test rather than forty
-- [Core concepts](/guide/concepts) — *cluster*, *fingerprint*, *baseline*
+- [Core concepts](/guide/core-concepts) — *cluster*, *fingerprint*, *baseline*
 
 <!-- https://piwitests.dev/recipes/flaky-cleanup -->
 
@@ -3589,11 +3258,11 @@ read [storage cleanup](/operate/storage#storage-management) first.
 
 <!-- https://piwitests.dev/features/failure-clusters -->
 
-# Failure clusters & the inbox
+# Failure clusters
 
-How Piwi groups failures by root cause into **failure clusters**, where a cluster stands, whether its fix worked,
-and the **failure inbox** on Home. A model's explanation is on [AI diagnosis](./ai-diagnosis), fixing on
-[Fix plans](./fix-plans).
+How Piwi groups failures by root cause into **failure clusters**, where a cluster stands and whether its fix worked.
+Triaging the open ones from Home is on [Failure inbox](./failure-inbox), a model's explanation on
+[AI diagnosis](./ai-diagnosis), fixing on [Fix plans](./fix-plans).
 
 ## How failures are grouped
 
@@ -3635,30 +3304,16 @@ line naming the move, their later failures with that error join the new one, and
 
 ## The failure inbox
 
-The **Failure inbox** on Home lists up to 50 open clusters you can see, most recently seen first: **headline**, **top
-clue**, **owner or assignee**, **affected tests**, **last seen**, and exceptional **badges** (a regression on the
-default branch). A cluster seen only in local runs, in a project that runs in CI, stays out; **Show them** lists them.
+Home's failure inbox lists the open clusters you still owe a decision, in queues: [Failure inbox](./failure-inbox).
 
 ### Queues
 
-Each queue has a live count and is shareable as `?queue=`:
-
-- **All open**: every open cluster not snoozed.
-- **New**: first seen, or seen again, since your previous browser session (kept per browser).
-- **Mine**: [yours](#owners-and-assignees).
-- **Needs ticket**: untracked default-branch clusters older than the binding's age (2 days by default; see
-  [issue tracking](./issue-tracking)).
-- **Regressions**: regressed on the default branch, failing there still.
-- **Fix didn't hold**: a fix landed, then regressed.
-- **Quarantine ready**: [quarantined](./flaky-tests#quarantine-with-a-way-out), and the tests stopped failing.
-- **Merge suggestions**: in a pending [merge suggestion](./ai-diagnosis#semantic-merging-optional).
+What puts a cluster in each queue of the inbox: [Failure inbox → Queues](./failure-inbox#queues).
 
 ### Triage from the row or the keyboard
 
-Open, resolve, ignore, quarantine, assign, snooze, link a known issue or create a tracker issue from the row, by mouse
-or [key](/reference/keyboard-shortcuts#failure-inbox); `x` selects rows for a **bulk bar**.
-Resolve, ignore, snooze and assign on one row can be undone for a few seconds. A known issue pins a URL; with an
-[issue tracker](/operate/integrations) bound, Jira links unfurl and stay in sync ([issue tracking](./issue-tracking)).
+The inbox's row actions, keys and bulk bar:
+[Failure inbox → Triage from the row or the keyboard](./failure-inbox#triage-from-the-row-or-the-keyboard).
 
 ## Owners and assignees
 
@@ -3673,8 +3328,8 @@ Top to bottom:
 1. The [situation block](/guide/first-failure) across every test sharing the failure, headed by the latest failure's
    headline when it says more than the cluster's name. Its own lines:
    - **the state line**, right above **Next**;
-   - **the occurrence sparkline**: *N occurrences in M tests over D · last X ago*, naming a single test, *quarantined*
-     if it is;
+   - **the occurrence sparkline**: *N occurrences in M tests over D · last X ago*, naming a single test,
+     *quarantined* if it is ([quarantine](./flaky-tests#quarantine-with-a-way-out));
    - **What changed**: commits and files since the last passing run (or your baseline), the diff, and with
      [coverage](./server-coverage) the first [suspect line](/guide/concepts#suspect-lines). Missing setup shows what to
      set up ([troubleshooting](/guide/source-control#troubleshooting)); **Browse commits** picks a baseline when none
@@ -3736,14 +3391,16 @@ comment gains **Fixed by this change**, even with *only comment on failures*.
 
 ## Snoozing
 
-**Snoozing** hides a cluster from every queue, status untouched. **1 day** and **1 week** return it then; **Until it
-recurs** returns it to **New** when a run fails it, badged **snoozed, back** until your next visit.
+**Snoozing** hides a cluster from every [inbox queue](./failure-inbox#queues), status untouched. **1 day** and
+**1 week** return it then; **Until it recurs** returns it to **New** when a run fails it, badged **snoozed, back**
+until your next visit.
 
 ## From an AI agent
 
-Over the [MCP server](/features/mcp), `list_open_clusters` takes the same `queue`, and each action above has a
-[tool](/reference/mcp-tools): `triage_cluster`, `decide_merge_suggestion`, `move_tests_to_new_cluster`,
-`rerun_cluster_in_ci`, `link_issue` and `unlink_issue`.
+Over the [MCP server](/features/mcp), `list_open_clusters` lists the open clusters by
+[inbox queue](./failure-inbox#from-an-ai-agent), and each action above has a [tool](/reference/mcp-tools):
+`triage_cluster`, `decide_merge_suggestion`, `move_tests_to_new_cluster`, `rerun_cluster_in_ci`, `link_issue` and
+`unlink_issue`.
 
 ## Try it in the demo
 
@@ -3751,10 +3408,67 @@ Over the [MCP server](/features/mcp), `list_open_clusters` takes the same `queue
 
 ## Related
 
+- [Failure inbox](./failure-inbox): the open clusters, triaged from Home
 - [Triage a run gone red](/recipes/mass-failure): a red run collapsed into causes
 - [AI diagnosis](./ai-diagnosis): a cluster explained against your diff
 - [Failure evidence](./evidence): one execution's evidence
-- [Core concepts](/guide/concepts#error-fingerprint-failure-cluster): the terms
+- [Glossary](/guide/concepts#error-fingerprint-failure-cluster): the terms
+
+<!-- https://piwitests.dev/features/failure-inbox -->
+
+# Failure inbox
+
+The **Failure inbox** on Home lists the open [failure clusters](./failure-clusters) you still owe a decision, sorts
+them into queues, and lets you triage each one from its row or the keyboard. What a cluster is, how failures join one
+and whether its fix worked is on [Failure clusters](./failure-clusters).
+
+## What it lists
+
+The inbox lists up to 50 open clusters of the projects you can see, most recently seen first. Each row shows the
+cluster's **headline**, its **top clue**, its **owner or assignee**, the **affected tests**, when it was **last
+seen**, and exceptional **badges** only (a regression on the default branch, *snoozed, back*).
+
+- **Local runs.** A cluster seen only in developers' local runs, in a project that runs in CI, stays out; **Show
+  them** lists them, marked *local runs only*.
+- **Environment incidents.** The clusters a run flagged as an
+  [environment incident](./environment-incidents#what-a-flagged-run-changes) opened are one row for that run.
+- **Snoozed clusters** are out of every queue until their [snooze](./failure-clusters#snoozing) ends.
+
+### Queues
+
+Each queue has a live count and is shareable as `?queue=`:
+
+- **All open**: every open cluster not snoozed.
+- **New**: first seen, or seen again, since your previous browser session (kept per browser).
+- **Mine**: assigned to you, or owned by you ([owners and assignees](./failure-clusters#owners-and-assignees)).
+- **Needs ticket**: untracked default-branch clusters older than the binding's age (2 days by default; see
+  [issue tracking](./issue-tracking)).
+- **Regressions**: regressed on the default branch, failing there still.
+- **Fix didn't hold**: a fix landed, then [regressed](./failure-clusters#did-the-fix-work).
+- **Quarantine ready**: [quarantined](./flaky-tests#quarantine-with-a-way-out), and the tests stopped failing.
+- **Merge suggestions**: in a pending [merge suggestion](./ai-diagnosis#semantic-merging-optional).
+
+### Triage from the row or the keyboard
+
+Open, resolve, ignore, quarantine, assign, snooze, link a known issue or create a tracker issue from the row, by mouse
+or [key](/reference/keyboard-shortcuts#failure-inbox); `x` selects rows for a **bulk bar**. Resolve, ignore,
+quarantine, assign and snooze need the Maintainer role or above on the project; linking a known issue and creating a
+tracker issue need Contributor.
+
+Resolve, ignore, snooze and assign on one row can be undone for a few seconds. A known issue pins a URL; with an
+[issue tracker](/operate/integrations) bound, Jira links unfurl and stay in sync ([issue tracking](./issue-tracking)).
+
+## From an AI agent
+
+Over the [MCP server](/features/mcp), `list_open_clusters` takes the same `queue`, and each triage action has a
+[tool](/reference/mcp-tools): `triage_cluster`, `decide_merge_suggestion`, `link_issue` and `unlink_issue`.
+
+## Related
+
+- [Failure clusters](./failure-clusters): how failures are grouped, the cluster page, and whether the fix worked
+- [Triage a run gone red](/recipes/mass-failure): a red run collapsed into causes
+- [Keyboard shortcuts](/reference/keyboard-shortcuts#failure-inbox): every key of the inbox
+- [Issue tracking](./issue-tracking): the tickets behind **Needs ticket** and a known issue
 
 <!-- https://piwitests.dev/features/environment-incidents -->
 
@@ -3813,7 +3527,7 @@ A [probe](./probes) or [Flake Lab](./flake-lab) run is never judged: it injects 
   flakiness, performance and new-cluster events. It goes to the project's subscribers, not to a subscription scoped to
   test owners. `run.finished` still fires. When one outage flags runs in several projects, a channel that hears from
   all of them receives one message.
-- **The failure inbox** on Home shows one row for the run instead of one row per new cluster it opened. Clusters that
+- **The [failure inbox](./failure-inbox)** on Home shows one row for the run instead of one row per new cluster it opened. Clusters that
   were already open before the incident keep their rows, and a cluster it opened gets its own row once a run that is
   no incident fails it again.
 - **No AI diagnosis, no pull-request comment and no issue tracker write** are produced for the run
@@ -3996,7 +3710,7 @@ Every flaky test is tagged with one of six categories, using keyword and distrib
 | `timing` | Timeouts, "to be visible", `waitFor`, element-not-found-within |
 | `network` | `net::` / `ERR_` errors, 5xx responses, `ECONNREFUSED`, `waitForResponse` — plus the count of failed and 5xx requests captured on the failing attempts, and any request that failed on the failing attempt but not the passing one |
 | `assertion` | `expect(...)`, "Expected:", snapshot/screenshot comparison — with no timing/network noise |
-| `environment` | Fails at least 3 times on exactly one browser while another browser passed at least 3 times without failing |
+| `environment` | Fails at least 3 times on exactly one browser, or one runner time zone or locale, while another passed at least 3 times without failing |
 | `order` | Its code path changes with whether another test ran before it in the run, and its failures follow that change ([coverage insights](./coverage-insights#a-path-that-depends-on-the-tests-before-it)) |
 | `other` | No clear signal |
 
@@ -4123,7 +3837,7 @@ With **Group by: File** on the project's **Tests** tab, each spec file's header 
 - [Cut costly flakiness](/recipes/flaky-cleanup): the costliest flaky tests first
 - [What changed in a run](./run-changes): the Changes tab against a baseline
 - [Slow tests & wasted time](./slow-tests): where the suite's time goes
-- [Failure clusters & the inbox](./failure-clusters): the failures grouped by cause
+- [Failure clusters](./failure-clusters): the failures grouped by cause
 
 <!-- https://piwitests.dev/features/flake-lab -->
 
@@ -4157,7 +3871,7 @@ It runs, one after the other:
    same error as in CI. Suspects no experiment tested run first, most likely first; one that did not reproduce runs
    last, never dropped.
 
-Every run has retries off, on your current checkout. Before it starts, it prints an estimate from the test's
+Every repetition has retries off, on your current checkout. Before it starts, it prints an estimate from the test's
 median duration; `--budget` (15 minutes by default) stops it from starting another arm once spent.
 
 ```text
@@ -4191,15 +3905,15 @@ as a delay that trips a timeout the test never hit in CI, is shown apart and has
 
 | Verdict | When |
 |---|---|
-| **Reproduced** | at least half the arm's runs failed with a matching error, and a one-sided Fisher exact test against the control gives p < 0.05 |
-| **Amplified** | p < 0.05, but under half the runs failed |
+| **Reproduced** | at least half the arm's repetitions failed with a matching error, and a one-sided Fisher exact test against the control gives p < 0.05 |
+| **Amplified** | p < 0.05, but under half the repetitions failed |
 | **Not reproduced** | anything else |
 
 The command prints the commit it tested next to the commit of the test's latest failure, and warns when they
 differ: a condition that reproduces on today's code says little about last month's failure. The control catches a
 test that simply fails on this machine.
 
-**Not reproduced is not ruled out.** Ten clean runs only show the condition fails in under about 26% of runs (95%
+**Not reproduced is not ruled out.** Ten clean repetitions only show the condition fails in under about 26% of them (95%
 confidence): a one-in-twenty flake can still come from it, so the next experiment runs it after the untested ones.
 
 ## Verify a fix
@@ -4210,14 +3924,14 @@ After the fix, rerun the condition that reproduced it:
 npx @piwitests/reporter flake verify 1842
 ```
 
-It reruns the reproducing arm and its control for enough runs that a failure at the rate it reproduced would have
+It reruns the reproducing arm and its control for enough repetitions that a failure at the rate it reproduced would have
 shown with 95% confidence (`⌈ln 0.05 / ln(1 − rate)⌉`, at least 5), and stops at the first matching failure. With
 none, the fix is **verified**. The verify experiment appears on the Flakiness tab next to the one it verifies, and the
 test reads [verified fixed](./flaky-tests#verified-fixed): off the flaky ranking until it retry-passes again, and a
 quarantined test is proposed for release at once, until it fails again.
 
 **Exit codes:** `0` an arm reproduced the failure (`verify`: the fix held) · `1` nothing reproduced (`verify`: it
-still fails, or too few runs passed to say) · `2` error.
+still fails, or too few repetitions passed to say) · `2` error.
 
 ## Where results show
 
@@ -4258,7 +3972,7 @@ suspect, all at once, or one), the runs and the budget. The experiment lands on 
 
 Once an experiment has reproduced a test, **Find the breaking commit here** on its failure is flake-aware: each step
 runs the reproducing arm (`piwi flake verify --bisect`), bad at a failure with the same error as in CI, good after
-enough clean runs, which tells when a flake started.
+enough clean repetitions, which tells when a flake started.
 
 ## Run it in CI
 
@@ -4511,7 +4225,7 @@ the others stream a simulated one.
 ## Related
 
 - [Triage a run gone red](/recipes/mass-failure): clusters first, then a diagnosis
-- [Failure clusters & the inbox](./failure-clusters): grouping, and whether the fix worked
+- [Failure clusters](./failure-clusters): grouping, and whether the fix worked
 - [Privacy & data flow](/guide/privacy): what a diagnosis sends, and where
 - [Notifications & alerts](./notifications): `diagnosis.completed` and the cluster events
 - [MCP server](/features/mcp): clusters and diagnoses for agents
@@ -4674,11 +4388,11 @@ routes answer as unavailable for everyone; **Ask Piwi** leaves the sidebar and t
 
 <!-- https://piwitests.dev/features/watch-a-run -->
 
-# Watch a run
+# Follow a run
 
 This page follows a run while it goes, in the same words in every tool: its number and page on the instance, how far
 it is, where a test stopped and why, and when a failing test is held. To see a test's page:
-[Watch a running test](./watch-running-test) in your tools, [Live view of a run](./live-view) on the team instance.
+[Watch a local test](./watch-running-test) in your tools, [Live view of a run](./live-view) on the team instance.
 
 ## The run's number and page
 
@@ -4793,9 +4507,9 @@ What the editor says of a run it started that sent nothing: [Runs from the edito
 
 ## Related
 
-- [Watch a running test](./watch-running-test): a test's page, in your tools
+- [Watch a local test](./watch-running-test): a test's page, in your tools
 - [Live view of a run](./live-view): a test's page, on the team instance
-- [Share a run live](./share-live): let a teammate watch a run on your machine
+- [Share a local run live](./share-live): a teammate watches a run on your machine
 - [Runs window](./runs-window): follow and steer your runs from Piwi Picker
 - [Pause and step from the editor](./editor-run-control): the controls at a stop
 
@@ -4812,7 +4526,7 @@ paused test. Nothing you do in the view reaches the test.
 
 A CI run, or a shared run, is watched here. A run you start yourself shows in its browser when headed, and in your
 editor, Piwi Picker's Runs window and the desktop app's tray, running or stopped:
-[Watch a running test](./watch-running-test). A run that reports to the desktop app gets no live view key, so no team
+[Watch a local test](./watch-running-test). A run that reports to the desktop app gets no live view key, so no team
 **Watch**.
 
 ## Turn it on
@@ -4919,7 +4633,7 @@ never the key, so a dashboard that restarts takes it back from the workers while
 - [Page events, text and filmstrip](./live-view-layers): what the page and its requests said, beside the image
 - [Watch all workers](./watch-all): every worker's page at once, and following what needs attention
 - [Capture fixtures](/guide/capture-fixtures): the worker side of the view
-- [Share a run live](./share-live): let a teammate watch a run on your machine
+- [Share a local run live](./share-live): let a teammate watch a run on your machine
 - [Runs window](./runs-window): the live view of a test your editor runs, with its controls
 - [Desktop app runs](./desktop-runs): the desktop app's runs, and Share live from its tray
 - [Failure evidence](./evidence): what a finished test keeps
@@ -4987,8 +4701,8 @@ Inspect.
 
 - [Live view of a run](./live-view): turning it on, and the full view of one worker
 - [Stuck tests](./stuck-tests): when a test is marked **Stuck?**
-- [Share a run live](./share-live): let a teammate watch a run on your machine
-- [Watch a run](./watch-a-run): where a run is followed, on every tool
+- [Share a local run live](./share-live): let a teammate watch a run on your machine
+- [Follow a run](./watch-a-run): where a run is followed, on every tool
 
 <!-- https://piwitests.dev/features/live-view-layers -->
 
@@ -5058,7 +4772,7 @@ A worker of an older reporter sends none of them: the sections stay empty, and *
 ## In your own tools
 
 Under a watched page in your editor's view, a CI run's lane included, and, with a reporter newer than 0.68.0, in
-Piwi Picker's Runs window and the desktop app's tray ([Watch a running test](./watch-running-test)):
+Piwi Picker's Runs window and the desktop app's tray ([Watch a local test](./watch-running-test)):
 
 - **Why it waits**: the call the test is in, how long it has run, how many elements its locator matches and whether
   the first is enabled, and the last lines of Playwright's log.
@@ -5080,13 +4794,13 @@ names each worker's step, and the panel with its events, text, filmstrip and Ins
 
 - [Live view of a run](./live-view): turning it on, and the image and call of one worker
 - [Watch all workers](./watch-all): every worker of a run at once
-- [Inspect a running test's page](./live-inspect): the page at each call as a document, with the locator picker
+- [Inspect a worker's page](./live-inspect): the page at each call as a document, with the locator picker
 - [Backend logs](/guide/backend-logs): what the backend instrumentation attaches to a response
 - [Failure evidence](./evidence): the console, network and ARIA a finished test keeps
 
 <!-- https://piwitests.dev/features/live-inspect -->
 
-# Inspect a running test's page
+# Inspect a worker's page
 
 Under a worker's [live view](./live-view), **Inspect** shows its test's page as a document rather than an image: the
 DOM Playwright's trace takes at each call (before the call, at its action and after it), rendered by the dashboard
@@ -5194,12 +4908,12 @@ The live demo runs no browser, and Inspect needs a running test: [Watch all](./w
 
 - [Live view of a run](./live-view): turning it on, and the image and call of one worker
 - [Page events, text and filmstrip](./live-view-layers): what the page and its requests said, beside the image
-- [Failure evidence](./evidence): the DOM snapshot and the picker of a finished test
-- [Share a run live](./share-live): a run on your machine, watched from the dashboard
+- [Failure evidence](./evidence): the DOM snapshot and the snapshot picker of a finished test
+- [Share a local run live](./share-live): a run on your machine, watched from the dashboard
 
 <!-- https://piwitests.dev/features/share-live -->
 
-# Share a run live
+# Share a local run live
 
 A run on your machine sends the team instance nothing of its pages until you share it. Shared, it gets the
 [live view](./live-view) a CI run gets: a teammate opens its page and watches each worker, and its stops show on its
@@ -6474,7 +6188,7 @@ A match is scored deterministically (the same fingerprint family: error kind, ma
 ## Related
 
 - [AI diagnosis](./ai-diagnosis): the diagnosis and validated patch a fix plan wraps
-- [Failure clusters & the inbox](./failure-clusters) — the clusters a fix plan is attached to
+- [Failure clusters](./failure-clusters) — the clusters a fix plan is attached to
 - [Auto-heal PRs](./auto-heal) — when Piwi opens the locator fix as a pull request itself
 - [MCP server](/features/mcp) — the `get_fix_plan` tool
 - [Desktop app](/features/desktop#reproducing-a-failure-and-finding-the-breaking-commit) — run the recipe and drive the bisect locally
@@ -6531,7 +6245,7 @@ strongest thing the dashboard does, so the posture is conservative by design.
   fixtures**, which record the snapshots every edit but a diff rename comes from.
 - An **SCM token with write scope**, resolved as [Source control](/guide/source-control#set-the-token) describes: a per-project token, falling back
   to the global one. It needs:
-  - **GitHub** — `repo` (classic), or a fine-grained token with `contents: write` + `pull_requests: write`.
+  - **GitHub** — `repo` (classic), or a fine-grained token with **Contents: write** + **Pull requests: write**.
   - **GitLab** — `api`.
   - **Bitbucket** — an access token that can write to the repository. Bitbucket Cloud has no draft pull requests, so
     the draft setting is ignored there.
@@ -6673,7 +6387,7 @@ Turn it on in **Settings → Pull requests** (off by default). It needs:
 - [CI merge gate](./merge-gate): fail a CI job on the run's analysis
 - [Source control](/guide/source-control): the SCM token and its scopes
 - [Auto-heal PRs](./auto-heal): the pull request Piwi opens itself
-- [Failure clusters & the inbox](./failure-clusters): the clusters the comment reports
+- [Failure clusters](./failure-clusters): the clusters the comment reports
 - [Re-run in CI](./ci-rerun): re-run a cluster's tests from the dashboard
 
 <!-- https://piwitests.dev/features/ci-rerun -->
@@ -6754,7 +6468,7 @@ Choose the provider of the action:
 
 | Provider | What the target names | Token scope |
 |---|---|---|
-| **GitHub** | Workflow file name (e.g. `e2e.yml`), a ref, the `workflow_dispatch` input that receives the arguments, and optionally the input that receives the dispatch id | `actions:write` (a classic PAT's `workflow` scope) |
+| **GitHub** | Workflow file name (e.g. `e2e.yml`), a ref, the `workflow_dispatch` input that receives the arguments, and optionally the input that receives the dispatch id | **Actions: write** (fine-grained), `repo` (classic) |
 | **GitLab** | A ref and the pipeline variable name that receives the arguments | `api` |
 | **Bitbucket** | The `custom:` pipeline name and the variable name that receives the arguments | `pipeline:write` |
 
@@ -6930,7 +6644,7 @@ files.
 
 - [Pull-request feedback](./pr-feedback): the result posted on the pull request
 - [Source control](/guide/source-control): the SCM token and its scopes
-- [Failure clusters & the inbox](./failure-clusters): the clusters a re-run acts on
+- [Failure clusters](./failure-clusters): the clusters a re-run acts on
 - [Flake Lab](./flake-lab): the experiment a Flake Lab action runs in CI
 - [CLI](/reference/cli#rerun): the `rerun` command a pipeline runs
 
@@ -7135,7 +6849,7 @@ Both status policies act on a **move** of the ticket, so a person's reopen or re
 Every comment is written in the [ticket's language](#language); [Issue automation](./issue-automation) adds diagnosis
 comments, description updates and [the runs that write](./issue-automation#the-runs-that-write). An optional
 [inbound webhook](/operate/integrations#registering-the-inbound-webhook) shows a close or reopen at once. The failure
-inbox gains a [**Needs ticket**](./failure-clusters#queues) queue.
+inbox gains a [**Needs ticket**](./failure-inbox#queues) queue.
 
 ## The project binding
 
@@ -7226,7 +6940,7 @@ prose follows the separate [AI response-language setting](/features/ai-diagnosis
 ## Related
 
 - [Issue automation](./issue-automation): tickets filed by rule
-- [Failure clusters & the inbox](./failure-clusters): what a ticket tracks
+- [Failure clusters](./failure-clusters): what a ticket tracks
 
 <!-- https://piwitests.dev/features/run-issues -->
 
@@ -7521,7 +7235,7 @@ among its links, as the key, and removing the link there does not delete anythin
 - [Zephyr Scale Cloud](/operate/zephyr-scale): connect it, bind a project and read the test case catalog
 - [Test metadata](/reference/test-metadata): the tags and external IDs a test carries its case key in
 - [Issue tracking (Jira)](./issue-tracking): the other integration that writes to an external tool
-- [Integrations](/operate/integrations): how connections are managed
+- [Jira Cloud](/operate/integrations): how connections are managed
 
 <!-- https://piwitests.dev/features/test-selection -->
 
@@ -8022,7 +7736,7 @@ project or for the instance, and these surfaces disappear.
 - [Uncovered changes in pull requests](/features/uncovered-changes): the changed files no test reaches
 - [Probes](/features/probes): whether a test that reaches a route would notice it breaking
 - [Gap detectors & exposure](/reference/gap-detectors): every detector, the exposure factors, what the graph includes
-- [Core concepts](/guide/concepts#test-map): the Test Map vocabulary
+- [Glossary](/guide/concepts#test-map): the Test Map vocabulary
 - [Agent skills](/features/agent-skills): write-the-missing-test
 
 <!-- https://piwitests.dev/features/uncovered-changes -->
@@ -9747,7 +9461,7 @@ Send a test email from **Settings → Notifications** to confirm delivery.
 - [Configuration reference](/reference/configuration): every environment variable
 - [Notification events & webhooks](/reference/notification-events): every event and the webhook body
 - [Quality reports](./quality-reports#report-schedules): scheduled quality reports sent to these channels
-- [Failure clusters & the inbox](./failure-clusters): what triggers the cluster events
+- [Failure clusters](./failure-clusters): what triggers the cluster events
 
 <!-- https://piwitests.dev/features/write-run-fix -->
 
@@ -9772,7 +9486,7 @@ extension, does the same steps from the browser, and the desktop app runs them o
 |---|---|---|---|
 | Write the test | **Record a new test file…**, or **Record here…** at the cursor | Piwi Picker's **Record actions**, then **Send to editor** | [Record tests from the editor](./editor-recording), [Recorded code](./recorded-code) |
 | Run it | **Run with Piwi** from the gutter, the Testing view or the test at the cursor; **Verify ×3** | the desktop app's **Re-run** of tests | [Runs from the editor](./editor-runs), [Desktop app runs](./desktop-runs) |
-| Watch it | the status bar, and the run's page on the instance | the Runs window, and the page itself once you **Watch** at a stop | [Watch a run](./watch-a-run), [Watch a running test](./watch-running-test) |
+| Watch it | the status bar, and the run's page on the instance | the Runs window, and the page itself once you **Watch** at a stop | [Follow a run](./watch-a-run), [Watch a local test](./watch-running-test) |
 | Stop it | a breakpoint, **Pause**, **Step**, **Run to the cursor** | the pause bar in the test's page | [Breakpoints in the browser](./editor-breakpoints), [Pause and step from the editor](./editor-run-control) |
 | Fix it at the stop | **Pick a locator**, **Record**, **Assert**, **Mock a request** | **Pick a locator** and **Record** from the pause bar; all four from the Runs window | [Code from a pause](./editor-stop-code) |
 | Debug a failure | **Debug in my editor**, from the failure's page | the failure page's Locator fix | [Debug in my editor](./debug-in-editor), [Locator healing](./locator-healing) |
@@ -9788,7 +9502,7 @@ lands at the cursor the same way through **Send to editor**: at the top level of
 
 A run Piwi starts reports to the instance like any other, with the run's origin. In a project that runs in CI, a
 failure seen only in developers' own runs stays out of the team's inbox until someone shows it; one that fingerprints
-like a failure CI saw joins that cluster ([Failure clusters & the inbox](./failure-clusters)). A run you start in a
+like a failure CI saw joins that cluster ([Failure clusters](./failure-clusters)). A run you start in a
 terminal is followed too, when the editor is open: [Runs started outside Piwi](./terminal-runs).
 
 ## Stop it and write the fix there
@@ -9809,16 +9523,16 @@ instance explains it: the clues rank the likely cause, and the Locator fix panel
 ## Related
 
 - [Editor extensions](./editors): what the editor shows from your suite.
-- [Failure clusters & the inbox](./failure-clusters): where failures land once they reach the team's runs.
+- [Failure clusters](./failure-clusters): where failures land once they reach the team's runs.
 - [Run control for agents](./agent-run-control): the same stops, steered by an agent.
 
 <!-- https://piwitests.dev/features/watch-running-test -->
 
-# Watch a running test
+# Watch a local test
 
 **Watch** in your own tools shows a test's page in your editor, Piwi Picker's Runs window or the
 desktop app, in a run on your machine or a remote container, read-only in a CI run of your branch. On the
-team instance, it is the [live view](./live-view); a run's progress and stops: [Watch a run](./watch-a-run). The page
+team instance, it is the [live view](./live-view); a run's progress and stops: [Follow a run](./watch-a-run). The page
 shows up to ten images a second, through the test's next tests and stops, and the worker Playwright starts in its
 place after a failure. It needs
 `@piwitests/reporter` after 0.67.0 and the [capture fixtures](/guide/capture-fixtures). Nothing leaves your
@@ -10569,8 +10283,8 @@ or a codespace. What the editor shows from the service works there as it does on
 runs in the browser on your computer and reaches the editor through a pairing address on the loopback interface,
 which in remote development is the local end of a forwarded port.
 
-The editor's **Watch** and **Interact** controls use its existing connection. They need no Picker pairing or
-extra port forwarding. The steps below are for using Picker's separate Runs window and Send to editor.
+The editor's **Watch** and **Interact** controls use its existing connection. They need no Piwi Picker pairing or
+extra port forwarding. The steps below are for using Piwi Picker's separate Runs window and Send to editor.
 
 ## VS Code
 
@@ -11262,7 +10976,7 @@ of an answer, until that worker stops, a key answers no other worker and starts 
   whose text says why and where a test stopped.
 
 The item's line comes from the run, so it counts offline and with the desktop app
-([Watch a run](./watch-a-run#how-far-it-is)); its tooltip names the other tools that have the run open.
+([Follow a run](./watch-a-run#how-far-it-is)); its tooltip names the other tools that have the run open.
 
 **Pause** stops every run Piwi started in this window (a JetBrains IDE's project), each worker before its next
 call that Playwright's debugger stops at ([which calls](./editor-breakpoints#limits)): a long call or a `waitForTimeout`
@@ -11317,8 +11031,8 @@ stopped line's, and the tab shows the result or refusal.
 
 **Watch** updates the paused page until you hide or close the tab, resume or switch stops, and
 [**Interact**](./watch-running-test#interact) plays your input on it, taking the stop.
-The preview uses the editor's connection: no Picker, pairing, live-view setting or port forwarding. Older reporters
-keep the still image. To watch the test before it stops: [Watch a running test](./watch-running-test).
+The preview uses the editor's connection: no Piwi Picker, pairing, live-view setting or port forwarding. Older reporters
+keep the still image. To watch the test before it stops: [Watch a local test](./watch-running-test).
 
 ## Share with Playwright tools
 
@@ -11360,7 +11074,7 @@ only you can read (`PIWI_RUN_CHANNEL`), saying which test it runs and where it s
 
 - [Breakpoints in the browser](./editor-breakpoints): the breakpoints and the pause bar.
 - [Runs from the editor](./editor-runs): the commands that start a run.
-- [Share a run live](./share-live): let a teammate watch it.
+- [Share a local run live](./share-live): for a teammate.
 - [Debug in my editor](./debug-in-editor): a run started from a failure's page.
 - [Remote development](/guide/remote-development): remote windows and JetBrains Gateway.
 
@@ -11890,7 +11604,7 @@ instance, a refused **Watch**).
 
 ## Related
 
-- [Watch a running test](./watch-running-test): a test running on your machine.
+- [Watch a local test](./watch-running-test): a test running on your machine.
 - [Live view of a run](./live-view): the team instance's view of a run, which a CI lane comes from.
 - [Failures in the editor](./editor-failures): the CI run's failures once it ended.
 
@@ -12046,20 +11760,21 @@ Every tool below runs on the live page, from the toolbar popup. The last three n
 a pick names the tests that reach the element, Report a bug sends its report, Developer tools lists your projects'
 viewports.
 
-| Tool | For |
-|---|---|
-| [Pick an element](./pick-an-element) | a ranked locator for one element, re-checked against the page |
-| [Multi-pick](./pick-an-element#multi-pick) | the shared pattern of a list's rows or cards |
-| [Lint overlay](./lint-overlay) | the elements that would make bad locator targets |
-| [Assertions](./pick-an-element#assertion-suggester) | `expect(...)` lines for an element |
-| [Agent context](./pick-an-element#copy-context-for-agent) | one block about an element for a coding agent |
-| [Record actions](./record-actions) | a runnable spec from clicks and fills across pages |
-| [Report a bug](./report-a-bug) | a failing test and a report of a bug you reproduce |
-| [Developer tools](./devtools) | in DevTools: the selected element's locators, the locator console, the session, mocks, viewports |
-| [Runs window](./runs-window) | pause, step and resume the tests your editor runs, and watch a headless one live |
-| [Matching functions](./record-actions#matching-functions) | a recording that calls your own functions |
-| [Test functions](./test-functions#using-the-catalog) | which of your functions work on this page |
-| [Tested elements](./tested-elements) | which elements of this page your tests reach |
+| Tool | Key | For |
+|---|---|---|
+| [Pick an element](./pick-an-element) | `2` | a ranked locator for one element, re-checked against the page |
+| [Multi-pick](./pick-an-element#multi-pick) | `3` | the shared pattern of a list's rows or cards |
+| [Lint overlay](./lint-overlay) | `5` | the elements that would make bad locator targets |
+| [Assertions](./pick-an-element#assertion-suggester) | `4` | `expect(...)` lines for an element |
+| [Agent context](./pick-an-element#copy-context-for-agent) | `6` | one block about an element for a coding agent |
+| [Record actions](./record-actions) | `1` | a runnable spec from clicks and fills across pages |
+| [Report a bug](./report-a-bug) | `B` | a failing test and a report of a bug you reproduce |
+| [Replay a bug report](./replay-a-bug-report) | `R` | a bug report's steps played again in a tab, to see whether the bug shows there |
+| [Developer tools](./devtools) | | in DevTools: the selected element's locators, the locator console, the session, mocks, viewports |
+| [Runs window](./runs-window) | `U` | pause, step and resume the tests your editor runs, and watch a headless one live |
+| [Matching functions](./record-actions#matching-functions) | | a recording that calls your own functions |
+| [Test functions](./test-functions#using-the-catalog) | `7` | which of your functions work on this page |
+| [Tested elements](./tested-elements) | `T` | which elements of this page your tests reach |
 
 ## Where it is
 
@@ -12069,8 +11784,8 @@ Chrome or Edge 118 or later (in Edge, click **Allow** on the *Allow extensions f
 **Get**), or from **[Firefox Add-ons ↗](https://addons.mozilla.org/firefox/addon/piwi-picker/)** for Firefox 140 or
 later.
 
-Every tool in the popup has a tile with a line under its name saying what it is for, and a key (`1` records, `2`
-picks, `B` reports a bug). One tool runs at a time and **Esc** cancels it; recording runs until its own **Stop**. The
+Every tool in the popup has a tile with a line under its name saying what it is for, and the key in the table above,
+pressed with the popup open. One tool runs at a time and **Esc** cancels it; recording runs until its own **Stop**. The
 tools that need no pick on the page are in the browser's DevTools: [Developer tools](./devtools).
 
 <figure>
@@ -12282,7 +11997,7 @@ Connecting, and pairing with the desktop app, send the browser's and operating s
 the machine. It then downloads the projects, the URL patterns, each mapped project's function catalog,
 locator index and bug reports, and the runs in progress. It sends the instance nothing else but these, each on your
 click: a site's pattern (**Add this site**), a bug report after the **Send to Piwi…** preview
-([Bug reports](./bug-reports#sending-a-report)), and a replay's answer (**Share result…**). A recording goes only to a
+([sending one](./bug-reports#sending-a-report)), and a replay's answer (**Share result…**). A recording goes only to a
 paired editor (**Send to editor**), and steps only to the paired desktop app (**Run with Playwright…**). Only the settings
 page and the background worker make requests, never a page's script.
 
@@ -12884,7 +12599,7 @@ a tool of the [Piwi Picker extension](./extension): it records your steps with t
 wrong ("this should read Total: 36.00"), collects evidence from the page, and hands you a failing Playwright test, a
 Markdown report and a `.piwibug` file for the developer. Everything is built in your browser; nothing is sent anywhere unless you
 send it to your Piwi instance. This page covers recording a report and what it holds, with no instance;
-[Replay a bug report](./replay-a-bug-report) plays one again, and [Bug reports](./bug-reports) covers what an instance
+[Replay a bug report](./replay-a-bug-report) plays one again, and [Bug reports on your instance](./bug-reports) covers what an instance
 does with one sent to it.
 
 <figure>
@@ -12995,8 +12710,8 @@ shows there: see [Replay a bug report](./replay-a-bug-report).
 **Replay** plays a [bug report](./report-a-bug)'s steps again in a tab, with a cursor that moves to each element and a
 caption saying what it does, then says whether the bug shows there. It suits the developer who receives the report:
 open the app on your own dev server, and the steps run there, with your session and your browser's developer tools at
-hand, or [with Playwright](#running-it-with-playwright) in the desktop app. Recording a report is on
-[Report a bug](./report-a-bug), and what an instance keeps on [Bug reports](./bug-reports).
+hand, or [with Playwright](#running-it-with-playwright) in the desktop app. Recording a report:
+[Report a bug](./report-a-bug); what an instance keeps: [Bug reports on your instance](./bug-reports).
 
 <figure>
   <video src="/videos/picker-replay-loop.mp4" autoplay loop muted playsinline controls aria-label="Replaying a bug report on a cart page: the cursor fills the coupon, clicks Apply and checks the total, and the verdict says the bug shows here, the total reading 50 instead of 45"></video>
@@ -13118,12 +12833,12 @@ result does not hold, **not reproduced** when the test passes, or **diverged** a
 ## Related
 
 - [Report a bug](./report-a-bug): recording the report Replay plays
-- [Bug reports](./bug-reports): the reports kept on your instance
+- [Bug reports on your instance](./bug-reports): the reports kept
 - [Bug report file format](/reference/bug-report-file): what a `.piwibug` holds
 
 <!-- https://piwitests.dev/features/bug-reports -->
 
-# Bug reports
+# Bug reports on your instance
 
 A tester who [reports a bug](./report-a-bug) in Piwi Picker can send it to your Piwi instance. Piwi keeps it with its
 steps and the evidence the tester chose to send; writes it as a failing Playwright test for
@@ -13325,7 +13040,7 @@ While a run's [**Hold failures**](./watch-a-run#hold-failures), a switch on each
 its line: **Failed at** in red, its error under it. **Resume** lets it end as it failed; **Pick** replaces the failing
 locator.
 
-**Share live**, under the run's name, shares the run with your team: [Share a run live](./share-live).
+**Share live**, under the run's name, shares the run with your team: [Share a local run live](./share-live).
 
 ### Who drives a stop
 
@@ -13357,7 +13072,7 @@ code went to the editor, with what to review in it, or why not.
 ## Watch a test {#watch-live}
 
 **Watch**, on a worker's row, shows its test's page as it paints, running or stopped, the controls above the view at a
-stop and the stopped worker scrolled into view, and **Pause and watch** pauses it too: [Watch a running test](./watch-running-test). An older reporter's row says to update it; with one newer than
+stop and the stopped worker scrolled into view, and **Pause and watch** pauses it too: [Watch a local test](./watch-running-test). An older reporter's row says to update it; with one newer than
 0.61.0, its stops have their own **Watch**, which watches each stop alone and, left on, the worker's next ones.
 
 The view fills the window's width under a red **Live** badge. Only the window that asked gets the frames
@@ -13423,7 +13138,7 @@ and **Mock a request** goes to the app's window to copy, as the window here says
 
 # Desktop app
 
-The desktop app runs the **entire dashboard on your machine**, with no Docker, no `npx` and no server to set up. It
+The desktop app runs the **entire dashboard on your machine**, with no Docker, `npx` or server to set up. It
 bundles the Docker image's server in a native window and adds what only a local app can. Its runs:
 [Local runs tray](./local-runs-tray) for each run, [Desktop app runs](./desktop-runs) for each worker.
 
@@ -13452,7 +13167,7 @@ What each installer needs:
 The installers, [Piwi Runner](./piwi-runner)'s too, are **unsigned**: on macOS, open the app
 once, then **Open Anyway** in **Privacy & Security**; on Windows, **More info** then **Run anyway** in SmartScreen.
 
-Where its data lives, and how to back it up: [the desktop app's data](/operate/backup-restore#the-desktop-app).
+Its data, and how to back it up: [the desktop app's data](/operate/backup-restore#the-desktop-app).
 
 The system tray menu holds **Open Piwi Desktop**, each test running from the app with **Stop** (the machine kept
 awake meanwhile), **Open data folder**, **Show logs**, **Run in background** (off, closing the window quits), **Start
@@ -13557,7 +13272,7 @@ The app serves the [MCP server](/features/mcp) with local tools a hosted instanc
 `apply_locator_fix` (a recommended locator fix applied to the file, previewed by default), and the
 [run tools](./desktop-runs#for-agents) for the runs it starts. It registers as `piwi-desktop`, beside a hosted Piwi.
 
-**Settings → MCP server** connects Claude Code, Cursor and the other clients it detects in one click:
+**Settings → MCP server** connects Claude Code, Cursor and other clients it detects in one click:
 [the desktop app's client setup](/features/mcp#in-the-desktop-app).
 
 ## Updates
@@ -13568,7 +13283,7 @@ signature-checked.
 
 ## Limits
 
-- **One machine, one user.** The app accepts results only from this machine; a team needs the
+- **One machine, one user.** It accepts results only from this machine; a team needs the
   [Docker image](/operate/deployment).
 - **Local runs need the checkout**: a linked folder with Playwright installed, plus `git` and your package manager for
   reproduce, bisect (one repository) and the lab.
@@ -13580,6 +13295,7 @@ signature-checked.
 - [Reporter](/guide/reporter#finding-the-desktop-app-automatically)
 - [MCP server](/features/mcp)
 - [Desktop app runs](/features/desktop-runs)
+- [Write, run and fix a test](./write-run-fix)
 
 <!-- https://piwitests.dev/features/desktop-runs -->
 
@@ -13621,7 +13337,7 @@ The tray opens at each stop, and tells you of one in the background:
 ## Watch
 
 **Watch**, on a running worker in the tray or its test on the run's page, shows its page as the test runs and at each
-stop, until you turn it off ([Watch a running test](./watch-running-test)).
+stop, until you turn it off ([Watch a local test](./watch-running-test)).
 
 At a stop of a worker nobody watches, **Watch** shows the stopped page as it paints, in place of its image, and stays
 on for the worker's next stops until you turn it off. [**Interact**](./watch-running-test#interact), beside it, plays
@@ -13824,7 +13540,7 @@ keeps the last 300 lines of each run's output through a reload.
 
 - [Desktop app runs](./desktop-runs): each worker, its stops, its page and the code a stop makes.
 - [Desktop app](./desktop): what it runs, and how it links a project to its folder.
-- [Share a run live](./share-live): let a teammate watch a run of the tray.
+- [Share a local run live](./share-live): let a teammate watch a run of the tray.
 
 <!-- https://piwitests.dev/features/run-on-my-machine -->
 
@@ -14533,6 +14249,60 @@ Extraction is deliberately conservative. A function that branches on its argumen
 - [MCP server](./mcp) — the `create_test_function` tool
 - [AI diagnosis](/features/ai-diagnosis) — **Extract** uses the research model when one is configured, otherwise the diagnosis model
 
+<!-- https://piwitests.dev/features/command-line -->
+
+# Command line
+
+The `@piwitests/reporter` package installs a command, `piwi`, for what happens around a test run. Run it through the
+package name, `npx @piwitests/reporter <command>`, or as `npx piwi <command>` once the reporter is a dependency of the
+project. This page says which command serves which moment; every flag, and how a command finds the dashboard and its
+API key, is on the [Piwi CLI reference](/reference/cli).
+
+## Setting up
+
+- **[`init`](/reference/cli#init)** wires a Playwright project up to a dashboard: the reporter, the
+  [capture fixtures](/guide/capture-fixtures), a `.env` and the [agent skills](./agent-skills).
+- **[`skills`](/reference/cli#skills)** installs or updates the agent skills in a project `init` did not set up.
+- **[`mcp`](/reference/cli#mcp)** serves the runs of this machine's editors and desktop app to a coding agent
+  ([Run control for agents](./agent-run-control)).
+
+## In CI
+
+- **[`gate`](/reference/cli#gate)** fails a job on the dashboard's analysis of the run: the
+  [CI merge gate](./merge-gate).
+- **[`rerun`](/reference/cli#rerun)** runs the tests a [re-run in CI](./ci-rerun) asked for, in a GitLab, Bitbucket
+  or Jenkins job.
+- **[`report`](/reference/cli#report)** prints a [quality report](./quality-reports), for a scheduler to post.
+- **[`coverage`](/reference/cli#coverage)** uploads another tool's coverage of a commit, for
+  [combined coverage](./combined-coverage).
+
+## Choosing the tests
+
+- **[`select` and `run`](/reference/cli#select-run)** resolve a saved [test selection](./test-selection), or the
+  tests a diff reaches ([Impact from a diff](./change-impact)), and print or run them.
+- **[`plan`](/reference/cli#plan)** plans a run that reuses the passes whose code has not changed
+  ([Reuse forecast](./reuse-forecast)), an experimental capability.
+- **[`probe`](/reference/cli#probe)** runs the dashboard's [probe plan](./probes).
+
+## Chasing a flaky test
+
+- **[`flake`](/reference/cli#flake)** makes a flaky test fail on demand under its suspects' conditions, then verifies
+  the fix ([Flake Lab](./flake-lab)).
+
+## Writing and fixing a test
+
+- **[`codegen`](/reference/cli#codegen)** turns a Piwi Picker recording into a spec ([Record actions](./record-actions)).
+- **[`bug`](/reference/cli#bug)** writes a [bug report](./bug-reports)'s failing test into the project and runs it.
+- **[`preflight`](/reference/cli#preflight)** lists the test locators your change breaks, and fixes them
+  ([Locator preflight](./preflight)).
+- **[`ai`](/reference/cli#ai)** manages the committed artifacts of [AI steps](./ai-steps).
+
+## Related
+
+- [Piwi CLI](/reference/cli): every command and flag
+- [Write, run and fix a test](./write-run-fix): the loop the editor, Piwi Picker and the desktop app share
+- [Reporter](/guide/reporter): the package the command ships in
+
 <!-- https://piwitests.dev/operate/deployment -->
 
 # Deployment
@@ -14958,7 +14728,7 @@ point it isn't one click. [Deploy it](./deployment) to a machine with Docker ins
 
 ## Railway
 
-Railway publishes templates from its own dashboard rather than from a file in this repository, so the
+Railway publishes templates from its own console rather than from a file in this repository, so the
 template's exact contents live in
 [`deploy/railway/template.md`](https://github.com/PiwiTests/piwi/blob/main/deploy/railway/template.md)
 and the repo ships a [`railway.json`](https://github.com/PiwiTests/piwi/blob/main/railway.json) pinning
@@ -15428,7 +15198,7 @@ same 403, that says an administrator or a Project admin of that project can gran
 Run the reporter in CI as a dedicated Member with the **Uploader** role, through its own
 [API key](./api-keys#using-the-api-key-in-the-reporter): a leaked CI key can then read and upload, never triage, delete
 or change anything. Grant it on All projects when CI should create
-projects from a new project name, else on the projects it reports to. A CI account that the upgrade from the three
+projects from a new project name, else on the projects it reports to. A CI account that the upgrade to project
 roles made a Maintainer narrows the same way.
 
 > **Try it in the demo:** the [live demo](https://piwitests.dev/demo/) ships with seeded identities, from an
@@ -15653,14 +15423,15 @@ Declining instance-wide is for administrators, and per project for the project's
 
 - [Getting started](/guide/getting-started): connect a first suite
 - [All features](/reference/features): every capability and what it needs
-- [Integrations](./integrations): connect the external services some capabilities use
+- [Jira Cloud](./integrations) and [Zephyr Scale Cloud](./zephyr-scale): connect the issue tracker and the test management tool some capabilities use
 
 <!-- https://piwitests.dev/operate/integrations -->
 
-# Integrations
+# Jira Cloud
 
-Connect an issue tracker, bind a project to it, and the project's links to the tracker stop being dead URLs: Piwi
-fetches the ticket's title and status through the connection and keeps the badge current when you refresh. Jira Cloud is the supported tracker, not Jira Server or Data Center. This page sets up the connection; filing and syncing
+Connect Jira Cloud under **Settings → Integrations**, bind a project to it, and the project's links to Jira stop
+being dead URLs: Piwi fetches the ticket's title and status through the connection and keeps the badge current when
+you refresh. Jira Server and Data Center are not supported. This page sets up the connection; filing and syncing
 issues from a failure is [Issue tracking (Jira)](/features/issue-tracking). Zephyr Scale Cloud has
 [its own page](./zephyr-scale).
 
@@ -15923,20 +15694,9 @@ Project admin on the project; the hover cards need only read access to it.
 ## Related
 
 - [Results in Zephyr Scale](/features/test-management): when a run is sent, what is sent and Sync again
-- [Integrations](./integrations): the Jira Cloud connection and how connections are managed
+- [Jira Cloud](./integrations): the Jira Cloud connection and how connections are managed
 - [Production checklist](./production-checklist): `PIWI_SECRET_KEY`, which encrypts the stored token
 - [Configuration reference](/reference/configuration#integrations): the integration variables
-
-<!-- https://piwitests.dev/reference/configuration/generator -->
-
-# Configuration generator
-
-Build a ready-to-paste configuration for a self-hosted Piwi Dashboard — as a `.env` file, systemd unit or shell exports; a Docker Compose service, `docker run` command or Kubernetes ConfigMap + Secret; or a hosting-platform manifest for [Railway, Render, Fly.io, Koyeb or Coolify](/operate/deployment#one-click-deploy). Everything below is driven by the same typed registry as the [configuration reference](../configuration), so options, defaults and validation always match your server.
-
-## Related
-
-- [Configuration reference](../configuration): every variable, its default and its limits
-- [Deployment](/operate/deployment): where the generated configuration goes
 
 <!-- https://piwitests.dev/operate/database -->
 
@@ -16025,7 +15785,7 @@ two backends. Runs, test cases and settings live in the [database](./database) i
 long runs are kept: [retention](#data-retention), [runs kept forever](#keeping-runs-forever) and manual cleanup.
 
 Every variable below is an ordinary environment variable: pass it to the container, put it in your
-`.env`, or set it in your host's dashboard. The
+`.env`, or set it in your host's console. The
 [configuration generator](/reference/configuration/generator) will write the block for you.
 
 ## Local storage (default)
@@ -16623,6 +16383,450 @@ failures join a cluster per file they fail in.
 - [Backup & restore](./backup-restore) — what to back up and how
 - [Deployment → Available tags](./deployment#available-tags) — what to pin
 - [Changelog](https://github.com/PiwiTests/piwi/blob/main/CHANGELOG.md) — breaking changes per release
+
+<!-- https://piwitests.dev/guide/concepts -->
+
+# Glossary
+
+Every word the documentation and the dashboard use, each defined in a few lines with a link to the page that holds its
+rule. A word that names two things elsewhere keeps one meaning here, and [Words kept to one meaning](#words-kept-to-one-meaning)
+names the others. New to Piwi? [Core concepts](./core-concepts) reads the dozen words a first run meets, with the object
+model.
+
+## The object model
+
+How projects, test runs, test cases, executions and failure clusters hold each other:
+[Core concepts](./core-concepts#the-object-model).
+
+## Results
+
+### Project
+
+A named container for one suite's results, usually one repository or one suite within it. A project is created the
+first time results arrive under a new `projectName`, and carries its own tags, [role grants](#role-and-group), source
+control connection, default branch, capability decisions and AI-diagnosis instructions; retention is set for the
+whole instance ([Storage & retention](/operate/storage)). Its **status** is the outcome of its latest run, or of its
+[status filter](/features/branches#the-project-status)'s.
+
+### Test run
+
+Everything one `npx playwright test` invocation produced: counts, duration, the HTML report, CI and git metadata, and
+its [executions](#execution). One CI pipeline's shards make one run ([Sharding](./ci#sharding)), and
+a run fills in while it goes ([Live streaming](./reporter#live-streaming)). A run **ran to its end** when it passed,
+failed or hit the global timeout; only such runs count in [a project's health](/reference/test-metadata#how-a-result-counts).
+A **requested run** is one a person asked for from the dashboard and ran on their own machine
+([Run on my machine](/features/run-on-my-machine#a-requested-run-is-yours-alone)).
+
+### Test case
+
+The **identity of a test across time**: its project, file, `describe` path and title. It is created and reused as
+results arrive, never submitted, so renaming a test or moving its file makes a new one
+([External test IDs](/reference/test-metadata#external-test-ids)). It is browser-independent: `login.spec.ts › signs
+in` is one test case on every browser of your matrix. "This test is flaky" is a statement about a test case. What a
+**run** of a test is on its pages: [How a result counts](/reference/test-metadata#how-a-result-counts).
+
+### Execution
+
+**One attempt of one test case, in one run, on one browser**: the error, steps, trace, screenshots and the diagnosis
+of one failure. A retry is an execution of its own, and so is each `--repeat-each` repetition. The docs also call it a
+*test-run case*. "Here is the stack trace" is a statement about an execution. When a test counts as flaky, failed or
+**interrupted** in a run, and how every view reads it: [How a result counts](/reference/test-metadata#how-a-result-counts).
+
+### Pass rate
+
+**The share of a test's, a run's or a project's results that passed**, counted over the results that passed or
+failed, so skipped tests do not lower it. Every view computes it by one rule, and shows a dash rather than a number
+when nothing passed or failed: [How a result counts](/reference/test-metadata#how-a-result-counts).
+
+### Flaky rate
+
+**The share of a test's runs that passed only on a retry**, over the same runs the [pass rate](#pass-rate) counts. A
+file's or a directory's flaky rate reads its tests' runs the same way. The [flakiness score](#flakiness-score) and
+Flake Lab's rate are other numbers: [How a result counts](/reference/test-metadata#how-a-result-counts).
+
+### Baseline (last green run)
+
+**The earlier run a run is compared with** to answer "what changed?": by default the same project's most recent
+passing run, chosen by environment first, then branch. The Changes tab, the regression signals, the CI gate,
+pull-request feedback and the AI diagnosis all read it, and so do the environment, visual and page diffs of one
+failing execution. Which run it is, and what happens when none passed: [The baseline](/features/run-changes#the-baseline).
+The default and base branches it falls back to: [Branches](/features/branches).
+
+### New regression, newly flaky
+
+**What a test did differently from the [baseline](#baseline-last-green-run)**: a **new regression** fails here and
+passed there; a **newly flaky** test passed here only on a retry and passed at its first attempt there. Both name a
+change between two runs, not its cause: a newly flaky test can be your change or an old flake. How to tell:
+[What newly flaky says about your change](/features/run-changes#what-newly-flaky-says-about-your-change).
+
+### Environment
+
+A free-text label on a run (`production`, `staging`, a preview URL, whatever you use), set with the reporter's
+`environment` option or `PIWI_ENVIRONMENT`. It is a **scoping** dimension, not a configuration one: flaky analysis,
+analytics and timeline markers can be narrowed to one environment, so a staging suite's noise doesn't blend into
+production's numbers.
+
+### Environment incident
+
+A **test run** whose failures come from the environment under test being down or broken (staging refusing
+connections, a host that does not resolve), not from the tests or the code. Piwi flags it when the run finishes, or a
+person marks it, and leaves it out of the analysis that would blame the tests: see
+[What a flagged run changes](/features/environment-incidents#what-a-flagged-run-changes).
+
+### Tags & ownership
+
+Two ways to say what a test *is*, both declared in the spec file. **Tags** come from Playwright (`@smoke`); they slice
+the test catalog and the flaky leaderboard, and a [CI merge gate](/features/merge-gate) rule can require one.
+**Ownership metadata** comes from `piwi:` annotations such as `piwi:owner`: who answers for the test, shown as badges
+and carried into pull-request feedback. A test with no owner annotation takes its owner from `CODEOWNERS`. Accepted
+values and the fallback: [Test metadata](/reference/test-metadata#test-tags).
+
+## Live runs
+
+The words every tool uses for a run while it goes ([Follow a run](/features/watch-a-run)).
+
+### Run number
+
+**A run's id on the instance it reports to, `#78`, and its page there.** The reporter learns it as the run starts and
+tells it to the editor or the desktop app that follows the run, so every tool links the same page
+([The run's number and page](/features/watch-a-run#the-run-s-number-and-page)).
+
+### Run name
+
+**The name a run carries before it has a number** (`piwiRunRef` in its metadata): the one its launcher gave it, an
+editor's ref or a run request's id, else one Piwi makes up for a run outside CI. A CI run has none: its number names
+it. See [Test metadata](/reference/test-metadata#run-origin).
+
+### Worker
+
+**One of the run's Playwright processes, named by its lane, `Worker 2`.** A worker Playwright starts again after a
+failure takes the same lane ([Worker lanes](/reference/test-metadata#worker-lanes)).
+
+### Stop
+
+**A test standing at a call, waiting to be answered:** at a breakpoint, after a step, at a Pause, at `page.pause()`,
+or at a failure held for a look. Each tool names it by why it stopped, in the same words
+([Where a test stopped](/features/watch-a-run#where-a-test-stopped)). A test ended there is skipped
+([End the test](/features/end-the-test)). How the test timeout and the dashboard's durations treat the time paused:
+[Time paused at a stop](/features/slow-tests#time-paused-at-a-stop).
+
+### CI position
+
+**The call a running test of a CI run is at, in your code:** a plain, read-only mark at the end of its line in the
+editors. Never a stop: nothing waits there, and no tool answers it. Which CI runs the editor and Piwi Picker follow:
+[A CI run of your branch](/features/editor-ci-runs).
+
+### Hold failures
+
+**Whether a failed test waits at its line for an answer, in one run.** Off, a failure goes on at once, as without
+Piwi. Some runs start with it on, any tool that follows a run can turn it on or off, and a run nobody attends never
+holds a failure. Which runs, and what a held test keeps: [Hold failures](/features/watch-a-run#hold-failures).
+
+### Presence, driving a stop
+
+**Who else is on a run, and who acts at its stop.** Each tool says which others have the run open, who watches each
+worker's page, and who drives a stop. One tool drives a stop at a time, a person or an agent, and a person can take
+the stop from an agent. How a stop is taken and given back:
+[Who drives a stop](/features/runs-window#who-drives-a-stop).
+
+### Watch, Share live
+
+**Watch** shows a worker's page live, in your editor, Piwi Picker or the desktop app
+([Watch a local test](/features/watch-running-test)). **Share live** lets a teammate watch a run on your machine
+from its page on the team instance ([Share a local run live](/features/share-live)), where a CI run is watched in the
+[live view](/features/live-view), every worker at once with [Watch all](/features/watch-all), and a running page read
+as a document with [Inspect](/features/live-inspect). What each sends and keeps is on those pages.
+
+### Trace so far
+
+**A running test's trace up to now, opened in Playwright's trace viewer** on the machine the run runs on, with **Open
+the trace so far**. The attempt must be traced. Where the button shows and what it needs:
+[Open the trace so far](/features/watch-running-test#open-the-trace-so-far); the desktop app's **Inspect**, which reads
+the same trace: [Desktop app runs](/features/desktop-runs#watch).
+
+### Verification
+
+**A test run several times without retries and without the breakpoints, to see how often it passes** (**Verify ×3**
+in the editors). It says how many of its repetitions passed (`Passed 3 of 3`, `Failed 1 of 3`) and never holds a failure.
+How it counts and what it says: [When your run ends](/features/editor-runs#when-your-run-ends).
+
+## Failures
+
+### Error fingerprint & failure cluster
+
+The **error fingerprint** is a hash of a failed execution's error with what changes from one occurrence to the next
+masked out: numbers, ids, URLs, timestamps, an assertion's values. Every failed execution sharing a fingerprint joins
+one **failure cluster**, so fifty red tests from one broken endpoint become one cluster you triage once, with a status
+(open / resolved / ignored) and a note. What is masked, and when clusters merge:
+[How failures are grouped](/features/failure-clusters#how-failures-are-grouped).
+
+### Story
+
+The **one explanation** a failure page leads with when several [clues](/features/evidence#clues) (deterministic,
+rule-based findings) form a known combination: *"the Pay button stayed disabled because POST /api/checkout/quote was
+still in flight"*, at the strongest member's strength, with every clue folded under it. The combinations, and what
+leads instead: [Clue rules](/reference/clues#stories).
+
+### Situation
+
+The **context** of a failing execution, on its page: since when it has been failing and whether a newer execution
+failed again or passed, then the cluster it joins, its status and its issue. It also reads, condensed, in
+[alerts](/features/notifications). Each line: [Your first failure, explained](./first-failure).
+
+### Next step
+
+The **one recommended action** a failure page leads with, chosen by a policy rather than offered as a menu: apply a
+diagnosed patch, replace a broken locator, reproduce locally, re-run in CI, mark a cluster resolved. Every other action
+lives in the toolbox. The policy and its order: [Fix plans](/features/fix-plans#the-next-step).
+
+### Cluster state
+
+Where a **failure cluster** stands, in one sentence with one verb next to a colored dot (*still failing*, *stopped
+failing*, *regressed*, …). It reconciles the human triage status with what the runs show, and offers the action that
+closes a gap between them. Every state and which runs count: [The state line](/features/failure-clusters#the-state-line).
+
+### Flakiness score
+
+A test case's **score** from how often it passed only on a retry and how often its status flips across runs, with a
+**root-cause class** and an **impact ranking** by the CI time it wastes. It is a property of the test case, computed
+over its history, so a test needs a few runs before it can be called flaky. The weights and the classes:
+[Flaky tests](/features/flaky-tests#flaky-test-detection).
+
+### Flake experiment
+
+A `piwi flake` session on one flaky test: a **control arm** with no condition, then one **arm** per suspect, each
+applying the suspect's condition (a delayed route, another test alongside) with retries off. An arm **reproduced** the
+flake when it fails, with the test's own error, significantly more often than the control; a **verify** experiment reruns
+that arm after a fix. The verdicts: [Flake Lab](/features/flake-lab#reading-the-verdict).
+
+### Fix attempt
+
+A change a person or an agent reports having made to fix a failure cluster (a patch, a locator edit, a fix plan
+carried out), on a commit or a branch. It is recorded **applied**, then **verified** when the cluster's tests pass on a
+run that carries it, or **regressed** when the cluster fails again. See
+[Agent skills](/features/agent-skills#what-agents-report-back).
+
+### Locator snapshot
+
+What an element looked like when a locator call on it succeeded (role, accessible name, test id, structural anchors),
+recorded by the [capture fixtures](./capture-fixtures) and keyed by the **call site** (`file:line`) rather than the
+selector text. When that locator later fails, its snapshots are what Piwi ranks replacement locators from. See
+[Locator healing](/features/locator-healing#what-it-does).
+
+## Analytics
+
+### Metric, dashboard and quality report
+
+A **metric** is a named number with one definition every surface reads ([Analytics](/features/analytics)). An
+**analytics dashboard** is a named arrangement of widgets with a default scope ([Dashboards](/features/dashboards)); *the dashboard* alone means the Piwi web app. A **quality report**
+is an analytics dashboard rendered as a document, not the run's Playwright **run report**; a **report schedule** sends
+it on a cadence, and each one sent is kept as a **report snapshot** ([Quality reports](/features/quality-reports)).
+
+## Test Map
+
+The **Test Map** is one graph per project of what the application exposes (pages, controls, links, routes, the
+handlers and dependencies behind them) and which tests reach each of them. See
+[Scenario gaps & the Test Map](/features/scenario-gaps).
+
+### Reach
+
+A test **reaches** a route, a page, a control or a link when a run observes it doing so: a request to the route, a
+locator call on the page, a locator that names the control. Triage can record reach too. The route and page gaps are
+read from observed reach; the code detectors read coverage. Only a trusted test's reach counts in full. The rules:
+[Gap detectors & exposure](/reference/gap-detectors#detectors).
+
+### Feature and hub
+
+A **feature** is a product area named by the [`piwi:feature` tag](/reference/test-metadata) on tests. It groups what
+those tests reach, and what they miss nearby. A **hub** is a node most tests reach, such as a session route: it belongs
+to no one feature. See [how features group](/reference/gap-detectors#features).
+
+### Code reach
+
+The application source files a test executed, in the page from Chromium's JavaScript coverage with
+[code reach](/features/code-reach) on, in the backend with [server coverage](/features/server-coverage) on: observed
+reach at file level, never line coverage. It feeds [impact-from-diff](/features/change-impact) and
+[Uncovered changes](/features/uncovered-changes).
+
+### Coverage
+
+Which source code a test ran, per file and **runtime** (`browser` or `server`), at a **granularity**: the files only,
+the functions that ran, or the executed lines too. [Code reach](#code-reach) is its file-level view. A test's coverage
+is **incomplete** when part of it could not be collected. The granularities and their cost:
+[Coverage cost](/reference/coverage-cost).
+
+### Coverage report and suite
+
+A **coverage report** is one tool's coverage of one suite's whole run at one commit, attributed to no test. A
+**suite** is the tests a report comes from, named when uploading (`unit-back`), of kind `unit` or `e2e`; not
+Playwright's `describe` block. The **coverage scope** decides which files a project's coverage counts. See
+[Combined coverage](/features/combined-coverage).
+
+### Coverage and the Test Map
+
+Two answers to "what do the tests miss". **Coverage** measures the code: which lines and functions ran, as a ratio;
+the lines no test or suite ran are **lines not run**. The **Test Map** measures the application: which routes, pages
+and controls the tests reach; what they miss becomes a [scenario gap](#scenario-gap), never a percentage. They meet on
+the project's [Coverage tab](/features/scenario-gaps#the-coverage-tab) and on a
+[file's coverage page](/features/code-reach#which-tests-run-a-file).
+
+### Uncovered change
+
+A changed file of a pull request that no test reached and no suite ran a changed line of. One rule decides it for the
+pull-request comment, the gate, MCP and the *changed, unreached* gap. **Patch coverage** is the same question by line:
+the share of the changed lines that ran. See
+[Uncovered changes](/features/uncovered-changes#one-rule-for-every-changed-file).
+
+### Reusable result
+
+A test result whose code had already passed unchanged: an earlier pass of the same test ran the same file versions, so
+the run could have kept that pass instead. A reusable result that failed came from the test, its data or its
+environment. See [Reuse forecast](/features/reuse-forecast#what-counts-as-reusable).
+
+### Suspect lines
+
+The lines changed since a failing test's last passing run that the failing tests executed, read from their
+[coverage](#coverage), ranked by how few passing tests executed them too. The failure pages, the cluster's diff, the
+AI diagnosis and the fix plan name them. How they are ranked:
+[Suspect lines](/features/server-coverage#suspect-lines).
+
+### Locator index
+
+The locator chains each test used in its steps, recorded per branch and per Playwright project. It answers which tests
+use a locator, and it feeds [Who uses a locator](/features/locator-usage) and
+[Tested elements](/features/tested-elements).
+
+### Locator break
+
+A locator of the index that a change stops matching: the diff removes or renames a string one of its calls finds the
+element by. [Locator preflight](/features/preflight) lists them, *likely* or *possible*.
+
+### Page key
+
+A page's URL reduced to its path pattern, ids replaced by placeholders: `/orders/123?tab=items` and `/orders/456` are
+both `/orders/:id`, on staging and in production alike. The Test Map's page nodes, the page each locator was used on
+and Piwi Picker's **This page** all use it. The rules: [What the graph includes](/reference/gap-detectors#what-the-graph-includes);
+Piwi Picker's path prefixes: [URL patterns](/features/extension-connection#url-patterns).
+
+### Brittle locator
+
+A locator a test uses that breaks on a change unrelated to what the test checks: a position, a styling class, the
+document structure, a generated id. Piwi judges each locator of the index *brittle*, *watch* or *stable*; see
+[Locator stability rules](/reference/locator-stability). Not to be confused with the *fragile*
+[gap class](#gap-class), which is about the tests reaching a node, not a locator.
+
+### Scenario gap
+
+A test the suite does not have yet, proposed from the Test Map with its evidence and a next step: a route no test
+reaches, a control nobody exercises, a changed file no test reaches. A gap is triaged like a failure cluster: accept
+it, snooze it, dismiss it with a reason, or mark it covered by an existing test ([Triage](/features/scenario-gaps#triage)).
+
+### Gap class
+
+How serious a gap is: **blind-spot** (nothing exercises it), **false-comfort** (the tests pass without checking it)
+or **fragile** (what reaches it could stop at any time). Server probes report **findings** instead, **unhandled** or
+**degraded**. What each class covers: [Detectors](/reference/gap-detectors#detectors).
+
+### Detector
+
+A rule that reads the Test Map and the run history and reports one kind of gap, such as *declared, never hit* or
+*single covering test*. Each gap names the detector that raised it; [Gap detectors & exposure](/reference/gap-detectors)
+lists them all.
+
+### Exposure
+
+How much a gap's node matters, from how often its files change and for how long, whether they were part of an earlier escaped
+failure, and the priority of the tests that reach it. A gap's score, which ranks it, is its exposure times the
+detector's confidence. The factors: [Exposure](/reference/gap-detectors#exposure).
+
+### Probe
+
+A re-run of a passing test with one injected fault (a 500, an empty body, a dropped field, a slow response),
+recording whether the test noticed. A client probe injects the fault at the Playwright boundary; a server probe asks
+the [backend instrumentation](./backend-logs#server-probes) to inject it inside the server. A **probe run** is marked
+as one ([What a probe run never counts](/features/probes#what-a-probe-run-never-counts)).
+
+### Declared surface
+
+The routes and pages the application says it has, from the instrumentation's route manifest, a committed
+`piwi.manifest.json` or an OpenAPI document, as opposed to the ones tests reached. A declared route nothing reaches
+is a *declared, never hit* gap ([Declared surface](/features/scenario-gaps#declared-surface)).
+
+### Page inventory
+
+The controls (role and accessible name) and links the reporter records on the pages a passing run visits, so the Test
+Map knows what a page offers beyond what the tests clicked. Off by default: turn it on with `capturePageInventory`.
+What it reads and keeps: [What the graph includes](/reference/gap-detectors#what-the-graph-includes).
+
+### Map health
+
+How complete a project's Test Map is, per input (the page inventory, route handlers, probes, the declared surface,
+change history…), with the detectors each input wakes. A quiet Gaps view can mean a map that cannot see; the panel
+names the step behind each input that is short ([Map health](/features/scenario-gaps#map-health)).
+
+### URL pattern
+
+A glob over a page's whole address that ties the pages of a site to a project, with an optional environment and
+branch. Each project keeps its own list, and the browser extension reads them to know which project the page it is
+on belongs to. See [Extension connection](/features/extension-connection#url-patterns).
+
+## Access
+
+### Role and group
+
+With [authentication](/operate/authentication) on, every account holds an **instance role**, **Administrator** or
+**Member**. A Member's rights in a project come from the **project roles** they hold there, granted on one project or
+on all of them. A **group** is a named set of users that receives project roles the way a user does. See
+[Access, roles and groups](/operate/project-access).
+
+## Words kept to one meaning
+
+Some words name two things across the docs, the dashboard and the tools. Each keeps the meaning in the middle column
+on these pages; the others take the name on the right, or are told apart by the place they are in.
+
+| Word | Means | The other senses |
+|---|---|---|
+| stop | A test standing at a call ([Stop](#stop)) | **Stop**, in bold, is a button's label: it ends a run, a recording or an answer |
+| share | **Share live**: a teammate watches a run on your machine | **Share with Playwright tools** binds a stopped test's browser for Playwright's tools; a [share link](/features/share-links) is a signed read-only link |
+| On your machine | A run on a developer's machine: the run page's card for a desktop run and the mark of a [requested run](#test-run) | none |
+| run | A [test run](#test-run) | A test's result in a run is a *run of a test* ([How a result counts](/reference/test-metadata#how-a-result-counts)); one of the times Flake Lab or a verification runs a test is a *repetition* |
+| environment | The label a run carries ([Environment](#environment)) | The app a run tests is the *environment under test* ([incident](#environment-incident)); the machine a run executed on is its [run environment](/features/run-environment); the flaky class `environment` means one browser, or one runner time zone or locale, fails |
+| wasted | [Wasted time](/features/slow-tests#wasted-time): waits plus failed attempts, as Analytics counts it | The flaky list's *wasted CI minutes* of one test are its retry passes times its average failed attempt |
+| coverage, reach | [Coverage](#coverage): the code a test ran; [reach](#reach): what a run observed a test touch | [Code reach](#code-reach) is coverage at file level; *Uncovered changes* and the **Coverage** tab keep their names |
+| diverged | The dashboard's verdict for a replay that could not play a step | Piwi Picker says *Could not reach the bug* ([Replay a bug report](/features/replay-a-bug-report)) |
+| picker | **Piwi Picker**, always with its name, is the browser extension | A tool that turns a click into locators is named by where it works: the dashboard's *snapshot picker* (**Pick from snapshot**, **Open in picker**), the trace viewer's *Pick locator*, the *failure-time picker* in a local run's browser |
+| dashboard | The web app a Piwi instance serves | A saved set of Analytics widgets is an [analytics dashboard](/features/dashboards); a hosting provider's web console is its *console* |
+| report | Always with its kind | *quality report*, *HTML report* of a run, *offline export*, *bug report*, Playwright's *blob report* |
+| test case | A test's identity across time ([Test case](#test-case)) | One attempt of it is an [execution](#execution) |
+| project | A Piwi [project](#project), named by the reporter's `projectName` | A *Playwright project* (a `projects` entry of the config, whose name the `browser` field records) is always called so; the reader's code is their *repository* |
+| integration | A *backend integration*: an instrumentation package in the app under test ([Backend instrumentation](./backend-logs)) | **Settings → Integrations** holds the *connections* to [Jira Cloud](/operate/integrations) and [Zephyr Scale Cloud](/operate/zephyr-scale); **Integrations** is also the group of a project's Settings that binds those connections and CI |
+| baseline | The run a run is compared with ([Baseline](#baseline-last-green-run)) | A visual snapshot, a pinned commit or a starting value is named by what it is |
+| exposure | How much a gap's node matters ([Exposure](#exposure)) | none |
+| finding | Always with its kind: a *resilience finding* (the app did not cope with a server probe), a *leak finding* | A [clue](/features/evidence#clues) is a rule-based finding about one failure |
+| verified | Always with its noun: *diagnosis verified*, *verified fixed*, a *verified* fix attempt, a [verification](#verification) | none |
+| class | Always with its kind: the flaky *root-cause class*, the [gap class](#gap-class) | none |
+| Performance, Timeline | A tab or a page, named by its place: **Project → Performance**, **Settings → Performance**, a run's **Timeline** tab | [Timeline markers](/features/timeline-markers) are the events drawn on the trend charts |
+
+## Where each concept lives in the UI
+
+The page and URL of each object of the model: [Core concepts](./core-concepts#where-each-concept-lives-in-the-ui).
+
+## Related
+- [Core concepts](./core-concepts) — the words a first run meets
+- [Getting started](./getting-started) — get results flowing in
+- [UI overview](/features/ui-overview) — a map of every page
+- [Reporter](./reporter) — how each of these objects gets populated
+
+<!-- https://piwitests.dev/reference/configuration/generator -->
+
+# Configuration generator
+
+Build a ready-to-paste configuration for a self-hosted Piwi Dashboard — as a `.env` file, systemd unit or shell exports; a Docker Compose service, `docker run` command or Kubernetes ConfigMap + Secret; or a hosting-platform manifest for [Railway, Render, Fly.io, Koyeb or Coolify](/operate/deployment#one-click-deploy). Everything below is driven by the same typed registry as the [configuration reference](../configuration), so options, defaults and validation always match your server.
+
+## Related
+
+- [Configuration reference](../configuration): every variable, its default and its limits
+- [Deployment](/operate/deployment): where the generated configuration goes
 
 <!-- https://piwitests.dev/reference/coverage-cost -->
 
@@ -17377,9 +17581,9 @@ A complete `local` or `desktop` run, a `preflight` run and a `piwi bug` run send
 The reporter also records browser project configs, worker count, the global timeout, and parallel settings. A sharded
 run keeps the configuration of the shard that began it, and each shard's own worker count under `shards`.
 
-### Browser configuration per test case
+### Browser configuration per execution {#browser-configuration-per-test-case}
 
-The reporter automatically captures each test case's Playwright project configuration — `projectName`, `browserName` (a `devices` preset's `defaultBrowserType` when the project sets none), `channel`, `viewport`, and the rendering options `colorScheme`, `reducedMotion`, `forcedColors` and `contrast` (Playwright 1.63's standalone contrast option) — via `test.parent.project()`. This is stored in the `browser` field of every test case result and feeds the [environment diff](/features/evidence#one-execution-diagnosis-first) that compares a failing execution against its last passing one.
+The reporter automatically captures each execution's Playwright project configuration — `projectName` (the Playwright project's name, not the reporter's `projectName` option, which names the Piwi project), `browserName` (a `devices` preset's `defaultBrowserType` when the project sets none), `channel`, `viewport`, and the rendering options `colorScheme`, `reducedMotion`, `forcedColors` and `contrast` (Playwright 1.63's standalone contrast option) — via `test.parent.project()`. This is stored in the `browser` field of every execution and feeds the [environment diff](/features/evidence#one-execution-diagnosis-first) that compares a failing execution against its last passing one.
 
 In the dashboard UI, every row of a run's Tests tab shows the browser icon (from the channel, else the engine, else the project name), and `browser:<project name>` in its [search](/reference/test-search) narrows the list to one project.
 
@@ -17391,7 +17595,7 @@ In the dashboard UI, **Group by: File + Describe** on a run's Tests tab groups t
 
 ### Test annotations (Playwright marks)
 
-The reporter captures Playwright test marks set via `test.info().annotations` (e.g. `@fixme`, `@slow`, `@skip`) and sends them as `testAnnotations` in every test case payload. These are stored per-run on the `test_runs_cases` table and rendered as badges on the test case row and test case detail page. A `@slow` mark combined with a test's duration history powers the **stale `test.slow()`** detection in [Timeout opportunities](/features/slow-tests#timeout-opportunities).
+The reporter captures Playwright test marks set via `test.info().annotations` (e.g. `@fixme`, `@slow`, `@skip`) and sends them as `testAnnotations` with every execution. These are stored per run on the `test_runs_cases` table and rendered as badges on the execution's row in the run and on the execution page. A `@slow` mark combined with a test's duration history powers the **stale `test.slow()`** detection in [Timeout opportunities](/features/slow-tests#timeout-opportunities).
 
 ### Test tags
 
@@ -17644,7 +17848,7 @@ where it passes. A test that runs in several browser projects looks fixed only w
 
 ### Per-test timeout
 
-The reporter records each test's effective per-test timeout (`TestCase.timeout`) and sends it as `timeout` (milliseconds) on every test case payload, stored on `test_runs_cases.timeout`. `0` means the test has no timeout (unbounded); runs reported by an older reporter that predates this field store `null`.
+The reporter records each test's effective per-test timeout (`TestCase.timeout`) and sends it as `timeout` (milliseconds) with every execution, stored on `test_runs_cases.timeout`. `0` means the test has no timeout (unbounded); runs reported by an older reporter that predates this field store `null`.
 
 Together with the test's duration history this drives the **Timeout opportunities** analysis (see [Slow tests & wasted time](/features/slow-tests#timeout-opportunities)), which flags tests whose timeout far exceeds their real p95 duration so failures and hangs stop wasting time waiting.
 
@@ -17652,7 +17856,7 @@ Together with the test's duration history this drives the **Timeout opportunitie
 
 The reporter distinguishes two outcomes that Playwright both reports as `skipped`:
 
-- **`skipped`** — an intentional skip via `test.skip()` / `test.fixme()` (static, conditional, or runtime). These always carry a `skip`/`fixme` annotation, so the skip reason (when provided) is preserved in `testAnnotations` and shown on the test case. The annotation also decides the grey the status bars draw: a `fixme` skip is counted apart from a plain `skip` (it stays part of `skippedTests`), so a test switched off as known broken does not blend into the deliberate skips.
+- **`skipped`** — an intentional skip via `test.skip()` / `test.fixme()` (static, conditional, or runtime). These always carry a `skip`/`fixme` annotation, so the skip reason (when provided) is preserved in `testAnnotations` and shown on the execution. The annotation also decides the grey the status bars draw: a `fixme` skip is counted apart from a plain `skip` (it stays part of `skippedTests`), so a test switched off as known broken does not blend into the deliberate skips.
 - **`didnotrun`** — a test that never actually executed. This covers three cases:
   - a test skipped as a side effect of an **earlier failure in a `describe.serial` group** (Playwright reports it as `skipped` with no annotation; the reporter reclassifies it);
   - a test of a project whose **[project dependency](https://playwright.dev/docs/test-projects#dependencies) failed**, such as the tests that need a `setup` project's login (Playwright runs none of them);
@@ -17814,7 +18018,7 @@ export default defineConfig({
 
 - [Reporter](/guide/reporter): install and configure the reporter
 - [Reporter options](/reference/reporter-options): every option and its `PIWI_*` variable
-- [Core concepts](/guide/concepts): test case, execution and the other terms these fields attach to
+- [Glossary](/guide/concepts): test case, execution and the other terms these fields attach to
 
 <!-- https://piwitests.dev/reference/steps-format -->
 
@@ -18108,7 +18312,7 @@ as a [steps file](/reference/steps-format#checks) is, and a file whose steps fai
 
 - [Report a bug](/features/report-a-bug): recording a report and what it collects
 - [Steps file format](/reference/steps-format): the format of `steps.json`
-- [Bug reports](/features/bug-reports): what the instance does with a report
+- [Bug reports on your instance](/features/bug-reports): what the instance does with a report
 
 <!-- https://piwitests.dev/reference/clues -->
 
@@ -18188,7 +18392,7 @@ names that diagnosis and its summary.
 
 - [Failure evidence](/features/evidence#clues): where the clues appear, with the evidence they cite
 - [Your first failure, explained](/guide/first-failure): the situation block the **Most likely** line belongs to
-- [Core concepts](/guide/concepts#story): the story
+- [Glossary](/guide/concepts#story): the story
 
 <!-- https://piwitests.dev/reference/locator-stability -->
 
@@ -18455,7 +18659,7 @@ The graph stays proportional to the application's surface, not its data volume:
 
 - [Scenario gaps & the Test Map](/features/scenario-gaps): the Coverage tab and triage
 - [Probes](/features/probes): the source of the false-comfort and resilience classes
-- [Core concepts](/guide/concepts#test-map): the Test Map vocabulary
+- [Glossary](/guide/concepts#test-map): the Test Map vocabulary
 
 <!-- https://piwitests.dev/reference/test-search -->
 
@@ -18626,7 +18830,7 @@ In the [assistant](/features/assistant#asking-a-question)'s question field:
 
 ## Failure inbox
 
-On the [failure inbox](/features/failure-clusters#triage-from-the-row-or-the-keyboard), the keys act on the selected
+On the [failure inbox](/features/failure-inbox#triage-from-the-row-or-the-keyboard), the keys act on the selected
 row. The triage actions need the Maintainer role or above on the project.
 
 | Keys | Action |
@@ -18683,7 +18887,7 @@ jump to the first / last column of the row. `Space` or `Enter` opens the focused
 
 - [UI overview](/features/ui-overview): the pages these keys move between
 - [Test search](/reference/test-search): the language of the Tests tabs' search box
-- [Failure clusters & the inbox](/features/failure-clusters): the triage actions
+- [Failure inbox](/features/failure-inbox): the triage actions
 - [Access, roles and groups](/operate/project-access#permission-grid): the permission grid
 
 <!-- https://piwitests.dev/reference/editor-commands -->
@@ -18762,11 +18966,11 @@ the test**, **Open the trace**, **Open the screenshot**, **Copy context for agen
 | **Piwi: Pause the run**, **Piwi: Resume the run**, **Piwi: Step to the next call**, **Piwi: Run to the cursor**, **Piwi: Finish the test**, **Piwi: End the test**, **Piwi: Stop the run** | [Pause and step from the editor](/features/editor-run-control) |
 | **Piwi: Go to the stopped line**, **Piwi: Show the paused page** | Open the line a test is stopped at, or an image of its page |
 | **Piwi: Turn hold failures on or off for the run** | Whether a failed test the pause bar does not show waits at its line, in this run |
-| **Piwi: Watch a worker's test**, **Piwi: Pause and watch a worker's test**, **Piwi: Open the trace so far** | [Watch a running test](/features/watch-running-test) |
+| **Piwi: Watch a worker's test**, **Piwi: Pause and watch a worker's test**, **Piwi: Open the trace so far** | [Watch a local test](/features/watch-running-test) |
 | **Piwi: Show the stopped test's browser** | Bring a headed run's browser window to the front |
 | **Piwi: Share the stopped test's browser with Playwright tools** | [Share with Playwright tools](/features/editor-run-control#share-with-playwright-tools) |
 | **Piwi: Open the page of a run of this window** | The page of a run this window started or follows, on the instance or the desktop app |
-| **Piwi: Open the branch's run in progress** | VS Code: open the run of the branch the instance is receiving: [Watch a run](/features/watch-a-run) |
+| **Piwi: Open the branch's run in progress** | VS Code: open the run of the branch the instance is receiving: [Follow a run](/features/watch-a-run) |
 
 ## Code at a stop
 
@@ -18779,7 +18983,7 @@ the test**, **Open the trace**, **Open the screenshot**, **Copy context for agen
 
 | Command | What it does |
 |---|---|
-| **Piwi: Share the run live on the team instance**, **Piwi: Stop sharing the run live** | [Share a run live](/features/share-live) |
+| **Piwi: Share the run live on the team instance**, **Piwi: Stop sharing the run live** | [Share a local run live](/features/share-live) |
 | **Piwi: Share this window's runs live until I stop**, **Piwi: Stop sharing this window's runs live** | Every run of this window, from now on |
 | **Piwi: Shared live: open the run page, copy its link or stop sharing…** | VS Code: the menu of the status bar's live item |
 
@@ -18990,6 +19194,6 @@ A channel with no secret sends no header. Webhook secrets are encrypted at rest.
 ## Related
 
 - [Notifications & alerts](/features/notifications): channels, subscriptions, digests and SMTP
-- [Failure clusters & the inbox](/features/failure-clusters): what triggers `cluster.new`, `cluster.fixed` and `cluster.regressed`
+- [Failure clusters](/features/failure-clusters): what triggers `cluster.new`, `cluster.fixed` and `cluster.regressed`
 - [AI diagnosis](/features/ai-diagnosis): what triggers `diagnosis.completed`
 - [Quality reports](/features/quality-reports#report-schedules): the schedules that send `report.ready`
