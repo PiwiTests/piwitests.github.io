@@ -10055,7 +10055,7 @@ works in VS Code (and Cursor, VSCodium) and in the JetBrains IDEs with the
 | Editor | Record at the cursor | Record a new test file |
 |---|---|---|
 | VS Code | **Piwi: Record here…**, from the command palette, the editor's context menu (**Piwi** submenu) or a spec's editor title; any editor's title shows **Stop recording** while one runs | **Piwi: Record a new test file…**, also in the explorer's **Piwi** submenu |
-| JetBrains IDE | **Tools → Piwi → Record here…**, **Alt+Enter** or **Alt+Insert** (Generate), or the editor's context menu (**Piwi** submenu) | **File → New → Record a new test file…**, or the project view's **Piwi** submenu |
+| JetBrains IDE | **Tools → Piwi → Record here…**, **Alt+Enter** or **Alt+Insert** (Generate), or the editor's context menu (**Piwi** submenu) | **New → Playwright test (recorded)…** on a folder of a Playwright config, or the project view's **Piwi** submenu |
 
 Before the browser opens, the editor asks for:
 
@@ -13933,8 +13933,8 @@ line** on the debugger's Show Execution Point key:
 - **The editor's and the project view's context menus** have a **Piwi** submenu, in the VS Code extension's order:
   run, then record. **Tools → Piwi** has six sections: run, record, a paused run, dashboard, agents, connection. Each
   menu leaves out what does not apply.
-- **[Recording](./editor-recording)** starts from **Record here**, Alt+Enter or Alt+Insert, and **File → New → Record
-  a new test file…**; its controls are in a banner above the editor.
+- **[Recording](./editor-recording)** starts from **Record here**, Alt+Enter or Alt+Insert, and **New → Playwright test
+  (recorded)…** on a folder of a Playwright config; its controls are in a banner above the editor.
 - **[A paused run](./editor-run-control)**: the line a run is stopped at, Piwi's or [one the IDE's own **Run**
   started](./terminal-runs), has an arrow in the gutter and an inlay above it with **Resume**, **Step**, **Run to
   caret**, **Finish** and **End test**; they are also in the status bar item's menu, after each stop to go to, and
