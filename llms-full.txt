@@ -9912,6 +9912,13 @@ in the extensions view) or the **[JetBrains Marketplace ↗](https://plugins.jet
 the reporter already uses: the `PIWI_*` variables in the environment or the workspace `.env`, or the
 [desktop app](/features/desktop). Otherwise, run **Piwi: Connect…** (**Settings → Tools → Piwi** in a JetBrains IDE)
 and sign in with the browser: [Editor connection](./editor-connection) has the steps.
+
+The first workspace with a Playwright config opens the first steps: VS Code's **Get started with Piwi** walkthrough
+once per machine (unless `workbench.welcomePage.walkthroughs.openOnInstall` is off), a JetBrains IDE's **Get started**
+tab once per installation ([JetBrains plugin](./jetbrains#install-and-start)). **Piwi: Get started** opens them
+again. The desktop app and MCP offers follow one at a time: one per window in VS Code, per IDE session in a JetBrains
+IDE. VS Code 1.101 and later lists the MCP server itself.
+
 In VS Code, the extension also opens a path clicked in the dashboard:
 [Open in editor](./ide-integration#vs-code-the-piwi-extension).
 
@@ -9996,10 +10003,8 @@ at, `piwi.failurePointBackground` and `piwi.failurePointOverviewRuler` the line 
 marks have [their own](./editor-coverage#the-marks). A JetBrains IDE has the failing test, its line, the lines being
 recorded and the stopped line under **Settings → Editor → Color Scheme → Piwi**.
 
-**Don't Show Again** on a message of the editor service adds its kind to VS Code's `piwi.hiddenMessages`:
-`agent-let-go` (a stop an agent held goes on once the agent went idle), `window-shared` (a run is shared live, as the
-window's runs are), `unattended-resumed` (a test stopped where nobody attends the run goes on) and `reporter-missing`
-(a run did not reach the instance, from a config without the Piwi reporter). Remove a kind to see its message again.
+**Don't Show Again** on a message of the editor service adds its kind to VS Code's `piwi.hiddenMessages`
+([Editor settings](/reference/editor-settings#advanced) lists the kinds); remove a kind to see its message again.
 
 VS Code's Piwi settings come in five groups, Connection, Runs, In the editor, Agents (MCP) and Advanced, as JetBrains'
 settings page does: [Editor settings](/reference/editor-settings) lists each one, what the editor shows among them.
@@ -10045,10 +10050,6 @@ that names an instance wins:
 
 A project set up for the reporter needs nothing more. An editor started from the Dock or the Start menu may not see
 the variables your shell exports: the `.env` or Connect work either way.
-
-In VS Code, the first workspace with a Playwright config opens the **Get started with Piwi** walkthrough, once per
-machine, unless `workbench.welcomePage.walkthroughs.openOnInstall` is off; **Piwi: Get started** opens it again. A
-JetBrains IDE shows one notification: [JetBrains plugin](./jetbrains#install-and-start).
 
 ## With the desktop app
 
@@ -10192,6 +10193,10 @@ within four folders of the project's (in Rider, the solution's) or of its Git ro
 on **Tools → Piwi → Read the instance and the configs again**. It reads the connection the reporter already uses;
 otherwise, **Settings → Tools → Piwi** signs you in with the browser: [Editor connection](./editor-connection).
 
+The first trusted project with a Playwright config opens a **Get started** tab in the Piwi tool window, once per
+installation: the steps of VS Code's walkthrough, each with its button and a check mark once done. **Help → Get
+started** opens it again.
+
 In a project opened in safe mode, Piwi runs nothing and says it waits for your trust; trusting the project starts it.
 
 **Settings → Tools → Piwi** opens on the connection in use, with **Reconnect**, then the instance saved for the project,
@@ -10256,16 +10261,9 @@ line** on the debugger's Show Execution Point key:
   Piwi** also offer **Pick a locator**, **Record**, **Assert**, **Assert a region** and **Mock a request** (the
   inlay names them shorter), whose code goes above the stopped line in one undoable edit; the end of the caret's line
   says how many elements its locator matches on the stopped page, and a failure held there reads `Held at its failure · …`.
-- **The IDE's Playwright runner**: **Settings → Tools → Piwi → Runs → Run the tests in the IDE's Playwright runner**,
-  off by default, runs Piwi's test runs there, with its test tree, Debug and Rerun Failed Tests, rather than in the Run
-  tool window's console. The runner comes with the IDE's JavaScript plugin, as in WebStorm, IntelliJ IDEA Ultimate
-  and Rider; where it lacks one, the option is off and says why.
-- **The severity of a failure**: **Settings → Tools → Piwi → In the editor** chooses it
-  ([CI failures in the Problems panel](./editor-failures#ci-failures-in-the-problems-panel)); an information shows as a
-  weak warning.
-- **Piwi's MCP server for the agent**: **Settings → Tools → Piwi → Agents (MCP)** chooses whether the copied
-  configuration holds the IDE's key or has the agent sign in through the browser
-  ([Piwi's MCP server for the agent](./editors#piwi-s-mcp-server-for-the-agent)).
+- **The settings**: **Settings → Tools → Piwi** holds the options in the groups of
+  [Editor settings](/reference/editor-settings), the IDE's Playwright runner among them, each group linking its
+  section there.
 - **[Run control for agents](./agent-run-control)**: **Tools → Piwi → Copy the runs' MCP server configuration for
   agents** gives an agent that starts commands (the AI Assistant among them) the test runs the project starts, to follow, stop and act on, and
   **…for Claude Code or Cursor** the HTTP entry they read; **Reset the runs' MCP server token** gives it a new token;
@@ -18935,7 +18933,7 @@ and shows a toggle's state with a check mark. A row that names one editor is tha
 | **Piwi: Open the log** | The editor service's log: its starts and ends, its errors and the requests that failed |
 | **Piwi: Open the Piwi menu** | VS Code: the status bar item's menu, which a JetBrains IDE opens with a click on its item: [The editor's status bar](/features/editor-status-bar) |
 | **Piwi: Node.js settings…** | JetBrains: choose the Node.js the editor service starts with |
-| **Piwi: Get started** | VS Code: open the walkthrough |
+| **Piwi: Get started** | Open the first steps: VS Code's walkthrough, or the Get started tab of the Piwi tool window in a JetBrains IDE |
 | **Piwi: Open the documentation** | Open this site in the browser: [Editor extensions](/features/editors) from VS Code, [JetBrains plugin](/features/jetbrains) from a JetBrains IDE |
 
 ## Runs
@@ -19069,7 +19067,7 @@ the choice of the desktop app on this machine only.
 | `piwi.runHeaded` | Whether every run Piwi starts runs headed, its browser window shown | off | Yours |
 | `piwi.runHoldFailures` | [Hold failures](/features/watch-a-run) from each run's start: Auto, On or Off | Auto | Yours |
 | `piwi.testExplorer` | VS Code: whether the Testing view lists Piwi's tests, with their results | on | Yours, which a project may set |
-| JetBrains: **Run the tests in the IDE's Playwright runner** | Whether a run starts in the IDE's Playwright runner (a test tree, Debug, Rerun Failed Tests) or in the Run tool window's console | off | Yours |
+| JetBrains: **Run the tests in the IDE's Playwright runner** | Whether a run starts in the IDE's Playwright runner (a test tree, Debug, Rerun Failed Tests) or in the Run tool window's console. The runner comes with the IDE's JavaScript plugin, as in WebStorm, IntelliJ IDEA Ultimate and Rider; where it lacks one, the option is off and says why | off | Yours |
 
 ## In the editor
 
@@ -19094,7 +19092,7 @@ the choice of the desktop app on this machine only.
 
 | Setting | What it chooses | Default | Kind |
 |---|---|---|---|
-| `piwi.hiddenMessages` | VS Code: the kinds of messages **Don't Show Again** hid; remove one to see it again | none | Yours |
+| `piwi.hiddenMessages` | VS Code: the kinds of messages **Don't Show Again** hid: `agent-let-go` (a stop an agent held goes on once the agent went idle), `window-shared` (a run is shared live, as the window's runs are), `unattended-resumed` (a test stopped where nobody attends the run goes on) and `reporter-missing` (a run did not reach the instance, from a config without the Piwi reporter). Remove a kind to see its message again | none | Yours |
 | `piwi.trace.server` | VS Code: whether the traffic with the editor service is traced in the Piwi output channel | Off | Yours |
 
 ## Related
