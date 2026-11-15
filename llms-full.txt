@@ -11798,14 +11798,14 @@ viewports.
 | [Multi-pick](./pick-an-element#multi-pick) | `3` | the shared pattern of a list's rows or cards |
 | [Lint overlay](./lint-overlay) | `5` | the elements that would make bad locator targets |
 | [Assertions](./pick-an-element#assertion-suggester) | `4` | `expect(...)` lines for an element |
-| [Agent context](./pick-an-element#copy-context-for-agent) | `6` | one block about an element for a coding agent |
+| [Agent context](./pick-an-element#copy-context-for-agent) | `7` | one block about an element for a coding agent |
 | [Record actions](./record-actions) | `1` | a runnable spec from clicks and fills across pages |
 | [Report a bug](./report-a-bug) | `B` | a failing test and a report of a bug you reproduce |
 | [Replay a bug report](./replay-a-bug-report) | `R` | a bug report's steps played again in a tab, to see whether the bug shows there |
 | [Developer tools](./devtools) | | in DevTools: the selected element's locators, the locator console, the session, mocks, viewports |
 | [Runs window](./runs-window) | `U` | pause, step and resume the tests your editor runs, and watch a headless one live |
 | [Matching functions](./record-actions#matching-functions) | | a recording that calls your own functions |
-| [Test functions](./test-functions#using-the-catalog) | `7` | which of your functions work on this page |
+| [Test functions](./test-functions#using-the-catalog) | `6` | which of your functions work on this page |
 | [Tested elements](./tested-elements) | `T` | which elements of this page your tests reach |
 
 ## Where it is
@@ -11841,7 +11841,7 @@ With a connection, the popup's **Tested elements** outlines what your tests reac
 ## Runs from the editor
 
 With Piwi Picker [paired with VS Code or a JetBrains IDE](./editor-recording#send-from-piwi-picker), the popup's
-**Runs** tile, under **More tools**, opens the [Runs window](./runs-window).
+**Runs** tile, under **Run control**, opens the [Runs window](./runs-window).
 
 ## Languages
 
@@ -12270,7 +12270,7 @@ function. No AI: it scores your registered functions' DOM patterns.
 
 # Lint overlay
 
-The **Lint overlay**, under **More tools** in the [Piwi Picker](./extension) popup, checks every button, link and
+The **Lint overlay**, under **Pick** in the [Piwi Picker](./extension) popup, checks every button, link and
 field of the page with the ranking [Pick an element](./pick-an-element) uses.
 
 One click outlines every interactive element no stable locator finds alone and says what to add, with a **Copy**
@@ -13043,7 +13043,7 @@ same stops: [Pause and step from the editor](./editor-run-control).
 
 With Piwi Picker [paired with VS Code or a JetBrains IDE](./editor-pairing), or with the
 [desktop app](./extension-connection#pair-with-the-desktop-app), the popup shows a **Runs** tile under
-**More tools**, muted with **Not connected** while none of them answers. It opens the Runs window where you left it last. While a test waits at a stop for you (a breakpoint, a **Pause**, a failure held
+**Run control**, muted with **Not connected** while none of them answers. It opens the Runs window where you left it last. While a test waits at a stop for you (a breakpoint, a **Pause**, a failure held
 at its line, not a stop an agent drives), the tile says how many in the pause bar's violet, as do the toolbar's badge
 and the Runs window's title (`1 waiting · Runs · Piwi Picker`); while none waits, how many failed, in red, a run that failed while
 the Runs window was not in front counted until you bring it there. For each run
@@ -13201,10 +13201,9 @@ once, then **Open Anyway** in **Privacy & Security**; on Windows, **More info** 
 
 Its data, and how to back it up: [the desktop app's data](/operate/backup-restore#the-desktop-app).
 
-The system tray menu holds **Open Piwi Desktop**, each test running from the app with **Stop** (the machine kept
-awake meanwhile), **Open data folder**, **Show logs**, **Run in background** (off, closing the window quits), **Start
-on login** (hidden in the tray), **Quit Piwi Desktop**, and first **Show the stopped test**, opening the window on one
-waiting for you. The windows open where you left them, with [keyboard shortcuts](/reference/keyboard-shortcuts#desktop-app)
+The tray menu, in the editors' order: **Show the stopped test** if one waits, **Open Piwi Desktop**, **Stop** per
+running test (machine kept awake), **MCP server…**, **Desktop app settings…**, **Run in background** (off, closing
+the window quits), **Start on login**, **Check for updates…**, **Open data folder**, **Show logs**, **Quit Piwi Desktop**. The windows open where you left them, with [keyboard shortcuts](/reference/keyboard-shortcuts#desktop-app)
 and macOS menu items. **Open in a
 window**, on a worker of the [Local runs tray](./desktop-runs), keeps that worker in a window above the others.
 While a run reports into the app, from the app, an editor, a terminal or CI, its progress shows on the taskbar button or
@@ -13310,8 +13309,8 @@ The app serves the [MCP server](/features/mcp) with local tools a hosted instanc
 ## Updates
 
 **Settings → About → Updates** checks for a newer release (also at startup), lists what changed since your version,
-breaking changes first, and installs it on restart. The `.exe` needs no admin rights; the `.msi` does. Downloads are
-signature-checked.
+breaking changes first, and installs it on restart; the tray's **Check for updates…** installs and restarts.
+The `.exe` needs no admin rights; the `.msi` does. Downloads are signature-checked.
 
 ## Limits
 
@@ -13769,13 +13768,13 @@ editor starts, not Piwi Runner's.
 ## In the tray
 
 Closing the window leaves Piwi Runner in the system tray, still connected, so the instance can reach it; a request brings the
-window forward. The tray menu has:
+window forward. The tray menu has, with the [desktop app](./desktop)'s glyphs and in its order:
 
-- **Open Piwi Runner** (on Windows and macOS, a click on the icon does the same) and **Show logs**;
+- **Open Piwi Runner** (on Windows and macOS, a click on the icon does the same);
 - **Run in background**, on by default: turned off, closing the window quits the app, once you agree to stop the runs
   still going;
 - **Start on login**, which launches it in the tray when you sign in;
-- **Check for updates…**;
+- **Check for updates…** and **Show logs**;
 - **Quit Piwi Runner**, which stops its runs, after asking.
 
 The window has the same two settings, for a desktop that shows no tray icon (GNOME without an AppIndicator
