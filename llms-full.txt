@@ -10016,10 +10016,11 @@ settings, for every project, and the failure severity and serving runs to agents
 ## Commands
 
 Each extension's commands, under **Piwi:** in VS Code's command palette and **Tools → Piwi** in a JetBrains IDE, are
-listed with what they do on [Editor commands](/reference/editor-commands). Three have the same shortcut in both
-editors (where some keymaps and plugins already use these chords): `Ctrl+Shift+Alt+K` runs the test at the cursor,
-`Ctrl+Shift+Alt+F` re-runs the failing tests, and `Ctrl+Shift+Alt+R` records at the cursor, then stops the recording;
-`Cmd` for `Ctrl` on macOS. **Preferences: Open Keyboard Shortcuts** changes them in VS Code (search `piwi`),
+listed with what they do on [Editor commands](/reference/editor-commands). Both editors bind `Ctrl+Shift+Alt+K` to
+run the test at the cursor, `Ctrl+Shift+Alt+F` to re-run the failing tests, `Ctrl+Shift+Alt+R` to record at the cursor
+and stop the recording, and `Ctrl+Shift+Alt+B` to open the failures, in a JavaScript or TypeScript file or Piwi's
+views; `Cmd` for `Ctrl` on macOS. Some JetBrains keymaps, macOS's among them, take other letters:
+[Keys](/reference/editor-commands#keys). **Preferences: Open Keyboard Shortcuts** changes them in VS Code (search `piwi`),
 **Settings → Keymap** in a JetBrains IDE (search `Piwi`).
 
 ## JetBrains IDEs
@@ -10277,12 +10278,12 @@ line** on the debugger's Show Execution Point key:
 - **[Open in editor](./ide-integration#jetbrains-ides-the-piwi-plugin)**: a path clicked in the dashboard or the desktop
   app opens at its line, with nothing to set up.
 
-The shortcuts are those of VS Code ([Commands](./editors#commands)), but a run's controls, which use the debugger's
-shortcuts of your keymap while they apply and the debugger does not take them ([the
-controls](./editor-run-control#the-controls)): in the default keymap `F9` resumes, `F8` steps, `Alt+F9` runs to the
-caret (`Alt+Shift+9` in the Linux default keymaps) and `Shift+F8` finishes, and Pause has none; in the Visual Studio
-keymaps `F5`, `F10`, `Ctrl+F10` and `Shift+F11`, and Pause the debugger's `Ctrl+Alt+Break`. **Settings → Keymap**
-changes them (search `Piwi`).
+The shortcuts are those of VS Code ([Commands](./editors#commands)), but in a keymap that gives one to another action
+([Keys](/reference/editor-commands#keys)) and for a run's controls, which use the debugger's shortcuts of your keymap
+while they apply and the debugger does not take them ([the controls](./editor-run-control#the-controls)): in the
+default keymap `F9` resumes, `F8` steps, `Alt+F9` runs to the caret (`Alt+Shift+9` in the Linux default keymaps) and
+`Shift+F8` finishes, and Pause has none; in the Visual Studio keymaps `F5`, `F10`, `Ctrl+F10` and `Shift+F11`, and
+Pause the debugger's `Ctrl+Alt+Break`. **Settings → Keymap** changes them (search `Piwi`).
 
 Each Piwi balloon is titled Piwi and filed by kind in **Settings → Appearance & Behavior → Notifications**: Piwi
 (results), Piwi requests (Debug in my editor, a run shared live: they stay until answered), Piwi suggestions, Piwi
@@ -10551,7 +10552,7 @@ and its results over the latest CI run's [failures](./editor-failures).
 - The lines above a locator line, an application file or a page file (CodeLens in VS Code, Code Vision in a JetBrains
   IDE) run the tests they name when clicked; those of a server file record its
   [coverage](./editor-coverage#refresh-the-marks-with-a-local-run).
-- **Piwi: Run the test at the cursor** (`Ctrl+Shift+Alt+K`, `Cmd+Shift+Alt+K` on macOS) runs the test whose `test(…)`
+- **Piwi: Run the test at the cursor** (`Ctrl+Shift+Alt+K`, `Cmd+Shift+Alt+K` on macOS, another [key](/reference/editor-commands#keys) in some JetBrains keymaps) runs the test whose `test(…)`
   call holds the cursor, and **Piwi: Run this spec** every test of the spec; both in the editor's **Piwi** submenu
   on a spec and under VS Code's editor title Run button (the caret in a JetBrains IDE), saving the spec first. **Run** in VS Code's test hover runs it, as
   [the Testing view](#the-testing-view-vs-code) does. A test the instance does not know, such as one just
@@ -10615,7 +10616,7 @@ the tree once you open it. `piwi.testExplorer` turns the view's Piwi tests off.
 
 ## Re-run the failing tests
 
-**Piwi: Re-run the failing tests** (`Ctrl+Shift+Alt+F`, `Cmd+Shift+Alt+F` on macOS; **Tools → Piwi → Re-run the
+**Piwi: Re-run the failing tests** (`Ctrl+Shift+Alt+F`, `Cmd+Shift+Alt+F` on macOS, as [Keys](/reference/editor-commands#keys) lists; **Tools → Piwi → Re-run the
 failing tests**) runs every test still failing, or edited since its run, one command per Playwright config, or those
 of one config from its node in the [failures view](./editor-failures#the-failures-view); when none fails, it says so.
 
@@ -18921,10 +18922,33 @@ jump to the first / last column of the row. `Space` or `Enter` opens the focused
 
 Every command the two editors offer, by what it acts on. VS Code lists them in the command palette under **Piwi:**;
 a JetBrains IDE lists them under **Tools → Piwi** and in **Find Action**, says caret for cursor and project for window,
-and shows a toggle's state with a check mark. A row that names one editor is that editor's alone. Both editors give
-`Ctrl+Shift+Alt+K` to Run the test at the cursor, `Ctrl+Shift+Alt+F` to Re-run the failing tests and
-`Ctrl+Shift+Alt+R` to Record here… and Stop recording (`Cmd` on macOS); a run's controls take the debugger's keys
+and shows a toggle's state with a check mark. A row that names one editor is that editor's alone. Some commands have a
+shortcut in both editors ([Keys](#keys)); a run's controls take the debugger's keys
 ([The controls](/features/editor-run-control#the-controls)).
+
+### Keys
+
+`Ctrl+Shift+Alt` with a letter, `Cmd` for `Ctrl` on macOS. Record here… and Run the test at the cursor act in an editor
+of a JavaScript or TypeScript file, the others there and in Piwi's views (the Piwi tool window in a JetBrains IDE), and
+nowhere else. A JetBrains keymap where that chord is another action's in those places takes the letter of its row, as do
+the keymaps descending from it. **Settings → Keymap** shows `$default` as Windows, `Mac OS X 10.5+` as macOS, `Mac OS X`
+as IntelliJ IDEA Classic, and `Default for XWin`, `Default for GNOME` and `Default for KDE` as XWin, GNOME and KDE; it
+drops ` OSX` and ` (Mac OS X)` from the other names, adding (macOS) on Windows and Linux.
+
+| Keymap | Record here…, Stop recording | Re-run the failing tests | Run the test at the cursor | Open the failures |
+|---|---|---|---|---|
+| VS Code, and `$default` and every JetBrains keymap not below | `R` | `F` | `K` | `B` |
+| `Default for XWin`, `Default for GNOME`, `Default for KDE` | `R` | `F` | `K` | `G` |
+| `Mac OS X 10.5+`, `Eclipse (Mac OS X)`, `Sublime Text (Mac OS X)`, `VSCode OSX`, `macOS System Shortcuts` | `Z` | `F` | `K` | `B` |
+| `Visual Studio`, `Visual Studio 2022`, `Visual Assist` | `G` | `F` | `J` | `B` |
+| `ReSharper` | none | `T` | `J` | none |
+| `Visual Studio OSX`, `Visual Assist OSX` | `Z` | `F` | `J` | `B` |
+| `ReSharper OSX` | `Z` | `T` | `J` | `S` |
+| `TextMate` | `R` | `J` | `K` | `B` |
+
+They share a key only with an action of the Database tool window or a database console's results, or of a Java, Kotlin
+script, Go or Terraform file. **Preferences: Open Keyboard Shortcuts** changes them in VS Code (search `piwi`),
+**Settings → Keymap** in a JetBrains IDE (search `Piwi`).
 
 ## Connection
 
@@ -18965,7 +18989,7 @@ and shows a toggle's state with a check mark. A row that names one editor is tha
 | **Piwi: Compare with…** | Choose the run the failures are read against: [Compare with another run](/features/editor-status-bar#compare-with-another-run) |
 | **Piwi: Group the failures by…** | File, cluster or owner, or a flat list: [The failures view](/features/editor-failures#the-failures-view) |
 | **Piwi: Follow the active editor**, **Piwi: Stop following the active editor** | VS Code: select the active file's first failure in the failures view, or stop |
-| **Piwi: Open the failures** | JetBrains: open the Piwi tool window's failures |
+| **Piwi: Open the failures** | Open the failures view, the Piwi tool window's in a JetBrains IDE |
 | **Piwi: Show the run's flaky tests** | Open the failures view on the run's [flaky tests](/features/flaky-tests) |
 | **Piwi: Show or hide the coverage marks** | The [coverage marks](/features/editor-coverage) of the lines the tests ran |
 
