@@ -10571,9 +10571,9 @@ and its results over the latest CI run's [failures](./editor-failures).
 
 The command, `npx playwright test` with the arguments `piwi run` would pass, runs from the Playwright config's
 folder: as a task in VS Code, in a terminal of its own (**Tasks: Rerun Last Task** restarts it), in the Run tool
-window in a JetBrains IDE (**Rerun** restarts it), or in the IDE's Playwright runner (test tree, Debug, **Rerun
-Failed Tests**), a choice of **Settings → Tools → Piwi** that keeps every control of a Piwi run, through the runner's
-Rerun and Debug too. It sets `PIWI_ORIGIN=editor` and its own `PIWI_ORIGIN_REF`
+window in a JetBrains IDE, its tests in a test tree beside the output as they run (**Rerun** restarts it), or in the
+IDE's Playwright runner (Debug, **Rerun Failed Tests**), a choice of **Settings → Tools → Piwi**, offered once, that
+keeps every control of a Piwi run, through the runner's Rerun and Debug too. It sets `PIWI_ORIGIN=editor` and its own `PIWI_ORIGIN_REF`
 ([run origin](/reference/test-metadata#run-origin)), by which the editor finds its run. Breakpoints and the editor pause it:
 [Pause and step from the editor](./editor-run-control).
 
@@ -10613,7 +10613,8 @@ hides the result icon and its list.
 
 **Run with Piwi**, the view's run profile, runs the tests you pick as the commands above do, one command per
 Playwright config, **Debug with Piwi** runs them headed at your breakpoints, holding each failure at its line, and
-**Verify ×3 with Piwi** runs them three times. From a failed test's actions, **Debug with Piwi** runs it as
+**Verify ×3 with Piwi** runs them three times. Under Run with Coverage, **Run with Piwi** then shows their coverage in the
+Test Coverage view ([Editor coverage](./editor-coverage)). From a failed test's actions, **Debug with Piwi** runs it as
 [Debug in my editor](./debug-in-editor) does, stopping once at the line it failed through, with no question. Tests show running as
 they begin, offline too. A test the run gave Piwi no
 result for, such as one the instance does not know, passes when the command exited with 0, else is an error. The view shows results; it does not discover tests, and its Debug runs Piwi's run control, not a debug session: a spec the instance has not seen joins
@@ -11467,12 +11468,12 @@ The marks show what the reporter records, per test:
   top lens, with no line marks; with `coverage.browser: 'functions'`, every line of a function that ran is marked run,
   with its lens above it, and no line is marked as not run; with `'lines'`, its lines are marked as a server file's.
 
-Nothing else is needed in the editor. A test file, a file no recorded coverage names lines of, and a project without
-coverage show nothing of it: no mark, no lens line, no command, no hover text.
+Nothing else is needed in the editor. Test files, files no recorded coverage names lines of, and projects without
+coverage show nothing.
 
 The editor asks the instance for a file's coverage when you open it, and, when the project's code reach can tell, only
-for a file it says coverage recorded. It asks again on a refresh and when a run ends, naming the answer it holds, which
-the instance confirms unchanged without sending it again. Typing asks nothing: the marks are placed on your edits
+for a file it says coverage recorded. It asks again on a refresh and when a run ends, and the
+instance sends an answer again only when it changed. Typing asks nothing: the marks are placed on your edits
 locally.
 
 ## The marks
@@ -11489,10 +11490,11 @@ the marks mean.
 
 In VS Code the marks are a bar at the left edge of each line, in `piwi.coverageRunBorder`, `piwi.coverageNotRunBorder`,
 `piwi.coverageChangedBorder` and `piwi.uncoveredChangeBorder`, which a theme or `workbench.colorCustomizations` can
-restyle; all but the lines run also show in the overview ruler. In a JetBrains IDE they are at the left of the gutter
-and, all but the lines run, in the scroll bar, and hovering either shows what the lines are and what the marks mean. Restyle them under **Settings →
-Editor → Color Scheme → Piwi → Coverage**, where the error stripe color is the mark's, and a background, none by
-default, tints the lines too.
+restyle; all but the lines run also show in the overview ruler. In a JetBrains IDE they are in the gutter, beside the
+IDE's own coverage, and, all but the lines run, in the scroll bar; hovering either shows what the lines are and what
+the marks mean; a click on a run mark runs the tests that ran its line, and on any mark goes to the next line no test
+runs, hides the marks or edits their colors (**Settings → Editor → Color Scheme → Piwi → Coverage**: the error stripe color is the
+mark's, and a background tints the lines).
 
 ## Changed since the coverage run
 
@@ -11559,7 +11561,7 @@ options.
 **Piwi: Show or hide the coverage marks**, under **Tools → Piwi** in a JetBrains IDE, where a check mark says the
 marks show.
 
-The command shows up once a file showed marks. The marks are shown by default; the choice is yours in every project,
+The command shows up once a file showed marks. Shown by default, the choice is yours in every project,
 the [setting](/reference/editor-settings#in-the-editor) `piwi.coverageMarks` in VS Code's user settings and the IDE's
 own settings in a JetBrains IDE. The lenses and the hover stay.
 
