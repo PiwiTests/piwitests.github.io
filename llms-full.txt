@@ -3965,9 +3965,8 @@ and every other comparison between runs.
 - **In the [editor](./editors#the-tests-behind-each-line)**, a flaky test's line shows the share of its recent passed or
   failed runs in which it failed or passed on a retry, and its top suspect ("flaky 18% · top suspect: GET /api/cart slower (reproduced
   7 of 10)"), with **Reproduce this flake** and, once reproduced, **Verify the flake fix**, run in a terminal against
-  the instance the editor reads. Beside a team instance, **Reproduce this flake in the desktop app** (also on a failure
-  with an untested suspect) runs the instance's plan in the [desktop app](./desktop#jobs-from-your-editor) once you
-  confirm it; **Share on …** records the results on the instance, as run from `desktop`.
+  the instance the editor reads. Beside a team instance, **Reproduce this flake in the desktop app** (a failure's node
+  has it too) runs the instance's plan in the [desktop app](./desktop#jobs-from-your-editor) once you confirm it; **Share on …** records the results on the instance, as run from `desktop`.
 - **On a flaky failure's execution or cluster page**, the [next step](./fix-plans#the-next-step) reproduces it under the top untested suspect, then verifies the fix.
 - **Home** lists the tests waiting for a verify, then those whose top suspect is untested.
 
@@ -10238,11 +10237,11 @@ line** on the debugger's Show Execution Point key:
 - **The Piwi tool window** names the connection and holds the [failures view](./editor-failures#the-failures-view),
   since the IDE highlights open files only.
 - **Code Vision** shows the lines above files, locators and failing lines, a line's entries side by side (a failing
-  line's reason, **Run this test**, **Screenshot** and **Trace**), up to the number the IDE's Code Vision settings show
+  line's reason, **Run with Piwi**, **Screenshot** and **Trace**), up to the number the IDE's Code Vision settings show
   per line (five by default), in a group named Piwi under **Settings → Editor → Inlay Hints → Code Vision**, where they
   can be moved or hidden; each test's result is in the gutter, and either click on its icon opens the test's actions:
-  **Run with Piwi** and **Verify ×3 with Piwi**, which report to the instance as Piwi's own runs do, a failure's trace
-  and screenshot, **Open in dashboard**, **Copy context for agent** and the test's Flake Lab commands.
+  **Run with Piwi** and **Verify ×3 with Piwi**, which report to the instance as Piwi's own runs do, **Record steps in
+  this test…**, a failure's trace and screenshot, **Open in dashboard**, **Copy context for agent** and the test's Flake Lab commands.
 - **[The status bar](./editor-status-bar)** item has an icon for the run's state, and the error color for a new
   failure a run you started produced. It counts a run you started (`3 of 9 · 1 failed`) as
   the run itself reports it, with no instance too; with one, the run's node in the Piwi tool window counts it the same
@@ -10378,6 +10377,9 @@ works in VS Code (and Cursor, VSCodium) and in the JetBrains IDEs with the
 |---|---|---|
 | VS Code | **Piwi: Record here…**, from the command palette, the editor's context menu (**Piwi** submenu) or a spec's editor title (unless a stop's controls hold it), or **Ctrl+.** (**Cmd+.** on macOS); any editor's title shows **Stop recording** while one runs | **Piwi: Record a new test file…**, also in the explorer's **Piwi** submenu while the editor is connected to an instance |
 | JetBrains IDE | **Tools → Piwi → Record here…**, **Alt+Enter** or **Alt+Insert** (Generate), or the editor's context menu (**Piwi** submenu) | **New → Playwright test (recorded)…** on a folder of a Playwright config, or the project view's **Piwi** submenu |
+
+**Record steps in this test…**, among a test's actions (its result icon in a JetBrains IDE, **Piwi: Show the test's
+actions…** in VS Code), records into that test after the last line of its body, wherever the cursor is.
 
 Before the browser opens, the editor asks for:
 
@@ -10595,8 +10597,8 @@ filter finds tests by `@piwi:flaky`, `@piwi:quarantined`, a Playwright tag (`@pi
 (`@piwi:owner:ada`). With the view off, Piwi's gutter marks a test with no recent result with a dashed ring.
 
 Each test's actions are one list in both editors: **Run with Piwi**, **Debug with Piwi** and **Verify ×3 with Piwi**,
-a failure's trace and screenshot, **Open in dashboard**, **Copy context for agent**, then the test's Flake Lab
-commands. In VS Code, **Piwi:
+**Record steps in this test…** (a [recording](./editor-recording) after the last line of its body), a failure's trace
+and screenshot, **Open in dashboard**, **Copy context for agent**, then the test's Flake Lab commands. In VS Code, **Piwi:
 Show the test's actions…** opens them from the Testing view's gutter and its menus, the line number's menu with the
 view off, and **More…** in the test's hover; in a JetBrains IDE, either click on the result icon. The IDE's own run
 icon offers **Run with Piwi** and **Verify ×3 with Piwi** too; turning off **Piwi test results** under **Gutter Icons**
@@ -10853,7 +10855,7 @@ or pick a better locator, which lands back on that line in the editor. The stop 
 1. Set a line breakpoint on a line with a Playwright call, in a spec, a page object or a fixture:
    `await page.getByText('Pay now').click();`, `await page.goto('/checkout');`, `await page.keyboard.press('Tab');`
    or `await expect(page).toHaveURL(/cart/);`. On a statement broken over lines, any of its lines will do.
-2. Run the test from Piwi: **Run this test**, or any command of [Runs from the editor](./editor-runs#run-tests).
+2. Run the test from Piwi: **Run with Piwi**, or any command of [Runs from the editor](./editor-runs#run-tests).
 3. The test stops before the call on your line runs. A run Piwi starts follows your config, headless unless it sets
    `headless: false` or you chose **Run headed** ([How a run starts](./editor-runs#how-a-run-starts)): the editor
    marks the line and shows the stopped page ([A headless run](./editor-run-control#a-headless-run)). In a headed run,
@@ -11267,7 +11269,7 @@ the failure enters your code (a page object's line included), in the captured fr
 
 ## From the editor
 
-The same run starts from the editor, with no question: **Debug this failure** on a failure of the Piwi panel's
+The same run starts from the editor, with no question: **Debug with Piwi** on a failure of the Piwi panel's
 failures (its context menu in VS Code, the tool window's in a JetBrains IDE), and **Debug with Piwi** among a failed
 test's actions in its gutter ([Runs from the editor](./editor-runs)).
 
@@ -11336,25 +11338,23 @@ The failures of the latest complete [CI run](/reference/test-metadata#run-origin
 default branch, are in the Problems panel, at the line that failed: the call in the error's stack when that file
 is in your workspace (often a page object), else the `test(…)` line, with the failure's headline. In the spec, the
 line a failing test failed at is tinted darker, with **✗ Failed here**, the
-reason unless a Piwi problem says it, **Run this test**, **Screenshot** and **Trace** above it.
+reason unless a Piwi problem says it, **Run with Piwi**, **Screenshot** and **Trace** above it.
 
-On a failure, the light bulb lists Piwi's quick fixes, each titled `Piwi:` and its words. They edit the code but for
-the desktop app's jobs and **File an issue**; running the test, its trace, the context for an agent and its page in
-the dashboard are on the failure's node in the [failures view](#the-failures-view), and running it and its trace above
-the line a spec failed at:
+On a failure, the light bulb lists Piwi's quick fixes, each under Piwi's name. They edit the code; running
+the test, its trace, the context for an agent, its page in the dashboard, the desktop app's jobs and **File an issue**
+are on the failure's node in the [failures view](#the-failures-view), and running it and its trace above the line a
+spec failed at:
 
 - **heal with …** makes the edit an [auto-heal pull request](/features/auto-heal) would, when
   [locator healing](/features/locator-healing) has a recommendation for the failing locator.
-- **run this test** comes first once you rewrote the line it failed at, to check the edit.
-- **reproduce in the desktop app**, **find the breaking commit in the desktop app** and **run Flake Lab on its
-  untested suspects in the desktop app**, for a test with an untested [flake suspect](./flake-lab), while the
-  [desktop app](/features/desktop#jobs-from-your-editor) runs; **share on …** records the result.
+- **Run with Piwi** comes first once you rewrote the line it failed at, to check the edit.
 - **apply the fix plan, then run its verification**, when the failure's [cluster](/features/failure-clusters) has a
   [fix plan](/features/fix-plans) whose patch applies to your files: the edit is previewed, then the plan's verify
   command runs in a terminal.
 
 Hover for the error message, its call chain, the failure screenshot, and the tickets linked to its cluster or
-test. Without one, **File an issue** opens the cluster in the dashboard.
+test. **File an issue**, on the failure's node, opens its cluster in the dashboard to file one, or names the ticket
+already linked.
 
 <figure>
   <img src="/screenshots/vscode-hover.png" alt="VS Code: the hover on a failing line, dragged taller: the CI failure with its error, its call log and the chain of calls that reached the line, then the failure screenshot of the checkout page">
@@ -11416,11 +11416,14 @@ above. Its row in VS Code, and its context menu in both
 editors, re-run that config's failing tests (**Re-run the failing tests**) and open its run in the dashboard; the
 context menu adds **Compare with…** for that config. With one config, the run is the first node.
 
-Click a failure (double-click, Enter or **Next Occurrence** in a JetBrains IDE) to open its line. **Run this test**,
+Click a failure (double-click, Enter or **Next Occurrence** in a JetBrains IDE) to open its line. **Run with Piwi**,
 **Open the trace** and **Open in dashboard** sit on its row in VS Code; the context menu adds **Go to the test**,
-**Debug this failure**, **Verify the test ×3**, **Open the screenshot**, **Copy context for agent**, and, on a CI
-failure while the [desktop app](/features/desktop#jobs-from-your-editor) runs, **Reproduce in the desktop app** and
-**Find the breaking commit in the desktop app**. **Heal** stays a quick fix on the line.
+**Debug with Piwi**, **Verify ×3 with Piwi**, **Open the screenshot**, **Copy context for agent**, and **File an
+issue** on a failure with a [cluster](/features/failure-clusters). While the
+[desktop app](/features/desktop#jobs-from-your-editor) runs, it adds **Reproduce in the desktop app** and **Find the
+breaking commit in the desktop app** on a CI failure, and **Run Flake Lab on its untested suspects in the desktop app**
+on a failure whose test has an untested [flake suspect](./flake-lab); **Share on …** in a job's notification records
+its result. **Heal** stays a quick fix on the line.
 
 The title bar, or the toolbar, holds Refresh the latest run, **Re-run the failing tests** (every config's), **Open the
 latest run** (the run the status bar shows; **Open in dashboard** in a JetBrains IDE, the page of the selected failure
@@ -13282,7 +13285,7 @@ folder, **without touching your checkout**:
 
 ### Jobs from your editor
 
-On a team instance's failure, the [editor extensions](/features/editor-failures#ci-failures-in-the-problems-panel) offer
+On a team instance's failure, the [editor extensions](/features/editor-failures#the-failures-view) offer
 **Reproduce in the desktop app** and **Find the breaking commit in the desktop app**; on a flaky test, or a failure
 whose test has an untested suspect, a [Flake Lab](/features/flake-lab#from-the-editor-and-the-failure-pages) run of
 the team instance's plan. The window shows the commits, tests or arms and runs nothing until you start it. The editor
@@ -18996,9 +18999,10 @@ script, Go or Terraform file. **Preferences: Open Keyboard Shortcuts** changes t
 | **Piwi: Show the run's flaky tests** | Open the failures view on the run's [flaky tests](/features/flaky-tests) |
 | **Piwi: Show or hide the coverage marks** | The [coverage marks](/features/editor-coverage) of the lines the tests ran |
 
-A failure's menu in the failures view adds **Run this test**, **Debug this failure**, **Verify the test ×3**, **Go to
+A failure's menu in the failures view adds **Run with Piwi**, **Debug with Piwi**, **Verify ×3 with Piwi**, **Go to
 the test**, **Open the trace**, **Open the screenshot**, **Copy context for agent**, **Reproduce in the desktop app**,
-**Find the breaking commit in the desktop app** and, on a flaky test in VS Code, **Look into this flake…**:
+**Find the breaking commit in the desktop app**, **Run Flake Lab on its untested suspects in the desktop app**, **File
+an issue** and, on a flaky test in VS Code, **Look into this flake…**:
 [Failures in the editor](/features/editor-failures).
 
 ## Recording
