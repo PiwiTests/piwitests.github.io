@@ -2766,6 +2766,9 @@ ALTER TABLE `project_integrations` ADD `declared_issue_types` text;
 ALTER TABLE `test_runs` ADD `reporter_id` integer REFERENCES users(id);
 CREATE INDEX `idx_test_runs_reporter` ON `test_runs` (`reporter_id`);
 
+DROP INDEX `idx_nr_server_traces`;
+CREATE INDEX `idx_nr_instrumented` ON `network_requests` (`test_run_id`) WHERE server_logs IS NOT NULL OR server_traces IS NOT NULL;
+
 BEGIN TRANSACTION;
 
 -- Tags
