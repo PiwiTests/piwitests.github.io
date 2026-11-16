@@ -1,1 +1,0 @@
-import{c as e}from"./C5J1ton7.js";var t=`piwi-api-token`;function n(){try{localStorage.removeItem(t)}catch{}}function r(){return n(),{token:e(t,``)}}function i(){n(),e(t,``).value=``}export{r as n,i as t};
