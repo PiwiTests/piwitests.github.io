@@ -4738,8 +4738,9 @@ second, whatever the view asks; the dashboard passes one a second of them to a t
 ## In the demo
 
 The live demo runs no browser: **Watch all** on a simulated run shows each running worker's step where its image
-would be, and its stops and **Stuck?** marks. A tile opens no full view there, so no page events, text, filmstrip or
-Inspect.
+would be, and its stops and **Stuck?** marks. A click on a tile opens its worker's panel with no image: the call its
+test is in, with its log, and [Inspect](./live-inspect#in-the-demo) on the checkout page from a recorded trace. Its
+page events, text and filmstrip stay empty.
 
 ## Related
 
@@ -4831,8 +4832,10 @@ older reporter, or team instance, may send none of them.
 
 ## In the demo
 
-The live demo runs no browser, so its runs have no worker to watch in full: [Watch all](./watch-all#in-the-demo)
-names each worker's step, and the panel with its events, text, filmstrip and Inspect never opens.
+The live demo runs no browser. **Watch** on a simulated run's running test, or a tile of
+[Watch all](./watch-all#in-the-demo), opens its worker's panel with no image: the call its test is in, with its log,
+and [Inspect](./live-inspect#in-the-demo) on the checkout page from a recorded trace. The page's events and the
+filmstrip stay empty; the panel says why no image comes, and **Page text** why no text does.
 
 ## Related
 
@@ -4946,7 +4949,8 @@ Inspect says why:
 
 ## In the demo
 
-The live demo runs no browser, and Inspect needs a running test: [Watch all](./watch-all#in-the-demo).
+The live demo runs no browser: its Inspect shows a recorded trace's checkout page
+([Stuck tests](./stuck-tests#try-it-in-the-demo)).
 
 ## Related
 
@@ -5149,8 +5153,10 @@ runs as `local`: set `PIWI_ORIGIN=ci` on it ([run origin](/reference/test-metada
 ## Try it in the demo
 
 In the [live demo](https://piwitests.dev/demo/), pick **Stuck test** in **Simulate a test run**: the PayPal checkout
-waits on a payment that never answers, and its row carries the **Stuck?** badge once it runs past its usual time; on
-the **Timeline** tab its bar turns amber past the pale bar of that time.
+waits on a **Pay** button that stays disabled, and its row carries the **Stuck?** badge once it runs past its usual time; on
+the **Timeline** tab its bar turns amber past the pale bar of that time. Its row's **Watch** shows the click it waits
+on, its call log retrying a disabled **Pay** button, and [Inspect](./live-inspect) the checkout page at that click, as
+a recorded trace holds it, with the locator picker.
 **Stopped at a breakpoint** plays a run from VS Code whose PayPal test stands at a breakpoint for five minutes: its row
 says where, and never reads **Stuck?**.
 
