@@ -2627,6 +2627,11 @@ screenshot. The line under it counts the steps, those done by hand and the calls
 button's tooltip names those calls. **Steps (steps.json)**, under **Copy to clipboard**, copies the steps alone, to
 paste into Replay.
 
+<figure>
+  <img src="/screenshots/execution-replay-export.png" alt="A failed execution's Export menu: downloads as HTML, ZIP, PDF, Markdown or JSON, the bug report to replay in a browser with its 6 steps, a Perfetto trace, and the report or the steps to copy">
+  <figcaption>The Export menu of a failed execution: its steps as a bug report to replay.</figcaption>
+</figure>
+
 ## What an export leaves out, and why it tells you
 
 Exports are bounded so one download cannot exhaust the server:
@@ -9659,7 +9664,7 @@ extension, does the same steps from the browser, and the desktop app runs them o
 
 | Step | In the editor | Outside the editor | Read on |
 |---|---|---|---|
-| Write the test | **Record a new test file…**, or **Record here…** at the cursor | Piwi Picker's **Record actions**, then **Send to editor** | [Record tests from the editor](./editor-recording), [Recorded code](./recorded-code) |
+| Write the test | **Record a new test file…**, or **Record here…** at the cursor | Piwi Picker's **Record**, then **Send to editor** | [Record tests from the editor](./editor-recording), [Recorded code](./recorded-code) |
 | Run it | **Run with Piwi** from the gutter, the Testing view or the test at the cursor; **Verify ×3** | the desktop app's **Re-run** of tests | [Runs from the editor](./editor-runs), [Desktop app runs](./desktop-runs) |
 | Watch it | the status bar, and the run's page on the instance | the Runs window, and the page itself once you **Watch** at a stop | [Follow a run](./watch-a-run), [Watch a local test](./watch-running-test) |
 | Stop it | a breakpoint, **Pause**, **Step**, **Run to the cursor** | the pause bar in the test's page | [Breakpoints in the browser](./editor-breakpoints), [Pause and step from the editor](./editor-run-control) |
@@ -10633,7 +10638,7 @@ page object or helper has none of its own, and offers none.
 A locator picked with the [Piwi Picker](./extension) browser extension in your everyday browser, or a flow it
 recorded, lands at the editor's cursor too, once Piwi Picker is [paired with the editor](./editor-pairing). A picked
 locator's row, the top locator of the [Elements sidebar](./devtools#the-elements-sidebar), the
-[Locators console](./devtools#the-piwi-panel) in DevTools and the recording review then show **Send to editor**. A
+[Locators console](./devtools#the-piwi-panel) in DevTools and a recording's finish panel then show **Send to editor**. A
 locator is inserted in the copy form you chose; a recording is rendered as the body of a test, like
 [`piwi codegen --body`](/reference/cli#codegen), or as a new test outside one. With no editor open, a JetBrains IDE
 puts it in a new scratch file. A locator picked at a stop of a run Piwi starts reaches the editor the same way.
@@ -10654,7 +10659,7 @@ puts it in a new scratch file. A locator picked at a stop of a run Piwi starts r
 
 - [Recorded code](./recorded-code): what a recording writes, and the options that shape it.
 - [Editor extensions](./editors): everything else the editor shows from your suite.
-- [Piwi Picker](./extension): records in your everyday browser, for a bug report or a steps file.
+- [Piwi Picker](./extension): records in your everyday browser, for a test or a bug report with its evidence.
 - [Test functions](./test-functions): the page objects and helpers a recording calls.
 
 <!-- https://piwitests.dev/features/recorded-code -->
@@ -10723,7 +10728,7 @@ out, and the recording says so when it starts.
 
 - [Record tests from the editor](./editor-recording): start a recording, and what happens while it runs.
 - [Test functions](./test-functions): the page objects and helpers a recording calls.
-- [Piwi Picker](./extension): records in your everyday browser, for a bug report or a steps file.
+- [Piwi Picker](./extension): records in your everyday browser, for a test or a bug report with its evidence.
 
 <!-- https://piwitests.dev/features/editor-runs -->
 
@@ -12015,15 +12020,15 @@ extension's link carries the file path and line to VS Code through your operatin
 
 Piwi Picker is a Chrome, Edge and Firefox extension that picks ranked, stable Playwright locators from the page you
 are looking at, scored by the same engine the dashboard uses, and records a multi-page flow into a runnable TypeScript
-spec. It works standalone and sends nothing by default; connecting it to a Piwi instance adds what needs your
-project's history. This page lists the tools, where they are, the permissions they use and their limits; each tool
-has its own page.
+spec, or into a failing test and a bug report once you mark what the page gets wrong. It works standalone and sends
+nothing by default; connecting it to a Piwi instance adds what needs your project's history. This page lists the
+tools, where they are, the permissions they use and their limits; each tool has its own page.
 
 ## What it does
 
 Every tool below runs on the live page, from the toolbar popup. The last three need a
 [connection to a Piwi instance](#connecting-to-a-piwi-instance); the others work without one, and some do more with it:
-a pick names the tests that reach the element, Report a bug sends its report, Developer tools lists your projects'
+a pick names the tests that reach the element, a recording sends its report, Developer tools lists your projects'
 viewports.
 
 | Tool | Key | For |
@@ -12033,9 +12038,9 @@ viewports.
 | [Lint overlay](./lint-overlay) | `5` | the elements that would make bad locator targets |
 | [Assertions](./pick-an-element#assertion-suggester) | `4` | `expect(...)` lines for an element |
 | [Agent context](./pick-an-element#copy-context-for-agent) | `7` | one block about an element for a coding agent |
-| [Record actions](./record-actions) | `1` | a runnable spec from clicks and fills across pages |
-| [Report a bug](./report-a-bug) | `B` | a failing test and a report of a bug you reproduce |
-| [Replay a bug report](./replay-a-bug-report) | `R` | a bug report's steps played again in a tab, to see whether the bug shows there |
+| [Record](./record-actions) | `1` | a runnable test from clicks, fills and checks across pages, with the evidence |
+| [Record a bug report](./report-a-bug) | | a failing test and a report, once a recording marks what the page gets wrong |
+| [Replay](./replay-a-bug-report) | `R` | a recording's steps played again in a tab, to see whether each still holds or the bug shows there |
 | [Developer tools](./devtools) | | in DevTools: the selected element's locators, the locator console, the session, mocks, viewports |
 | [Runs window](./runs-window) | `U` | pause, step and resume the tests your editor runs, and watch a headless one live |
 | [Matching functions](./record-actions#matching-functions) | | a recording that calls your own functions |
@@ -12051,8 +12056,11 @@ Chrome or Edge 118 or later (in Edge, click **Allow** on the *Allow extensions f
 later.
 
 Every tool in the popup has a tile with a line under its name saying what it is for, and the key in the table above,
-pressed with the popup open. One tool runs at a time and **Esc** cancels it; recording runs until its own **Stop**. The
-tools that need no pick on the page are in the browser's DevTools: [Developer tools](./devtools).
+pressed with the popup open. **Record** and **Pick an element** come first, then the **Pick** section, with
+Multi-pick, Assertions, Lint overlay, Test functions and Agent context, and the **Tests** section, with Replay, Runs
+and Tested elements. One tool runs at a time and **Esc** cancels it; a recording runs until its own **Finish**, and
+while it runs, **Take a screenshot** (`S`) takes Replay's place. The tools that need no pick on the page are in the
+browser's DevTools: [Developer tools](./devtools).
 
 <figure>
   <img src="/screenshots/picker-popup.png" alt="The Piwi Picker popup over a shop page, one tile per tool">
@@ -12075,7 +12083,7 @@ With a connection, the popup's **Tested elements** outlines what your tests reac
 ## Runs from the editor
 
 With Piwi Picker [paired with VS Code or a JetBrains IDE](./editor-recording#send-from-piwi-picker), the popup's
-**Runs** tile, under **Run control**, opens the [Runs window](./runs-window).
+**Runs** tile, under **Tests**, opens the [Runs window](./runs-window).
 
 ## Languages
 
@@ -12089,7 +12097,7 @@ written in the extension's language; locators, test ids and specs never are.
 | Permission | Why |
 |---|---|
 | `activeTab` | acts on the tab you are looking at, only when you click the toolbar icon or press the shortcut |
-| `debugger` (Chrome and Edge) | trusted input for a replay, a bug report's evidence, DevTools' request conditions and the viewport it sets in the tab, attached only while one of them runs: see [The debugging bar](#the-debugging-bar) |
+| `debugger` (Chrome and Edge) | trusted input for a replay, a recording's evidence, DevTools' request conditions and the viewport it sets in the tab, attached only while one of them runs: see [The debugging bar](#the-debugging-bar) |
 | `scripting` | injects Pick an element, the recorder or another tool into that tab on demand, and marks your instance's pages once [connected](./extension-connection#what-is-sent); nothing else runs unasked |
 | `storage` | keeps your copy format and, only if you connect, the instance URL, URL patterns, cached catalogs and the last three [locator indexes](./tested-elements), on your machine. The API key and the desktop app's and editor's tokens live in the extension's own database, out of reach of web pages; the session and a running recording use `chrome.storage.session`, cleared when the browser closes |
 | `cookies` (optional, not granted in advance) | [Save login for tests](./devtools#save-login-for-tests) asks for it, for the one site whose login you save |
@@ -12106,7 +12114,7 @@ without it, and says so.
 | Feature | With the protocol | Without it |
 |---|---|---|
 | [Replay](./replay-a-bug-report#trusted-input) | Trusted input, as Playwright sends it, at the viewport size each step was recorded at | The page's own events, the panel saying which, step by step |
-| [Report a bug](./report-a-bug#how-the-evidence-is-collected) | The console, every failed request, the screenshots and a screenshot of each step, in the tab the report started in, from the page's first script | A script in the page sees `fetch` and XHR calls only; a screenshot needs the `activeTab` grant |
+| [Record](./report-a-bug#how-the-evidence-is-collected) | The console, every failed request, the screenshots and a screenshot of each step, in the tab the recording started in, from the page's first script | A script in the page sees `fetch` and XHR calls only; a screenshot needs the `activeTab` grant |
 | [Request conditions](./mock-requests#slow-down-or-fail-a-request) | Any request, and the Network and CPU throttling | The page's `fetch` and XHR calls only, no throttling |
 | [Viewport in this tab](./devtools#open-this-page-at-a-viewport) | The tab itself at a project's viewport | A new window of that size |
 
@@ -12130,7 +12138,7 @@ to, and [what a connection sends](./extension-connection#what-is-sent), never a 
 - **Open shadow roots only.** Pick an element reaches inside open shadow roots; a closed one is out of reach, and a pick
   there picks its host element. The recorder records the fields of open shadow roots, and from a closed one only the
   keys of a password field (Enter, Escape, the arrows).
-- **Recording covers one origin.** On another site it stops capturing: stop and review, or start again there.
+- **Recording covers one origin.** On another site it stops capturing: finish, or start again there.
 - **No ARIA snapshot from a plain pick.** `toMatchAriaSnapshot()` code comes from **Assert a region**, at a stopped
   test in the [Runs window](./runs-window).
 
@@ -12457,47 +12465,108 @@ With the popup's **Agent context** tile, pick an element to copy one block for a
 
 <!-- https://piwitests.dev/features/record-actions -->
 
-# Record actions
+# Record a test
 
-**Record actions** asks for access to the site you are on, then captures clicks, double clicks, fills, checks, choices, drags, the
-names of chosen files (never their content), the keys that submit, close or move through a list, a click on what a
-hover shows, and the browser's **Back**, **Forward** and reload as a step to the page they reach, across pages. Each
-element is recorded with up to five locators that find it alone, ranked, so a replay has others to try when one no
-longer holds. **Check an element** and **Check the address** add an `expect(…)` of what the page shows
-now. **Pause** stops capturing without ending the recording, on every page and tab of it, so signing in or closing a
-banner stays out of the spec, until **Resume**. The bar sits in a corner of the page; when it covers something you
-need to click, its four-arrow button (**Move this bar to another corner**) moves it to the next corner, where it
-stays on every page. **Stop** opens the review: the **Test title**, filled with the first
-page's own title (or, left empty, the first step in words), names the spec's test and the steps file; **Copy as
-TypeScript** for a runnable spec that waits for each page it opens,
-**Download steps** for a [steps file](/reference/steps-format) to share or render with
-[`piwi codegen`](/reference/cli#codegen), [**Send to editor**](./editor-recording#send-from-piwi-picker),
-[**Replay**](./replay-a-bug-report) to play the steps again in the tab and see that each still finds its element, or
-**Discard**. [Report a bug](./report-a-bug) records with the same recorder. Passwords are never captured, nor a card number, its security code or a one-time code in a field whose
-`autocomplete` names it: the spec reads them from `process.env`.
+**Record**, the first tile of Piwi Picker's popup (`1`), captures what you do on a site, across its pages, and turns it
+into a runnable Playwright test. The same recording becomes a [bug report](./report-a-bug) once you mark something
+the page gets wrong; this page covers the recording itself and a test that passes.
 
 <figure>
-  <video src="/videos/picker-record-loop.mp4" autoplay loop muted playsinline controls aria-label="Recording on a shop page: a search typed, a mug added to the cart, a coupon applied, each counted on the bar as a step, then Stop opens the review with the seven steps"></video>
-  <figcaption>Each action becomes a step on the bar; Stop opens the review.</figcaption>
+  <video src="/videos/picker-record-loop.mp4" autoplay loop muted playsinline controls aria-label="Recording on a shop page: a search typed, a mug added to the cart, a coupon applied, each counted on the recording bar as a step, then Finish opens the finish panel with the steps and the test to copy"></video>
+  <figcaption>Each action becomes a step on the bar; Finish opens the finish panel.</figcaption>
 </figure>
 
+## Starting a recording
+
+The first time on a site, Record asks the browser for access to it, so the recorder can follow you from page to page.
+The popup closes once the browser's prompt shows, and the recording starts when you allow it. If you refuse, nothing is
+recorded, and the next time you open the popup on that tab and site it says the recording did not start because Piwi
+Picker was not allowed there. While the recording runs, a red border marks the tab and the popup's first tile reads **Finish (3)**, with
+the number of steps so far.
+
+The recorder captures clicks, double clicks, fills, checks, choices, drags, the names of chosen files (never their
+content), the keys that submit, close or move through a list, a click on what a hover shows, and the browser's
+**Back**, **Forward** and reload as a step to the page they reach. Each element is recorded with up to five locators
+that find it alone, ranked, so a replay has others to try when one no longer holds. Passwords are never captured, nor
+a card number, its security code or a one-time code in a field whose `autocomplete` names it: the test reads them from
+`process.env`.
+
+## The recording bar
+
+A bar in a corner of the page lists the last steps and holds the recording's tools:
+
+- **Check an element**: pick an element, then choose what to check: its text, its value, its name as screen readers
+  announce it, or its state (visible or hidden, usable or grayed out). The dialog starts from what the page shows, on
+  its **The page shows** line; keeping it records an `expect(…)` that passes.
+- **Check the address**: an `expect(page).toHaveURL(…)` of the page you are on, starting from its path.
+- **Something is missing**: an element that should be on the page and is not.
+- **Screenshot**: the page as it is now, while the debugging protocol takes the screenshots (below).
+- **Pause** stops capturing without ending the recording, on every page and tab of it, so signing in or closing a
+  banner stays out of the test, until **Resume**.
+- **Finish** ends the recording and opens the finish panel.
+
+Changing what a check expects, or naming something missing, marks the page as wrong and makes the recording a bug
+report: [Record a bug report](./report-a-bug). When the bar covers something you need to click, its four-arrow button
+(**Move this bar to another corner**) moves it to the next corner, where it stays on every page. Under its buttons, the
+bar lists the [test functions](#matching-functions) the steps look like, with a connection, then the evidence collected
+so far.
+
+## Evidence
+
+Every recording keeps the evidence a bug report needs, whether or not you mark anything wrong: the console errors, the
+failed requests, screenshots, a screenshot of each step, and the window's size, which the test sets with
+`page.setViewportSize`. In Chrome and Edge it reads them through the browser's
+[debugging protocol](./extension#the-debugging-bar), so Chrome shows its bar saying Piwi Picker started debugging the
+browser for as long as the recording runs; the recording bar says why, and Chrome's bar goes when you finish. In
+Firefox, or once that bar is cancelled, a script in the page reads the console and the requests instead, and the
+popup's **Take a screenshot** (`S`), which takes Replay's place while a recording runs, takes the screenshots. What is
+kept, and how: [Evidence](./report-a-bug#evidence). Nothing leaves the browser unless you send it.
+
+## The finish panel
+
+**Finish**, on the bar or in the popup, opens the finish panel: a **Title**, filled with the first page's own title (or,
+left empty, the first step in words), which names the test; the steps, each step a test function covers marked with its
+name; a line summing up the evidence; and a checkbox to keep or leave out the screenshot of each step. Then two rows of
+actions:
+
+- **Copy test** copies a runnable Playwright test that opens the addresses as recorded and waits for each page it
+  opens. With steps that match your test functions, it calls them, and **Without your functions** copies the same test
+  with locators only.
+- [**Send to editor**](./editor-recording#send-from-piwi-picker), with an editor paired, inserts it at the editor's
+  cursor.
+- [**Replay**](./replay-a-bug-report) plays the steps again in the tab, to see that each still finds its element.
+- **Copy report** copies the recording as Markdown, **Download .piwibug** saves its steps, its test and its evidence as
+  one [file](/reference/bug-report-file). Once a step is [marked wrong](./report-a-bug), **Send to Piwi…**, with a
+  connection, sends it to your instance as a bug report after a [preview](./bug-reports#sending-a-report).
+- **Discard** drops the recording.
+
+Until you discard it, the popup's first tile reads **Review (7)** and opens the finish panel again. Once a step is marked
+wrong, the panel is a bug report's and **Copy test** becomes **Copy failing test**:
+[The report](./report-a-bug#the-report).
+
 <figure>
-  <img src="/screenshots/picker-record.png" alt="The review panel after a recording: seven steps, Copy as TypeScript">
-  <figcaption>The review after Stop: every step, the spec one click away.</figcaption>
+  <img src="/screenshots/picker-record.png" alt="The finish panel after a recording: its title, seven steps and Copy test">
+  <figcaption>The finish panel: every step, the test one click away.</figcaption>
 </figure>
 
 ## Matching functions
 
 With a connection, the recorder loads the [function catalog](./test-functions) of the project mapped to the page and
-ranks, while you record, the functions the steps look like. On export, a complete match becomes a call to your
-function. No AI: it scores your registered functions' DOM patterns.
+ranks, while you record, the functions the steps look like, under **Matching test functions** on the bar. In the copied
+test, a complete match becomes a call to your function. No AI: it scores your registered functions' DOM patterns.
+
+## Limits
+
+- It follows one site, in the top-level document only: see the [extension's limits](./extension#limits).
+- [Recording from the editor](./editor-recording) uses the same bar with the checks only: it marks nothing wrong,
+  keeps no evidence and writes the code in the editor instead of a finish panel.
 
 ## Related
 
-- [Report a bug](./report-a-bug): the same recording, with what the page should show and the evidence
-- [Replay a bug report](./replay-a-bug-report): play recorded steps again in a tab
-- [Steps file](/reference/steps-format): the format **Download steps** writes
-- [Send to editor](./editor-recording#send-from-piwi-picker): the spec inserted in VS Code or a JetBrains IDE
+- [Record a bug report](./report-a-bug): the same recording, with what the page should show and the evidence
+- [Replay a recording](./replay-a-bug-report): play recorded steps again in a tab
+- [Bug report file](/reference/bug-report-file): what **Download .piwibug** saves, `steps.json` included
+- [Send to editor](./editor-recording#send-from-piwi-picker): the test inserted in VS Code or a JetBrains IDE
 - [Browser extension](./extension): the other tools, the permissions and the limits
 
 <!-- https://piwitests.dev/features/lint-overlay -->
@@ -12717,9 +12786,10 @@ elements in same-origin frames.
 DevTools also gets a **Piwi** panel of its own, with the tabs below. It shows what runs on the page and stays up while the
 page navigates; the recording and replay panels on the page stay too, for when DevTools is closed.
 
-- **Record** lists a recording's steps as they are captured, each with the locator it was recorded with. **Stop
-  recording** stops it as the popup does; then **Copy as TypeScript**, **Download steps** and **Discard** do what the
-  review panel does. A bug report is finished from its panel on the page, which collects the evidence.
+- **Record** lists a recording's steps as they are captured, each with the locator it was recorded with. A recording
+  is finished from its bar on the page or from the popup, which collect the last evidence; once it is, **Copy test**
+  copies its test, the failing one when a step is marked wrong, and **Discard** drops it, as the
+  [finish panel](./record-actions#the-finish-panel) does.
 - **Replay** lists a replay's steps with their results and the verdict once it ends. **Pause**, **Continue**, **Next
   step** and **Stop** act on the replay running in the page.
 - **Network** lists the page's `fetch` and XHR requests, from DevTools' own log while it is open; **Other sites too**
@@ -12854,89 +12924,92 @@ verdict.
 
 - [Developer tools](./devtools): the Piwi panel and its other tabs
 - [Browser extension](./extension): the permissions these use
-- [Replay a bug report](./replay-a-bug-report): a replay under the conditions on
+- [Replay a recording](./replay-a-bug-report): a replay under the conditions on
 
 <!-- https://piwitests.dev/features/report-a-bug -->
 
-# Report a bug
+# Record a bug report
 
-Reproduce a bug in your browser, say what the page should show, and get the test that proves it. **Report a bug** is
-a tool of the [Piwi Picker extension](./extension): it records your steps with the recorder, lets you mark what is
-wrong ("this should read Total: 36.00"), collects evidence from the page, and hands you a failing Playwright test, a
-Markdown report and a `.piwibug` file for the developer. Everything is built in your browser; nothing is sent anywhere unless you
-send it to your Piwi instance. This page covers recording a report and what it holds, with no instance;
-[Replay a bug report](./replay-a-bug-report) plays one again, and [Bug reports on your instance](./bug-reports) covers what an instance
-does with one sent to it.
+Reproduce a bug in your browser, say what the page should show, and get the test that proves it. A
+[recording](./record-actions) of the [Piwi Picker extension](./extension) becomes a bug report as soon as you mark
+something on the page as wrong ("this should read Total: 36.00"): it then hands you a failing Playwright test, a
+Markdown report and a `.piwibug` file for the developer, with the evidence every recording collects. Everything is
+built in your browser; nothing is sent anywhere unless you send it to your Piwi instance. This page covers marking what
+is wrong and what a report holds, with no instance; [Replay a recording](./replay-a-bug-report) plays one again, and
+[Bug reports on your instance](./bug-reports) covers what an instance does with one sent to it.
 
 <figure>
-  <video src="/videos/picker-report-loop.mp4" autoplay loop muted playsinline controls aria-label="Reporting a bug on a cart page: a coupon applied, the total marked as wrong with what it should read, then Finish opens the report with its five steps, its evidence and a failing test to copy"></video>
-  <figcaption>Reproduce it, mark what's wrong, finish: the report and its failing test.</figcaption>
+  <video src="/videos/picker-report-loop.mp4" autoplay loop muted playsinline controls aria-label="Recording a bug on a cart page: a coupon applied, the total checked with what it should read instead of what it shows, then Finish opens the report with its steps, its evidence and a failing test to copy"></video>
+  <figcaption>Reproduce it, say what the page should show, finish: the report and its failing test.</figcaption>
 </figure>
 
-## Recording the steps
+## Marking what is wrong
 
-Open the popup on the page where the flow starts and choose **Report a bug**, or press `B`. The first time on a site,
-Piwi Picker asks for access to it, as [Record actions](./record-actions) does. From then on, the same recorder
-captures your steps across the site's pages, as Record actions lists them, and a red border marks the tab.
+Open the popup on the page where the flow starts, choose **Record** (`1`) as [Record a test](./record-actions)
+describes, and reproduce the bug. These tools of the recording bar say what is wrong:
 
-A panel in the corner lists the last steps (its four-arrow button moves it to the next corner when it covers something
-you need to click) and offers three ways to say what is wrong:
-
-- **Mark what's wrong**: pick the element, then choose what is wrong with it: its text, its value, its name as screen
-  readers announce it, or its state (it should be hidden, visible, enabled or disabled). The panel shows what the page shows now and
-  an **It should be** field holding the same value: type what it should be instead, and add a note if it helps.
+- **Check an element**: pick the element, then choose what to check: its text, its value or its name as screen readers
+  announce it. The dialog shows what the page shows now and an **Expected** field holding the same value: type what it
+  should be instead. For a state, choose the one the element should be in and is not, such as **It should be hidden**
+  or **It should be grayed out, not usable**.
+- **Check the address**: type the path the flow should have reached, such as `/checkout/thanks`, in place of the one
+  the page is on.
 - **Something is missing**: say what should be there (a button, a link, a title, a text field, a dropdown, …) and its
-  name, such as a button
-  named "Download invoice". Piwi Picker looks for it on the page first and refuses one that is there already; use
-  Mark what's wrong for that one.
-- **Wrong page**: type the path the flow should have reached, such as `/checkout/thanks`.
+  name, such as a button named "Download invoice". Piwi Picker looks for it on the page first and refuses one that is
+  there already; use Check an element for that one.
 
-Each becomes a step of the recording, in place. **Finish** ends the recording and opens the report.
+Before you press **Add the check**, the dialog says which of the two it will record: a check that passes, or the page
+marked as wrong, which makes the recording a bug report whose test fails until the page shows what you expect. Once it
+is wrong, a **Note** field takes what happened, in your words. Each becomes a step of the recording, in place, with what
+the page showed. **Finish** ends the recording and opens the report.
 
 ## Evidence
 
-While a bug report records, Piwi Picker keeps:
+Every recording keeps, whether or not anything is marked wrong:
 
 - **Console errors and warnings**, uncaught errors and unhandled promise rejections, with the page they happened on.
 - **Failed requests**: the method, the path, and the status of any request that failed or answered 400 or more: in
   Chrome and Edge, documents, scripts and images included; elsewhere, the page's `fetch` and `XMLHttpRequest` calls. Query values are removed (`/api/cart/coupon?code=<redacted>`), ids and tokens in the path are collapsed
   as Piwi does for routes, and no header or body is ever read.
-- **An outline of the page** around the element you marked: roles, names, states and field values, in the YAML form
-  Playwright's ARIA snapshots use, at most 400 lines. Piwi Picker builds it from its own reading of the page, so it
-  is an outline, not Playwright's snapshot. Password fields, and fields for a card number, its security code or a
-  one-time code, never show their value.
-- **Screenshots**, at each mark, at Finish and when you ask for one, three at most.
+- **An outline of the page** around the element marked wrong, or of the page at **Finish** when nothing was: roles,
+  names, states and field values, in the YAML form Playwright's ARIA snapshots use, at most 400 lines. Piwi Picker
+  builds it from its own reading of the page, so it is an outline, not Playwright's snapshot. Password fields, and
+  fields for a card number, its security code or a one-time code, never show their value.
+- **Screenshots**, when something is marked wrong, at **Finish** and when you ask for one, three at most.
 - **A screenshot of each step**: the page as the step began, with the element it acts on, for whoever has to
   [play that step by hand](./replay-a-bug-report#when-a-step-cannot-be-played). They show the whole page: leave them out
   in the report if they show what should not be shared. Taken through the debugging protocol, so mostly in Chrome and
   Edge.
 - **The context**: the page, the browser and its version, the time and the extension's version.
 - **The viewport size**: at the start, then after each resize or zoom change, with the zoom when it is not 100%. The
-  failing test sets it with `page.setViewportSize` before the step it applies from, so a bug seen on a narrow window
+  test sets it with `page.setViewportSize` before the step it applies from, so a bug seen on a narrow window
   reproduces at that width.
 
 The first 100 console entries and 100 failed requests are kept; the report counts the rest.
 
 ### How the evidence is collected
 
-In Chrome and Edge, Piwi Picker reads the console, the requests and the screenshots of the tab the report started in
-through the browser's [debugging protocol](./extension#the-debugging-bar), from the page's first script, on every
-page of the recording. Chrome's debugging bar shows until you finish; the panel says it is expected, and adds a
-**Screenshot** button.
+In Chrome and Edge, Piwi Picker reads the console, the requests and the screenshots of the tab the recording started
+in through the browser's [debugging protocol](./extension#the-debugging-bar), from the page's first script, on every
+page of the recording. Chrome's debugging bar shows from the start until you finish; the recording bar says it is
+expected, and adds a **Screenshot** button.
 
 Elsewhere (Firefox, the site's other tabs, or once the bar is cancelled), a small script added to the page itself
 wraps `console.error`, `console.warn`, `fetch` and `XMLHttpRequest` without changing what they do, under the same site
-access as recording, and is removed when you finish or discard the report. A screenshot then needs the `activeTab`
-grant: it works from the Report a bug click until the tab moves to another page; after that, open Piwi Picker on the
-tab and choose **Take a screenshot**.
+access as recording, and is removed when you finish or discard the recording. A screenshot then needs the `activeTab`
+grant: it works from the click that started the recording until the tab moves to another page; after that, open Piwi
+Picker on the tab and choose **Take a screenshot** (`S`), which takes Replay's place in the popup while a recording
+runs.
 
 ## The report
 
-**Finish** opens the report: a title to write, the steps with what you marked, and a line summing up the evidence.
+**Finish** opens the recording's [finish panel](./record-actions#the-finish-panel) as a report: a title to write, the
+steps with the wrong ones highlighted, and a line summing up the evidence.
 
-- **Copy failing test** copies a Playwright spec for your suite, marked `test.fail()` so it keeps your CI green while
-  the bug exists, with the most stable locator recorded for each element. What it holds, and what to do once it
-  passes: [The failing test](./bug-reports#the-failing-test).
+- **Copy failing test**, in place of **Copy test**, copies a Playwright spec for your suite, marked `test.fail()` so it
+  keeps your CI green while the bug exists, tagged `@bug`, with paths instead of the recorded URLs, the most stable
+  locator recorded for each element and, with a connection, calls to your test functions. What it holds, and what to
+  do once it passes: [The failing test](./bug-reports#the-failing-test).
 - **Copy report** copies the report as Markdown, for an issue or a message: the steps in plain words, what was
   expected and what the page showed, the notes, the console entries, the failed requests and the outline.
 - **Download .piwibug** saves it all as one [file](/reference/bug-report-file), which Replay and the
@@ -12946,52 +13019,52 @@ tab and choose **Take a screenshot**.
 Typed values stay as you typed them, except passwords, card numbers, their security codes and one-time codes, which
 are never recorded: the spec reads them from an environment variable. Look over the report before you share it.
 
-With the extension connected to an instance, **Send to Piwi…** sends the report after a preview: see
+With the extension connected to an instance, **Send to Piwi…** sends the report after a preview. It shows once a step
+is marked wrong: a recording that marks nothing wrong is no bug report. See
 [Sending a report](./bug-reports#sending-a-report).
 
 ## Replaying a report
 
 **Replay**, on the finished report or from the popup (`R`), plays the steps again in a tab and says whether the bug
-shows there: see [Replay a bug report](./replay-a-bug-report).
+shows there: see [Replay a recording](./replay-a-bug-report).
 
 ## Limits
 
-- It follows one site, like [Record actions](./record-actions), in the top-level document only.
+- It follows one site, like any [recording](./record-actions), in the top-level document only.
 - Without the debugging protocol, only the page's own `fetch` and `XMLHttpRequest` calls are seen: not images,
   stylesheets, a form that loads a new page, or a request made by a worker.
 - A recording sends nothing anywhere: only **Send to Piwi…** does, after showing what it sends.
 
 ## Related
 
-- [Browser extension](./extension): every tool of Piwi Picker
-- [Replay a bug report](./replay-a-bug-report): playing a report again, in the browser or with Playwright
+- [Record a test](./record-actions): the recording, its bar and its finish panel
+- [Replay a recording](./replay-a-bug-report): playing a report again, in the browser or with Playwright
 - [Steps file](/reference/steps-format): the format of `steps.json`
 - [Bug report file](/reference/bug-report-file): what a `.piwibug` holds
 - [CLI: codegen](/reference/cli#codegen): a steps file rendered as a spec for your project
+- [Browser extension](./extension): every tool of Piwi Picker
 
 <!-- https://piwitests.dev/features/replay-a-bug-report -->
 
-# Replay a bug report
+# Replay a recording
 
-**Replay** plays a [bug report](./report-a-bug)'s steps again in a tab, with a cursor that moves to each element and a
-caption saying what it does, then says whether the bug shows there. It suits the developer who receives the report:
-open the app on your own dev server, and the steps run there, with your session and your browser's developer tools at
-hand, or [with Playwright](#running-it-with-playwright) in the desktop app. Recording a report:
-[Report a bug](./report-a-bug); what an instance keeps: [Bug reports on your instance](./bug-reports).
+**Replay** plays a [recording](./record-actions)'s steps again in a tab, with a cursor that moves to each element and a
+caption saying what it does, then says whether each still finds its element and, for a [bug report](./report-a-bug),
+whether the bug shows there. It suits the developer who receives a report: open the app on your own dev server, and
+the steps run there, with your session and your browser's developer tools at hand, or
+[with Playwright](#running-it-with-playwright) in the desktop app.
 
 <figure>
   <video src="/videos/picker-replay-loop.mp4" autoplay loop muted playsinline controls aria-label="Replaying a bug report on a cart page: the cursor fills the coupon, clicks Apply and checks the total, and the verdict says the bug shows here, the total reading 50 instead of 45"></video>
   <figcaption>The report's four steps played again, then the verdict: reproduced.</figcaption>
 </figure>
 
-## Choosing a report
+## Choosing a recording
 
-- From the finished report, **Replay** plays it at once on the same site. The review of a
-  [recording of actions](./record-actions) has the same **Replay**, to check its steps before you export them.
-- From the popup, **Replay a bug report** (`R`) asks for the site's access if needed, then for the report: the
-  [`.piwibug` file](/reference/bug-report-file) (or the same file named `.zip`) or its `steps.json`, the text of a
-  `steps.json` pasted in, the report or the recording of actions just made in this browser (**Use the actions recorded
-  in this browser**), or, connected, one of the project's reports on Piwi.
+- From a recording's [finish panel](./record-actions#the-finish-panel), **Replay** plays it at once on the same site.
+- From the popup, **Replay** (`R`) asks for the site's access if needed, then for what to play: the recording just made
+  in this browser, a bug report or not, a [`.piwibug` file](/reference/bug-report-file) (or the same file named `.zip`)
+  or its `steps.json`, the text of a `steps.json` pasted in, or, connected, one of the project's reports on Piwi.
 - From a failed execution on the dashboard, **Export → Bug report (.piwibug)** makes a report from the test run
   ([below](#a-report-made-from-a-test-run)), and **Steps (steps.json)** copies its steps to paste.
 
@@ -13000,20 +13073,25 @@ a link that opens an order beside the list, takes the replay to that tab, as the
 
 ## The answer
 
-Each element is looked for with every locator it was recorded with, the one the failing test uses first. When that
+Each element is looked for with every locator it was recorded with, the one the test uses first. When that
 one finds nothing for two seconds, finds several elements, or finds one the other locators disagree on, the element
 most of them agree on is used, and the step says which locator found it: a label that changed or an id made up on each load does not stop
 the replay. The element is then waited for as Playwright waits: visible, enabled and still, for as long as Playwright
 waits or, when you waited longer for it while recording (a reply that takes the server fifteen seconds), that long and
-a few seconds more, up to a minute. The replay ends with one of four answers:
+a few seconds more, up to a minute. The replay ends with one of five answers:
 
-- **Reproduced**: an expected result does not hold, such as a total that still reads "Total: 40.00", and the panel says
-  whether that is the value reported.
+- **Reproduced**: a step marked wrong, or a recording's check, does not hold, such as a total that still reads
+  "Total: 40.00", and the panel says whether that is the value reported.
 - **Not reproduced**: every expected result holds here.
-- **Could not reach the bug** (the dashboard's *diverged*): a step could not be played (it found no element, several, or a disabled one, or the
-  flow ended on another page) and you stopped there. The data, the login or a flag differ here.
+- **Could not reach the bug** (the dashboard's *diverged*): a step could not be played (it found no element, several,
+  or a disabled one, or the flow ended on another page) and you stopped there, or a check that held when recorded
+  fails. The data, the login or a flag differ here.
 - **Failed at step 4, as in the test run**: in a report made from a test run, the step that could not be played is
   the one the test failed at.
+- **Replayed every step**: the steps hold no check.
+
+A recording that marks nothing wrong says **A check failed**, **Every check holds** or **Stopped at step 4: the page
+went another way** for the first three.
 
 Under the answer, the panel lists the failed requests and console errors the page showed during the replay, such as
 "POST /api/cart/coupon answered 500": from the moment the replay started, never those of the recording, even when you
@@ -13049,17 +13127,11 @@ hands to you as above, with the line of the test it stands for, in Piwi Picker's
 all are listed in the report's Markdown under **Not replayed**.
 
 When the test failed on an action rather than on an assertion, the report says which step; reaching it and failing
-there answers **Failed at step N, as in the test run**, and playing it answers **Not reproduced**. A typed password is
-never in the report: the step asks for it.
+there answers **Failed at step N, as in the test run**, and playing it answers **Not reproduced**.
 
 A test run does not keep the page each step happened on once a click may have opened another, so Replay does not
 follow such a step into a new tab: it stays in the tab it started in, and a step the test played in a popup is handed
 to you.
-
-<figure>
-  <img src="/screenshots/execution-replay-export.png" alt="A failed execution's Export menu: downloads as HTML, ZIP, PDF, Markdown or JSON, the bug report to replay in a browser with its 6 steps, a Perfetto trace, and the report or the steps to copy">
-  <figcaption>The Export menu of a failed execution: its steps as a bug report to replay.</figcaption>
-</figure>
 
 ## Trusted input
 
@@ -13091,14 +13163,15 @@ result does not hold, **not reproduced** when the test passes, or **diverged** a
 
 ## Limits
 
-- It plays one site, in the top-level document only, as the report was recorded. A step that opens another site, or
+- It plays one site, in the top-level document only, as the recording was made. A step that opens another site, or
   an address that is not a web page, is handed to you.
 - **Share result…** and **Run with Playwright…** are the only parts that send anything, each after showing what it
   sends.
 
 ## Related
 
-- [Report a bug](./report-a-bug): recording the report Replay plays
+- [Record a test](./record-actions): the recording Replay plays
+- [Record a bug report](./report-a-bug): marking what the page gets wrong
 - [Bug reports on your instance](./bug-reports): the reports kept
 - [Bug report file format](/reference/bug-report-file): what a `.piwibug` holds
 
@@ -13106,13 +13179,13 @@ result does not hold, **not reproduced** when the test passes, or **diverged** a
 
 # Bug reports on your instance
 
-A tester who [reports a bug](./report-a-bug) in Piwi Picker can send it to your Piwi instance. Piwi keeps it with its
-steps and the evidence the tester chose to send; writes it as a failing Playwright test for
-your project; and follows that test's runs: from the test being committed, to the bug looking fixed, to the report
-closing when the fix holds. This page covers what needs an instance: sending a report, the failing test (the one
+A tester who [records a bug report](./report-a-bug) in Piwi Picker can send it to your Piwi instance. Piwi keeps it
+with its steps and the evidence the tester chose to send; writes it as a failing Playwright test for your project; and
+follows that test's runs: from the test being committed, to the bug looking fixed, to the report closing when the fix
+holds. This page covers what needs an instance: sending a report, the failing test (the one
 Piwi Picker copies too), and following it to the fix. Recording a report is on
-[Report a bug](./report-a-bug), and playing one again, in the browser or with Playwright, on
-[Replay a bug report](./replay-a-bug-report).
+[Record a bug report](./report-a-bug), and playing one again, in the browser or with Playwright, on
+[Replay a recording](./replay-a-bug-report).
 
 ## Sending a report
 
@@ -13171,9 +13244,9 @@ assertion, as a comment. Marked `test.fail()`, it passes while the bug exists an
 fixed, Playwright reports the expected failure as a failure: remove `test.fail()` and the test guards the fix.
 
 The **Spec** tab adds what Piwi knows about your project: calls to your [test functions](./test-functions) where the
-steps match one, and for each element the locator your tests already use when it is not [brittle](/reference/locator-stability), which is why its
-`getByLabel('Coupon')` below reads `getByRole('textbox', { name: 'Coupon' })` in the copy Piwi Picker makes alone. Two
-versions:
+steps match one, as Piwi Picker's copy has them once connected, and for each element the locator your tests already use
+when it is not [brittle](/reference/locator-stability), which is why its `getByLabel('Coupon')` below reads
+`getByRole('textbox', { name: 'Coupon' })` in the copy Piwi Picker makes. Two versions:
 
 - **To commit**: marked `test.fail()`, with a `piwi:bug` annotation naming the report.
 - **To run**: the same test without `test.fail()` or the annotation, which fails on the expected result while the bug
@@ -13248,9 +13321,9 @@ the exact verdict and a trace: see [Running it with Playwright](./replay-a-bug-r
 
 ## Replaying a report from Piwi
 
-A developer with the extension connected finds the project's open reports in **Replay a bug report**, beside the file
-chooser: the report's steps play in their own tab, on their own dev server, and a step handed over shows its
-screenshot. See [Replay a bug report](./replay-a-bug-report).
+A developer with the extension connected finds the project's open reports in Piwi Picker's **Replay**, beside the
+file chooser: the report's steps play in their own tab, on their own dev server, and a step handed over shows its
+screenshot. See [Replay a recording](./replay-a-bug-report).
 
 ## For agents
 
@@ -13260,7 +13333,7 @@ and the reproductions), `render_steps`, which writes a report's failing test, or
 
 ## Related
 
-- [Report a bug](./report-a-bug): recording a report in Piwi Picker
+- [Record a bug report](./report-a-bug): recording a report in Piwi Picker
 - [Steps files](/reference/steps-format): the format of the steps
 - [Test metadata](/reference/test-metadata#ownership-metadata-piwi-annotations): the `piwi:bug` annotation
 
@@ -13277,7 +13350,7 @@ same stops: [Pause and step from the editor](./editor-run-control).
 
 With Piwi Picker [paired with VS Code or a JetBrains IDE](./editor-pairing), or with the
 [desktop app](./extension-connection#pair-with-the-desktop-app), the popup shows a **Runs** tile under
-**Run control**, muted with **Not connected** while none of them answers. It opens the Runs window where you left it last. While a test waits at a stop for you (a breakpoint, a **Pause**, a failure held
+**Tests**, muted with **Not connected** while none of them answers. It opens the Runs window where you left it last. While a test waits at a stop for you (a breakpoint, a **Pause**, a failure held
 at its line, not a stop an agent drives), the tile says how many in the pause bar's violet, as do the toolbar's badge
 and the Runs window's title (`1 waiting · Runs · Piwi Picker`); while none waits, how many failed, in red, a run that failed while
 the Runs window was not in front counted until you bring it there. For each run
@@ -14511,7 +14584,7 @@ Extraction is deliberately conservative. A function that branches on its argumen
 
 ## Using the catalog
 
-- **While recording**, the extension live-ranks which catalog function the steps so far look like, and on **Copy as TypeScript** matched steps collapse into a call to your function; anything unmatched stays as plain locators. The matcher only ever *selects among* the functions you registered — it never invents one. See the [browser extension](./extension#what-it-does).
+- **While recording**, the extension live-ranks which catalog function the steps so far look like, and in the test the finish panel copies (**Copy test**, or **Copy failing test** for a bug report) matched steps collapse into a call to your function; anything unmatched stays as plain locators. The matcher only ever *selects among* the functions you registered — it never invents one. See the [browser extension](./extension#what-it-does).
 - **While recording from your editor**, each run of steps a function performs is written as a call to it as soon as its last step is recorded, a page object taken from the test's fixtures when the file's tests take it there. See [Record tests from the editor](./editor-recording).
 - **Against the current page**, the [extension](./extension) popup's **Test functions** checklist scores every function in the active project's catalog: **Ready to use here** (every step finds one element), **Partly found here**, or **Not on this page**.
 - **In the Test Map**, a method or helper on a page the suite reaches that no test runs is a *catalog method, no test calls* [scenario gap](./scenario-gaps): the cheapest test to add, since its steps exist. A step whose target comes from a parameter names no element, so a function whose every target does gets no verdict. See [Gap detectors](/reference/gap-detectors).
@@ -14564,7 +14637,7 @@ API key, is on the [Piwi CLI reference](/reference/cli).
 
 ## Writing and fixing a test
 
-- **[`codegen`](/reference/cli#codegen)** turns a Piwi Picker recording into a spec ([Record actions](./record-actions)).
+- **[`codegen`](/reference/cli#codegen)** turns a Piwi Picker recording into a spec ([Record a test](./record-actions)).
 - **[`bug`](/reference/cli#bug)** writes a [bug report](./bug-reports)'s failing test into the project and runs it.
 - **[`preflight`](/reference/cli#preflight)** lists the test locators your change breaks, and fixes them
   ([Locator preflight](./preflight)).
@@ -17236,7 +17309,7 @@ on these pages; the others take the name on the right, or are told apart by the 
 | environment | The label a run carries ([Environment](#environment)) | The app a run tests is the *environment under test* ([incident](#environment-incident)); the machine a run executed on is its [run environment](/features/run-environment); the flaky class `environment` means one browser, or one runner time zone or locale, fails |
 | wasted | [Wasted time](/features/slow-tests#wasted-time): waits plus failed attempts, as Analytics counts it | The flaky list's *wasted CI minutes* of one test are its retry passes times its average failed attempt |
 | coverage, reach | [Coverage](#coverage): the code a test ran; [reach](#reach): what a run observed a test touch | [Code reach](#code-reach) is coverage at file level; *Uncovered changes* and the **Coverage** tab keep their names |
-| diverged | The dashboard's verdict for a replay that could not play a step | Piwi Picker says *Could not reach the bug* ([Replay a bug report](/features/replay-a-bug-report)) |
+| diverged | The dashboard's verdict for a replay that could not play a step | Piwi Picker says *Could not reach the bug*, or *Stopped at step N: the page went another way* for a recording that marks nothing wrong ([Replay a recording](/features/replay-a-bug-report)) |
 | picker | **Piwi Picker**, always with its name, is the browser extension | A tool that turns a click into locators is named by where it works: the dashboard's *snapshot picker* (**Pick from snapshot**, **Open in picker**), the trace viewer's *Pick locator*, the *failure-time picker* in a local run's browser |
 | dashboard | The web app a Piwi instance serves | A saved set of Analytics widgets is an [analytics dashboard](/features/dashboards); a hosting provider's web console is its *console* |
 | report | Always with its kind | *quality report*, *HTML report* of a run, *offline export*, *bug report*, Playwright's *blob report* |
@@ -17765,8 +17838,9 @@ npx @piwitests/reporter ai resolve --grep "checkout"
 
 ## `codegen`
 
-Turn a [steps file](/reference/steps-format) into a Playwright spec. Piwi Picker saves one with
-[**Download steps**](/features/record-actions). The spec is written for a test project: URLs on the recorded
+Turn a [steps file](/reference/steps-format) into a Playwright spec. Piwi Picker's **Download .piwibug** saves one as
+the `steps.json` of the [bug report file](/reference/bug-report-file) of a [recording](/features/record-actions): rename
+the file to `.zip` to take it out. The spec is written for a test project: URLs on the recorded
 site become paths, so your config's `baseURL` applies; each element uses the first of its recorded locators that the
 [stability rules](/reference/locator-stability) call stable; and after each step that leads to another page, the spec
 waits for that page's URL. Nothing is sent anywhere unless a project is configured.
@@ -18467,8 +18541,9 @@ export default defineConfig({
 
 # Steps file format
 
-A **steps file** is a recording as data rather than code. [Piwi Picker](/features/record-actions) saves one
-with **Download steps**, and [`piwi codegen`](/reference/cli#codegen) turns one into a Playwright spec. Because it
+A **steps file** is a recording as data rather than code. A [Piwi Picker recording](/features/record-actions) keeps
+one as the `steps.json` of the [`.piwibug`](/reference/bug-report-file) it saves and sends one to a paired editor, and
+[`piwi codegen`](/reference/cli#codegen) turns one into a Playwright spec. Because it
 holds steps and not code, the same file can be rendered for different projects (their `test` import, their
 `baseURL`) and read again by newer tools.
 
@@ -18600,7 +18675,7 @@ The kinds are `goBack`, `goForward`, `reload`, `gotoUnknown`, `setContent`, `key
 
 ## Viewports
 
-A [bug report](/features/report-a-bug) keeps the size of the page's viewport, in CSS pixels: the size the recording
+A [recording](/features/record-actions) keeps the size of the page's viewport, in CSS pixels: the size the recording
 started at, then each size the window settled at after a resize. Each entry names the step it applies from:
 
 ```json
@@ -18647,18 +18722,20 @@ file as it did.
 
 ## Related
 
-- [Record actions](/features/record-actions): the recorder that writes these files
-- [Report a bug](/features/report-a-bug): a report's steps, in the same format
-- [Replay a bug report](/features/replay-a-bug-report): how the steps play back
+- [Record a test](/features/record-actions): the recorder that writes these files
+- [Record a bug report](/features/report-a-bug): a report's steps, in the same format
+- [Replay a recording](/features/replay-a-bug-report): how the steps play back
 - [Piwi CLI](/reference/cli#codegen): `piwi codegen`, from steps to a spec
 
 <!-- https://piwitests.dev/reference/bug-report-file -->
 
 # Bug report file format
 
-[Report a bug](/features/report-a-bug) saves a report as one `.piwibug` file with **Download .piwibug**, and a failed
-execution's [Export](/features/offline-export#replay-the-failure-in-a-browser) writes one from the test run. Piwi
-Picker's [Replay](/features/replay-a-bug-report) plays it, and the [desktop app](/features/desktop#importing-local-files)
+A [recording](/features/record-actions) of Piwi Picker, a [bug report](/features/report-a-bug) or not, is saved as one
+`.piwibug` file with **Download .piwibug**, named after the time it was finished: `piwi-bug-2026-11-17-15-25.piwibug`
+once a step is marked wrong, `piwi-recording-…` otherwise. A failed execution's
+[Export](/features/offline-export#replay-the-failure-in-a-browser) writes one from the test run. Piwi Picker's
+[Replay](/features/replay-a-bug-report) plays it, and the [desktop app](/features/desktop#importing-local-files)
 imports it into a project as a [bug report](/features/bug-reports).
 
 ## The archive
@@ -18669,7 +18746,7 @@ A `.piwibug` file is a zip archive, its entries stored without compression:
 |---|---|
 | `mimetype` | `application/vnd.piwi.bug-report+zip`, always the first entry |
 | `steps.json` | The steps, as a [steps file](/reference/steps-format), with the viewport sizes they were recorded at |
-| `<title>.spec.ts` | The failing test, named after the report's title, such as `coupon-not-applied.spec.ts` |
+| `<title>.spec.ts` | The test, named after the title, such as `coupon-not-applied.spec.ts`: the failing test once a step is marked wrong, else a test that passes |
 | `bug-report.md` | The report as Markdown, in the language Piwi Picker shows |
 | `evidence.json` | The evidence and the context; see below |
 | `screenshots/<n>-<moment>.png` | Up to three screenshots: `marked` (a step marked as wrong), `finish` (a report made from a test run holds its failure screenshot as `screenshots/1-finish.png`) or `manual` |
@@ -18753,7 +18830,8 @@ as a [steps file](/reference/steps-format#checks) is, and a file whose steps fai
 
 ## Related
 
-- [Report a bug](/features/report-a-bug): recording a report and what it collects
+- [Record a bug report](/features/report-a-bug): recording a report and what it collects
+- [Record a test](/features/record-actions): the recording, and the finish panel that saves the file
 - [Steps file format](/reference/steps-format): the format of `steps.json`
 - [Bug reports on your instance](/features/bug-reports): what the instance does with a report
 
