@@ -1,0 +1,1 @@
+var e={tests:{min:1,max:200},repeatEach:{min:1,max:10},workers:{min:1,max:4},lifetimeMs:12e4,silentTargetMs:3e5,stopGraceMs:6e4},t=new Set([`declined`,`expired`,`refused`,`ended`]),n=/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}\p{Default_Ignorable_Code_Point}]/u;export{n,e as r,t};
