@@ -13305,7 +13305,7 @@ bundles the Docker image's server in a native window and adds what only a local 
 ## What it does
 
 - **Receives your local runs** with no URL or token in your Playwright config.
-- **Links a project to its checkout**, so a run page can re-run the failed tests here.
+- **Links a project to its folder**, so a run page can re-run the failed tests here.
 - **Reproduces and bisects** a failure, or a flake, in a throwaway worktree, also for your editor.
 - **Imports** a blob report or trace dropped on the window.
 - **Connects AI assistants** to its MCP server by writing their config.
@@ -13371,12 +13371,13 @@ page there, starting the app if needed (macOS: from Applications; Linux: after o
 
 ## Projects from local folders
 
-**Projects → New project → Choose folder…** creates a project from a checkout on this machine, named as it would
-report, and checks the setup (a Playwright config, Playwright, the reporter): `npx @piwitests/reporter init` there
-fixes what is missing. The link stays on this machine, under **Project → Settings → Local folder**, with
-the same checks and **Change** and **Unlink**. Linking a folder offers to import the runs already in its `blob-report/` and `test-results/`;
-[Open in editor](/features/ide-integration) resolves source links against it when no workspace root is set; and a clone
-serves its git history without an [SCM credential](/guide/source-control#on-the-desktop-app).
+A project's folder holds its Playwright config (a monorepo's subfolder, not its root).
+**Projects → New project → Choose folder…** creates a project from one, named as it would report, and checks its
+setup: `npx @piwitests/reporter init` there fixes what is missing. The link stays local, under
+**Project → Settings → Local folder**, with its checks, **Unlink** and **Change**, which suggests folders and checks
+your pick. Linking it offers to import its earlier runs; [Open in editor](/features/ide-integration) resolves source
+links against it when no workspace root is set; and a clone serves its git history without an
+[SCM credential](/guide/source-control#on-the-desktop-app).
 
 ## Running tests from the app
 
@@ -13740,8 +13741,9 @@ Windows, the Secret Service on Linux), never in a file, and holds its connection
 An app connects to one instance at a time. **Disconnect** removes the key from the keychain; the app stays listed in
 the instance's Connected apps until you revoke it there. A key the instance revoked leaves the keychain too.
 
-The folder of each project is linked on this machine, per instance: the first request for a project asks for it, and
-**Settings → Desktop app** lists the linked folders by project name, with **Unlink**.
+Each project's folder is linked on this machine, per instance: its first request asks for it, and
+**Settings → Desktop app** lists them by project name, with **Unlink**. **Find it for me** looks in your code folders
+and beside linked ones; a picked folder without the tests gets the one above or below offered.
 
 ## Ask for a run
 
