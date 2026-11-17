@@ -10,7 +10,7 @@
 - [Reporter](https://piwitests.dev/guide/reporter): Install and configure @piwitests/reporter: wrapConfig, options, live streaming, global setup, multiple reports, authentication and troubleshooting.
 - [Capture fixtures](https://piwitests.dev/guide/capture-fixtures): The optional fixtures file that records network timing, Web Vitals, console output, ARIA snapshots and locator snapshots from inside your tests.
 - [CI & sharding](https://piwitests.dev/guide/ci): Run the reporter in CI: GitHub Actions, GitLab and others, shards merged into one run, the run URL for later steps and the CI merge gate.
-- [Source control](https://piwitests.dev/guide/source-control): Connect the dashboard to your GitHub, GitLab or Bitbucket repository with an SCM token, and see which features read or write through it.
+- [Source control](https://piwitests.dev/guide/source-control): Connect the dashboard to your GitHub, GitLab or Bitbucket repository with an SCM credential, and see which features read or write through it.
 - [AI provider](https://piwitests.dev/guide/ai-provider): Connect an LLM to the dashboard: Anthropic, OpenAI, a local OpenAI-compatible model or a local Claude Code or Codex CLI, with model roles, response language and token limits.
 - [Codex CLI](https://piwitests.dev/guide/codex-cli): Use a local Codex ChatGPT login for Piwi diagnosis and the assistant, with isolated execution, structured output and scoped read-only tools.
 - [DeepSeek CLI](https://piwitests.dev/guide/deepseek-cli): Use the official DeepSeek Harness command line tool for Piwi diagnosis and the assistant, with private profiles and scoped read-only MCP access.
@@ -140,6 +140,7 @@
 - [Authentication](https://piwitests.dev/operate/authentication): Turn on sign-in and instance roles, create the first administrator, configure Google and GitHub OAuth, and manage user accounts.
 - [Access, roles and groups](https://piwitests.dev/operate/project-access): Give each person the rights their job needs, project by project: the five project roles and what each can do, groups, who manages access, and the permission grid.
 - [API keys](https://piwitests.dev/operate/api-keys): Create, use and revoke the long-lived API keys that authenticate the reporter, CI pipelines, scripts and metric scrapers.
+- [Credentials](https://piwitests.dev/operate/credentials): Save a secret Piwi sends to a CI server, a Git host, an AI provider, Jira, Zephyr Scale or Slack once, bind it to the address it may reach, and read the log of every use.
 - [Localization](https://piwitests.dev/operate/localization): Set the date and time format and the time zone: each viewer's own choice, and the instance default an administrator sets.
 - [Choose what you use](https://piwitests.dev/operate/capabilities): Pick the capabilities your instance and each project use from Settings → Capabilities, and decline the rest so the dashboard stops showing them.
 - [Jira Cloud](https://piwitests.dev/operate/integrations): Connect Jira Cloud to the dashboard: the token and permissions it needs, trusted hosts, status sync and the inbound webhook.

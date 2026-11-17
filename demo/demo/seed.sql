@@ -2769,6 +2769,75 @@ CREATE INDEX `idx_test_runs_reporter` ON `test_runs` (`reporter_id`);
 DROP INDEX `idx_nr_server_traces`;
 CREATE INDEX `idx_nr_instrumented` ON `network_requests` (`test_run_id`) WHERE server_logs IS NOT NULL OR server_traces IS NOT NULL;
 
+CREATE TABLE `credential_projects` (
+	`credential_id` integer NOT NULL,
+	`project_id` integer NOT NULL,
+	PRIMARY KEY(`credential_id`, `project_id`),
+	FOREIGN KEY (`credential_id`) REFERENCES `credentials`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`project_id`) REFERENCES `projects`(`id`) ON UPDATE no action ON DELETE cascade
+);
+
+CREATE INDEX `idx_credential_projects_project` ON `credential_projects` (`project_id`);
+CREATE TABLE `credential_uses` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`credential_id` integer,
+	`credential_name` text NOT NULL,
+	`feature` text NOT NULL,
+	`project_id` integer,
+	`user_id` integer,
+	`api_key_id` integer,
+	`subject_type` text,
+	`subject_id` text,
+	`destination` text,
+	`result` text NOT NULL,
+	`reason` text,
+	`count` integer DEFAULT 1 NOT NULL,
+	`created_at` integer NOT NULL,
+	`last_at` integer NOT NULL,
+	FOREIGN KEY (`credential_id`) REFERENCES `credentials`(`id`) ON UPDATE no action ON DELETE set null,
+	FOREIGN KEY (`project_id`) REFERENCES `projects`(`id`) ON UPDATE no action ON DELETE set null,
+	FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE set null,
+	FOREIGN KEY (`api_key_id`) REFERENCES `api_keys`(`id`) ON UPDATE no action ON DELETE set null
+);
+
+CREATE INDEX `idx_credential_uses_credential` ON `credential_uses` (`credential_id`,`created_at`);
+CREATE INDEX `idx_credential_uses_project` ON `credential_uses` (`project_id`,`created_at`);
+CREATE INDEX `idx_credential_uses_created` ON `credential_uses` (`created_at`);
+CREATE TABLE `credentials` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`name` text NOT NULL,
+	`description` text,
+	`service` text NOT NULL,
+	`user_name` text,
+	`destination` text NOT NULL,
+	`secret` text,
+	`all_projects` integer DEFAULT false NOT NULL,
+	`allowed_inputs` text,
+	`custom_requests` integer DEFAULT false NOT NULL,
+	`disabled` integer DEFAULT false NOT NULL,
+	`managed_by` text DEFAULT 'db' NOT NULL,
+	`created_by` integer,
+	`created_at` integer NOT NULL,
+	`rotated_at` integer NOT NULL,
+	`last_used_at` integer,
+	FOREIGN KEY (`created_by`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE set null
+);
+
+CREATE UNIQUE INDEX `idx_credentials_name` ON `credentials` (`name`);
+
+ALTER TABLE `credentials` ADD `secret_env` text;
+
+DROP INDEX `idx_credentials_name`;
+CREATE UNIQUE INDEX `idx_credentials_name_lower` ON `credentials` (lower("name"));
+
+CREATE INDEX `idx_credential_uses_user` ON `credential_uses` (`user_id`);
+CREATE INDEX `idx_credential_uses_api_key` ON `credential_uses` (`api_key_id`);
+CREATE INDEX `idx_credentials_created_by` ON `credentials` (`created_by`);
+
+ALTER TABLE `projects` ADD `scm_credential_id` integer;
+
+ALTER TABLE `integration_connections` ADD `credential_id` integer;
+
 BEGIN TRANSACTION;
 
 -- Tags
@@ -2778,11 +2847,11 @@ INSERT INTO tags (id, text, color, created_at, updated_at) VALUES (3, 'critical'
 INSERT INTO tags (id, text, color, created_at, updated_at) VALUES (4, 'performance', '#f59e0b', 1743465600, 1743465600);
 
 -- Projects
-INSERT INTO projects (id, name, label, description, created_at, updated_at, targets, external_id_url, tag_keys, default_branch, repository_url) VALUES (1, 'e2e-checkout', 'E2E Checkout', 'End-to-end tests for the checkout flow', 1740787200, 1745569800, '{"testPassRate":99,"maxFlakyTests":2,"maxMedianTimeToFixDays":3}', 'https://tcm.example.com/case/{id}', '{"issue":"^[A-Z][A-Z0-9]+-[0-9]+$","testCase":"^SHOP-T[0-9]+$"}', 'main', 'https://github.com/example/shop-web');
-INSERT INTO projects (id, name, label, description, created_at, updated_at, ci_rerun, default_branch, repository_url) VALUES (2, 'api-integration', 'API Integration', 'Integration tests for REST API endpoints', 1739577600, 1745565300, '{"enabled":true,"actions":[{"id":"rerun-failed-tests","name":"Re-run failed tests","target":{"type":"ci-server","preset":"jenkins","baseUrl":"https://jenkins.example.com/","user":"piwi-bot","fields":{"job":"api/integration","ref":"main"}},"inputs":[],"accepts":["tests"]},{"id":"smoke-staging","name":"Smoke · staging","target":{"type":"ci-server","preset":"jenkins","baseUrl":"https://jenkins.example.com/","user":"piwi-bot","fields":{"job":"api/smoke","ref":"main"}},"inputs":[{"name":"TARGET_ENV","kind":"fixed","value":"staging"}],"accepts":["tests","suite"],"environment":"staging"},{"id":"nightly-jenkins","name":"Nightly · Jenkins","target":{"type":"ci-server","preset":"jenkins","baseUrl":"https://jenkins.example.com/","user":"piwi-bot","fields":{"job":"api/nightly","ref":"main"}},"inputs":[{"name":"SUITE","kind":"choice","options":["smoke","regression","full"],"default":"regression"}],"accepts":["suite","flakeLab"]}],"defaults":{"rerun":"rerun-failed-tests","suite":"smoke-staging","flakeLab":"nightly-jenkins"}}', 'main', 'https://github.com/example/shop-api');
-INSERT INTO projects (id, name, label, description, created_at, updated_at, targets, status_filter, default_branch, repository_url) VALUES (3, 'ui-components', 'UI Components', 'Visual regression tests for UI components', 1736467200, 1745513100, '{"testPassRate":60,"maxOpenClusterAgeDays":400}', '{"environments":[],"branches":[],"allBranches":false,"fullRunsOnly":true}', 'main', 'https://github.com/example/design-system');
-INSERT INTO projects (id, name, label, description, created_at, updated_at, capabilities, default_branch, repository_url) VALUES (4, 'mobile-safari', 'Mobile Safari', 'Mobile Safari browser compatibility tests', 1743465600, 1745150400, '{"markers":"declined","test-map":"declined"}', 'main', 'https://github.com/example/mobile-web');
-INSERT INTO projects (id, name, label, description, created_at, updated_at, default_branch, repository_url, coverage_areas) VALUES (5, 'web-dashboard', 'Web Dashboard', 'Cross-browser tests for the SaaS admin dashboard', 1740009600, 1745572200, 'main', 'https://github.com/example/admin-dashboard', '[{"name":"front","include":["src/"]},{"name":"back","include":["api/"]}]');
+INSERT INTO projects (id, name, label, description, created_at, updated_at, targets, external_id_url, tag_keys, default_branch, repository_url, scm_credential_id) VALUES (1, 'e2e-checkout', 'E2E Checkout', 'End-to-end tests for the checkout flow', 1740787200, 1745569800, '{"testPassRate":99,"maxFlakyTests":2,"maxMedianTimeToFixDays":3}', 'https://tcm.example.com/case/{id}', '{"issue":"^[A-Z][A-Z0-9]+-[0-9]+$","testCase":"^SHOP-T[0-9]+$"}', 'main', 'https://github.com/example/shop-web', 4);
+INSERT INTO projects (id, name, label, description, created_at, updated_at, ci_rerun, default_branch, repository_url, scm_credential_id) VALUES (2, 'api-integration', 'API Integration', 'Integration tests for REST API endpoints', 1739577600, 1745565300, '{"enabled":true,"actions":[{"id":"rerun-failed-tests","name":"Re-run failed tests","target":{"type":"ci-server","preset":"jenkins","credentialId":1,"fields":{"job":"api/integration","ref":"main"}},"inputs":[],"accepts":["tests"]},{"id":"smoke-staging","name":"Smoke · staging","target":{"type":"ci-server","preset":"jenkins","baseUrl":"https://jenkins.example.com/","credentialId":1,"fields":{"job":"api/smoke","ref":"main"}},"inputs":[{"name":"TARGET_ENV","kind":"fixed","value":"staging"}],"accepts":["tests","suite"],"environment":"staging"},{"id":"nightly-jenkins","name":"Nightly · Jenkins","target":{"type":"ci-server","preset":"jenkins","baseUrl":"https://jenkins.example.com/","credentialId":1,"fields":{"job":"api/nightly","ref":"main"}},"inputs":[{"name":"SUITE","kind":"choice","options":["smoke","regression","full"],"default":"regression"}],"accepts":["suite","flakeLab"]}],"defaults":{"rerun":"rerun-failed-tests","suite":"smoke-staging","flakeLab":"nightly-jenkins"}}', 'main', 'https://github.com/example/shop-api', NULL);
+INSERT INTO projects (id, name, label, description, created_at, updated_at, targets, status_filter, default_branch, repository_url, scm_credential_id) VALUES (3, 'ui-components', 'UI Components', 'Visual regression tests for UI components', 1736467200, 1745513100, '{"testPassRate":60,"maxOpenClusterAgeDays":400}', '{"environments":[],"branches":[],"allBranches":false,"fullRunsOnly":true}', 'main', 'https://github.com/example/design-system', NULL);
+INSERT INTO projects (id, name, label, description, created_at, updated_at, capabilities, default_branch, repository_url, scm_credential_id) VALUES (4, 'mobile-safari', 'Mobile Safari', 'Mobile Safari browser compatibility tests', 1743465600, 1745150400, '{"markers":"declined","test-map":"declined"}', 'main', 'https://github.com/example/mobile-web', NULL);
+INSERT INTO projects (id, name, label, description, created_at, updated_at, default_branch, repository_url, scm_credential_id, coverage_areas) VALUES (5, 'web-dashboard', 'Web Dashboard', 'Cross-browser tests for the SaaS admin dashboard', 1740009600, 1745572200, 'main', 'https://github.com/example/admin-dashboard', NULL, '[{"name":"front","include":["src/"]},{"name":"back","include":["api/"]}]');
 
 -- Users (demo identities for the "act as" switcher)
 INSERT INTO users (id, username, password, role, name, email, email_verified, created_at, updated_at) VALUES (1, 'demo-admin', '', 'administrator', 'Avery (Admin)', 'avery@piwi.demo', 1, 1738368000, 1738368000);
@@ -2810,6 +2879,26 @@ INSERT INTO role_bindings (id, user_id, group_id, project_id, role, created_by, 
 INSERT INTO api_keys (id, user_id, name, key_hash, key_prefix, client_kind, permissions, created_at, last_used_at) VALUES (1, 1, 'Piwi Desktop on DEMO-LAPTOP (macOS)', 'demo-connected-app-000000000000000000000000000000000000000000000', 'demo0000', 'desktop', '["run:receive"]', 1745139600, 1745568000);
 INSERT INTO run_targets (id, user_id, api_key_id, kind, device_name, platform, version, project_ids, last_seen_at, created_at) VALUES (1, 1, 1, 'desktop', 'Piwi Desktop on DEMO-LAPTOP (macOS)', 'macos', '0.68.0', '[1]', 1745568000000, 1745139600000);
 
+-- Credentials (Settings → Credentials) and their log
+INSERT INTO credentials (id, name, description, service, user_name, destination, secret, all_projects, allowed_inputs, custom_requests, disabled, managed_by, created_by, created_at, rotated_at, last_used_at) VALUES (1, 'Jenkins · piwi-bot', 'The Jenkins user allowed to build the API jobs.', 'ci-server', 'piwi-bot', 'https://jenkins.example.com/', NULL, 0, NULL, 0, 0, 'db', 1, 1741597200000, 1743498000000, 1745509320000);
+INSERT INTO credentials (id, name, description, service, user_name, destination, secret, secret_env, all_projects, allowed_inputs, custom_requests, disabled, managed_by, created_by, created_at, rotated_at, last_used_at) VALUES (2, 'Jenkins · release-bot', 'Starts the release smoke jobs; sends only the target environment.', 'ci-server', 'release-bot', 'https://jenkins.example.com/job/release/', NULL, 'PIWI_CREDENTIAL_RELEASE_BOT', 1, '["TARGET_ENV"]', 0, 0, 'db', 1, 1744974000000, 1744974000000, NULL);
+INSERT INTO credentials (id, name, description, service, user_name, destination, secret, all_projects, allowed_inputs, custom_requests, disabled, managed_by, created_by, created_at, rotated_at, last_used_at) VALUES (3, 'GitHub · example', 'Reads the example repositories; the instance’s source control.', 'scm', NULL, 'https://api.github.com/repos/example/', NULL, 1, NULL, 0, 0, 'db', 1, 1740042000000, 1743584400000, 1745570400000);
+INSERT INTO credentials (id, name, description, service, user_name, destination, secret, all_projects, allowed_inputs, custom_requests, disabled, managed_by, created_by, created_at, rotated_at, last_used_at) VALUES (4, 'GitHub · shop-web', 'Writes pull-request feedback and commit statuses on shop-web.', 'scm', NULL, 'https://api.github.com/repos/example/shop-web/', NULL, 0, NULL, 0, 0, 'db', 1, 1741168800000, 1741168800000, 1745571900000);
+INSERT INTO credentials (id, name, description, service, user_name, destination, secret, all_projects, allowed_inputs, custom_requests, disabled, managed_by, created_by, created_at, rotated_at, last_used_at) VALUES (5, 'Zephyr Scale · SHOP', NULL, 'zephyr-scale', NULL, 'https://api.zephyrscale.smartbear.com/v2/', NULL, 1, NULL, 0, 0, 'db', 1, 1744275600000, 1744275600000, 1745568900000);
+INSERT INTO credential_projects (credential_id, project_id) VALUES (1, 2);
+INSERT INTO credential_projects (credential_id, project_id) VALUES (4, 1);
+INSERT INTO credential_uses (id, credential_id, credential_name, project_id, user_id, api_key_id, subject_type, count, created_at, last_at, feature, subject_id, destination, result, reason) VALUES (1, 1, 'Jenkins · piwi-bot', 2, 1, NULL, 'ci-action', 3, 1745316300000, 1745317860000, 'ci-check', 'smoke-staging', 'https://jenkins.example.com/job/api/job/smoke/api/json', 'ok', NULL);
+INSERT INTO credential_uses (id, credential_id, credential_name, project_id, user_id, api_key_id, subject_type, count, created_at, last_at, feature, subject_id, destination, result, reason) VALUES (2, 1, 'Jenkins · piwi-bot', 2, 1, NULL, 'ci-action', 1, 1745399520000, 1745399520000, 'ci-dispatch', 'rerun-failed-tests', 'https://jenkins.example.com/job/api/job/integration/buildWithParameters', 'ok', NULL);
+INSERT INTO credential_uses (id, credential_id, credential_name, project_id, user_id, api_key_id, subject_type, count, created_at, last_at, feature, subject_id, destination, result, reason) VALUES (3, 1, 'Jenkins · piwi-bot', 2, 1, NULL, 'ci-action', 1, 1745430000000, 1745430000000, 'ci-dispatch', 'smoke-staging', 'https://jenkins.example.com/job/api/job/smoke/buildWithParameters', 'failed', 'The CI server answered 503');
+INSERT INTO credential_uses (id, credential_id, credential_name, project_id, user_id, api_key_id, subject_type, count, created_at, last_at, feature, subject_id, destination, result, reason) VALUES (4, 1, 'Jenkins · piwi-bot', 1, NULL, NULL, 'ci-action', 1, 1745481720000, 1745481720000, 'ci-dispatch', 'rerun-checkout', 'https://jenkins.example.com/job/checkout/buildWithParameters', 'refused', 'The credential "Jenkins · piwi-bot" is not shared with this project.');
+INSERT INTO credential_uses (id, credential_id, credential_name, project_id, user_id, api_key_id, subject_type, count, created_at, last_at, feature, subject_id, destination, result, reason) VALUES (5, 1, 'Jenkins · piwi-bot', 2, 1, NULL, 'ci-action', 1, 1745509320000, 1745509320000, 'ci-dispatch', 'rerun-failed-tests', 'https://jenkins.example.com/job/api/job/integration/buildWithParameters', 'ok', NULL);
+INSERT INTO credential_uses (id, credential_id, credential_name, project_id, user_id, api_key_id, subject_type, count, created_at, last_at, feature, subject_id, destination, result, reason) VALUES (6, 3, 'GitHub · example', 3, NULL, NULL, NULL, 14, 1745568120000, 1745570400000, 'scm-read', NULL, 'https://api.github.com/repos/example/design-system', 'ok', NULL);
+INSERT INTO credential_uses (id, credential_id, credential_name, project_id, user_id, api_key_id, subject_type, count, created_at, last_at, feature, subject_id, destination, result, reason) VALUES (7, 4, 'GitHub · shop-web', 1, NULL, NULL, NULL, 22, 1745571600000, 1745571900000, 'scm-read', NULL, 'https://api.github.com/repos/example/shop-web', 'ok', NULL);
+INSERT INTO credential_uses (id, credential_id, credential_name, project_id, user_id, api_key_id, subject_type, count, created_at, last_at, feature, subject_id, destination, result, reason) VALUES (8, 4, 'GitHub · shop-web', 1, NULL, NULL, 'commit', 1, 1745571840000, 1745571840000, 'scm-status', 'a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4', 'https://api.github.com/repos/example/shop-web', 'ok', NULL);
+INSERT INTO credential_uses (id, credential_id, credential_name, project_id, user_id, api_key_id, subject_type, count, created_at, last_at, feature, subject_id, destination, result, reason) VALUES (9, 4, 'GitHub · shop-web', 1, NULL, NULL, 'pull-request', 1, 1745571900000, 1745571900000, 'scm-comment', '42', 'https://api.github.com/repos/example/shop-web', 'ok', NULL);
+INSERT INTO credential_uses (id, credential_id, credential_name, project_id, user_id, api_key_id, subject_type, count, created_at, last_at, feature, subject_id, destination, result, reason) VALUES (10, 5, 'Zephyr Scale · SHOP', NULL, NULL, NULL, NULL, 6, 1745568000000, 1745568900000, 'integration-read', NULL, 'https://api.zephyrscale.smartbear.com/v2/', 'ok', NULL);
+INSERT INTO credential_uses (id, credential_id, credential_name, project_id, user_id, api_key_id, subject_type, count, created_at, last_at, feature, subject_id, destination, result, reason) VALUES (11, 5, 'Zephyr Scale · SHOP', NULL, NULL, NULL, NULL, 1, 1745568900000, 1745568900000, 'integration-write', NULL, 'https://api.zephyrscale.smartbear.com/v2/', 'ok', NULL);
+
 -- Starred projects (of the identity the demo opens as)
 INSERT INTO project_stars (id, user_id, project_id, created_at) VALUES (1, 1, 5, 1739145600000);
 INSERT INTO project_stars (id, user_id, project_id, created_at) VALUES (2, 1, 2, 1739145600001);
@@ -2817,6 +2906,7 @@ INSERT INTO project_stars (id, user_id, project_id, created_at) VALUES (2, 1, 2,
 -- App settings (the `ai` key marks the demo provider as configured)
 INSERT INTO app_settings (key, value, updated_at) VALUES ('ai', '{"autoDiagnose":false,"roles":{"diagnosis":{"provider":"demo","model":"demo-simulated","baseUrl":null,"apiKey":null}}}', 1745139600);
 INSERT INTO app_settings (key, value, updated_at) VALUES ('capabilities', '{"decisions":{"machine-runs":"enabled"}}', 1745139600);
+INSERT INTO app_settings (key, value, updated_at) VALUES ('scm_credentials', '{"ids":[3]}', 1743584400);
 
 -- Project-tag associations
 INSERT INTO project_tags (project_id, tag_id) VALUES (1, 1);
@@ -2829,7 +2919,7 @@ INSERT INTO project_tags (project_id, tag_id) VALUES (5, 2);
 INSERT INTO project_tags (project_id, tag_id) VALUES (5, 3);
 
 -- Test management: the checkout project's Zephyr Scale binding and the catalog of its project
-INSERT INTO integration_connections (id, provider, name, base_url, config, credentials, status, last_checked_at, last_error, managed_by, created_at, updated_at) VALUES (3, 'zephyr-scale', 'Zephyr Scale Cloud (United States)', 'https://api.zephyrscale.smartbear.com/v2', '{"region":"us"}', NULL, 'unverified', NULL, NULL, 'db', 1745139600000, 1745139600000);
+INSERT INTO integration_connections (id, provider, name, base_url, config, credentials, credential_id, status, last_checked_at, last_error, managed_by, created_at, updated_at) VALUES (3, 'zephyr-scale', 'Zephyr Scale Cloud (United States)', 'https://api.zephyrscale.smartbear.com/v2', '{"region":"us"}', NULL, 5, 'unverified', NULL, NULL, 'db', 1745139600000, 1745139600000);
 INSERT INTO project_test_management (project_id, connection_id, enabled, dry_run, provider_project_key, key_sources, run_scope, run_policy, statuses, options, created_at, updated_at) VALUES (1, 3, 1, 1, 'SHOP', '{"tags":true,"externalId":false}', '{"branches":[],"defaultBranch":true,"environments":[]}', '{"mode":"per-run","nameTemplate":"Automation · {branch} · {environment} · Piwi #{runId}"}', '{"pass":"Pass","fail":"Fail","flaky":null,"notExecuted":"Not Executed"}', '{"flakyAs":"pass","skippedAs":null,"includeError":false,"includeComment":true}', 1745139600000, 1745139600000);
 INSERT INTO test_management_cases (connection_id, project_key, key, provider_id, name, status_name, folder, fetched_at) VALUES (3, 'SHOP', 'SHOP-T120', '9120', 'Customer pays with a credit card', 'Approved', '8001', 1745561880000);
 INSERT INTO test_management_cases (connection_id, project_key, key, provider_id, name, status_name, folder, fetched_at) VALUES (3, 'SHOP', 'SHOP-T121', '9121', 'Customer pays with PayPal', 'Approved', '8001', 1745561880000);
@@ -11245,6 +11335,8 @@ UPDATE test_runs_cases SET started_at = started_at + (SELECT delta_sec FROM _reb
 UPDATE network_requests SET start_time = start_time + (SELECT delta_sec FROM _rebase) * 1000;
 UPDATE groups SET created_at = created_at + (SELECT delta_sec FROM _rebase) * 1000, updated_at = updated_at + (SELECT delta_sec FROM _rebase) * 1000;
 UPDATE group_members SET created_at = created_at + (SELECT delta_sec FROM _rebase) * 1000;
+UPDATE credentials SET created_at = created_at + (SELECT delta_sec FROM _rebase) * 1000, rotated_at = rotated_at + (SELECT delta_sec FROM _rebase) * 1000, last_used_at = last_used_at + (SELECT delta_sec FROM _rebase) * 1000;
+UPDATE credential_uses SET created_at = created_at + (SELECT delta_sec FROM _rebase) * 1000, last_at = last_at + (SELECT delta_sec FROM _rebase) * 1000;
 UPDATE role_bindings SET created_at = created_at + (SELECT delta_sec FROM _rebase) * 1000;
 UPDATE project_stars SET created_at = created_at + (SELECT delta_sec FROM _rebase) * 1000;
 UPDATE run_targets SET created_at = created_at + (SELECT delta_sec FROM _rebase) * 1000, last_seen_at = last_seen_at + (SELECT delta_sec FROM _rebase) * 1000;

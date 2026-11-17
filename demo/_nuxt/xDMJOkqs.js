@@ -1,0 +1,1 @@
+var e=`font-mono rounded-md border border-default bg-elevated px-1 box-decoration-clone`,t=`bg-elevated text-highlighted`,n=`ring-2 ring-offset-1 ring-offset-bg ring-inverted`;export{n,t as r,e as t};

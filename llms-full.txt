@@ -1064,8 +1064,9 @@ sent.
 # Source control
 
 Piwi reads your repository through the Git host's API with an **SCM token** (a personal or project access token for
-GitHub, GitLab or Bitbucket). Nothing needs it to store runs, but every feature that looks at the code behind a
-failure, or writes back to a pull request, goes through it.
+GitHub, GitLab or Bitbucket), saved once as an [SCM credential](/operate/credentials). Nothing needs it
+to store runs, but every feature that looks at the code behind a failure, or writes back to a pull request, goes
+through it.
 
 ## What uses it
 
@@ -1084,21 +1085,44 @@ failure, or writes back to a pull request, goes through it.
 Every call is best-effort: a missing token, a private repository the token cannot see or an unreachable host is
 logged, and the feature shows nothing rather than failing a run.
 
-## Set the token
+## Set the credential
 
-- **Instance-wide**: **Settings → Source control**, field **SCM token** in its **Repository access** card. Every
-  project uses it unless it has its own.
-- **Per project**: **Project → Settings → Source control**, field **SCM token**. It overrides the instance-wide
-  token for that project. Prefer one per project for write access: an instance-wide write token can
-  write everywhere it reaches.
+Save the token under **Settings → Credentials** (**New credential**, service **Source control**), or with **New
+credential** beside any picker below. Its destination is the host's API, which the form offers in one click
+(`https://api.github.com/`, `https://gitlab.com/`, `https://api.bitbucket.org/`), or a path under it that keeps the
+token to one owner's repositories on GitHub or Bitbucket (`https://api.github.com/repos/acme/`), or to one project on
+GitLab (`https://gitlab.com/api/v4/projects/acme%2Fweb/`). Then pick it:
 
-A token is stored encrypted with [`PIWI_SECRET_KEY`](/reference/configuration#general) and never returned by the API;
-the field shows that one is stored. Leave the field empty to keep it. To remove it, click **Remove** beside the
-instance-wide token, then **Save**, or **Remove stored token** under the project field. The page stays open when the
-Source control [capability](/operate/capabilities) is declined, so a stored token can still be removed.
+- **Per project**: **Project → Settings → Source control**, field **Credential**. Prefer one per project for write
+  access: a token the instance shares can write everywhere it reaches.
+- **Instance-wide**: **Settings → Source control**, field **SCM credentials** in its **Repository access** card,
+  for every project that picks none. It lists credentials shared with all projects; for each repository, the one
+  whose destination holds the repository's API applies, the narrowest first, so one instance can hold a GitHub and a
+  GitLab token.
+- **Per CI action**: a GitHub, GitLab or Bitbucket action of [Re-run in CI](/features/ci-rerun) may name its own, so a
+  token scoped to CI dispatches (on GitHub, **Actions: write**, and **Contents: read** for the action's **Check**),
+  and the project's keeps reading and writing feedback.
+
+The token is encrypted with [`PIWI_SECRET_KEY`](/reference/configuration#general), never returned by the API, sent
+only to its destination, and each use is in the credential's log. A token saved on a project or the instance before
+credentials existed is moved to one at startup (below). The page stays open
+when the Source control [capability](/operate/capabilities) is declined, so the credentials can still be taken out.
 
 Public repositories work without a token for the read features, within the host's rate limit for anonymous calls.
 A private repository needs one, except on the desktop app with a linked folder (below).
+
+### How it is used and logged
+
+Opening a credential for a repository's calls is counted like a **Check** in its log, `ok` once opened (a token the
+host refuses shows on the page that read). Each write (a comment, a commit status, an auto-heal branch, commit or pull
+request, a dispatch) is a row of its own, checked again before it is sent. A refused credential is logged; the reads
+go on without it, and a dispatch, or the **Check** of an action that names its own, is refused.
+
+At startup, a project's token saved before credentials existed moves to a credential bound to the API of its
+repository; it waits while the project has no repository, or one on a GitLab host `PIWI_SCM_GITLAB_HOSTS` does not
+list. The instance's moves to one credential per API it could reach (GitHub's, Bitbucket's, the GitLab cloud's and
+each listed host's), shared with all projects and listed in **Settings → Source control**: delete the ones your
+repositories do not use.
 
 ### On the desktop app
 
@@ -1106,8 +1130,8 @@ The [desktop app](/features/desktop) needs no token for the read features. When 
 [linked to a folder](/features/desktop#projects-from-local-folders) that is a clone of the repository (one of its
 remotes points at the run's remote URL), Piwi reads the commits, diffs and files with `git` in that folder, on your
 machine. A commit or branch the clone does not have is asked of the host as above, so run `git fetch` in the folder to
-see commits pushed since your last fetch. With a token set, the host is read instead, as on a server, and the write
-features always need one. A repository on another host (a self-hosted Bitbucket or Gitea, a GitLab host not listed
+see commits pushed since your last fetch. With a credential set, the host is read instead, as on a server, and the
+write features always need one. A repository on another host (a self-hosted Bitbucket or Gitea, a GitLab host not listed
 below) is read from the clone alone, token or not: what the clone does not have stays unavailable.
 
 ### Which repository
@@ -1117,12 +1141,12 @@ records the Git remote URL, the branch and the commit of the checkout it runs in
 [SCM information](/reference/test-metadata#scm-information-git)), and the first run that names a remote sets the
 field. A run whose remote names another repository is left out of every call that uses the token: its commits, diffs
 and source are not read, and nothing is written for it. A project admin can change the field, or clear it so that the
-next run sets it again. With the instance-wide token, a link to a repository no readable project uses is unfurled as a
-public page, without the token.
+next run sets it again. With the instance's credentials, a link to a repository no readable project uses is unfurled
+as a public page, without a token.
 
 Supported hosts are `github.com`, `gitlab.com`, `bitbucket.org` and self-hosted GitLab. A remote on a host's SSH
 alias (`ssh.github.com`, `ssh.bitbucket.org`, `altssh.bitbucket.org`) names the same repository as on the host. List
-each self-hosted GitLab host in [`PIWI_SCM_GITLAB_HOSTS`](/reference/configuration#integrations): Piwi sends the token
+each self-hosted GitLab host in [`PIWI_SCM_GITLAB_HOSTS`](/reference/configuration#integrations): Piwi sends a token
 only to a host you named. A run without a remote URL has nothing to diff.
 
 ### Scopes
@@ -1144,7 +1168,8 @@ section is absent, it says why.
 - **No commits or diff.** The cluster's **What changed** line keeps the range, shows the host's error when it returned
   one (*GitHub error: Not Found*), and links the host's compare page when there is one; its help hint says what to set
   up: a commit and a repository URL on the run (the reporter reads both from the Git checkout the tests run in, the URL
-  from its `origin` remote), a host Piwi reads, an SCM token, or, with a token set, one that can read the repository.
+  from its `origin` remote), a host Piwi reads, an SCM credential, or, with one set, a token that can read the
+  repository. A refused credential (disabled, not shared with the project, or bound to another host) is in its log.
   A 404 from GitHub on a private repository means the token cannot see it. On the desktop app, the hint says to fetch
   the commits in the linked folder. The cluster's **More actions › Copy git log** copies the command that lists the
   range in your checkout.
@@ -1169,7 +1194,8 @@ cluster or a single execution, and the cluster titles), semantic merging of fail
 [AI steps](/features/ai-steps), the AI narrative of [quality reports](/features/quality-reports) and the
 [assistant](/features/assistant); an embedding model also sharpens the **Fixed before** matches of
 [fix plans](/features/fix-plans#fixed-before), which are found without one. All use the same provider, configured once
-on the server; API keys never leave it.
+on the server; API keys never leave it. A key typed in **Settings → AI** is saved as a
+[credential](#api-keys), sent only to the role's provider and logged at each use.
 
 ## Enabling AI diagnosis
 
@@ -1182,7 +1208,7 @@ are not read.
 | Variable | Description |
 |----------|-------------|
 | `PIWI_AI_PROVIDER` | `anthropic`, `openai`, `claude-cli`, `codex-cli`, or `deepseek-cli` |
-| `PIWI_AI_API_KEY` | Provider API key (stored encrypted when set via the UI; never returned by the API) |
+| `PIWI_AI_API_KEY` | Provider API key (a read-only credential of the environment; a key typed in the UI is saved as a credential, never returned by the API) |
 | `PIWI_AI_MODEL` | Model name (default: `claude-opus-4-8` for Anthropic) |
 | `PIWI_AI_BASE_URL` | Base URL of the provider API: required for `openai`, OpenAI itself (`https://api.openai.com/v1`) included; optional for `anthropic` (a gateway or proxy) |
 | `PIWI_AI_AUTO_DIAGNOSE` | `true` to diagnose, when a run finishes, the clusters that failed in it and have no completed diagnosis yet |
@@ -1205,6 +1231,16 @@ To be told when a diagnosis finishes without watching the panel, turn on **Setti
 ### Local Codex CLI
 
 Use [Codex CLI](/guide/codex-cli) with a ChatGPT login, or [official DeepSeek Harness](/guide/deepseek-cli) with DeepSeek credentials.
+
+## API keys
+
+A key typed in a role's form is saved as an **AI provider** [credential](/operate/credentials), shared with all
+projects and sent only to the role's endpoint: its base URL, else Anthropic's API for an Anthropic role. A new key
+rotates it, or saves a new one while another role names it, and the form's **Saved key** picks one saved under
+**Settings → Credentials** instead. The key is opened only by a
+call to the model, counted in the credential's log; a disabled or refused credential fails the call with its reason.
+Each `PIWI_AI_*_API_KEY` set is a read-only credential of the environment. The keys saved before credentials existed
+are moved at startup, one credential per key and endpoint.
 
 ## Model roles
 
@@ -2002,8 +2038,8 @@ Never captured, so it cannot leak:
 ## Secrets at rest
 
 Credentials you store in the dashboard are encrypted with AES-256-GCM using `PIWI_SECRET_KEY`:
-AI provider keys, SCM tokens (the instance's and each project's), webhook signing secrets, Slack bot
-tokens, the Jira and Zephyr Scale connections' credentials, CI server tokens, and a scheduled
+AI provider keys, credentials (CI server and SCM tokens), webhook signing secrets, Slack bot
+tokens, the Jira and Zephyr Scale connections' credentials, and a scheduled
 report's share-link token on its way to delivery. **Set it in production.** Unset, or set to the
 published development default, the dashboard refuses to save a credential and names the variable.
 Generate a key with:
@@ -2242,7 +2278,7 @@ command palette or `g` then `s`: your **Account** and connected accounts ([OAuth
 **Roles** (what each role can do, read-only), **Storage**
 ([Storage](/operate/storage#storage-management)), **Tags**, **Pull requests** ([Pull-request feedback](./pr-feedback)),
 **Auto-heal** ([Auto-heal PRs](./auto-heal)), **Source control**
-([SCM token](/guide/source-control#set-the-token)), **Integrations** ([Jira Cloud](/operate/integrations), [Zephyr Scale Cloud](/operate/zephyr-scale)),
+([SCM credentials](/guide/source-control#set-the-credential)), **Integrations** ([Jira Cloud](/operate/integrations), [Zephyr Scale Cloud](/operate/zephyr-scale)),
 **Performance** ([wasted-time patterns](./slow-tests#wasted-time) and timeout hygiene), **AI** ([AI provider](/guide/ai-provider)),
 **Notifications** ([Notifications & alerts](./notifications)), **Localization**
 ([Localization](/operate/localization)) and **About**, and in the [desktop app](./desktop) **Desktop app** first. A setting backed by
@@ -2313,7 +2349,7 @@ popover, and pointing at a line enlarges its number on the page.
 |---|---|---|
 | **Report a first run** | Install the reporter, send a run, and find it in its project | Administrators |
 | **Configure AI** | Choose where the AI runs and what it does | Administrators |
-| **Add the SCM token** | Let Piwi read the commits behind a failure | Project admins |
+| **Add the SCM credential** | Let Piwi read the commits behind a failure | Project admins |
 | **Set up CI and sharding** | Report from CI, merge shards into one run, re-run from a cluster | Administrators |
 | **Turn on pull-request feedback** | Post each run's result on its pull request | Administrators |
 | **Connect Jira** | File issues from failures and keep them in sync | Administrators |
@@ -2349,7 +2385,7 @@ Three pages suggest a guide, or a question for the [assistant](./assistant), whe
 | Page | When | Offers |
 |---|---|---|
 | Settings → Capabilities | A capability is neither in use nor declined | **Ask**: which of them your runs would use, and what each one needs |
-| A failure cluster | Its diagnosis read no commits, and no SCM token is set for the project or the instance | **Show me**: Add the SCM token |
+| A failure cluster | Its diagnosis read no commits, and no SCM credential is set for the project or the instance | **Show me**: Add the SCM credential |
 | An execution | It timed out, or its leading clue comes from the network, the server logs or the console, and the project has not decided on the capture fixtures | **Show me**: Add the capture fixtures |
 
 A fixed rule over what the page already shows decides; no AI model is called. A page shows one suggestion at most,
@@ -6261,8 +6297,8 @@ strongest thing the dashboard does, so the posture is conservative by design.
 - **`PIWI_SITE_URL`** must be set, so the links in the PR body resolve.
 - A run that recorded its git remote URL (the reporter's `collectScmInfo`, on by default), and the **capture
   fixtures**, which record the snapshots every edit but a diff rename comes from.
-- An **SCM token with write scope**, resolved as [Source control](/guide/source-control#set-the-token) describes: a per-project token, falling back
-  to the global one. It needs:
+- An **SCM credential with write scope**, resolved as [Source control](/guide/source-control#set-the-credential)
+  describes: the project's, falling back to the instance's. Its token needs:
   - **GitHub** — `repo` (classic), or a fine-grained token with **Contents: write** + **Pull requests: write**.
   - **GitLab** — `api`.
   - **Bitbucket** — an access token that can write to the repository. Bitbucket Cloud has no draft pull requests, so
@@ -6383,7 +6419,7 @@ Turn it on in **Settings → Pull requests** (off by default). It needs:
 
 - **`PIWI_SITE_URL`** set on the dashboard. Every link in the comment is built from it; without it nothing is posted,
   because a comment full of unreachable links is worse than no comment.
-- **An SCM token with write access** to the repository, set instance-wide or per project: `repo` on GitHub, `api` on
+- **An SCM credential with write access** to the repository, set instance-wide or per project: `repo` on GitHub, `api` on
   GitLab, `repository` and `pullrequest` on Bitbucket. [Source control](/guide/source-control) explains where to set
   it and what else uses it.
 - **Branch and commit metadata on the run**, which the reporter [detects automatically](/guide/ci#what-gets-detected).
@@ -6403,7 +6439,7 @@ Turn it on in **Settings → Pull requests** (off by default). It needs:
 
 - [CI & sharding](/guide/ci): run the reporter in CI
 - [CI merge gate](./merge-gate): fail a CI job on the run's analysis
-- [Source control](/guide/source-control): the SCM token and its scopes
+- [Source control](/guide/source-control): the SCM credential and its scopes
 - [Auto-heal PRs](./auto-heal): the pull request Piwi opens itself
 - [Failure clusters](./failure-clusters): the clusters the comment reports
 - [Re-run in CI](./ci-rerun): re-run a cluster's tests from the dashboard
@@ -6425,7 +6461,7 @@ Integrations, beside **Issue tracker**): a list of named [CI actions](#ci-action
 what it sends.
 
 Its buttons show to people with [`run:control`](/operate/project-access#what-each-role-can-do) once an action serves the
-run (through the repository, with an SCM token) and a test has a path Playwright takes.
+run (through the repository, with an SCM credential) and a test has a path Playwright takes.
 
 *Copy retry command* is the local counterpart: it copies an `npx playwright test` command to run the same tests on your
 machine. On a run's page, its menu adds run options the browser remembers (headed, trace, repeat each up to 10 without
@@ -6490,7 +6526,8 @@ Choose the provider of the action:
 | **GitLab** | A ref and the pipeline variable name that receives the arguments | `api` |
 | **Bitbucket** | The `custom:` pipeline name and the variable name that receives the arguments | `pipeline:write` |
 
-The dispatch uses the project's [SCM token](/guide/source-control) with the scope above.
+The dispatch, and a GitHub action's **Check**, carry the action's **Credential**, else the repository's
+[SCM credential](/guide/source-control#set-the-credential), with the scope above.
 
 On GitLab and Bitbucket, name the variable `PIWI_RERUN_ARGS` and run [`rerun`](/reference/cli#rerun), which reads the
 quoted arguments without a shell:
@@ -6529,7 +6566,7 @@ A CI server action is a **preset**, which builds the request from a few fields, 
 
 **Jenkins** takes the job as Jenkins shows its path (`polaris/e2e`; `polaris/e2e/{branch}` for a multibranch pipeline)
 and posts to its `buildWithParameters` with `PIWI_RERUN_ARGS` (the arguments) and `PIWI_ORIGIN_REF` (the dispatch id),
-names you can change, plus the action's inputs. The credential is a user and their API token, sent as Basic
+names you can change, plus the action's inputs. The credential is a Jenkins user and their API token, sent as Basic
 authentication. The link goes to the job's page. The job declares both parameters and runs `rerun`:
 
 ```groovy
@@ -6604,13 +6641,12 @@ refused. In a JSON body it fills a whole string value.
 
 ### The credential and the hosts
 
-The **CI server token** is one write-only field of the **CI** section: leave it empty to keep it. It is stored with the
-one base URL the CI server actions send under (an action's own, else `PIWI_CI_SERVER_URL`), which the field states, and
-sent only under it. Saving it while the actions use more than one base URL is refused. A project without a token uses
-the instance's (`PIWI_CI_SERVER_USER`, `PIWI_CI_SERVER_TOKEN`), only with a preset's request under that URL, and then
-sends only the inputs the operator lists in `PIWI_CI_SERVER_ALLOWED_INPUTS` (comma-separated, empty by default);
-**Check** names the ones left out. A base URL or request path is refused when a segment would climb once a server decodes
-it (`..%2F`, `..;`).
+A CI server action names a [credential](/operate/credentials): a user, a secret and the base URL it may be sent
+under, saved once, shared with projects, and logged on each use. Its base URL can stay empty to use the credential's. A
+request carrying it sends only the inputs it allows; **Check** names the ones left out. With no credential, a preset's
+request under `PIWI_CI_SERVER_URL` carries the instance's (`PIWI_CI_SERVER_USER`, `PIWI_CI_SERVER_TOKEN`) and sends
+only the inputs `PIWI_CI_SERVER_ALLOWED_INPUTS` lists. A base URL or request path is refused when a segment would climb
+once a server decodes it (`..%2F`, `..;`).
 
 A request never follows a redirect, and a link from the answer is kept only as an `http(s)` URL or a path from the
 base URL's root. A CI server is reached over `https`; over `http` or on a private address it is reached only when
@@ -6661,7 +6697,7 @@ files.
 ## Related
 
 - [Pull-request feedback](./pr-feedback): the result posted on the pull request
-- [Source control](/guide/source-control): the SCM token and its scopes
+- [Source control](/guide/source-control): the SCM credential and its scopes
 - [Failure clusters](./failure-clusters): the clusters a re-run acts on
 - [Flake Lab](./flake-lab): the experiment a Flake Lab action runs in CI
 - [CLI](/reference/cli#rerun): the `rerun` command a pipeline runs
@@ -7807,7 +7843,7 @@ with the branch it merges into, so every push reports the whole pull request: th
 open on its branch, so a push-triggered workflow reads its pull request too. Any other run is compared with the
 commit of the last passing run. A public repository is read without a token, so
 its uncovered changes and their gaps appear in Piwi, though nothing is posted; a private one needs a
-[token](/guide/source-control#set-the-token). With no diff, nothing appears.
+[SCM credential](/guide/source-control#set-the-credential). With no diff, nothing appears.
 
 ## On the pull request
 
@@ -9391,8 +9427,8 @@ the channel, then copy the URL from **Incoming Webhooks**. A Slack-compatible se
 **Bot token.** Piwi posts with the Web API's
 [`chat.postMessage`](https://docs.slack.dev/reference/methods/chat.postMessage). The same link asks for `chat:write`
 and `chat:write.public` instead: install the app, copy the **Bot User OAuth Token** (`xoxb-…`) and the channel's
-**Channel ID**, and invite the app to a private channel first. The token is encrypted at rest and never returned, so it
-needs `PIWI_SECRET_KEY`. A refusal names Slack's error code (`not_in_channel`, `invalid_auth`) with what to do.
+**Channel ID**, and invite the app to a private channel first. The token is encrypted (`PIWI_SECRET_KEY`) and never
+returned; a global channel's is a [credential](/operate/credentials#connections-and-slack-channels). A refusal names Slack's error code (`not_in_channel`, `invalid_auth`) with what to do.
 
 Through either, a delivery Slack rate-limits retries after its `Retry-After`, up to an hour.
 
@@ -9418,7 +9454,7 @@ The body, its fields and how to verify the signature are in
 
 ### Reaching the person who fixed it
 
-`cluster.fixed` and `cluster.regressed` resolve the fixing commit's author through the SCM provider, which for a private repository needs an [SCM token](/guide/source-control) (for a regression, the author of the fix that did not hold). On top of the normal subscription routing, the event is then delivered to that person directly, when the commit's email belongs to a registered Piwi user who can open the project:
+`cluster.fixed` and `cluster.regressed` resolve the fixing commit's author through the SCM provider, which for a private repository needs an [SCM credential](/guide/source-control) (for a regression, the author of the fix that did not hold). On top of the normal subscription routing, the event is then delivered to that person directly, when the commit's email belongs to a registered Piwi user who can open the project:
 
 - **Email**, through the same outbox, when SMTP is configured. The mail goes to that user's account email, never to the raw commit address, so a fix by an outside contributor never becomes a mail to a stranger.
 - **A browser notification** for that user, delivered even when they have no matching subscription.
@@ -13333,7 +13369,7 @@ report, and checks the setup (a Playwright config, Playwright, the reporter): `n
 fixes what is missing. The link stays on this machine, under **Project → Settings → Local folder**, with
 the same checks and **Change** and **Unlink**. Linking a folder offers to import the runs already in its `blob-report/` and `test-results/`;
 [Open in editor](/features/ide-integration) resolves source links against it when no workspace root is set; and a clone
-serves its git history without an [SCM token](/guide/source-control#on-the-desktop-app).
+serves its git history without an [SCM credential](/guide/source-control#on-the-desktop-app).
 
 ## Running tests from the app
 
@@ -15028,7 +15064,7 @@ A Member's rights inside a project come from the **project roles** granted to th
    ```bash
    PIWI_AUTH_ENABLED=true
    PIWI_AUTH_SECRET=your-auth-secret-here  # signs session cookies
-   PIWI_SECRET_KEY=your-secret-key-here    # encrypts stored credentials (AI keys, SCM tokens)
+   PIWI_SECRET_KEY=your-secret-key-here    # encrypts stored secrets (AI keys, credentials)
    ```
 
    Generate a strong random value for each secret (run it twice):
@@ -15236,8 +15272,9 @@ each endpoint's requirement (`x-required-permission`), so a script author can te
 | Delete runs, release kept runs | `run:delete` | | | | ✓ | |
 
 Only an Administrator holds the **instance permissions**: `users:manage`, `groups:manage`, `settings:manage`,
-`connections:manage`, `storage:manage`, `tags:manage`, `project:create` and `project:delete`. An endpoint any
-signed-in user may call (their profile, API keys, dashboards, channels, subscriptions) declares `signed-in`.
+`connections:manage`, `credentials:manage`, `storage:manage`, `tags:manage`, `project:create` and
+`project:delete`. An endpoint any signed-in user may call (their profile, API keys, dashboards, channels,
+subscriptions) declares `signed-in`.
 
 ## All projects or one project
 
@@ -15459,6 +15496,145 @@ preferred for CI: they need no sign-in round-trip, and each one can be revoked o
 - [Reporter](/guide/reporter): every reporter option
 - [Metrics and rollup export](./metrics): scraping with an API key
 
+<!-- https://piwitests.dev/operate/credentials -->
+
+# Credentials
+
+A credential is a secret Piwi sends to another service, saved once under **Settings → Credentials** and named wherever
+it is needed: a CI server action, [source control](/guide/source-control), an AI role, a Jira or Zephyr Scale
+connection or a Slack channel. A rotation is one change, and every use is logged.
+
+<figure>
+  <img src="/screenshots/credentials-settings.png" alt="Settings → Credentials: two Jenkins and two GitHub credentials, a Jenkins one open in a panel with its user, destination, projects, the three CI actions that name it and its log of dispatches and checks">
+  <figcaption>Settings → Credentials: a credential's panel, with the CI actions that name it and its log.</figcaption>
+</figure>
+
+## What a credential holds
+
+| Field | What it is |
+|---|---|
+| **Service** | **CI server**, **Source control** for a GitHub, GitLab or Bitbucket token, **AI provider**, **Jira Cloud**, **Zephyr Scale** or **Slack**. |
+| **Name** | Unique on the instance, ignoring case; the name the pickers and the log show. |
+| **Destination** | The base URL the secret may be sent under (`https://jenkins.example.com/`). A request to any other address, or outside its path, is refused. |
+| **User** | The user name sent with the secret as HTTP Basic authentication, when a CI server takes one; for Jira, the account's e-mail. |
+| **Secret** | The API token, saved encrypted with `PIWI_SECRET_KEY`, together with the destination, or read from a server variable (below). Never returned by any page, API answer or log. |
+| **Projects** | The projects that may name it: a list, or all projects, present and future. |
+| **Inputs** | For a CI server, the CI action inputs a request carrying it may send beside the arguments and the dispatch id: every input, or the names listed. |
+| **Custom requests** | For a CI server, whether a Custom request may carry it. Off by default: a Custom request can reach any path under the destination, a CI server's script console included. |
+
+Saving a secret needs `PIWI_SECRET_KEY` (see the [production checklist](./production-checklist)); without it, the
+form says so and nothing is saved. Changing the destination asks for the secret again, since the secret is sealed with
+the one destination it may be sent under.
+
+## A secret from a server variable
+
+An administrator can have a credential read its secret from a variable of the server's environment instead of saving
+it: **Secret source** → **Read from a server variable**, then the variable's name. Only a variable named
+`PIWI_CREDENTIAL_…` (capitals, digits and `_`) can be named, so no other variable of the server, such as
+`PIWI_SECRET_KEY` or a database URL, can be sent anywhere. Set it as the server's other variables are set, from a
+secrets store or the container's environment:
+
+```bash [.env]
+PIWI_CREDENTIAL_JENKINS=11a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6
+```
+
+The variable is read at each use, so changing it and restarting the server is the rotation. Its name is sealed with
+the destination like a saved secret, so a new destination is saved with the name again (the form sends it). The
+panel says when the variable is not set on the server, and a dispatch is then refused and logged. Only an
+administrator may change a credential that reads a variable.
+
+## Who manages them
+
+An administrator (the `credentials:manage` permission) creates, changes, disables and deletes any credential, and is the
+only one who may share one with all projects. A Project admin opens **Settings → Credentials** too, and sees there the
+credentials they manage: the ones they created, shared only with projects they manage and reading no variable. They
+create them there or from a project's **CI** or **Source control** settings. A credential an administrator saved or
+changed is the administrator's: a Project admin picks it, and never loosens its rules or undoes a **Disable**. Anyone
+who manages a project picks any credential shared with it, for its CI actions or its source control, without ever
+reading its secret. See
+[Access, roles and groups](./project-access).
+
+**Disable** refuses every use of a credential at once, for an incident, without touching the actions that name it.
+**Delete** is refused while something names the credential (a CI action, source control, an AI role, a connection, a
+Slack channel): the answer lists them.
+
+## Using one in a CI action
+
+In **Project → Settings → CI**, a CI server action's editor has a **Credential** picker and a **New credential**
+button. The action's base URL may stay empty: it is then the credential's destination. The request preview shows which
+credential the request carries, and says when the credential would refuse it.
+
+Each dispatch and each **Check** checks the credential again before anything is sent: still active, shared with the
+project, and holding the request's URL under its destination, and allowing a Custom request when the action sends one.
+
+## What names a credential
+
+- **A CI action**: a CI server action's requests, or the dispatch and the **Check** of a GitHub, GitLab or Bitbucket
+  action ([Re-run in CI](/features/ci-rerun)).
+- **Source control**: a project's repository calls, else the instance's, with a GitHub, GitLab or Bitbucket token sent
+  to the host's API ([Source control](/guide/source-control#set-the-credential)).
+- **An AI role**: the key of a role of **Settings → AI**, sent to its provider ([AI provider](/guide/ai-provider#api-keys)).
+- **A Jira or Zephyr Scale connection, or a global Slack channel**: its token
+  ([below](#connections-and-slack-channels)).
+
+Whatever names it, a credential is checked and logged as this page says; each page says what its feature sends and
+how the secrets saved before credentials existed were moved.
+
+## The CI server credential of the environment
+
+The operator can set one CI server credential through the environment: `PIWI_CI_SERVER_URL`, `PIWI_CI_SERVER_USER` and
+`PIWI_CI_SERVER_TOKEN`. It shows on the page as a read-only credential, shared with all projects, and is sent by a CI
+server action that names no credential, only with a preset's request under `PIWI_CI_SERVER_URL`, and with only the
+inputs `PIWI_CI_SERVER_ALLOWED_INPUTS` lists. Its uses are logged like any other. See the
+[configuration reference](/reference/configuration).
+
+A CI server token stored on a project (`projects.ci_server_token`) is moved to a credential at startup: bound to the
+URL it was saved with, shared with its project, allowed with a Custom request and every input, and named by the CI
+server actions it served. Two projects holding the same token for the same URL and user share one credential. An
+administrator manages it, since the database does not say who saved the token. A token that cannot be opened (a
+changed `PIWI_SECRET_KEY`) stays where it is, with a warning in the log at each start.
+
+## Connections and Slack channels
+
+The token typed for a Jira or Zephyr Scale connection (**Settings → Integrations**) or a global Slack channel's bot
+(**Settings → Notifications**) becomes its credential, named after it, shared with all projects
+and sent only under the Jira site (a scoped token's Atlassian gateway counts as the site), the Zephyr Scale region's
+API or Slack's Web API. **Saved credential** picks another. A token typed later rotates the connection's credential, or saves a new one while
+something else names it. Opening a
+connection is a counted read; each write (an issue, a comment, a transition, an attachment, a results upload, a link)
+and each Slack message is a row. A personal channel keeps its own token. Deleting one asks whether to delete its
+credential too.
+
+`PIWI_JIRA_*` and `PIWI_ZEPHYR_*` make a read-only credential that reads the token from the variable. At startup, each
+connection's token moves to a credential of its own, and equal tokens of global channels to one.
+
+## The log
+
+A credential's panel lists its uses, newest first, and the page's **Log**, for an administrator, those of every
+credential, a deleted one and the environment's included:
+
+- **What**: a CI dispatch or a Check, with the CI action it was for; a repository read, a commit status, a
+  pull-request comment or an auto-heal write, with its commit, pull request or branch; an AI model call; a read or a
+  write of a Jira or Zephyr Scale connection; a Slack message, with its channel.
+- **Where**: the project, and the request's origin and path (never its query).
+- **Who**: the user who started it, and the API key when it came through one (an MCP tool, a script); for counted
+  Checks, the last of the hour.
+- **How it ended**: `sent` until the service answers, then `ok` or `failed` with the reason; `refused` when the
+  credential's rules stopped it before anything was sent, with the reason.
+
+A dispatch or another write is one row. A Check or a repository read only reads, so the reads of a project are counted
+in one row per result and hour. The secret is masked in any reason a service's answer holds. The log is kept 365 days, or
+`PIWI_RETENTION_CREDENTIAL_LOG_DAYS` (0 keeps it forever), by the nightly sweep; a deleted credential's rows stay in the
+page's **Log**, under its name, until then.
+
+## Related
+
+- [Re-run in CI](/features/ci-rerun): the CI actions that name a credential
+- [Source control](/guide/source-control): what reads and writes a repository with an SCM credential
+- [Jira Cloud](./integrations) and [Zephyr Scale](./zephyr-scale): the connections that name a credential
+- [Access, roles and groups](./project-access): who holds `credentials:manage` and `project:manage`
+- [Production checklist](./production-checklist): `PIWI_SECRET_KEY`, which encrypts every secret
+
 <!-- https://piwitests.dev/operate/localization -->
 
 # Localization
@@ -15552,8 +15728,8 @@ issues from a failure is [Issue tracking (Jira)](/features/issue-tracking). Zeph
 [its own page](./zephyr-scale).
 
 A connection is instance infrastructure: one row per external system, managed by an administrator, shared
-by every project. Nothing is sent to Jira until a connection exists, and credentials are encrypted at rest
-with `PIWI_SECRET_KEY`.
+by every project. Nothing is sent to Jira until a connection exists, and its token is a
+[credential](./credentials#connections-and-slack-channels).
 
 <figure>
   <img src="/screenshots/integrations-settings.png" alt="Settings → Integrations: a Jira card with a connected system, its verified status, and a test-connection button">
@@ -15631,13 +15807,12 @@ assignable-user picker), on top of the account permissions above.
 
 A connection can live in either place:
 
-- **Dashboard-managed**: added on the Integrations page. Editable there; the credential is encrypted in
-  the database and never returned by any endpoint. Saving with the token field left blank keeps the stored
-  token.
+- **Dashboard-managed**: added on the Integrations page and editable there. The token typed is saved as the
+  connection's credential, or **Saved credential** picks one; a blank token field keeps it.
 - **Environment-managed**: created from the environment at startup when `PIWI_JIRA_BASE_URL`,
   `PIWI_JIRA_EMAIL` and `PIWI_JIRA_API_TOKEN` are all set. It shows a lock badge and is read-only in the
-  dashboard: change it by editing the environment and restarting. The token stays in the environment and
-  never enters the database. Without `PIWI_SECRET_KEY` the connect form cannot store a token, so it says so and
+  dashboard: change it by editing the environment and restarting. Its read-only credential reads the token
+  from the environment, never the database. Without `PIWI_SECRET_KEY` the connect form cannot store a token, so it says so and
   shows these variables filled in from what you typed.
 
 See the [configuration reference](/reference/configuration#integrations) for the variables.
@@ -15709,11 +15884,11 @@ webhook off.
 
 Connect Zephyr Scale Cloud, the test management app for Jira, to the dashboard, and bind a project to a Zephyr
 project. Piwi reads the project's test cases and, once the binding is live, writes a finished run's results back as
-one test run ([Results in Zephyr Scale](/features/test-management)). The connection holds the token in one place,
-managed by an administrator.
+one test run ([Results in Zephyr Scale](/features/test-management)). The connection holds the token in one place, a
+[credential](./credentials#connections-and-slack-channels) managed by an administrator.
 
 A connection is instance infrastructure, like an [issue tracker connection](./integrations): one row per external
-system, shared by every project, with its token encrypted at rest with `PIWI_SECRET_KEY`. Zephyr Scale is never
+system, shared by every project, with its token encrypted with `PIWI_SECRET_KEY`. Zephyr Scale is never
 offered as an issue tracker, so a project cannot be bound to it for links or for filing issues.
 
 ## Connecting Zephyr Scale Cloud
@@ -15721,7 +15896,8 @@ offered as an issue tracker, so a project cannot be bound to it for links or for
 1. In Jira, open your profile picture, then **Zephyr API keys**, and create a token. Use a dedicated account, so the
    token does not end with a person's access.
 2. **Settings → Integrations → Connect Zephyr Scale Cloud** (administrator only): pick the **Region** your Zephyr
-   Scale Cloud runs in (US, EU, AU or DE), paste the token, and choose **Check**. Then **Save**.
+   Scale Cloud runs in (US, EU, AU or DE), paste the token or pick a **Saved credential**, and choose **Check**.
+   Then **Save**.
 
 **Check** signs in on the region's API and lists the projects the token sees, without saving anything. **Test
 connection** on the saved connection signs in again and records the result on its card. Both give up after about
@@ -15732,7 +15908,8 @@ reach the region's host through any proxy, firewall or VPN.
 
 Zephyr Scale Cloud runs one API per region, and Piwi calls the host the chosen region names. It never takes a host
 from the form, so a typed address is ignored and an unknown region is refused. Changing the region of a saved
-connection asks for the token again, because a token belongs to one region.
+connection asks for the token again, because a token belongs to one region: its credential is sent only to that
+region's API.
 
 ## Bind a project
 
@@ -15796,7 +15973,8 @@ Zephyr Scale rate limits each token, so Piwi spaces out every call of a connecti
 
 Set `PIWI_ZEPHYR_API_TOKEN`, and optionally `PIWI_ZEPHYR_REGION` (`us` by default), to manage the connection from
 the environment instead. It then shows a lock badge and is read-only in the dashboard: change it by editing the
-environment and restarting. The token stays in the environment and never enters the database. A region the variable
+environment and restarting. Its read-only credential reads the token from the environment, never the database. A
+region the variable
 does not name is logged and replaced by `us`. See
 [Environment-managed vs dashboard-managed](./integrations#environment-managed-vs-dashboard-managed) for how the two
 kinds of connection behave.
@@ -16895,6 +17073,13 @@ With [authentication](/operate/authentication) on, every account holds an **inst
 on all of them. A **group** is a named set of users that receives project roles the way a user does. See
 [Access, roles and groups](/operate/project-access).
 
+### Credential
+
+**A secret Piwi sends to another service, saved once and named by id wherever it is needed**: a user, the secret, the
+destination (the base URL it may be sent under) and the projects that may use it. A CI server action, source control,
+an AI role, a Jira or Zephyr Scale connection and a Slack channel of the instance name one; every use is checked against
+it and logged. See [Credentials](/operate/credentials).
+
 ## Words kept to one meaning
 
 Some words name two things across the docs, the dashboard and the tools. Each keeps the meaning in the middle column
@@ -17838,7 +18023,7 @@ reporter.
 file, so ownership works with no test edits; a `piwi:owner` annotation wins wherever a team wants to be explicit. That
 derived owner is used in pull-request comments, on the flaky leaderboard, and by the `owners`
 [notification filter](/features/notifications#subscriptions), which routes a run only to the team whose tests broke. A
-public repository's `CODEOWNERS` is read without a token; a private one needs an [SCM token](/guide/source-control),
+public repository's `CODEOWNERS` is read without a token; a private one needs an [SCM credential](/guide/source-control),
 and without it ownership comes from the annotations alone.
 
 ### Issues the tests declare
@@ -19389,7 +19574,7 @@ Every event that comes from a run carries that run's `branch` and `environment` 
   `affectedCases`, the `owners` of the tests that failed into it in that run, and `firstSeenRunId` when it first
   appeared in an earlier run, which sent no notification of it.
 - **`cluster.fixed`** and **`cluster.regressed`**: the cluster's `signature`, `title` and the `runId` that decided the
-  verdict; for a fix, the `commit` and `timeToResolutionMs`. With an [SCM token](/guide/source-control), a `fixAuthor`
+  verdict; for a fix, the `commit` and `timeToResolutionMs`. With an [SCM credential](/guide/source-control), a `fixAuthor`
   object (`{ name, email }`) names the author of the fixing commit (for a regression, of the fix that did not hold).
   A fix landed by an [auto-heal PR](/features/auto-heal#after-the-pr-opens) carries `healPr` (`{ number, url, actionId }`).
 - **`diagnosis.completed`**: the cluster, and the diagnosis's `summary`, `rootCause`, `category` and `confidence`. A
