@@ -700,6 +700,11 @@ Semantics worth knowing:
 
 - **`beforeAll` / `afterAll` activity is not captured**: only a test's own activity is attributed to it.
 - **Multi-page tests** attribute Web Vitals, the failure ARIA snapshot and screenshot to the most recently active page.
+- **[Watch](/features/live-view) shows one page**: the `page` fixture's once it opens, for a test that takes it; else
+  the page of the test's latest call, whichever context it is in, and before its first call, or once that page closed,
+  the page opened last, a `beforeAll`'s too (reporter 0.73.0 or later,
+  [`captureResources`](/reference/reporter-options#what-gets-captured) on). A page of a browser the test launches
+  itself never shows.
 - **Repeated call sites** (actions in a loop, a page-object method called several times) probe the element once per test; a failed probe is retried on the line's next run.
 - **Assertion capture is positive-presence only** — negated (`.not.…`), absence (`toBeHidden`), multi-element (`toHaveCount`) and page-level (`toHaveURL`) assertions never probe.
 
@@ -4669,7 +4674,8 @@ never the key, so a dashboard that restarts takes it back from the workers while
 
 - **Watch only.** No input and no controls: a test is stepped from the [editor](./editor-run-control) or the
   [Runs window](./runs-window).
-- **The test's `page`.** The view shows the page of Playwright's `page` fixture, not a popup or a second page.
+- **One page at a time**: the `page` fixture's, else the page of the test's latest call
+  ([which](/guide/capture-fixtures#where-capture-works)).
 - **Sixteen pages watching a run at a time**, four of them one person's with authentication on: a fifth closes
   that person's oldest. Its workers send 4 MB of images a second at most together.
 - **One dashboard server.** The view is relayed in the memory of one server, so it needs a deployment of one server
