@@ -1590,8 +1590,10 @@ such a path out of an OpenAPI document.
 ## Server environment
 
 Both packages serve `/__piwi/environment` under the same rule as the route manifest: the server process's runtime, OS,
-time zone, locale, start time and clock, so a failure that depends on them can be told from one in the code. No other
-environment variable, path or connection string. Never enable it on a public production server.
+time zone, locale, start time and clock, and the application's
+[version and commit](/features/run-environment#the-application-s-commit), so a failure that depends on them can be told
+from one in the code. No other environment variable, path or connection string. Never enable it on a public
+production server.
 
 ## Server probes
 
@@ -2187,8 +2189,8 @@ first result, or with **New project**.
 `/projects/:id`: one project's history. The **header** names the project, its description and tags, and where it
 stands: the latest run that [ran to its end](/guide/concepts#test-run) and the [pass rate](/guide/concepts#pass-rate) of the last 20 such runs, then the open clusters, flaky tests
 and quarantined tests, each a link. The **Filters** block under it (environment, branch, full runs only) scopes the
-header and every tab that reads run history; with no branch picked it reads the
-[default branch](./branches#the-default-branch), and a note counts the runs it hides,
+header and every tab that reads run history; with nothing picked it reads the
+[default branch](./branches#the-default-branch) and [environment](./environments#default-environment), and a note counts the runs it hides,
 [your own](/guide/getting-started#_3-run-your-tests) aside, which the runs table lists all the same. Beside the
 [**Quality report**](./quality-reports) and [**Import**](/guide/importing-runs) buttons, **More actions** holds Edit,
 [Test functions](./test-functions), [Selections](./test-selection), [Locators](#locators),
@@ -2430,7 +2432,7 @@ Each project has a **Default branch** setting in the **Source control** section 
 
 ## Filtering by branch
 
-On a project page, the **Filters** block carries a **branch** multi-select (the git-branch icon) next to the environment filter. It appears once any of the project's runs carries a branch. With no branch picked, the page reads the project's default branch and the runs that report no branch, like [Analytics](./analytics#branch-policy); **All branches** beside it reads every branch, and the branches you pick read exactly those. The header, the runs list, the test catalog, the failure clusters, the flaky leaderboard, the Flake Lab and the performance trends all follow it; a note under the filters counts the runs on other branches they hide.
+On a project page, the **Filters** block carries a **branch** multi-select (the git-branch icon) next to the environment filter. It appears once any of the project's runs carries a branch. With no branch picked, the page reads the project's default branch and the runs that report no branch, like [Analytics](./analytics#branch-policy); **All branches** beside it reads every branch, and the branches you pick read exactly those. The header, the runs list, the test catalog, the failure clusters, the flaky leaderboard, the Flake Lab and the performance trends all follow it; a note under the filters counts the runs on other branches they hide. A project's [default environment](./environments#default-environment) works the same way: with no environment picked the page reads it, **All environments** reads every one, and the note counts the runs in other environments.
 
 The branch is an indexed column, so every project tab (the runs list included), Analytics and the MCP `list_runs` tool filter by it in the database. Runs reported before the column existed carry the branch recorded in their metadata, so old history still filters.
 
@@ -2456,12 +2458,12 @@ the sidebar when any of its runs started in the last ten days. Flake Lab and pro
 - **Choosing the base branch** — the Changes tab lets you take the baseline from any branch with an earlier full run, so a long-lived branch can be compared against `release/2` rather than `main`; the choice is in the URL (`?baseBranch=`) and on the API and MCP tool. See [What changed in a run](./run-changes#the-baseline).
 - **The environment, visual and page diffs** of one execution prefer the same environment, then the same branch, then
   the most recent pass: there is no base-branch rung ([the rule](./run-changes#one-execution-s-baseline)).
-- **Pull-request feedback** builds its "new failures vs. pre-existing" split from the same baseline, so a failure the PR did not introduce is reported as pre-existing, and the `max-new-regressions` rule of the [CI merge gate](/features/merge-gate) counts the same new failures. A failure whose test is already flaky on the default branch is also marked *Also flaky on `main` … — likely not yours*; the mark does not move it out of the new failures or the gate's count.
+- **Pull-request feedback** builds its "new failures vs. pre-existing" split from the same baseline, so a failure the PR did not introduce is reported as pre-existing, and the `max-new-regressions` rule of the [CI merge gate](/features/merge-gate) counts the same new failures. A failure whose test is already flaky on the default branch, in the project's default environment when it has one, is also marked *Also flaky on `main` … — likely not yours*; the mark does not move it out of the new failures or the gate's count.
 - **Performance alerts** — the `perf.regression` [notification](./notifications) measures a run against the previous runs on the same branch **in the same environment**.
 
 ## From an agent (MCP)
 
-The MCP `list_runs` tool takes a `branch` argument, so an agent can ask "what is failing on `main`" without pulling every run. `list_flaky_tests` takes no branch; it reads the same default-branch view as the dashboard's flaky leaderboard. See the [MCP server](/features/mcp).
+The MCP `list_runs` tool takes a `branch` argument, so an agent can ask "what is failing on `main`" without pulling every run. `list_flaky_tests` takes no branch; it reads the same default-branch view as the dashboard's flaky leaderboard, in the project's default environment unless its `environment` argument names another or `allEnvironments` asks for every one. See the [MCP server](/features/mcp).
 
 ## Notifications
 
@@ -2469,7 +2471,7 @@ Notification subscriptions can filter by branch and alert only on the default br
 
 ## Limits
 
-- **Views read the default branch by default.** Analytics counts each project's default branch (plus runs with no branch) until you pick branches or *All branches* (see [Branch policy](./analytics#branch-policy)). The flaky leaderboard does the same unless you scope it, with the [fallbacks](#the-default-branch) while the default branch is unknown.
+- **Views read the default branch by default.** Analytics counts each project's default branch (plus runs with no branch) until you pick branches or *All branches* (see [Branch policy](./analytics#branch-policy)). The flaky leaderboard does the same unless you scope it, with the [fallbacks](#the-default-branch) while the default branch is unknown. Both read a project's default environment too, when it has one.
 - **Branches are a run dimension, not entities.** There is no per-branch merge-readiness verdict, branch-class gate policy, or retention by branch class.
 - **A run needs a resolvable branch.** A purely local run with no CI variables, a detached `HEAD`, and no `PIWI_BRANCH` records no branch at all, so it will not appear under any branch filter.
 
@@ -2546,6 +2548,8 @@ Two ways to compare against something else:
   its first attempt in the baseline is also [newly flaky](#what-newly-flaky-says-about-your-change).
 - **Slower / faster** — the ten largest duration changes each way.
 - **Commits since the baseline** — the commit range, a copyable `git log` command and, when the SCM host is known, a link to the commits.
+- **Deployed to Staging**, for a run of a [deployed environment](./deployed-environments) — the application's commit
+  each run tested, the application's commits between them, and the environment's deploy markers between the two runs.
 - **Environment changes** — the fields that differ (environment, branch, CI provider, browsers, and the [test order](#shuffled-runs) of a shuffled run), in *This run* / *Baseline* columns.
 
 <figure>
@@ -3387,7 +3391,8 @@ Top to bottom:
    - **What changed**: commits and files since the last passing run (or your baseline), the diff, and with
      [coverage](./server-coverage) the first [suspect line](/guide/concepts#suspect-lines). Missing setup shows what to
      set up ([troubleshooting](/guide/source-control#troubleshooting)); **Browse commits** picks a baseline when none
-     passed. One commit on both sides: the change is not in the code.
+     passed. One commit on both sides: the change is not in the code. A cluster first seen in a
+     [deployed environment](./deployed-environments#the-first-failing-deploy) leads with its first failing deploy.
 2. The section **Next** points at (the AI diagnosis, the locator fix…) as its own card.
 3. **Affected tests**, picking whose evidence shows, then that evidence.
 4. [**More ways to fix**](./fix-plans#more-ways-to-fix), then the [occurrence chart](#occurrences-over-time) and the
@@ -3669,12 +3674,27 @@ no environment variable is copied whole.
 |---|---|---|
 | **Runner** | shard | time zone, `TZ`, locale, `LANG` / `LC_ALL` / `LC_TIME`, OS and distribution, architecture, Node.js and ICU versions, CI runner image, container; host name, CPU and memory |
 | **Browser** | shard and project | browser version, time zone, locale, languages, how it formats a number and a date, color scheme and reduced motion, headless; screen and user agent |
-| **Server** | instrumented origin | runtime, OS, time zone, culture, globalization mode, environment name, app version; host name, process, start time, clock offset from the runner |
+| **Server** | instrumented origin | runtime, OS, time zone, culture, globalization mode, environment name, app version; app commit, host name, process, start time, clock offset from the runner |
 
 The browser snapshot needs the [capture fixtures](/guide/capture-fixtures): it is read from the test's page before the
 test navigates. The server snapshot needs an [instrumentation package](/guide/backend-logs#server-environment). The
 last fields of each row (after the semicolon) change by nature between runs and are never shown as a possible cause.
 `collectEnvironmentInfo: false` in the reporter options, or `PIWI_COLLECT_ENVIRONMENT_INFO=false`, turns it all off.
+
+## The application's commit
+
+A server snapshot names the version of its application (`appVersion`) and the commit it was built from (`appCommit`,
+7 to 40 hexadecimal characters, else nothing), which tell a run of a [deployed environment](./deployed-environments) which code
+it tested:
+
+- **ASP.NET Core**: `appCommit` from the `PiwiTestLogsOptions.AppCommit` option, else `PIWI_APP_COMMIT`, else the full
+  commit the .NET SDK writes into the entry assembly's informational version (`1.4.0+4e6f516…`), which is `appVersion`.
+- **Nitro**: the options of `piwiPlugin({ appVersion, appCommit })`, exported from the server plugin file in place of
+  the default export, else `PIWI_APP_VERSION` and `PIWI_APP_COMMIT`, else, for the commit, the hosting platform's
+  variable (`VERCEL_GIT_COMMIT_SHA`, `RENDER_GIT_COMMIT`, `RAILWAY_GIT_COMMIT_SHA`, `SOURCE_COMMIT`).
+
+Instrumentation is off in production by default, so no server snapshot names production's commit: its deploy pipeline
+records it with a [deploy marker](./timeline-markers#recording-deploys-from-ci) instead.
 
 ## Where it shows
 
@@ -3748,7 +3768,7 @@ once it has 3 of them in the window, with a retry pass or two flips.
 
 The project's **Failures** tab has a **Flaky** view with a **lookback window** of 20, 50 or 100 runs. Each flaky test links to its history and, unless already quarantined, offers **Quarantine**.
 
-**Scoping**: only runs within the project's **Filters** count: environment (the [reporter](/guide/reporter)'s `environment` option), branch (the [default branch](./branches#the-default-branch) unless picked) and full runs only.
+**Scoping**: only runs within the project's **Filters** count: environment (the [default environment](./environments#default-environment) unless picked), branch (the [default branch](./branches#the-default-branch) unless picked) and full runs only.
 
 <figure>
   <img src="/screenshots/flaky-detection.png" alt="Flaky tests tab listing tests with composite score, failure rate, retry passes, and flip counts">
@@ -4282,6 +4302,7 @@ the others stream a simulated one.
 - [Privacy & data flow](/guide/privacy): what a diagnosis sends, and where
 - [Notifications & alerts](./notifications): `diagnosis.completed` and the cluster events
 - [MCP server](/features/mcp): clusters and diagnoses for agents
+- [Deployed environments](./deployed-environments)
 
 <!-- https://piwitests.dev/features/assistant -->
 
@@ -6499,7 +6520,8 @@ A CI action is a named way to start CI. It has:
   parameters on Jenkins. A name is letters, digits and `_`, and on GitLab and Bitbucket cannot start with `CI_`,
   `GITLAB_` or `BITBUCKET_`. A Custom request sends none;
 - what it **accepts**: re-runs, Run on CI, Flake Lab;
-- an optional **environment**, such as `staging`, which a run in that environment picks first;
+- an optional **environment**, one of the project's [environments](./environments), which a run of that environment
+  picks first;
 - the kinds it is the **default** for.
 
 A button uses the action of the run's environment, else the project's default for what it starts; MCP and the API can
@@ -7092,7 +7114,7 @@ A rule counts only the runs it names:
 | Field | What it means |
 |---|---|
 | **Branches** | Branch names or `*` patterns (`release/*`). With **Default branch** on, the project's default branch too, whatever it is named. Nothing named: every branch. |
-| **Environments** | Environment names or `*` patterns (`prod*`). Nothing named: every environment. |
+| **Environments** | The project's [environments](./environments), picked from its list, or typed keys and `*` patterns (`prod*`), each matching an environment's key or an alias, ignoring case. A run whose label has no environment matches by its label. Nothing named: every environment. |
 | **Occurrences** | The failing executions counted in those runs. |
 | **Runs** | The distinct runs among them, so one run with ten failing retries counts once. |
 | **Days** | The days since the first counted occurrence, measured at the run being checked. |
@@ -7703,7 +7725,8 @@ A project admin keeps the list in **Project → Settings → Environments**:
 
 **Archive** takes an environment out of the pickers: its runs keep it, and no run Piwi starts can be for it.
 **Delete** removes it: its runs keep their label and lose their environment, and the next run that reports the label
-adds it back as a discovered one. Archive it to keep a label from coming back.
+adds it back as a discovered one. Archive it to keep a label from coming back. Deleting one a URL pattern or CI action
+names is refused.
 
 ## How a run's label resolves
 
@@ -7724,9 +7747,13 @@ admin saves it.
 Saving an environment resolves the project's runs again. Adding `stg` as an alias of Staging moves the runs that
 reported `stg` to Staging, and removes the discovered `stg` that held them.
 
-The project page's **Filters** and its status filter list the project's environments, the labels no environment
-takes, and **No environment** for the runs that report none. Picking Staging keeps the runs whose label resolves to
-it, `stg` included.
+## Default environment
+
+The project page's **Filters** and status filter offer its environments, the labels none takes, and **No environment**;
+Staging keeps the runs resolving to it, `stg` included. With a **default environment**, set below the list, the project
+page, its tabs, [Analytics](./analytics#environment-policy), [quarantine candidates](./flaky-tests#quarantine-with-a-way-out)
+and pull-request feedback read only its runs, never one with no environment, until you pick another or **All
+environments**, like the [default branch](./branches#filtering-by-branch). A copy carries it to a project with none.
 
 ## Choose the environment of a run
 
@@ -7800,10 +7827,8 @@ values Piwi sets win over the file's.
 ## Built from the checkout, or deployed
 
 An environment is **built from the checkout** when the application under test comes from the same commit as the tests:
-a `webServer` in the config, a preview deployment of the pull request. A **deployed** environment, such as Staging,
-runs whatever version was last deployed there, whatever the run's commit. The setting tells a reader, and an agent
-through the MCP tool `list_environments`, whether a failure's commit holds the code that ran: a change deployed to
-Staging shows in no commit of the tests' repository.
+a `webServer` in the config, a preview deployment of the pull request. Any other is
+[deployed](./deployed-environments): Piwi reads the application's commit its runs tested.
 
 ## Secrets and the env file
 
@@ -7855,8 +7880,8 @@ The run page names the run's environment, and says when the run may not have tes
 ## Limits
 
 - Each project has its own environments: a Staging in two projects is two records, kept apart.
-- Notification filters, issue automation, CI actions and timeline markers match a run's label as text, not its
-  environment: a notification filter on `staging` misses a run that reported `stg`.
+- A filter (notifications, issue automation, test management) keeps keys and `*` patterns, matched against a run's
+  environment key and aliases.
 
 ## Related
 
@@ -7866,6 +7891,88 @@ The run page names the run's environment, and says when the run may not have tes
 - [Run environment](./run-environment): where a run executed
 - [Environment incidents](./environment-incidents): runs that failed because the app was down
 - [Glossary: environment](/guide/concepts#environment)
+
+<!-- https://piwitests.dev/features/deployed-environments -->
+
+# Deployed environments
+
+A deployed environment, such as Staging or Production, runs whatever version of the application was last deployed
+there, whatever the commit of the tests that run against it. Piwi reads a run of one as two versions: the tests', the
+run's commit, and the application's, its **deployed commit**. An environment, a discovered one included, is built
+from the checkout until a project admin turns its **Built from the checkout** setting off
+([Environments](./environments#built-from-the-checkout-or-deployed)): only then is it deployed. The setting also tells
+an agent, through the MCP tool `list_environments`, whether a failure's commit holds the code that ran.
+
+## The deployed commit
+
+The first source that names one wins:
+
+1. **The server under test** reports the commit it was built from (`appCommit`), through an
+   [instrumentation package](/guide/backend-logs#server-environment).
+2. **A deploy marker** of the environment carries the commit its pipeline deployed
+   ([Recording deploys from CI](./timeline-markers#recording-deploys-from-ci)): a run takes the latest one before it
+   started.
+
+With neither, the deployed version is unknown, and every view below says it may differ from the run's commit.
+
+The application is assumed to live in the project's repository, as in a monorepo: the commits between two deployed
+commits are read there, with the project's [source control](/guide/source-control) credential. For an application
+kept in another repository, only its deployed commits mean something: the range and the suspect lines look for them in
+the project's repository.
+
+## What changes for a run of a deployed environment
+
+- **The run page** names the deployed commit in its facts line (`app a1b2c3d`), and **Details → Application** says
+  where it comes from.
+- **The Changes tab** adds a **Deployed to Staging** card beside the tests' commits: the deployed commit of both runs,
+  the application's commits between them, and the environment's deploy markers between the two runs
+  ([What changed in a run](./run-changes)).
+- **[Suspect lines](./server-coverage#suspect-lines)** are read on the application's range, from the last green run's
+  deployed commit to the failing run's, since the coverage is the deployed application's. With the run's deployed
+  commit unknown, they are read on the tests' range, and say so.
+- **[Uncovered changes](./uncovered-changes)**: what the run reached of the application is the deployed version's.
+  When that is not the change's head, or is unknown, the answer and the pull request comment say so, and the reach
+  counts as any run's.
+- **The [AI diagnosis](./ai-diagnosis)** gets an Environment Under Test section: the environment's name and
+  description, whether it is built from the checkout, the deployed commits, the application's range and the deploy
+  markers.
+- **Bisect** walks the tests' commits, so against a deployed environment it can find a change of the tests, never one
+  of the application. The Reproduce section and the [fix plan](./fix-plans) list the deploys between the last passing
+  run and the failing one instead.
+
+## The first failing deploy
+
+A [failure cluster](./failure-clusters) first seen in a deployed environment names its **first failing deploy**: the
+deploy marker between the last run of that environment where one of its tests passed and the run it first failed in.
+When several fall there, the latest is the one the first failing run tested. When none does, the line says that no
+deploy happened since the last pass: as far as the markers tell, the application did not change, so the tests, the
+data or the infrastructure did.
+
+The cluster's **What changed** line leads with it, the execution page's since line names it ("New regression after
+Staging deploy 7 (a1b2c3d) on Staging"), and the AI diagnosis and the MCP tool `get_cluster` (`firstFailingDeploy`)
+carry it with both runs' deployed commits.
+
+## An environment's activity
+
+In **Project → Settings → Environments**, each environment opens its activity: its last run, its last
+[environment incident](./environment-incidents), its deploy markers with their commits, and for a deployed one the
+commits and application versions its recent runs ran against, each with where the commit came from.
+
+## Limits
+
+- A deploy marker counts for the environment it names. A marker with no environment counts for none.
+- A deployed commit from a deploy marker is the commit posted, not proof of what the servers run: a server that reports
+  its own wins over the marker.
+- Bisect never walks the history of an application kept in another repository.
+
+## Related
+
+- [Environments](./environments)
+- [Timeline markers](./timeline-markers)
+- [What changed in a run](./run-changes)
+- [Failure clusters](./failure-clusters)
+- [Backend instrumentation](/guide/backend-logs)
+- [Glossary: deployed environment](/guide/concepts#deployed-environment)
 
 <!-- https://piwitests.dev/features/reuse-forecast -->
 
@@ -7884,12 +7991,15 @@ changed. It lives on a project's **Selections** page and in the `get_reuse_forec
 ## What counts as reusable
 
 The forecast reads the 30 days before the project's latest run. A result is **reusable** when an earlier result of
-the same test, in the same Playwright project and another run, passed on its first attempt, is at most 14 days older,
-and either:
+the same test, in the same Playwright project, the same [environment](/features/environments) and another run, passed
+on its first attempt, is at most 14 days older, and either:
 
 - recorded file versions (runtime, path and git blob) that are all among the versions the result itself ran;
 - or ran at the same commit, both runs on CI, which also counts a failure that stopped before reaching code the pass
   ran.
+
+For a deployed environment, both runs also ran the same version of the application (below); a run of one whose version
+nothing names is never reusable.
 
 The code that pass ran had not changed, so a run could have skipped the result and kept the pass. The card gives the
 share of test time that was reusable, split between the [default branch](/features/branches) and the other branches
@@ -7918,8 +8028,16 @@ with the failing execution and the pass it matched, which is strong evidence whe
 
 **Experimental.** With the pass reuse capability on, `piwi plan` and `piwi run --reuse` skip the tests the forecast
 would count as reusable, with a stricter rule. A test's pass stands in for it only when that pass came from a clean
-checkout of a commit, with the same Playwright version, and every result of the test in that run passed on its first
-attempt with coverage naming its file versions. The working tree is diffed against that commit: the test runs when
+checkout of a commit, with the same Playwright version and environment, and every result of the test in that run passed
+on its first attempt with coverage naming its file versions. The environment is the label the run reports (`--environment`,
+else `PIWI_ENVIRONMENT`; `piwi run` passes the flag to Playwright as the variable, which the reporter's `environment`
+option overrides when the config sets one), resolved as a run's label is; a run
+that names none reuses the passes of any environment. For a [deployed environment](/features/deployed-environments), the
+pass ran against the application it runs now: the same commit, from its latest
+[deploy marker](/features/timeline-markers#recording-deploys-from-ci) or its servers'
+[`appCommit`](/guide/backend-logs#server-environment), else the same application versions its servers report. With
+neither, every test runs. Mark an environment whose application the config's `webServer` builds as built from the
+checkout: as a deployed one, its passes stand in only where a version is named. The working tree is diffed against that commit: the test runs when
 [impact from that diff](/features/change-impact) selects it, when a changed file maps to no test, or when a file the
 pass ran changed. A test that is quarantined, in an open failure cluster, failed or was retried in its last 20
 executions, tagged `@no-reuse`, or in a spec file holding a serial group always runs. A run skips only the tests the plan names, in the Playwright projects
@@ -7931,7 +8049,7 @@ reused results: the run page's header counts them and lists them with the pass e
 comment counts them, and the `get_run` MCP tool returns their count. The run's own status, pass rate, flaky scores,
 durations and fix verification read executions only. The [CI merge gate](/features/merge-gate#what-fails-it) can limit reuse, and counts a reused test as passed in a run
 that passed with no run error. A run that claimed a plan it was not made for (another commit, a dirty checkout,
-another Playwright version, an expired plan) records no reuse, and fails the gate's reuse rules. A run whose shards' blob
+another Playwright version or environment, another version of a deployed application, an expired plan) records no reuse, and fails the gate's reuse rules. A run whose shards' blob
 reports are merged by `merge-reports` claims no plan, so its reuse is not recorded.
 
 <figure>
@@ -8244,6 +8362,8 @@ jobs uploaded their reports.
 - **Naming conventions.** Files map to routes and pages through Nitro and Nuxt file naming; other frameworks rely on
   locators, code reach and coverage, so without those more of their files are *not observable* and not counted.
 - **Ten files listed.** The comment names at most ten files per list and counts the rest.
+- **A deployed environment.** A run against one reached the [deployed](/features/deployed-environments) application's
+  lines: when its deployed commit is not the change's head, or is unknown, the section says so.
 
 ## Related
 
@@ -8567,7 +8687,8 @@ lines inside a function that ran, and file coverage the whole hunk. When the hos
 head (GitHub, or a local clone in the desktop app), coverage of another version counts as file coverage. The failure
 pages' **What changed** line names the first, the cluster's diff marks them, the
 [AI diagnosis](./ai-diagnosis#scm-grounded-context) lists them and sends their files' patches first, and the
-[fix plan](./fix-plans) carries the top five.
+[fix plan](./fix-plans) carries the top five. For a run of a [deployed environment](./deployed-environments), the
+range runs between the deployed commits of the last green run and the failing run.
 
 ## How it is collected
 
@@ -9152,8 +9273,8 @@ it folds to a one-line summary.
 - **Period**, with the comparison and the buckets (below). The line under it states the resolved dates,
   the comparison and any note (a project without the chosen selection, a deleted marker).
 - **Runs**: the projects (intersected with the ones you can see), environments and branches (optional
-  multi-select, see [Environment](/guide/concepts#environment)), the branch policy (*Default branch* or
-  *All branches*, below) and *Full runs only*, which excludes partial runs. All but the projects are the
+  multi-select, see [Environment](/guide/concepts#environment)), the environment and branch policies (below)
+  and *Full runs only*, which excludes partial runs. All but the projects are the
   **Filters** block a project page opens with, so a drill-down lands on the same runs.
 - **Tests**: optional; a selection, test tags or browsers (below).
 
@@ -9194,6 +9315,12 @@ move the trends. A run whose branch is unknown (a trace import, a run outside gi
 project that never reported a branch. The default branch is the project's setting, else
 the one its latest run reported, else `main`. *All branches* counts every run; branches picked in the
 Filters block override both.
+
+### Environment policy
+
+With no environment picked, a project with a [default environment](./environments#default-environment) counts only
+its runs, and a project without one counts every environment. *All environments* counts every run; environments
+picked in the Filters block override both. **Environment comparison** compares every environment unless you pick some.
 
 ### Test filter
 
@@ -9290,12 +9417,6 @@ Each one is optional. Over the period an analytics dashboard shows, a target is 
 
 A weekly target (wasted CI minutes) is scaled to the length of the period, so a 30-day period is checked
 against about four weeks of it.
-
-## Marking what you changed
-
-[Timeline markers](./timeline-markers) record a deploy, a CI-runner migration or a dependency bump
-against a project, drawn as a vertical line across the trend charts; which markers a chart draws across
-projects is under [Where markers show up](./timeline-markers#where-markers-show-up).
 
 ## Related
 
@@ -9485,8 +9606,8 @@ exported and scheduled; four built-in ones are written for reports:
 The engineering report ends with the same gap counts. **Overview**, the analytics page itself, can be
 exported too.
 
-Every report ends with a footer stating the scope, the branch policy, the period and its comparison,
-each metric's definition, and its limits: lists of tests reach back only as far as
+Every report ends with a footer stating the scope, the branch and environment policies, the period and its
+comparison, each metric's definition, and its limits: lists of tests reach back only as far as
 [retention](/operate/storage#data-retention) keeps runs, and days are UTC.
 
 ### The verdict is built by rules
@@ -9620,7 +9741,12 @@ Each marker belongs to one project and carries:
 - **Label** — a short title (e.g. _Migrated CI to ARM runners_).
 - **Date & time** — when the event happened; this is where the line is drawn.
 - **Category** — one of `deploy`, `config`, `infra`, `incident`, `release`, or a generic `event`. The category sets the marker's icon and color.
-- **Environment** _(optional)_ — scope the marker to a single environment (e.g. `staging`). Leave it empty to apply to all environments.
+- **Environment** _(optional)_ — one of the project's [environments](./environments), picked from its list. Leave it
+  empty to apply to all environments. Through the API, `environment` names one by its key, an alias or a run's label,
+  resolved as a run's label is.
+- **Commit** _(optional, `deploy` markers)_ — the application's commit the deploy put in place, 7 to 40 hexadecimal
+  characters. A run of a [deployed environment](./environments) that started after the marker ran against that commit,
+  unless its server reported its own.
 - **Description** _(optional)_ — free-text detail.
 - **Run** _(optional, API only)_ — the id of one of the project's runs the event belongs to.
 
@@ -9631,17 +9757,17 @@ Each marker belongs to one project and carries:
   <figcaption>Markers on the Run trend; hovering one shows its details.</figcaption>
 </figure>
 
-- **Project charts** — the **Run trend** and **Performance trend** charts render each marker as a dashed vertical line with a colored flag handle. Hover the line or its flag for the marker's details (category, label, date, environment, linked run, description); click it to open the marker in the **Markers** panel, in its edit form when you can edit markers.
+- **Project charts** — the **Run trend** and **Performance trend** charts render each marker as a dashed vertical line with a colored flag handle. Hover the line or its flag for the marker's details (category, label, date, environment, a deploy's short commit, linked run, description); click it to open the marker in the **Markers** panel, in its edit form when you can edit markers.
 - **Markers panel** — a **Markers** button beside the **Run trend** chart (on the project's Runs tab) opens a panel listing the project's markers, newest first. **Add marker** and each marker's edit button open the form in the panel itself; **Delete** is on each marker and in the edit form.
 - **Test-case history** — a single test's duration history chart shows the same markers, so you can tell whether an event affected that specific test. Clicking one opens it in the project's **Markers** panel.
 - **Analytics charts** — the trend charts of the [analytics page](./analytics) draw the markers too, with the same details on hover: every marker with one project in scope; across projects only `release`, `infra` and `incident` markers, each labeled with its project. The **Timeline markers** widget lists a period's markers, and the analytics periods *Since a marker* and *Release cycle* start from them.
-- **Run detail** — a run shows an **"After: …"** chip for the nearest preceding marker, so a single run tells you which event it followed.
+- **Run detail** — a run shows an **"After: …"** chip for the nearest preceding marker of its environment, or of all environments, so a single run tells you which event it followed.
 
 ## Environment scoping
 
-Markers tie into the project's existing **environment filter**. When you filter the project view to one or more environments, the charts show only markers that match the selected environment(s) plus any global (no-environment) markers. This keeps a staging-only event from cluttering your production view.
+Markers tie into the project's existing **environment filter**. When you filter the project view to one or more environments, the charts show only markers of the selected environment(s) plus any global (no-environment) markers. This keeps a staging-only event from cluttering your production view. The analytics charts follow each project's environments the same way: with none picked, a project with a [default environment](./environments#default-environment) shows that environment's markers and the global ones, unless **All environments** is on. A marker belongs to an environment as a run does: a marker written for `stg`, an alias of Staging, shows under Staging, and so does the analytics period's count of markers.
 
-The environment field is free text, with suggestions drawn from the environments already seen in the project's runs (set via the reporter's `environment` option / `PIWI_ENVIRONMENT`).
+A marker keeps the label it was written with and the environment that label resolved to. Deleting the environment leaves the marker its label, matched as text.
 
 ## Who can edit markers
 
@@ -9649,7 +9775,7 @@ Reading markers is available to anyone who can read the project. Creating, editi
 
 ## Automatic markers
 
-Piwi can create markers for you when a run's tooling changes. On each finished run it compares the run against the previous run **in the same environment** and, when the **Playwright version** or **reporter version** changed, adds an `auto` marker (category `config`) at that run's time — for example _Playwright 1.49.0 → 1.50.0_. Auto markers are labeled with a small sparkle icon and can be edited or deleted like any other.
+Piwi can create markers for you when a run's tooling changes. On each finished run it compares the run against the previous run **in the same environment** (the environment its label resolved to, so `stg` and `staging` runs of Staging are one lineage) and, when the **Playwright version** or **reporter version** changed, adds an `auto` marker (category `config`) at that run's time — for example _Playwright 1.49.0 → 1.50.0_. Auto markers are labeled with a small sparkle icon and can be edited or deleted like any other.
 
 When a run's [environment](./run-environment) differs from the previous run on the same branch and in the same
 environment, it gets one `auto` marker per kind of change, labeled with the fields that changed: its runner or a
@@ -9670,6 +9796,46 @@ From CI, create the marker after the test step with the run id the reporter writ
 ```bash
 curl -X POST "$PIWI_DASHBOARD_URL/api/projects/<projectId>/markers" -H "Authorization: Bearer $PIWI_API_KEY" -H "Content-Type: application/json" -d '{"label":"v2.3.1","category":"release","occurredAt":"2026-09-24T12:00:00Z","runId":1234}'
 ```
+
+## Recording deploys from CI
+
+A deploy pipeline records each deploy as a `deploy` marker that names the environment by its key and the commit it
+deployed. A run of that [deployed environment](./environments) that starts after
+it reads its application at that commit, unless its server reports its own through an
+[instrumentation package](/guide/backend-logs#server-environment). Instrumentation is off in production by default, so
+production relies on these markers. The step runs after the deploy, with the project's id and an API key whose owner
+can add markers on the project (Contributor and above, `marker:write`), kept as a CI secret.
+
+On GitHub Actions, after the deploy step:
+
+```yaml
+- name: Record the deploy in Piwi
+  env:
+    PIWI_DASHBOARD_URL: ${{ vars.PIWI_DASHBOARD_URL }}
+    PIWI_API_KEY: ${{ secrets.PIWI_API_KEY }}
+  shell: bash
+  run: >-
+    curl --fail --show-error -X POST "$PIWI_DASHBOARD_URL/api/projects/12/markers"
+    -H "Authorization: Bearer $PIWI_API_KEY" -H "Content-Type: application/json"
+    -d "{\"label\":\"Deploy to staging\",\"category\":\"deploy\",\"environment\":\"staging\",\"commit\":\"$GITHUB_SHA\",\"occurredAt\":\"$(date -u +%FT%TZ)\"}"
+```
+
+On GitLab CI, in the deploy job, with `PIWI_DASHBOARD_URL` and `PIWI_API_KEY` as masked CI/CD variables:
+
+```yaml
+deploy-staging:
+  stage: deploy
+  script:
+    - ./deploy.sh staging
+    - >-
+      curl --fail --show-error -X POST "$PIWI_DASHBOARD_URL/api/projects/12/markers"
+      -H "Authorization: Bearer $PIWI_API_KEY" -H "Content-Type: application/json"
+      -d "{\"label\":\"Deploy to staging\",\"category\":\"deploy\",\"environment\":\"staging\",\"commit\":\"$CI_COMMIT_SHA\",\"occurredAt\":\"$(date -u +%FT%TZ)\"}"
+```
+
+The commit is the pipeline's own, since the application lives in the tests' repository. A commit that is not 7 to 40
+hexadecimal characters is refused. [Pass reuse](./reuse-forecast#skipping-reusable-tests) reads these markers too: a
+deployed environment's passes stand in only for runs against the commit deployed now.
 
 ## API
 
@@ -9796,10 +9962,10 @@ A subscription controls *what* is delivered and *how*. The project **bell** crea
 
 ### Branches and environments
 
-The bell offers the branches and environments the project's runs reported, and takes a typed name too: `*` matches
-any characters, so `release/*` covers every release branch. A subscription delivers only events from runs on one of
-its branches **and** in one of its environments; a run that reported no branch (or environment) matches none, and an
-empty list matches every run. The filters apply to every event that comes from a run: the `run.*` events,
+The bell offers the branches the project's runs reported, its [environments](./environments), and takes a typed name
+too: `*` matches any characters, so `release/*` covers every release branch. A subscription delivers only events from
+runs on one of its branches **and** in one of its environments (by key or alias); a run that reported no branch (or
+environment) matches none, and an empty list matches every run. The filters apply to every event that comes from a run: the `run.*` events,
 `flakiness.spike`, `perf.regression`, the `cluster.*` events, `bug.looks_fixed` and `test.stuck`. `diagnosis.completed` and
 `auto_heal.pr_opened` are not filtered.
 
@@ -12427,7 +12593,7 @@ level under `/admin`. A pattern starts with `http://`, `https://` or a wildcard.
 
 Each project keeps its own list in the **Browser extension** section of its **Settings** tab. A pattern can name:
 
-- an **environment**, a label shown beside the project in Piwi Picker (`staging`, `production`);
+- an [environment](./environments) of the project, shown by name in Piwi Picker;
 - a **branch**, the one deployed at those addresses, whose tests [Tested elements](./tested-elements) shows;
 - a **path prefix**, the part of the path your site serves its pages under and the tests did not: `/app` when the site
   serves `/app/checkout` and the tests ran at `/checkout`. Piwi Picker removes it before comparing the page with the
@@ -12439,8 +12605,8 @@ Each project keeps its own list in the **Browser extension** section of its **Se
   path; the site's root becomes `/app`. With both set, the one replaces the other (`/app` on the site, `/v2` in the
   tests), and a page outside the path prefix is left as it is.
 
-The editor suggests one pattern per site your suite already visited, grouped by the environment each run was
-reported with (the [reporter](/guide/reporter)'s `environment` option or `PIWI_ENVIRONMENT`), from the newest few runs
+The editor suggests one pattern per site your suite already visited, grouped by the environment each run's label
+resolves to (the [reporter](/guide/reporter)'s `environment` option or `PIWI_ENVIRONMENT`), from the newest few runs
 of every environment, so a nightly production suite shows beside a staging one. A run's site
 is its `baseURL`; for a run with none, the full addresses its tests opened with `page.goto` and the pages it loaded
 (its `document` requests), then the [Test Map](./scenario-gaps)'s pages and the absolute pages its locators ran on. A
@@ -16326,7 +16492,8 @@ kept apart from the issue tracker binding, so saving one never changes the other
   turn it off to send. See [Results in Zephyr Scale](/features/test-management).
 - **Where a test’s case key comes from** is its tags, its external ID, or both. A key is a tag or an ID that
   matches the project's test case key pattern, such as `SHOP-T123`, with no `@`.
-- **Runs in scope** picks the branches and environments the binding covers, as the issue tracker binding does.
+- **Runs in scope** picks the branches and [environments](/features/environments) the binding covers, as the issue
+  tracker binding does: an environment by its key, an alias or a `*` pattern, ignoring case.
 - **Result statuses** name the statuses Piwi uses for a pass, a fail, a flaky test and a test not executed, and
   how a flaky or skipped test is reported. The pickers list the statuses and folders of the chosen project; typing a
   name the tool does not list is allowed. A flaky status is needed to report flaky tests as `flaky`.
@@ -17195,6 +17362,20 @@ project. A run reports a **label**, the reporter's `environment` option or `PIWI
 environment by its key or an alias, ignoring case; a label nothing takes adds a **discovered** one. Filters and
 analytics narrow to one, and a run Piwi starts for one gets its run variables: [Environments](/features/environments).
 
+### Default environment
+
+The [environment](#environment) a project's views read when none is picked, as they read its default branch: the
+project page and its tabs, Analytics, quarantine candidates and pull-request feedback. A run with no environment counts
+only under **All environments**. Unset, every environment counts:
+[Default environment](/features/environments#default-environment).
+
+### Deployed environment
+
+An [environment](#environment) a project admin marks as not built from the run's checkout, such as Staging (every
+environment is built from the checkout until then): it runs whatever was last deployed there. A run of one tested a **deployed commit**, which its server under test reports or
+the environment's latest deploy marker carries. Suspect lines, the Changes tab and the AI diagnosis read the
+application's changes between deployed commits: [Deployed environments](/features/deployed-environments).
+
 ### Protected environment
 
 An [environment](#environment), Production as a rule, that Piwi starts a run against only for a project admin, after
@@ -17911,6 +18092,7 @@ Playwright (`run` only; `143` for `SIGTERM`) · `2` could not resolve, or Playwr
 | `--json` | Print the full resolution as JSON (`select` only) |
 | `--reuse` | Experimental, `run` only: [plan](#plan) the selection with pass reuse, then run only the tests the plan keeps. `full` plans the whole suite. Not with `--shard` |
 | `--plan <id>` | Experimental, `run` only: run the tests of a stored [plan](#plan), or with `--shard` one shard of them |
+| `--environment <key>` | Experimental, with `--reuse` or `--plan`: the [environment](/features/environments) the run reports (env `PIWI_ENVIRONMENT`, which `run` sets for Playwright): only passes of that environment are reused. With `--plan`, the plan's environment when none is named; a run naming another runs every test. The reporter's `environment` option, when the config sets it, wins over the variable: name the same one |
 | `-h`, `--help` | Show help |
 
 Pass extra Playwright arguments after `--`: `piwi run smoke -- --headed --workers=1`.
@@ -17951,6 +18133,7 @@ shard passes Playwright's own `--shard`. A shard that cannot use the plan runs t
 | `--server-url <url>` | Dashboard URL (env `PIWI_DASHBOARD_URL`, `.env`, the desktop app) |
 | `--api-key <key>` | API key (env `PIWI_API_KEY`, `.env`) |
 | `--project <name\|id>` | Project (env `PIWI_PROJECT_NAME`, `.env`) |
+| `--environment <key>` | The [environment](/features/environments) the planned run reports (env `PIWI_ENVIRONMENT`): only passes of that environment are reused |
 | `--json` | Print the plan as JSON instead of its id |
 | `-h`, `--help` | Show help |
 
@@ -20020,8 +20203,10 @@ numbered lines instead.
 ## Payload fields by event
 
 Every event that comes from a run carries that run's `branch` and `environment` when the run reported them: the
-`run.*` events, `flakiness.spike`, `perf.regression`, the `cluster.*` events, `bug.looks_fixed` and `test.stuck`. A subscription's
-[branch and environment filters](/features/notifications#branches-and-environments) match on these two fields.
+`run.*` events, `flakiness.spike`, `perf.regression`, the `cluster.*` events, `bug.looks_fixed` and `test.stuck`. When
+the run's environment label resolves to one of the project's [environments](/features/environments), the event also
+carries its `environmentName`, `environmentKey` and `environmentAliases`. A subscription's
+[branch and environment filters](/features/notifications#branches-and-environments) match on these fields.
 
 - **Run events** (`run.*`, `flakiness.spike`, `perf.regression`): the run, its counts, `topFailures`, and the `owners`
   of the failing tests. `perf.regression` adds `durationMs`, `baselineDurationMs` and `regressionPct`.
