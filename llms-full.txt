@@ -4531,8 +4531,8 @@ the call's title, its file and line, the test's title and since when, as each st
 row saying for how long once it has stood a minute. A stopped test is never marked [**Stuck?**](./stuck-tests).
 
 At a stop of a headed run, every tool offers **Show the browser**, which brings the test's window to the front where
-your system allows: **Piwi: Show the stopped test's browser** in VS Code and the stop's hover, **Tools → Piwi →
-Show the stopped test's browser** in a JetBrains IDE, and a button in the Runs window and the desktop app's tray. A
+your system allows: **Piwi: Show the stopped test's browser** in VS Code and the stop's hover, **Tools → Piwi → Run
+control** in a JetBrains IDE, and a button in the Runs window and the desktop app's tray. A
 headless run has none to show, nor does an older reporter.
 
 ### Hold failures
@@ -4551,7 +4551,7 @@ Headed or headless, it is off unless turned on; off, a failure goes on at once, 
   after its last call), or one whose start options choose it ([editor](./editor-runs#how-a-run-starts),
   [desktop app](./desktop-runs#each-worker)).
 - **While it runs**, from any tool that follows it: the editors (**Piwi: Turn hold failures on or off for the run**,
-  **Tools → Piwi → Turn hold failures on** or **off**), the switch on each run of the Runs window, the desktop app's
+  **Tools → Piwi → Run control**), the switch on each run of the Runs window, the desktop app's
   tray and Piwi Runner, or an agent (`run_follow`). Each tool shows it as the last one set it. Turned off, a held
   failure no pause bar shows goes on.
 - **Never** in a run nobody attends: a Flake Lab run, a bisect, a lab job, **Verify ×3**, a fix plan's verification, a
@@ -5002,7 +5002,7 @@ whose project enables live view, and connect to an editor or the desktop app for
 | Where | Share | Stop |
 |---|---|---|
 | VS Code | **Piwi: Share the run live on the team instance**, or the Piwi item's menu | **Piwi: Stop sharing the run live**, or **Stop sharing** in the Piwi item's menu under **Shared live**, beside **Open the run page** and **Copy the run page's link**, which **Piwi: Shared live: open the run page, copy its link or stop sharing…** also lists, after a confirmation |
-| JetBrains IDEs | **Tools → Piwi → Share the run live on the team instance** | **Tools → Piwi → Stop sharing the run live**, or **Stop sharing the run** in the status bar item's menu, after a confirmation |
+| JetBrains IDEs | **Tools → Piwi → Run control → Share the run live on the team instance** | **Tools → Piwi → Run control → Stop sharing the run live**, or **Stop sharing the run** in the status bar item's menu, after a confirmation |
 | Piwi Picker's [Runs window](./runs-window) | **Share live** under the run's name | **Stop sharing**, after a confirmation |
 | The desktop app's [Local runs tray](./desktop-runs) | **Share live** above the run's workers | **Stop sharing…**, after a confirmation |
 
@@ -5040,7 +5040,7 @@ $env:PIWI_SHARE_LIVE='1'; npx playwright test
 
 ### A window's runs
 
-**Piwi: Share this window's runs live until I stop** in VS Code, **Tools → Piwi → Share this project's runs live
+**Piwi: Share this window's runs live until I stop** in VS Code, **Tools → Piwi → Run control → Share this project's runs live
 until I stop** in a JetBrains IDE, and **Share this editor window's runs** under an editor's run in Piwi Picker's Runs
 window share each run the window starts from then on, each one said as it is shared, until you stop (**…Stop sharing
 this window's runs live**, **Shared live** in the Piwi item's menu, or **Stop sharing this window's runs**
@@ -10091,12 +10091,12 @@ machine: [what is sent](#what-is-sent-and-kept).
 | Where          | Open it                                                                                                                                                                 | At a stop                                                                                                                               |
 | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
 | VS Code        | **Piwi: Watch a worker's test**, the eye on a worker's row of the Piwi panel's **Runs** view, or the status bar's menu during a run: `Piwi: worker 2` beside the editor | While it watches in sight, a headless stop shows there, not on the paused page, with its controls, **Interact** and the pick on a click |
-| JetBrains IDEs | **Tools → Piwi → Watch a worker's test**, or a worker's row's right-click in the Piwi tool window's **Runs** tab: its **Worker 2** tab                                  | While it watches in sight, a headless stop shows there, not on the **Worker 2** page tab, with its controls and **Interact**            |
+| JetBrains IDEs | **Tools → Piwi → Run control → Watch a worker's test**, or a worker's row's right-click in the Piwi tool window's **Runs** tab: its **Worker 2** tab                                  | While it watches in sight, a headless stop shows there, not on the **Worker 2** page tab, with its controls and **Interact**            |
 | Piwi Picker    | **Watch** on a worker's row of the [Runs window](./runs-window#watch-live)                                                                                              | Its controls above the view; the stopped worker scrolls into view                                                                       |
 | Desktop app    | **Watch** on a running row of its own runs opens the [Local runs](./desktop-runs#watch) tray on it                                                                      | The tray shows the stopped worker, behind its tab in a run of several                                                                   |
 
 **Pause and watch**, which also stops the test before its next call, is **Piwi: Pause and watch a worker's test**
-(**Tools → Piwi → …**), and a button beside **Watch** in the Runs window and the desktop app. With several workers, the editor asks which.
+(**Tools → Piwi → Run control → …**), and a button beside **Watch** in the Runs window and the desktop app. With several workers, the editor asks which.
 
 While a run is in progress, VS Code's **Runs** view and the JetBrains **Runs** tab list each run with how far it is,
 each worker by its lane with its test and whether it stands stopped, and the run's page on the dashboard. A row opens
@@ -10208,7 +10208,7 @@ It is offered at any stop but a failure, with a reporter newer than 0.62.0:
 - **VS Code**: **End the test** in the stopped line's hover, the status bar beside **Finish**, and **Piwi: End the test** in the palette. It has no key: bind one in **Preferences: Open Keyboard Shortcuts**
   (search `piwi`).
 - **A JetBrains IDE**: **End the test** in the stopped line's inlay and the arrow's menu, **Tools → Piwi
-  → End the test** and the status bar item's menu. Give it a key in **Settings → Keymap**.
+  → Run control → End the test** and the status bar item's menu. Give it a key in **Settings → Keymap**.
 - **The [pause
   bar](./editor-breakpoints#pause-a-run)**: **End the test**.
 - **Piwi Picker's [Runs window](./runs-window)** and the
@@ -10223,7 +10223,7 @@ It is offered at any stop but a failure, with a reporter newer than 0.62.0:
 desktop app's tray say the call it waits in and, for a locator call, how long it has run, and offer **End the test**
 there. The Piwi item reads `Piwi: pausing… · waits in` the call and how long it has waited, in both editors, the call's line
 says the worker waits there with **End the test** after it (in its hover in VS Code), and **End the test** in the item's
-menu (**Tools → Piwi → End the test** in a JetBrains IDE) ends it too:
+menu (**Tools → Piwi → Run control → End the test** in a JetBrains IDE) ends it too:
 
 - **A locator call or an assertion**, with Playwright 1.62 or later, is given up at once, and the test is skipped.
 - **Another call** (a `waitForTimeout`, a navigation) finishes first, and the test is skipped at its next locator
@@ -10798,14 +10798,14 @@ line** on the debugger's Show Execution Point key:
   way. While a run is [shared live](./share-live), its menu opens the run's page,
   copies its link, and has **Stop sharing the run**, which asks first.
 - **The editor's and the project view's context menus** have a **Piwi** submenu, in the VS Code extension's order:
-  run, then record. **Tools → Piwi** has six sections: run, record, a paused run, dashboard, agents, connection. Each
-  menu leaves out what does not apply.
+  run, then record. **Tools → Piwi** has six sections: run, record, run control (a submenu), dashboard,
+  agents, connection. Each menu leaves out what does not apply.
 - **[Recording](./editor-recording)** starts from **Record here…**, Alt+Enter or Alt+Insert, and **New → Playwright test
   (recorded)…** on a folder of a Playwright config; its controls are in a banner above the editor.
 - **[A paused run](./editor-run-control)**: the line a run is stopped at, Piwi's or [one the IDE's own **Run**
   started](./terminal-runs), has an arrow in the gutter and an inlay above it with **Resume**, **Step**, **Finish** and **Write code…**, the
   other controls in its context menu; they are also in the status bar item's menu, after each stop to go to, and
-  under **Tools → Piwi**, with **Pause the run** and **Stop the run**. A headless test's page shows in its worker's tab of
+  under **Tools → Piwi → Run control**, with **Pause the run** and **Stop the run**. A headless test's page shows in its worker's tab of
   the Piwi tool window (**Worker 1**), with the same controls, where a click on the image picks the locator of the
   element under it (Playwright 1.60 or later). On a JetBrains
   Gateway backend, forward the ports **Copy the pairing address for Piwi Picker** names:
@@ -11661,7 +11661,7 @@ A run Piwi starts follows your config, headless by default, unless you turn
 [headed runs](./editor-runs#how-a-run-starts) on or an [older reporter](./editor-breakpoints#what-it-needs) needs it. A headless stop opens its worker's page (`Piwi: worker 1` beside VS Code's editor, the JetBrains tool window's
 **Worker 1** tab) with the line's controls, unless that worker's [watch](./watch-running-test) shows it. It keeps its
 stop until it goes on, after a **Step** or **Run to the cursor** from the editor waits up to 10 seconds for the next,
-and **Piwi: Show the paused page** (**Tools → Piwi → Show the paused page**) opens it at any stop.
+and **Piwi: Show the paused page** (**Tools → Piwi → Run control**) opens it at any stop.
 
 <figure>
   <img src="/screenshots/vscode-run-control-paused-page.png" alt="VS Code: a headless test paused before it clicks Apply, and beside the editor the Piwi: worker 1 tab showing the cart page with the coupon typed in">
@@ -11678,7 +11678,7 @@ It needs no Piwi Picker ([remote development](/guide/remote-development)), and o
 ## Share with Playwright tools
 
 At a stop, **Share with Playwright tools** (the stop's hover and **Piwi: Share the stopped test's browser with
-Playwright tools** in VS Code; the stop's menu and **Tools → Piwi** in a JetBrains IDE) binds the test's browser for
+Playwright tools** in VS Code; the stop's menu and **Tools → Piwi → Run control** in a JetBrains IDE) binds the test's browser for
 Playwright's own tools, so `npx playwright cli attach piwi-<run>-w<worker>` and Playwright's dashboard can join it.
 It is off until you ask, and asks first each time: any process of yours can then read the browser's pages and run code
 in them. It stays shared until the test ends; no agent can share it.
@@ -11750,7 +11750,7 @@ headless too.
   behind the status bar's `</>` item, **Piwi: Write code at the stop…**.
 - **In a JetBrains IDE**,
   they are links in the inlay above the stopped line (by the same short names), in the gutter icon's menu, in the status
-  bar item's menu, and under **Tools → Piwi** with the same titles as VS Code's palette.
+  bar item's menu, and under **Tools → Piwi → Run control** with the same titles as VS Code's palette.
 
 None has a default key: bind one in **Preferences: Open Keyboard Shortcuts** or **Settings → Keymap** (search
 `piwi`). A stop offers only the actions its reporter takes: with one that predates them, none.
@@ -11825,7 +11825,7 @@ counted, and a line without a locator says nothing.
 
 When its run [holds a failing test](./watch-a-run#hold-failures) (with breakpoints or a `page.pause()`, from its
 start unless [your run options](./editor-runs#how-a-run-starts) choose otherwise, or once you turn it on with **Piwi:
-Turn hold failures on or off for the run**, **Tools → Piwi → Turn hold failures on** or **off**, or Piwi Picker's
+Turn hold failures on or off for the run**, **Tools → Piwi → Run control → Turn hold failures on** or **off**, or Piwi Picker's
 [Runs window](./runs-window)), the editor shows the failure as a stop of its own, at the line where the error entered
 the test's code, or at the call a test timeout cut short:
 
@@ -19926,7 +19926,8 @@ jump to the first / last column of the row. `Space` or `Enter` opens the focused
 # Editor commands
 
 Every command the two editors offer, by what it acts on. VS Code lists them in the command palette under **Piwi:**;
-a JetBrains IDE lists them under **Tools → Piwi** and in **Find Action**, says caret for cursor and project for window,
+a JetBrains IDE lists them under **Tools → Piwi**, a run's in its **Run control** submenu, and in
+**Find Action**, says caret for cursor and project for window,
 and shows a toggle's state with a check mark. A row that names one editor is that editor's alone. Some commands have a
 shortcut in both editors ([Keys](#keys)); a run's controls take the debugger's keys
 ([The controls](/features/editor-run-control#the-controls)).
@@ -20038,7 +20039,7 @@ an issue** and, on a flaky test in VS Code, **Look into this flake…**:
   editor title, Pause or Resume, Step, Finish and Stop (on a run this window started) in the debug toolbar's order, the
   others under `…`; and, while a test is stopped, in the editor's context menu, right after its Go to entries, and on
   its worker's page (Resume, Step, Finish and Write code…).
-- **In a JetBrains IDE**: **Tools → Piwi** and the **Run** menu, enabled while they apply; the toolbar of the run's
+- **In a JetBrains IDE**: **Tools → Piwi → Run control** and the **Run** menu, enabled while they apply; the toolbar of the run's
   Run tab, acting on that run; the status bar item's menu; and, while a test is stopped, first in the editor's context
   menu, and on its worker's tab (Resume, Step, Finish and Write code…).
 
