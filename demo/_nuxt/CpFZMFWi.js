@@ -1,0 +1,1 @@
+var e=`font-mono rounded-md border border-default bg-elevated px-1 box-decoration-clone`,t=`bg-elevated text-highlighted`,n=`ring-2 ring-offset-1 ring-offset-bg ring-inverted`,r=`bg-elevated ring-1 ring-inset ring-accented`;export{r as i,n,t as r,e as t};
