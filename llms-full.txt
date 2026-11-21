@@ -5010,8 +5010,10 @@ A CI test is held only when all of these stand as it fails:
 
 - the project's setting is on;
 - someone with the `run:control` permission on the project (a Maintainer or a Project admin:
-  [roles](/operate/project-access#what-each-role-can-do)) watches that worker's lane in full, in its lane panel. A
-  tile of [Watch all](./watch-all) does not count, nor does a Viewer or a Contributor watching;
+  [roles](/operate/project-access#what-each-role-can-do)) watches that worker's lane in full: in the run page's lane
+  panel, in an [editor's worker view](./editor-ci-runs#a-failure-held-for-you), or in
+  [Piwi Picker's Runs window](./runs-window), each with that person's sign-in or key. A tile of [Watch all](./watch-all) does
+  not count, nor does a Viewer or a Contributor watching;
 - the test failed or timed out, and was not expected to.
 
 With authentication off, everyone who opens the run may control it, so anyone watching counts. Who may control the
@@ -5036,6 +5038,19 @@ The test's own timeout stops while it waits, as at a breakpoint, so Playwright d
 CI job's own timeout still runs**: the lane panel says so beside the hold. A job that reaches its timeout during a
 hold fails as it would have, later.
 
+### Where it shows
+
+Every surface that watches the lane shows the hold in the same words: the run page's lane panel, VS Code's worker
+panel, the JetBrains **Worker** tab and the Runs window's CI run, whose test list marks the lane **Failed, held at its
+line** too. **Let it go** shows on a surface whose own watch of the lane counts as a controller's: the instance says so
+to that watch as it opens, so an editor or Piwi Picker connected with a Maintainer's key offers it, and one connected
+with a Viewer's key shows the hold without it. A refusal is said in the instance's words.
+
+<figure>
+  <img src="/screenshots/picker-runs-ci-held.png" width="488" alt="The Runs window watching worker 2 of CI run #78: the test list marks it Failed, held at its line, and above its live page a box says Failed, held at its line, Held for Ana until a time, the expected and received text, tests/checkout.spec.ts:42, The CI job’s own timeout still runs, and a Let it go button">
+  <figcaption>A held CI failure in the Runs window, with Let it go.</figcaption>
+</figure>
+
 The run's log says that the test is held, and until when, in UTC:
 
 ```text
@@ -5046,11 +5061,11 @@ The run's log says that the test is held, and until when, in UTC:
 
 The hold ends at the first of:
 
-- **Let it go**, in the lane panel, which only someone with `run:control` sees;
+- **Let it go**, on a surface watching the lane, which only someone with `run:control` sees;
 - the longest hold the project set. A new length set during a hold applies to it: the hold ends that long after it
   began, at once when that is past;
 - nobody with `run:control` watching the lane in full any more: the last one closed the panel or moved to another
-  lane;
+  lane. A Runs window hidden or minimized lets go of its watch, so it stops counting;
 - the project's setting turned off, or the run's live view ending (the run ended or interrupted, the project's live
   view turned off).
 
@@ -12290,7 +12305,9 @@ it starts once it finds a Playwright config in the solution's folder or its Git 
 
 While CI runs your branch, the [editor extensions](./editors) show that run beside your own: its progress, its tests
 as they end, the line each running test is at, and, when its project has the [live view](./live-view) on, its pages.
-It is read-only: nothing pauses, steps, holds or shares a CI run from the editor.
+It is read-only but for one thing: **Let it go** on a test the project
+[holds at its failure](./hold-ci-failure) for the people who may control its runs. Nothing else pauses, steps, holds
+or shares a CI run from the editor.
 
 ## Which runs
 
@@ -12328,9 +12345,24 @@ image, the same layers as a local lane ([Beside the image](./watch-running-test#
 **Watch on the dashboard** opens the lane on the run's page, offered where the editor cannot show it (an older
 instance, a refused **Watch**).
 
+### A failure held for you
+
+When the project [holds a failing CI test](./hold-ci-failure) for its controllers and your editor's connection may
+control the project's runs (its key is a Maintainer's or a Project admin's), your watch of a lane counts: a test that
+fails in it waits at its failure, as it would for the run page. The worker panel or the **Worker** tab then says
+**Failed, held at its line · Held for Ana · until 12:05**, the error, its place (which opens the failing line), and
+that the CI job's own timeout still runs; the CI Runs list marks the test **Failed, held at its line**. **Let it go**
+ends the wait, once: the test tears down as it would have, its result unchanged.
+
+**Let it go** goes on your watch of that lane, so it shows only while you watch it, and only once the instance has
+said your connection may control the run. The Runs window does the same with its own connection
+([Where it shows](./hold-ci-failure#where-it-shows)). Anyone else watching sees the hold without it. A refusal is said in the
+instance's words, under the caption.
+
 ## Limits
 
-- **Read-only.** No control, share or hold reaches a CI run, and its position is never a stop.
+- **Read-only, but Let it go.** No control, share or hold reaches a CI run, but **Let it go** on a failure the project
+  holds for its controllers, and its position is never a stop.
 - **One worker per editor.** The worker panel or tab watches one lane, a local worker's or a CI run's: watching another
   moves it there.
 - **A run's steps.** The positions come from the steps the CI run's reporter streams, so a run whose reporter streams
@@ -13846,9 +13878,10 @@ then each worker's test and whether it runs or where it stopped (the file and li
 the page). A run that ended says how: passed, failed with its first
 failure, timed out or interrupted. The count and the outcome need `@piwitests/reporter` newer than 0.67.0. A run
 without [**Watch**](#watch-live) and no test stopped says how one stops: a breakpoint, a `page.pause()` or **Pause**. A run [started outside Piwi](./terminal-runs) shows too, marked **Terminal** or **Test runner**.
-The CI runs in progress of the projects your [connection](./extension-connection) maps show read-only, through that
-instance, read again every 15 seconds while the window is open, with **Open** and their running tests, each with **Watch**
-([A CI run of your branch](./editor-ci-runs)).
+The CI runs in progress of the projects your [connection](./extension-connection) maps show, watched only, through
+that instance, read again every 15 seconds while the window is open, with **Open** and their running tests, each with
+**Watch** ([A CI run of your branch](./editor-ci-runs)): nothing steers them, except **Let it go** on a
+[failure held for you](./hold-ci-failure#where-it-shows).
 
 ## The controls
 
