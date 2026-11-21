@@ -1,0 +1,1 @@
+import{U as e}from"./pSj8_1kH.js";function t(){let t=e();return String(t.public.desktop)===`true`}export{t};
