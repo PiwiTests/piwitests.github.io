@@ -30,6 +30,7 @@
 - [Offline export](https://piwitests.dev/features/offline-export): Export a failing execution, a whole failure cluster or a whole run as HTML, ZIP, PDF, Markdown or JSON that opens with no network and no Piwi server, plus a Perfetto trace of a run.
 - [Share links](https://piwitests.dev/features/share-links): Read-only links to a failure, a quality report or a live dashboard for someone without an account, a status badge, and their security properties.
 - [Regression or flake?](https://piwitests.dev/recipes/regression-or-flaky): Decide in a minute whether a red test is your regression or a known flake, from the run's changes and the test's own history.
+- [Fails on CI, passes locally](https://piwitests.dev/recipes/fails-on-ci): A Playwright test fails on CI and passes on your machine: see what differs between the two, check that it is the cause, reproduce it locally, then pin it in the config.
 - [Triage a run gone red](https://piwitests.dev/recipes/mass-failure): When most of a Playwright run goes red, it is usually two or three causes, not forty bugs. Collapse the failures into clusters, rule out the environment, triage each cause once, then confirm the fix.
 - [Cut costly flakiness](https://piwitests.dev/recipes/flaky-cleanup): One afternoon to make an unreliable suite trustworthy: fix the flaky tests that cost the most, one root cause at a time, and quarantine the rest.
 - [Failure evidence](https://piwitests.dev/features/evidence): Everything captured about one failing execution on one screen: the evidence tabs, clues, attempts, the page diff and the trace-powered views.
@@ -150,7 +151,7 @@
 - [Choose what you use](https://piwitests.dev/operate/capabilities): Pick the capabilities your instance and each project use from Settings → Capabilities, and decline the rest so the dashboard stops showing them.
 - [Jira Cloud](https://piwitests.dev/operate/integrations): Connect Jira Cloud to the dashboard: the token and permissions it needs, trusted hosts, status sync and the inbound webhook.
 - [Zephyr Scale Cloud](https://piwitests.dev/operate/zephyr-scale): Connect Zephyr Scale Cloud to the dashboard and bind a project to a Zephyr project: the region, the token, the catalog of test cases and how tests map onto it.
-- [Database](https://piwitests.dev/operate/database): SQLite by default or PostgreSQL for a shared instance, how to switch between them, and where retention and backups are covered.
+- [Database](https://piwitests.dev/operate/database): SQLite by default or PostgreSQL for a shared instance, how to switch between them, what happens to a database another build ran, and where retention and backups are covered.
 - [Storage & retention](https://piwitests.dev/operate/storage): Local or S3-compatible storage for reports and traces, data retention, runs kept forever, cleanup, and what trace snapshots cost.
 - [Backup & restore](https://piwitests.dev/operate/backup-restore): What to back up for a Piwi instance, how to take a consistent copy of the database and storage, and how to restore it.
 - [Metrics and rollup export](https://piwitests.dev/operate/metrics): Serve the metric catalog as OpenMetrics for Prometheus and Grafana, and export the daily rollups as JSON or CSV for BI tools.
