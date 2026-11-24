@@ -1104,9 +1104,9 @@ GitLab (`https://gitlab.com/api/v4/projects/acme%2Fweb/`). Then pick it:
   for every project that picks none. It lists credentials shared with all projects; for each repository, the one
   whose destination holds the repository's API applies, the narrowest first, so one instance can hold a GitHub and a
   GitLab token.
-- **Per CI action**: a GitHub, GitLab or Bitbucket action of [Re-run in CI](/features/ci-rerun) may name its own, so a
-  token scoped to CI dispatches (on GitHub, **Actions: write**, and **Contents: read** for the action's **Check**),
-  and the project's keeps reading and writing feedback.
+- **Per CI action**: a GitHub, GitLab or Bitbucket [CI action](/features/ci-actions#repository-host) may name its
+  own, so a token scoped to CI dispatches (on GitHub, **Actions: write**, and **Contents: read** for the action's
+  **Check**), and the project's keeps reading and writing feedback.
 
 The token is encrypted with [`PIWI_SECRET_KEY`](/reference/configuration#general), never returned by the API, sent
 only to its destination, and each use is in the credential's log. A token saved on a project or the instance before
@@ -1963,7 +1963,7 @@ Every outbound call the server makes is listed below; all but two are opt-in.
 | A URL you attach as a link | When someone adds a link to a run, test or cluster | A request for its title (the git host's API for an issue or PR link) |
 | Your issue tracker (Jira) | Only if you [connect it](/features/issue-tracking) | Issue reads, and the issues and comments you file; avatars Jira names, fetched from Gravatar or Atlassian with no credentials |
 | Zephyr Scale Cloud | Only if you [connect it](/features/test-management) | A run's results |
-| Your CI server | Only if you [connect one](/features/ci-rerun) | The re-run or Flake Lab request |
+| Your CI server | Only if you [connect one](/features/ci-actions#ci-server) | The re-run or Flake Lab request |
 | Your SMTP server | Only if you configure [email notifications](/features/notifications) | Notification and account emails |
 | Slack, Teams or your webhook URLs | Only for subscriptions you create, and [report schedules](/features/quality-reports#report-schedules) that name the channel | The event payload (run status, cluster, test names, file paths, short error excerpts), or the quality report |
 | Your S3 endpoint | Only if you switch [storage](/operate/storage) to S3 | Trace files, HTML reports, attachments |
@@ -2199,7 +2199,8 @@ palette lists its tabs and the pages of this menu. The tabs:
 
 - **Runs**: the run trend chart, with its [timeline markers](./timeline-markers), over the filtered runs, and the runs table,
   25 to a page; select two and **Compare** [what changed](./run-changes) between them, or select any
-  number, page by page, and [delete them](/operate/storage#storage-management).
+  number, page by page, and [delete them](/operate/storage#storage-management). Above it wait the CI dispatches whose
+  run has not reported or still runs, and your own run requests ([Waiting rows](./ci-rerun#waiting-rows)).
 - **Tests**: every test case with its pass rate and last run, in file order, with the
   [test search](/reference/test-search) and a status filter, groupable by file, or by file and describe block.
 - **Failures**: the [failure clusters](./failure-clusters), the [flaky tests](./flaky-tests#flaky-test-detection) and the
@@ -2217,7 +2218,7 @@ palette lists its tabs and the pages of this menu. The tabs:
   [capabilities](/operate/capabilities), coverage, [targets](./analytics#targets), the
   [issue tracker](./issue-tracking), [CI](./ci-rerun), keys in test tags, [test management](./test-management),
   [URL patterns](./extension-connection#url-patterns) and, in the desktop app, the
-  [local folder](./desktop#running-tests-from-the-app).
+  [local folder](./desktop#projects-from-local-folders).
 
 ## Locators
 
@@ -2246,20 +2247,7 @@ that threw, a spec that did not load) show under the facts line. The tabs:
   [test search](/reference/test-search) as a project's Tests tab and bulk triage.
 - **Changes**: what differs against one baseline run. See [What changed in a run](./run-changes).
 - **Timeline**: each worker's tests on one time axis, with hooks, waits, locks and [breakpoint](./editor-breakpoints)
-  stops, the slowest tests and the worker distribution ([Slow tests & wasted time](./slow-tests)).
-  - **Hooks**: hatched over each test's bar, setup (`beforeAll`, `beforeEach`, fixtures) at the start,
-    teardown (`afterEach`, `afterAll`, worker cleanup) at the end. A failed hook is dark red and counted in
-    the header, even with **Show hooks** off; hover it for the hooks, times and error,
-    click it for the test's steps on that hook. Playwright leaves `beforeAll` and `afterAll` hooks and worker
-    fixtures out of a test's duration; the bar spans them, and its tooltip gives Playwright's duration.
-    Older reporters send no hook list.
-  - **Gaps**: a lane is one [worker](/reference/test-metadata#worker-lanes). Playwright replaces a worker process
-    after a failed test, so a lane can hold several processes in turn: **↻** marks where a new one took
-    over, and the stretch before it is that replacement. A dashed line is time the
-    worker ran no test; hover either for details.
-  - **Retries**: a retried test has one bar per attempt, the last solid, the earlier ones pale. Hover one to join
-    them with arrows.
-  - **Resources**: the run's CPU, memory and open pages, above the worker rows and under each of them.
+  stops, the slowest tests and the worker distribution ([The run's Timeline](./slow-tests#the-run-s-timeline)).
 - **Video**: the tests' videos in sequence beside a checklist ([Run video](./run-video)).
 - **Resources**, when the run sent a resource report ([CPU, memory & disk](./cpu-memory-disk#in-the-dashboard)).
 
@@ -2357,7 +2345,7 @@ popover, and pointing at a line enlarges its number on the page.
 | **Report a first run** | Install the reporter, send a run, and find it in its project | Administrators |
 | **Configure AI** | Choose where the AI runs and what it does | Administrators |
 | **Add the SCM credential** | Let Piwi read the commits behind a failure | Project admins |
-| **Set up CI and sharding** | Report from CI, merge shards into one run, re-run from a cluster | Administrators |
+| **Set up CI and sharding** | Report from CI, merge shards into one run, start tests in CI | Administrators |
 | **Turn on pull-request feedback** | Post each run's result on its pull request | Administrators |
 | **Connect Jira** | File issues from failures and keep them in sync | Administrators |
 | **Set up notifications** | Send failures to email, Slack, Teams or a webhook | Everyone |
@@ -3557,6 +3545,11 @@ When a run executes every test of a cluster and all pass, Piwi records the fix (
   [suggested patch](./ai-diagnosis#validated-patches) named.
 - **Regressed**: a fix was recorded, and the cluster fails again.
 
+<figure>
+  <img src="/screenshots/ci-rerun-last-run.png" alt="A cluster's Verify section: its last re-run, dispatched to Jenkins, links the run that answered it, which passed">
+  <figcaption>The Verify section: the last re-run in CI and the run that answered it.</figcaption>
+</figure>
+
 **A fix needs every affected test to pass** in the Playwright projects it last failed in that the run ran (a `--grep`
 over them is enough), in a run started after the last failing run, at another commit (a pass at the failing commit,
 such as a CI retry, is flake evidence the state line names), on the cluster's last failing branch or the default
@@ -4213,7 +4206,9 @@ The experiment is recorded with the source `ci`. Exit code 1 (nothing reproduced
 `continue-on-error: true` to the step when you only want the result on the tab.
 
 To start it from a failure's next step (**Reproduce in CI**, **Verify in CI**), make the input the command's arguments
-(<code v-pre>npx @piwitests/reporter ${{ inputs.piwi_flake }}</code>) and add the workflow as a CI action that accepts **Flake Lab**, in the project's **CI** settings ([CI actions](./ci-rerun#ci-actions)). It receives `flake 1842` or `flake verify 1842`.
+(<code v-pre>npx @piwitests/reporter ${{ inputs.piwi_flake }}</code>) and add the workflow as a CI action that accepts
+**Flake Lab**, in the project's **CI** settings ([CI actions](./ci-actions)). It receives `flake 1842` or
+`flake verify 1842`.
 
 ## Without the dashboard
 
@@ -5624,7 +5619,7 @@ just not aggregated across the suite.
 
 ## 6. Spend the parallelism you already have
 
-- **Worker imbalance** is called out in a run's [Timeline](/features/ui-overview#test-run-detail) tab, under the worker
+- **Worker imbalance** is called out in a run's [Timeline](/features/slow-tests#the-run-s-timeline) tab, under the worker
   distribution: if one worker finishes long after the others, the suite is as slow as its unluckiest shard, and no
   amount of per-test tuning fixes that.
 - **Sharding** is Playwright's own `--shard`; Piwi merges the shards back into [one
@@ -5653,8 +5648,8 @@ just not aggregated across the suite.
 # Slow tests & wasted time
 
 The test list tells you what failed; it doesn't tell you where the **minutes** go. This page covers the project's
-**Performance** tab (duration trends, the slowest tests, timeout opportunities, slow endpoints) and the time Piwi
-counts as **wasted**. What the run cost the machine is on [CPU, memory & disk](./cpu-memory-disk); flaky tests ranked
+**Performance** tab (duration trends, the slowest tests, timeout opportunities, slow endpoints), a run's **Timeline**
+and the time Piwi counts as **wasted**. What the run cost the machine is on [CPU, memory & disk](./cpu-memory-disk); flaky tests ranked
 by the time their retries cost, on [Flaky tests](./flaky-tests#impact-ranking).
 
 ## Duration trends
@@ -5697,6 +5692,26 @@ failed attempts over time and per project, beside **CI time**, the minutes the r
 
 The flaky list's **wasted CI minutes** are a narrower number, a test's retries times its average failed attempt:
 see [Impact ranking](./flaky-tests#impact-ranking).
+
+## The run's Timeline
+
+A run's **Timeline** tab draws each worker's tests on one time axis, with waits, locks and
+[breakpoint](./editor-breakpoints) stops. Under the lanes it ranks the run's **Slowest tests**, sums each named lock's
+held and serialized time in **Locks**, and shows the **Worker distribution**, how the tests spread across the workers:
+
+- **Hooks**: hatched over each test's bar, setup (`beforeAll`, `beforeEach`, fixtures) at the start,
+  teardown (`afterEach`, `afterAll`, worker cleanup) at the end. A failed hook is dark red and counted in
+  the header, even with **Show hooks** off; hover it for the hooks, times and error,
+  click it for the test's steps on that hook. Playwright leaves `beforeAll` and `afterAll` hooks and worker
+  fixtures out of a test's duration; the bar spans them, and its tooltip gives Playwright's duration.
+  Older reporters send no hook list.
+- **Gaps**: a lane is one [worker](/reference/test-metadata#worker-lanes). Playwright replaces a worker process
+  after a failed test, so a lane can hold several processes in turn: **↻** marks where a new one took
+  over, and the stretch before it is that replacement. A dashed line is time the
+  worker ran no test; hover either for details.
+- **Retries**: a retried test has one bar per attempt, the last solid, the earlier ones pale. Hover one to join
+  them with arrows.
+- **Resources**: the run's CPU, memory and open pages, above the worker rows and under each of them.
 
 ## Time paused at a stop
 
@@ -6837,31 +6852,170 @@ Turn it on in **Settings → Pull requests** (off by default). It needs:
 
 # Re-run in CI
 
-A [filtered run that passes every affected test closes a cluster](./failure-clusters#did-the-fix-work). The cluster page
-can trigger that run in CI: **Re-run in CI**, next to *Copy retry command*, dispatches a workflow, pipeline or job with
-the cluster's retry arguments (each affected test's `file:line` from its latest failure, and the projects it failed
-in) on the branch of the cluster's latest run, and links to the run it started. The configured ref is used only when
-that run has no branch. An execution's Verify section offers **Re-run this test in CI** beside **Re-run the
-cluster in CI**; both are recorded as the cluster's last re-run, which says where it went, when, by whom, and links to
-the build.
+A [filtered run that passes every affected test closes a cluster](./failure-clusters#did-the-fix-work). Piwi can start
+that run in CI, and others: a page's **run button** opens a dialog whose **Where** lists the project's
+[CI actions](./ci-actions) beside your own apps ([Run on my machine](./run-on-my-machine)). It reads **Run on CI**,
+**Run on my machine** or **Run on my machine or CI**, after what you may use there; in the desktop app, it says what it
+runs on [this computer](./run-on-this-computer):
 
-It is **off by default** and configured per project in the **CI** section of the project's **Settings** tab (under
-Integrations, beside **Issue tracker**): a list of named [CI actions](#ci-actions), each saying where Piwi starts CI and
-what it sends.
+| Page | What CI runs |
+|---|---|
+| Project | The whole suite, or the [tests carrying some tags](#tagged-tests), on the project's default branch |
+| Run | Its failed tests, or the action's whole suite on the run's branch |
+| Execution | The test, or every test of its cluster |
+| Test | The test, or a [Flake Lab](./flake-lab#run-it-in-ci) experiment |
+| Failure cluster, and its Verify section | Its affected tests |
 
-Its buttons show to people with [`run:control`](/operate/project-access#what-each-role-can-do) once an action serves the
-run (through the repository, with an SCM credential) and a test has a path Playwright takes.
+A re-run sends each test's `file:line` from its latest failure and the projects it failed in, at most 100 tests, on
+the branch of the run it comes from. The **Re-run in CI** next step, and a Flake Lab one, open the dialog on CI.
+
+CI is **off by default**: a project starts it through the [CI actions](./ci-actions) of its **Settings**, each saying
+where Piwi starts CI and what it sends. The dialog, MCP and the API can name another action than the default, a branch
+and a value for each choice input.
+
+CI shows to people with [`run:control`](/operate/project-access#what-each-role-can-do) once an action that takes the
+page's tests can be sent: it serves the run's repository with a credential, and a re-run's tests have a path
+Playwright takes.
+
+<figure>
+  <img src="/screenshots/run-dialog.png" alt="The run dialog of a failed run: its failed tests or every test, three CI actions, one disabled because it takes no re-runs, and the picked action's branch and input">
+  <figcaption>A failed run's dialog: an action that takes no re-runs is disabled, with the reason.</figcaption>
+</figure>
+
+## The run dialog
+
+- **Where** opens on the one you last sent to in this project, from this browser. Otherwise a re-run picks the action
+  that started its run, else the one of its environment, else the default for re-runs; the project page picks its
+  default for Run on CI, or for tagged tests, and the test page your first online app. In the desktop app, **This
+  computer** takes your apps' place and comes first: [Run on this computer](./run-on-this-computer).
+- A CI row shows its target and environment. It is disabled, with the reason, when the action does not take the
+  chosen **What** or cannot be sent. Picked, the dialog says what a team run is: it counts in the project's history,
+  sends notifications and pull-request feedback, and spends CI minutes. A Flake Lab experiment is a lab run instead,
+  kept out of the history.
+- **Branch**: a GitHub, GitLab or Bitbucket action offers the branches the project's runs reported, then the
+  repository's; a Jenkins job with `{branch}` in its path, or a Custom request naming the branch, takes a typed name;
+  any other CI server job runs its configured branch. A name git refuses is not sent.
+- Each choice input offers its options; the fixed ones are listed.
+- The button's menu sends the page's first **What** in one click, to one action or app, on the branch the dialog
+  would pick, with the default choices. In the desktop app, it is This computer's menu, with these runs on CI in it.
+
+After **Send** the dialog follows the dispatch: *waiting for the run to report*, with **Open in CI**, then the run and
+its result once [matched](#matching-the-run), which a toast says if you closed the dialog. With no run after 30
+minutes, it lists the likely causes. **Run again** sends it again; a CI run is cancelled in the CI. The Verify section
+of a cluster and of its executions shows the cluster's last re-run.
 
 *Copy retry command* is the local counterpart: it copies an `npx playwright test` command to run the same tests on your
 machine. On a run's page, its menu adds run options the browser remembers (headed, trace, repeat each up to 10 without
 retries, workers up to 4), and one project the tests ran in.
 
 An action that accepts **Flake Lab** runs `piwi flake` for one flaky test: [Run it in CI](./flake-lab#run-it-in-ci)
-shows the GitHub workflow, and [Flake Lab on Jenkins](#flake-lab-on-jenkins) the Jenkins job.
+shows the GitHub workflow, and [Flake Lab on Jenkins](./ci-actions#flake-lab-on-jenkins) the Jenkins job.
 
-## CI actions
+## Tagged tests
 
-A CI action is a named way to start CI. It has:
+On the project page, **What** also offers **Tests tagged…**. Pick up to 10 of the tags of the tests that ran in the last
+30 days, each listed with how many of those tests carry it, spellings that differ only in case counted as one, and, for
+two or more, whether a test carrying **any of them** or **all of them** runs. Only an action that accepts **Tagged
+tests** takes them; the others are disabled, with the reason. Your apps take no tags: a run request names its tests.
+
+<figure>
+  <img src="/screenshots/run-dialog-tags.png" alt="The project page's run dialog on Tests tagged: @api and @regression picked, All of them chosen, the nightly action picked and the smoke action disabled because it takes no tagged tests">
+  <figcaption>Two tags, a test carrying both: the action that takes no tagged tests is disabled.</figcaption>
+</figure>
+
+CI gets one `--grep` over what Playwright greps, a test's titles and its tags, ignoring case, so `@smoke` in a title
+and in the `tag` option both match. Each tag runs up to a space or the end, after any character, as Playwright reads a
+tag from a title (`@example.com` in `emails user@example.com`); one of 60 characters, the most Piwi keeps of a tag,
+matches as a tag's start. **All of them** for `@smoke` and `@checkout` sends:
+
+```text
+--grep="^(?=[^]*@smoke(?=\s|$))(?=[^]*@checkout(?=\s|$))"
+```
+
+It is double-quoted like every argument Piwi sends, and reads the same in bash, PowerShell, cmd and
+[`rerun`](/reference/cli#rerun). A tag holding a space, a double quote, or one of `$`, `` ` ``, `\`, `%` and `!` is not
+offered.
+
+## Waiting rows
+
+A project's runs list shows each dispatch no run has answered yet as a row above its runs, to everyone who reads the
+project: *Waiting for CI*, what it runs, its action and the branch it names, when and by whom it was dispatched, and
+**Open in CI**. After 30 minutes it reads *No run reported yet*, with the likely causes under **Why?**. Once a run is
+[matched](#matching-the-run) to it, the row reads *Running* with **Open run #N** while that run goes on, since the
+list's filters may leave the run out (a re-run is a partial run), and leaves when the run ends. A dispatch no run is
+matched to within six hours leaves then.
+
+Your own [run requests](./run-on-my-machine) wait there as well, seen by you alone. A requested run is never in the
+list, so its row stays while the run goes on, with a link to it, and leaves once the request ends.
+
+The rows show whatever the filters say, five at a time with **Show all**, but not under **Kept runs only** or a period
+opened from Analytics; dispatches show while the project's CI actions are on. The page reads the dispatches with
+itself, your requests once it has loaded, and both again on each run event of the project and when the browser tab
+shows again; while a row shows, a dispatch every 30 seconds, a request every 5 seconds until its run starts, then every
+30.
+
+## Matching the run
+
+Piwi matches each dispatch's run as it starts: by the `PIWI_ORIGIN_REF` the run carries, else by the CI's own run id
+(GitHub's run, GitLab's pipeline, Bitbucket's build), and a Flake Lab run by its experiment's test. At its end, a CI
+server re-run, or a GitHub one answered without a run, matches by branch, a start within six hours and exactly its spec
+files.
+
+A matched re-run's [origin](/reference/test-metadata#run-origin) is `ci-rerun`. The run of a whole suite or of tagged
+tests keeps `ci`, and the grep of tagged tests makes theirs a partial run, as any grep does. The last re-run links its
+build and run with its result, or reads *no run reported* after six hours. A repeat within ten seconds is refused; dispatches are kept
+90 days.
+
+A workflow GitHub answers with its run needs no change; otherwise the dispatch id input, optional since GitHub refuses
+undeclared ones and passed on as `PIWI_ORIGIN_REF`, alone matches a whole suite or tagged tests:
+
+```yaml
+on:
+  workflow_dispatch:
+    inputs:
+      args:
+        required: false
+        default: ''
+      piwi_dispatch:
+        required: false
+        default: ''
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm ci
+      - run: npx playwright test ${{ inputs.args }}
+        env:
+          PIWI_ORIGIN_REF: ${{ inputs.piwi_dispatch }}
+```
+
+## Limits
+
+- A dispatch is one request: Piwi does not poll the CI, it waits for the run to report.
+- The demo runs only CI server actions: it records a dispatch without sending it, so its follow-up and its row in the
+  runs list keep waiting for the run, and its Check answers as a job that declares the default parameters.
+
+## Related
+
+- [CI actions](./ci-actions): the workflows, pipelines and jobs a dispatch goes to
+- [Pull-request feedback](./pr-feedback): the result posted on the pull request
+- [Source control](/guide/source-control): the SCM credential and its scopes
+- [Failure clusters](./failure-clusters): the clusters a re-run acts on
+- [Flake Lab](./flake-lab): the experiment a Flake Lab action runs in CI
+- [CLI](/reference/cli#rerun): the `rerun` command a pipeline runs
+
+<!-- https://piwitests.dev/features/ci-actions -->
+
+# CI actions
+
+A CI action is a named way for a project to start CI: the run button's [Re-run in CI](./ci-rerun) and the MCP tool
+`rerun_cluster_in_ci` go through one. They are **off by default** and set per project in the **CI** section of the
+project's **Settings** tab (under Integrations, beside **Issue tracker**).
+
+## What an action has
+
+A CI action has:
 
 - a **name**, unique in the project, ignoring case;
 - a **target**: a GitHub workflow, a GitLab or Bitbucket pipeline, a Jenkins job or a Custom request;
@@ -6869,16 +7023,15 @@ A CI action is a named way to start CI. It has:
   Playwright arguments, never inside them: as workflow inputs on GitHub, variables on GitLab and Bitbucket, and
   parameters on Jenkins. A name is letters, digits and `_`, and on GitLab and Bitbucket cannot start with `CI_`,
   `GITLAB_` or `BITBUCKET_`. A Custom request sends none;
-- what it **accepts**: re-runs, Run on CI, Flake Lab;
+- what it **accepts**: re-runs, Run on CI, [tagged tests](./ci-rerun#tagged-tests), Flake Lab;
 - an optional **environment**, one of the project's [environments](./environments), which a run of that environment
   picks first;
 - the kinds it is the **default** for.
 
-A button uses the action of the run's environment, else the project's default for what it starts; MCP and the API can
-name another by id or name. A
-repository action serves only a run whose repository is on that host; a CI server action serves any run. Settings
-saved before CI actions existed were converted when read: each configured target is now an action, and nothing needs
-re-entering.
+Unless you pick another, a dispatch uses the action that started the run it re-runs, else the one of the run's
+environment, else the project's default. A repository action serves only a run whose repository is on that host; a CI
+server action serves any run. Settings saved before CI
+actions existed were converted when read.
 
 **Check** reads an action's target without starting it and says whether it declares every name a dispatch sends, the
 inputs included. It reads a GitHub workflow file and a Jenkins job; GitLab and Bitbucket pipelines and Custom requests
@@ -6947,8 +7100,8 @@ pipelines:
 
 :::
 
-GitHub returns no run id, so its link goes to the workflow's runs page for the branch; GitLab and Bitbucket link to
-the pipeline.
+GitHub answers with the run it started, which the link opens; a server that answers none (an older GitHub Enterprise
+Server) links to the workflow's runs page for the branch. GitLab and Bitbucket link to the pipeline.
 
 ## CI server
 
@@ -7020,10 +7173,10 @@ Custom request is JSON: `auth` (`none`, `basic`, `bearer`, or `{ "header": "X-To
 
 | Placeholder | Value |
 |---|---|
-| <code v-pre>{{args}}</code> | The Playwright arguments, or `flake 12` for Flake Lab |
-| <code v-pre>{{dispatchId}}</code> | The dispatch id, which the run hands back as `PIWI_ORIGIN_REF` |
-| <code v-pre>{{ref}}</code> | The branch of the cluster's latest run, else the default branch you set |
-| <code v-pre>{{commit}}</code> | The commit of that run, else empty |
+| <code v-pre>{{args}}</code> | The Playwright arguments (tagged tests' `--grep`), or `flake 12` for Flake Lab |
+| <code v-pre>{{dispatchId}}</code> | The dispatch id the run hands back as `PIWI_ORIGIN_REF` |
+| <code v-pre>{{ref}}</code> | The branch asked, else the run's (the project's for its whole suite or tags), else the action's |
+| <code v-pre>{{commit}}</code> | That run's commit, else empty |
 | <code v-pre>{{branchJob}}</code> | The branch as Jenkins names a branch job (`feature/x` is `feature%2Fx`) |
 
 A placeholder in a path is percent-encoded inside its segment, and a value that would add a `.` or `..` segment is
@@ -7043,52 +7196,11 @@ base URL's root. A CI server is reached over `https`; over `http` or on a privat
 it is the host and port of `PIWI_CI_SERVER_URL` or is listed in `PIWI_CI_SERVER_HOSTS` (the desktop app reaches any
 address). See the [configuration reference](/reference/configuration).
 
-## Matching the run
-
-When the re-run finishes, Piwi recognizes it and records its [origin](/reference/test-metadata#run-origin) as `ci-rerun`.
-A Jenkins job matches by the dispatch id it passes on as `PIWI_ORIGIN_REF`; a Custom request by that id too, or by the
-build number its `buildNumber` pointer reads from the answer. GitLab matches by its pipeline id and Bitbucket by its
-build number; GitHub by the dispatch id when the workflow passes it on. Once matched, the last dispatch links to the
-build the run recorded.
-
-GitHub rejects an input the workflow does not declare, so the dispatch id input is optional. Declare it and hand it to
-the reporter as `PIWI_ORIGIN_REF`:
-
-```yaml
-on:
-  workflow_dispatch:
-    inputs:
-      args:
-        required: false
-        default: ''
-      piwi_dispatch:
-        required: false
-        default: ''
-jobs:
-  e2e:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - run: npm ci
-      - run: npx playwright test ${{ inputs.args }}
-        env:
-          PIWI_ORIGIN_REF: ${{ inputs.piwi_dispatch }}
-```
-
-Without it, a run is matched on its branch, a start within six hours of the dispatch, and exactly the dispatched spec
-files.
-
-## Limits
-
-- A dispatch is one request: Piwi does not poll the CI, it waits for the run to report.
-- The demo runs only CI server actions: it records a dispatch without sending it, and its Check answers as a job that
-  declares the default parameters.
-
 ## Related
 
-- [Pull-request feedback](./pr-feedback): the result posted on the pull request
+- [Re-run in CI](./ci-rerun): the run button and dialog that dispatch an action, and how its run is matched
 - [Source control](/guide/source-control): the SCM credential and its scopes
-- [Failure clusters](./failure-clusters): the clusters a re-run acts on
+- [Credentials](/operate/credentials): the credential a CI server action names
 - [Flake Lab](./flake-lab): the experiment a Flake Lab action runs in CI
 - [CLI](/reference/cli#rerun): the `rerun` command a pipeline runs
 
@@ -7987,7 +8099,7 @@ again before it runs anything: a variable refused there runs nothing, rather tha
   terminal is yours: Piwi sets nothing there.
 
 A re-run in CI passes arguments only: a CI action picks its tenant with its fixed inputs, per
-[deployment environment](./ci-rerun).
+[deployment environment](./ci-actions#what-an-action-has).
 
 ## Per environment
 
@@ -14340,22 +14452,17 @@ links against it when no workspace root is set; and a clone serves its git histo
 
 ## Running tests from the app
 
-A run, an execution, a cluster or a test runs again here with the folder's own Playwright, and its button says what:
-**Re-run 3 failed tests**, **Re-run this test**, or **Run this test** (×20 until a failure, traced) on a test case.
+A run, an execution, a cluster or a test runs again here with the folder's own Playwright: its run button lists
+**This computer** under **Where**, and says what one click runs, such as **Re-run 3 failed tests** or **Run this
+test** (×20 until a failure, traced) on a test case. Its arrow, its options and its dialog:
+[Run on this computer](./run-on-this-computer).
 
-- **The arrow** shows the command, runs it once headed, in the inspector or UI mode, and sets its
-  options: tests by `file:line`, title or file, a trace, `--repeat-each` without retries (up to 1,000 in **Run with
-  options…**), stopping at the first failing repetition, and [**Hold failures**](/features/watch-a-run#hold-failures).
-  The button names what differs from Playwright's defaults (**· headed · ×5**); set the project's in
-  **Project → Settings → Local folder**.
-- **On a run**, the arrow also re-runs its flaky tests or all of them, and the **Tests** tab a selection.
 - **Runs keep going while you browse**, in the **Local runs** tray, each under what it runs; results come here, with
   **Compare with run #N**. A [bug report](/features/replay-a-bug-report#running-it-with-playwright)
   from Piwi Picker runs there too.
-- **Wrong folder?** With none of the tests in it, the button opens the link's dialog.
 - **Watch, pause and step** each worker from the Local runs tray, running or stopped: [Desktop app
   runs](/features/desktop-runs). While it goes on, the run's own page shows the same (**On your machine**), with its
-  **Stop**, **Hold failures** and output.
+  **Stop**, [**Hold failures**](/features/watch-a-run#hold-failures) and output.
 
 ### Reproducing a failure and finding the breaking commit
 
@@ -14413,8 +14520,87 @@ The `.exe` needs no admin rights; the `.msi` does. Downloads are signature-check
 
 - [Reporter](/guide/reporter#finding-the-desktop-app-automatically)
 - [MCP server](/features/mcp)
+- [Run on this computer](/features/run-on-this-computer)
 - [Desktop app runs](/features/desktop-runs)
 - [Write, run and fix a test](./write-run-fix)
+
+<!-- https://piwitests.dev/features/run-on-this-computer -->
+
+# Run on this computer
+
+In the [desktop app](./desktop)'s window, the [run button](./ci-rerun#the-run-dialog) of a run, an execution, a
+failure cluster and a test runs the page's tests in the project's linked folder, with the folder's own Playwright and
+the app's bundled Node. Its dialog's **Where** lists **This computer** in place of your apps
+([Run on my machine](./run-on-my-machine), which a browser offers), before the project's [CI actions](./ci-actions).
+The run streams into the [Local runs tray](./local-runs-tray), keeps going while you browse, and, with the Piwi
+reporter set up, reports to the app.
+
+<figure>
+  <img src="/screenshots/run-on-this-computer.png" alt="The run dialog of a failed run in the desktop app: the failed tests, the flaky ones or every test under What; This computer picked under Where, in the linked folder, above a CI action; then the linked folder, the run options and the environment">
+  <figcaption>A failed run's dialog in the desktop app, on This computer.</figcaption>
+</figure>
+
+## One click
+
+The button says what it runs, and runs it here in one click:
+
+| Page | The button | Its other tests here |
+|---|---|---|
+| Run | **Re-run 3 failed tests**, else the flaky ones, else every test | The flaky tests and every test, by their files past 200 tests |
+| Execution | **Re-run this test** | None: every test of its cluster runs on CI |
+| Test | **Run this test**, by its title, 20 times with a trace until it fails | None: Flake Lab runs from the **Flakiness** tab |
+| Failure cluster, and its Verify section | **Re-run the 2 affected tests**, as the verify command selects them | None |
+| A run's **Tests** tab, tests selected | **Re-run 3 selected tests**, on this computer alone | None |
+
+It names what differs from Playwright's defaults, and the [environment](./environments) of the run its tests come from
+(**· headed · ×5 · Staging**): the run is for that environment, with its [run variables](./run-variables). For a
+protected environment, the button's run is for none, and the dialog picks it.
+
+While a run of those tests goes on, the button shows how far it is (**Running 2/3…**), then **Passed** or **Failed**
+for a few seconds; a click then opens the tray, and never stops anything.
+
+After a send to a CI action, the button reads **Run on this computer or CI** and opens the dialog on that action, until
+a run here makes This computer its **Where** again. The button remembers the last one per project.
+
+## The arrow
+
+- **Runs this command**: what the button runs, and the tests it leaves out, those with no file path Playwright takes,
+  or no title when it selects them by title.
+- **Run once** headless, headed, in the inspector or in UI mode, and **Run other tests**: the page's other tests.
+- The one-click runs on CI, as in a browser.
+- **Options of this button**: **Record trace**, [**Hold failures**](./watch-a-run#hold-failures), **Repeat each** with
+  no retries, **Stop at the first failing repetition**, and **Select tests by** `file:line`, title or file. They apply
+  to this button's runs until you leave the page; the project's defaults, which every button starts from, are in
+  **Project → Settings → Local folder**.
+- **Run with options…**, **Copy as command** (the command for your terminal, with the run variables),
+  **Project defaults…**, **Local runs**, and the linked folder with **Change linked folder…**.
+
+## The dialog
+
+**Run with options…** opens the run dialog on This computer: **What**, **Where**, the linked folder with **Change**,
+the run options with **Repeat each** up to 1,000, the environment, and the exact commands. The options start from the
+button's and apply to that run alone. The environment starts on the last one picked for the folder; a protected one
+asks you to confirm each run, which keeps to the tests carrying its required tags. **Run** starts the run and closes the dialog.
+
+## When the folder is not ready
+
+With no folder linked, none of the tests in it, or no Playwright installed, the button opens the dialog, which says
+what to fix: **Choose folder…**, **Choose the right folder…** or **Re-check after installing**. A folder without the
+tests still runs, since a config may put them elsewhere. The arrow lists the same fixes. With no test it can select,
+the button opens the arrow, which says why.
+
+## Limits
+
+- **The desktop app only.** A browser has no This computer: its run button asks your own apps instead.
+- **A run's tests, one test, a cluster's tests or a selection.** A project's whole suite, its tagged tests and a Flake
+  Lab experiment run on CI from the run button; Flake Lab also runs here from a test's **Flakiness** tab.
+
+## Related
+
+- [Desktop app](./desktop): linking a project to its folder, reproduce and bisect.
+- [Local runs tray](./local-runs-tray): each run, its **Stop** and its output.
+- [Desktop app runs](./desktop-runs): each worker, paused, stepped and watched live.
+- [Re-run in CI](./ci-rerun): the run button and dialog on CI.
 
 <!-- https://piwitests.dev/features/desktop-runs -->
 
@@ -14725,11 +14911,11 @@ in your code folders; a picked folder without the tests gets a better one offere
 
 ## Ask for a run
 
-**Run on my machine** shows on a run's page (its failed tests, or all of them), on an execution's page and on a test's
-page (that test) while the capability is on for the project and you may ask there. Its window picks what runs, which of
-your apps runs it, and the run options of **Copy retry command**: headed, trace, repeat each, workers and, when the
-tests ran in more than one, the Playwright project. A request holds at most 200 tests; a test with no recorded line is
-left out, and the window says how many. Nobody else's app receives it.
+The run button of a run (its failed tests, or all of them), an execution or a test (that test) lists your apps under
+**Where** where the capability is on and you may ask: **Run on my machine**, or **Run on my machine or CI** with
+[CI actions](./ci-actions). With an app picked, the dialog offers the run options of **Copy retry command**: headed,
+trace, repeat each, workers and, when the tests ran in more than one, the Playwright project. A request holds at most
+200 tests; a test with no recorded line is left out, and the dialog says how many.
 
 ## In the app
 
@@ -14749,14 +14935,14 @@ the linked folder, and the exact command. Nothing runs until you click **Run**:
 **Not now** declines it, or refuses it with the checks that failed, and the page says which. A request nobody answers
 in the app within 10 minutes ends.
 
-The app takes the command and a key for this one run from its own server, never from the page or the window. The run
-reports to the instance that asked with that key, which starts one run within 30 minutes and nothing else. It shows in
-the app's Local runs while it goes on.
+The app takes the command and a key for this one run from its own server, never from the page or the window. That key
+starts one run within 30 minutes and nothing else. The run shows in the app's Local runs while it goes on.
 
 ## Follow and stop
 
-Once sent, the same window follows the request: waiting for your app, shown in the app, running, ended with its outcome,
-and a link to its run. **Stop** ends it from the page: the app stops the run, or drops a request it has not run. **Run
+Once sent, the dialog follows the request: waiting for your app, shown in the app, running, ended with its outcome,
+and a link to its run. Until it ends, a row above the project's [runs](./ci-rerun#waiting-rows) shows it to you
+alone. **Stop** ends it from the page: the app stops the run, or drops a request it has not run. **Run
 again** sends the same tests with the same options. **Settings → Account → Your runs on my machine** lists your last 20
 requests and their project, with **Stop** for one still going on. Quitting the app stops its requested runs. A run
 that ends while the app's server restarts keeps its outcome. After a crash, the app ends the requests it lost:
@@ -16616,7 +16802,7 @@ project, and holding the request's URL under its destination, and allowing a Cus
 ## What names a credential
 
 - **A CI action**: a CI server action's requests, or the dispatch and the **Check** of a GitHub, GitLab or Bitbucket
-  action ([Re-run in CI](/features/ci-rerun)).
+  action ([CI actions](/features/ci-actions)).
 - **Source control**: a project's repository calls, else the instance's, with a GitHub, GitLab or Bitbucket token sent
   to the host's API ([Source control](/guide/source-control#set-the-credential)).
 - **An AI role**: the key of a role of **Settings → AI**, sent to its provider ([AI provider](/guide/ai-provider#api-keys)).
@@ -16675,7 +16861,7 @@ page's **Log**, under its name, until then.
 
 ## Related
 
-- [Re-run in CI](/features/ci-rerun): the CI actions that name a credential
+- [CI actions](/features/ci-actions): the CI actions that name a credential
 - [Source control](/guide/source-control): what reads and writes a repository with an SCM credential
 - [Jira Cloud](./integrations) and [Zephyr Scale](./zephyr-scale): the connections that name a credential
 - [Access, roles and groups](./project-access): who holds `credentials:manage` and `project:manage`
@@ -19110,7 +19296,7 @@ test.describe('payments', { lock: ['database', 'external-api'] }, () => { /* eve
 
 The reporter reads the lock names and sends them as `locks`, stored on the execution (`test_runs_cases.locks`) and
 denormalized onto the test case (`test_cases.locks`, the latest declaration) — the same treatment as tags. They power
-the [Timeline tab's lock lanes and *Locks* table](/features/ui-overview#test-run-detail), the `lock:` search qualifier on
+the [Timeline tab's lock lanes and *Locks* table](/features/slow-tests#the-run-s-timeline), the `lock:` search qualifier on
 the Tests tabs and *Group by lock* on a run's, lock badges on every test row, and two [clues](/features/evidence#clues) (a lock's previous holder failed;
 a lock was held on two shards at once).
 
