@@ -3055,7 +3055,7 @@ INSERT INTO role_bindings ("id", "user_id", "group_id", "project_id", "role", "c
 INSERT INTO role_bindings ("id", "user_id", "group_id", "project_id", "role", "created_by", "created_at") VALUES (6, 3, NULL, 1, 'viewer', NULL, 1739145600000);
 
 -- The desktop app the identity the demo opens as connected (Connected apps)
-INSERT INTO api_keys ("id", "user_id", "name", "key_hash", "key_prefix", "client_kind", "permissions", "created_at", "last_used_at") VALUES (1, 1, 'Piwi Desktop on DEMO-LAPTOP (macOS)', 'demo-connected-app-000000000000000000000000000000000000000000000', 'demo0000', 'desktop', '["run:receive"]', 1745139600, 1745568000);
+INSERT INTO api_keys ("id", "user_id", "name", "key_hash", "key_prefix", "client_kind", "permissions", "created_at", "last_used_at") VALUES (1, 1, 'Piwi Desktop on DEMO-LAPTOP (macOS)', 'demo-connected-app-000000000000000000000000000000000000000000000', 'demo0000', 'desktop', '["run:receive","project:read"]', 1745139600, 1745568000);
 INSERT INTO run_targets ("id", "user_id", "api_key_id", "kind", "device_name", "platform", "version", "project_ids", "last_seen_at", "created_at") VALUES (1, 1, 1, 'desktop', 'Piwi Desktop on DEMO-LAPTOP (macOS)', 'macos', '0.68.0', '[1]', 1745568000000, 1745139600000);
 
 -- Credentials (Settings → Credentials) and their log
