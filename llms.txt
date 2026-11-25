@@ -149,6 +149,7 @@
 - [Access, roles and groups](https://piwitests.dev/operate/project-access): Give each person the rights their job needs, project by project: the five project roles and what each can do, groups, who manages access, and the permission grid.
 - [API keys](https://piwitests.dev/operate/api-keys): Create, use and revoke the long-lived API keys that authenticate the reporter, CI pipelines, scripts and metric scrapers.
 - [Credentials](https://piwitests.dev/operate/credentials): Save a secret Piwi sends to a CI server, a Git host, an AI provider, Jira, Zephyr Scale or Slack once, bind it to the address it may reach, and read the log of every use.
+- [Per-user credentials](https://piwitests.dev/operate/per-user-credentials): Run a CI action on Jenkins in the name of whoever starts it from Piwi, with their own API token and rights, through one credential an administrator sets up once.
 - [Localization](https://piwitests.dev/operate/localization): Set the date and time format and the time zone: each viewer's own choice, and the instance default an administrator sets.
 - [Choose what you use](https://piwitests.dev/operate/capabilities): Pick the capabilities your instance and each project use from Settings → Capabilities, and decline the rest so the dashboard stops showing them.
 - [Jira Cloud](https://piwitests.dev/operate/integrations): Connect Jira Cloud to the dashboard: the token and permissions it needs, trusted hosts, status sync and the inbound webhook.
