@@ -2996,6 +2996,27 @@ ALTER TABLE `credentials` ADD `token_help_url` text;
 
 CREATE UNIQUE INDEX `idx_credential_user_tokens_remote_user` ON `credential_user_tokens` (`credential_id`,lower("remote_user"));
 
+CREATE TABLE `credential_authorizations` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`state_hash` text NOT NULL,
+	`credential_id` integer NOT NULL,
+	`user_id` integer NOT NULL,
+	`verifier` text NOT NULL,
+	`return_to` text,
+	`created_at` integer NOT NULL,
+	`expires_at` integer NOT NULL,
+	FOREIGN KEY (`credential_id`) REFERENCES `credentials`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade
+);
+
+CREATE UNIQUE INDEX `idx_credential_authorizations_state` ON `credential_authorizations` (`state_hash`);
+CREATE INDEX `idx_credential_authorizations_expires` ON `credential_authorizations` (`expires_at`);
+ALTER TABLE `credential_user_tokens` ADD `expires_at` integer;
+ALTER TABLE `credentials` ADD `oauth_client_id` text;
+
+CREATE INDEX `idx_credential_authorizations_credential` ON `credential_authorizations` (`credential_id`);
+CREATE INDEX `idx_credential_authorizations_user` ON `credential_authorizations` (`user_id`);
+
 BEGIN TRANSACTION;
 
 -- Tags
@@ -3045,8 +3066,10 @@ INSERT INTO credentials ("id", "name", "description", "service", "user_name", "d
 INSERT INTO credentials ("id", "name", "description", "service", "user_name", "destination", "secret", "all_projects", "allowed_inputs", "custom_requests", "disabled", "managed_by", "created_by", "created_at", "rotated_at", "last_used_at") VALUES (5, 'Zephyr Scale · SHOP', NULL, 'zephyr-scale', NULL, 'https://api.zephyrscale.smartbear.com/v2/', NULL, 1, NULL, 0, 0, 'db', 1, 1744275600000, 1744275600000, 1745568900000);
 INSERT INTO credentials ("id", "name", "description", "service", "user_name", "destination", "secret", "all_projects", "allowed_inputs", "custom_requests", "disabled", "managed_by", "created_by", "created_at", "rotated_at", "last_used_at") VALUES (6, 'Jenkins · qa-bot', 'The Jenkins user allowed to build the web, mobile and component test jobs.', 'ci-server', 'qa-bot', 'https://jenkins.example.com/', NULL, 0, NULL, 0, 0, 'db', 1, 1745487000000, 1745487000000, NULL);
 INSERT INTO credentials ("id", "name", "description", "service", "user_name", "destination", "secret", "all_projects", "allowed_inputs", "custom_requests", "disabled", "managed_by", "per_user", "token_help_url", "created_by", "created_at", "rotated_at", "last_used_at") VALUES (7, 'Jenkins · in your name', 'Builds the API nightly job in the name of whoever starts it, with their own Jenkins API token.', 'ci-server', NULL, 'https://jenkins.example.com/', NULL, 0, NULL, 0, 0, 'db', 1, 'https://jenkins.example.com/me/security/', 1, 1745312400000, 1745312400000, 1745518200000);
+INSERT INTO credentials ("id", "name", "description", "service", "user_name", "destination", "secret", "all_projects", "allowed_inputs", "custom_requests", "disabled", "managed_by", "per_user", "token_help_url", "oauth_client_id", "created_by", "created_at", "rotated_at", "last_used_at") VALUES (8, 'GitLab · in your name', 'Runs GitLab pipelines in the name of whoever starts them, once they authorized the Piwi application.', 'scm', NULL, 'https://gitlab.com/', NULL, 0, NULL, 0, 0, 'db', 1, NULL, 'piwi-demo-application', 1, 1745398800000, 1745398800000, NULL);
 INSERT INTO credential_projects ("credential_id", "project_id") VALUES (1, 2);
 INSERT INTO credential_projects ("credential_id", "project_id") VALUES (7, 2);
+INSERT INTO credential_projects ("credential_id", "project_id") VALUES (8, 1);
 INSERT INTO credential_projects ("credential_id", "project_id") VALUES (4, 1);
 INSERT INTO credential_projects ("credential_id", "project_id") VALUES (6, 1);
 INSERT INTO credential_projects ("credential_id", "project_id") VALUES (6, 3);

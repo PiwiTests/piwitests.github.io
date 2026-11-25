@@ -1,0 +1,1 @@
+function e(e){if(typeof e!=`string`||e.length>500||!e.startsWith(`/`)||e.startsWith(`//`)||e.includes(`\\`))return null;for(let t=0;t<e.length;t++){let n=e.charCodeAt(t);if(n<32||n===127)return null}return e}export{e as t};
