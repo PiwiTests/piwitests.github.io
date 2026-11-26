@@ -63,8 +63,8 @@ it runs the tests a team instance asks for, on a machine without the desktop app
 With the desktop app, keep it running: a reporter with no server configured finds it by itself. Its URL and access
 token, for when you need them, are in its **Settings → Desktop app** under **Send results to this app**.
 
-Your test project is unaffected by these requirements: Node 22 is the dashboard's requirement, not your suite's, whose
-reporter needs Node.js 20 or later ([Reporter](./reporter#installation)). Want to look around first? The [live demo](https://piwitests.dev/demo/) runs in your browser on seeded data.
+Your test project needs Node.js 22 or later for the reporter ([Reporter](./reporter#installation)), however you run the
+dashboard. Want to look around first? The [live demo](https://piwitests.dev/demo/) runs in your browser on seeded data.
 
 ## 2. Connect your suite
 
@@ -381,8 +381,8 @@ command, `npx @piwitests/reporter init`; this page covers manual setup.
 npm install --save-dev @piwitests/reporter
 ```
 
-It needs `@playwright/test` 1.59 or later and Node.js 20 or later. A feature needing a later Playwright names the
-version on its page.
+It needs `@playwright/test` 1.59 or later and Node.js 22 or later, or [Bun](./bun). A feature needing a later
+Playwright names the version on its page.
 
 ### Try it without editing your config
 
@@ -604,6 +604,59 @@ unresponsive dashboard cannot hold the CI job.
 - [Capture fixtures](./capture-fixtures): the evidence the fixtures add
 - [CI & sharding](./ci): the reporter in a pipeline
 
+<!-- https://piwitests.dev/guide/bun -->
+
+# Bun
+
+Playwright 1.65 and later run under [Bun](https://bun.sh) with `bunx --bun playwright test`, and so do the Piwi
+reporter and the [capture fixtures](./capture-fixtures): set up as under Node, they send the same results and
+attachments, with the limits below.
+
+## Run the suite under Bun
+
+```bash
+bunx --bun playwright test
+```
+
+`--bun` runs Playwright's command line on Bun, and the workers it starts run on the same Bun. Without it, `bunx`
+follows the script's `node` line and the suite runs on Node. Any `playwright test` option goes after it, as with
+`npx`.
+
+The setup is the [reporter](./reporter)'s: `wrapConfig` in `playwright.config.ts` and the fixtures in your tests. In a
+project Bun installs (a `bun.lock`), `npx @piwitests/reporter init` adds the reporter with `bun add -d`. The Piwi
+server is not part of this: it runs on Node, wherever you [deploy](/operate/deployment) it.
+
+## What Piwi records
+
+The reporter sends the run as it does under Node: each test's results, retries, errors and attachments, the traces
+and screenshots Playwright records, and the capture fixtures' evidence, streamed as the tests finish.
+
+The [machine panel](/features/cpu-memory-disk#the-panel) measures the runner, its workers and their browsers by role,
+as under Node: Piwi tells a worker by the script Playwright runs in it, whichever runtime runs that script.
+
+## Limits
+
+- **The trace has no console.** The trace Playwright records under Bun holds no console messages. The capture
+  fixtures still record them; in a project without the fixtures, the console card cannot be recovered from the trace.
+- **Call stacks lose their async frames.** Bun's stacks leave out most of the `async` frames Node keeps. Where Piwi
+  places something by its stack, such as an error Playwright gives no location or the line that opened a page left
+  open, a call made after an `await` in a helper or a package can name no line of your tests.
+- **A test's column can be off by one.** Under Bun 1.4.4 and later, Playwright can report a test's column one off
+  ([microsoft/playwright#43934](https://github.com/microsoft/playwright/issues/43934)), and Piwi keeps the location
+  it reports. The file and the line are right, and a test's history does not depend on the column.
+- **The worker's event loop reads 0%.** Bun's `performance.eventLoopUtilization()` measures nothing, so the panel's
+  **Workers** line and each execution's Performance tab show the event loop busy 0% of the time. The loop's delay and
+  the context switches are measured.
+- **No heap after garbage collection.** Bun reports no garbage collections to the performance observer Piwi reads, so
+  a worker's heap never counts as [piling up](/features/resource-leaks#what-it-reports); its open file descriptors
+  still do.
+
+## Related
+
+- [Reporter](./reporter): the setup, the same under Bun
+- [Capture fixtures](./capture-fixtures): what they record
+- [CPU, memory & disk](/features/cpu-memory-disk): the machine panel
+
 <!-- https://piwitests.dev/guide/capture-fixtures -->
 
 # Capture fixtures
@@ -652,7 +705,7 @@ That's the entire setup: nothing to start, wrap, or await inside your tests.
 | Data | Captured | Powers |
 |------|----------|--------|
 | **Network requests**: method, URL, status, duration, start time, content type, for fetch, XHR, document and `other` traffic only (static assets are skipped), and API calls; one that failed without a response keeps its error (`net::ERR_CONNECTION_RESET`) | per request | [Slow endpoints](/features/slow-tests); [backend log correlation](./backend-logs) via the `X-Piwi-Logs` response header; the [failure timeline](/features/evidence#one-execution-diagnosis-first) |
-| **Console entries**: `warning`, `error` and `assert` messages with source location and a timestamp (not `console.log`) | as they happen | The console card and the failure timeline on the [execution page](/features/evidence#one-execution-diagnosis-first); [AI diagnosis](/features/ai-diagnosis) evidence |
+| **Console entries**: `warning`, `error` and `assert` messages, and each exception the page threw and nothing caught (`pageerror`), with source location and a timestamp (not `console.log`) | as they happen | The console card and the failure timeline on the [execution page](/features/evidence#one-execution-diagnosis-first); [AI diagnosis](/features/ai-diagnosis) evidence |
 | **Web Vitals**: TTFB, DOM Interactive, DOMContentLoaded, Load Complete, First Paint, First Contentful Paint, plus LCP, CLS and INP (Chromium-only) | at test teardown | Web vitals card with color-coded thresholds; [performance trends](/features/slow-tests) |
 | **ARIA snapshot** of the final page state: the YAML dump, plus the JSON aria tree on Playwright 1.63 or later; its **screenshot** when Playwright keeps failure screenshots | on failure | Failure evidence on the [execution](/features/evidence#one-execution-diagnosis-first) and cluster pages; [AI diagnosis](/features/ai-diagnosis) context; the JSON tree feeds [locator healing](/features/locator-healing)'s rename matching and the page diff |
 | **Browser dialogs**: an `alert`/`confirm`/`prompt`/`beforeunload` dialog's type, message and close time, through Playwright 1.63's `dialogclosed` event | as each dialog closes | A *dialogs* lane on the [failure timeline](/features/evidence#one-execution-diagnosis-first) and a *a dialog was open when the action failed* [clue](/features/evidence#clues) |
@@ -825,6 +878,13 @@ jobs:
           PIWI_API_KEY: ${{ secrets.PIWI_API_KEY }}
 ```
 
+Piwi keeps every result, so the job's output can hold the failures alone: Playwright 1.65's `failures` reporter
+prints only them, and `onlyFailures: true` keeps an `html`, `json` or `junit` report to them (`wrapConfig` adds Piwi):
+
+```ts
+reporter: process.env.CI ? [['failures'], ['junit', { outputFile: 'junit.xml', onlyFailures: true }]] : 'list',
+```
+
 The shallow clone `actions/checkout` makes is enough for the reporter: Piwi reads diffs from your Git host's API
 ([Source control](./source-control)). [`run impact --base`](/reference/cli#select-run) and
 [`preflight --base`](/reference/cli#preflight) diff the checkout itself and need the base commit: set
@@ -834,7 +894,7 @@ The shallow clone `actions/checkout` makes is enough for the reporter: Piwi read
 
 ```yaml
 e2e:
-  image: mcr.microsoft.com/playwright:v1.64.1-noble   # the version of your @playwright/test
+  image: mcr.microsoft.com/playwright:v1.65.1-noble   # the version of your @playwright/test
   script:
     - npm ci
     - npx playwright test
@@ -898,7 +958,11 @@ How the merge works:
 
 **All shards must use the same `projectName`.**
 
-Jobs sharded with `piwi run --shard` merge the same way ([details](/features/test-selection#print-shard-and-reorder)).
+Playwright counts a sharded run's tests before it splits them, so a shard left with none passes. From Playwright 1.65,
+a sharded run fails with `No tests found` when its whole selection is empty, as an unsharded one does, unless it passes
+`--pass-with-no-tests`: `piwi run --plan` passes it to every shard.
+
+Jobs sharded with `piwi run --shard`, or [balanced by duration](/features/test-selection#balanced-playwright-shards), merge the same way.
 
 If your CI isn't detected, set the label yourself to anything common to all shards:
 
@@ -1915,7 +1979,7 @@ Start with SQLite; switch to PostgreSQL when you want concurrent write headroom 
 
 ### Which Node version does the dashboard need?
 
-Node 22 or newer, and only for `npx @piwitests/server`: the Docker image and the desktop app bundle their own runtime. The reporter in your test project needs Node 20 or later.
+Node 22 or newer, and only for `npx @piwitests/server`: the Docker image and the desktop app bundle their own runtime. The reporter in your test project needs Node 22 or later too.
 
 ### Can I use it with Cypress / Jest / other frameworks?
 
@@ -2446,7 +2510,8 @@ the sidebar when any of its runs started in the last ten days. Flake Lab and pro
 - **The run-level baseline**, what the Changes tab, the stored regression signals, the CI gate, pull-request feedback, the bisect window and the AI diagnosis all compare against, follows the [baseline rule](./run-changes#the-baseline), which prefers the run's own branch, then its base branch ([the figure](./run-changes#the-baseline)). Two feature branches reporting interleaved runs never become each other's baseline. When no earlier full run passed, the Changes tab [falls back to the last failed run](./run-changes#when-no-earlier-run-passed).
 - **Choosing the base branch** — the Changes tab lets you take the baseline from any branch with an earlier full run, so a long-lived branch can be compared against `release/2` rather than `main`; the choice is in the URL (`?baseBranch=`) and on the API and MCP tool. See [What changed in a run](./run-changes#the-baseline).
 - **The environment, visual and page diffs** of one execution prefer the same environment, then the same branch, then
-  the most recent pass: there is no base-branch rung ([the rule](./run-changes#one-execution-s-baseline)).
+  the most recent pass (the page diff also prefers the same Playwright release, after the environment): there is no
+  base-branch rung ([the rule](./run-changes#one-execution-s-baseline)).
 - **Pull-request feedback** builds its "new failures vs. pre-existing" split from the same baseline, so a failure the PR did not introduce is reported as pre-existing, and the `max-new-regressions` rule of the [CI merge gate](/features/merge-gate) counts the same new failures. A failure whose test is already flaky on the default branch, in the project's default environment when it has one, is also marked *Also flaky on `main` … — likely not yours*; the mark does not move it out of the new failures or the gate's count.
 - **Performance alerts** — the `perf.regression` [notification](./notifications) measures a run against the previous runs on the same branch **in the same environment**.
 
@@ -2507,7 +2572,9 @@ project, and are never set on an earlier attempt of a retried test.
 
 The environment, visual and page diffs of one failing execution compare it with the same test's last passing
 execution on the same browser, in a shorter order: the same environment, then the same branch, then the most recent,
-with no base-branch rung. When no passing run from the same environment exists, the card says which environment the
+with no base-branch rung. The page diff also prefers, right after the environment, a run on the same Playwright
+release (major and minor version), since ARIA snapshots can change from one version to the next (Playwright 1.65 leaves out text the browser
+does not render). When no passing run from the same environment exists, the card says which environment the
 baseline came from (_"compared with a production run; no passing development run of this test exists"_) and leaves
 the environment label out of the diff.
 
@@ -2539,7 +2606,7 @@ Two ways to compare against something else:
 - **Commits since the baseline** — the commit range, a copyable `git log` command and, when the SCM host is known, a link to the commits.
 - **Deployed to Staging**, for a run of a [deployed environment](./deployed-environments) — the application's commit
   each run tested, the application's commits between them, and the environment's deploy markers between the two runs.
-- **Environment changes** — the fields that differ (environment, branch, CI provider, browsers, and the [test order](#shuffled-runs) of a shuffled run), in *This run* / *Baseline* columns.
+- **Environment changes** — the fields that differ (environment, branch, CI provider, browsers, and the [test order](#shuffled-runs) of a shuffled run), in *This run* / *Baseline* columns. The browsers are those of the Playwright projects each run ran: the ones `--project` selects and the projects they depend on.
 
 <figure>
   <img src="/screenshots/run-changes.png" alt="Run Changes tab showing the baseline selector, the tests that newly started failing, the ones that got fixed, and the commits landed since the baseline">
@@ -3242,7 +3309,7 @@ When a test passed on retry, the **Attempts** tab lists every attempt (status an
 - the **error** present on the failing attempt and gone on the pass;
 - a **request**, keyed by route (`GET /api/cart/:id`), that failed (5xx or no response) on one attempt only, or took
   at least 1 s and twice as long on the failing one;
-- a **console** error or warning logged on one attempt only;
+- a **console** error, warning or page error on one attempt;
 - a **step** that errored, ran much slower, or ran with different **params** on one attempt;
 - a **page-state or URL** difference, including storage keys and cookies;
 - an **ARIA structural** difference at the landmark and heading level.
@@ -3263,8 +3330,8 @@ and reports nodes **added**, **removed**, **renamed**, **changed** (an attribute
 **moved**. The element the failing locator names
 is highlighted: a broken `getByRole('button', { name: 'Pay' })` lands on the button renamed `"Pay now"`.
 
-The baseline is the same test's most recent passing snapshot on the same browser, preferring the same environment then
-the same branch. Green snapshots come from
+The baseline is the same test's latest passing snapshot on the same browser, preferring the same environment, then
+Playwright release, then branch. Green snapshots come from
 [sampling on pass](/guide/capture-fixtures#green-page-sampling-on-pass), about once a day per test; until one exists the
 view says why (*not captured*, *no green sample yet* or *not applicable*). The page-diff summary reaches the
 `explain_failure` [MCP tool](/features/mcp).
@@ -3422,8 +3489,11 @@ wrote it:
 ## When there are no videos
 
 Most suites record video only for failing tests (`video: 'retain-on-failure'`), so a run where nothing failed often has
-none. The tab is then disabled, with the tooltip "no videos in this run". Set `video: 'on'` in Playwright's `use` options to record every test. Videos can be large, so
-read [storage cleanup](/operate/storage#storage-management) first.
+none. The tab is then disabled, with the tooltip "no videos in this run". Set `video: 'on'` in Playwright's `use`
+options to record every test. Playwright 1.61 adds `retain-on-first-failure`, `on-all-retries` and
+`retain-on-failure-and-retries`, for a video of the first failure or of the retries alone, and 1.64 an `fps` option
+(`video: { mode: 'retain-on-failure', fps: 30 }`) for smoother animations and scrolling, at more CPU. Videos can be
+large, so read [storage cleanup](/operate/storage#storage-management) first.
 
 ## Related
 
@@ -5092,7 +5162,7 @@ second, and 16 MB of pages and resources a second from the run's workers togethe
 Inspect says why:
 
 - **The project masks elements.** When the worker's reporter cannot read the masks, Inspect asks to update it.
-- **The trace takes no DOM snapshots** (`snapshots` off, or in Playwright 1.64 an object without `dom`), the browser
+- **The trace takes no DOM snapshots** (`snapshots` off, or from Playwright 1.63 an object without `dom`), the browser
   keeps no trace folder, or the test traces itself: open Inspect again once its trace stopped.
 - **A page not sent**: its secret fields or its snapshot could not be read, it passes 4 MB, Inspect fell behind the
   test's calls (16 MB waiting), or the page's full snapshots alone pass 16 MB. Most say Inspect sends it again from
@@ -7859,6 +7929,19 @@ dropping any, and `--budget 5m` caps its total time. Shard with `piwi run --shar
 `--shard`, which would split a lock: `piwi run --shard` jobs merge into one run that still covers the whole selection.
 Every flag and the output formats are in the [CLI reference](/reference/cli#select-run).
 
+### Balanced Playwright shards
+
+A suite sharded with Playwright's own `--shard` can be split by duration too: turn on the reporter's
+[`balanceShards`](/reference/reporter-options#balanceshards) option. With Playwright 1.62 or later, each shard lists the
+suite before Playwright splits it and asks the dashboard for shards of even recorded duration (a test with none weighs
+the median), keeping in one shard the tests that share a lock, a serial describe, and a file that is not fully
+parallel. The first shard to ask stores the split for 24 hours, keyed by commit, shard count and the tests listed, and
+the others read it, so every shard agrees. The option stands aside for `--last-failed`, `--only-changed`, `--test-list`
+and `--test-list-invert`, whose selection differs per machine. When the dashboard does not answer within 10 seconds, or
+its answer does not cover the listed tests, the reporter logs one line and Playwright splits the run as usual. A
+shard that falls back lines up with the others only if they fell back too; otherwise some tests run twice and others
+not at all.
+
 ## Built-in selections
 
 Two selections exist for every project with no setup:
@@ -8536,7 +8619,11 @@ executions, tagged `@no-reuse`, or in a spec file holding a serial group always 
 their pass ran them in, so a new or renamed test runs. The diff counts untracked files, and a commit a shallow clone
 lacks is fetched. A plan is kept for 24 hours, and a job other than the one that made it uses it only when both
 checkouts are clean at the same commit; a job that cannot use it (an unreachable dashboard, an expired plan, another
-checkout) runs the whole suite, not a shard of it. The run records the tests it skipped and did not execute as its
+checkout) runs the whole suite, not a shard of it. With Playwright 1.62 or later in the project, the reporter skips the
+plan's tests itself as Playwright builds the run, so every reporter shows each one as skipped with the run whose pass
+stands in for it (`passed in run #41`), and the reporter sends the dashboard none of them; below 1.62, `piwi run` leaves
+them out with Playwright's `--test-list-invert`. A reporter that cannot read the plan runs every test, the whole suite
+in a shard. The run records the tests it skipped and did not execute as its
 reused results: the run page's header counts them and lists them with the pass each one reuses, the pull-request
 comment counts them, and the `get_run` MCP tool returns their count. The run's own status, pass rate, flaky scores,
 durations and fix verification read executions only. The [CI merge gate](/features/merge-gate#what-fails-it) can limit reuse, and counts a reused test as passed in a run
@@ -10639,7 +10726,7 @@ run runs on, with a reporter newer than 0.68.0, while the worker runs a test: be
 (**Piwi: Open the trace so far**), in the JetBrains **Worker** tab, and in a watched page's head in the Runs window
 and the tray. The editor service or the desktop app's server asks the worker where its trace grows,
 checks that file, and starts the viewer with your project's own Playwright; the path never leaves it, and each tool
-hears why when the viewer does not start. Playwright 1.59 to 1.64 shows the trace as it stood when it opened: close
+hears why when the viewer does not start. Playwright 1.59 to 1.65 shows the trace as it stood when it opened: close
 it and choose the button again for what came since.
 
 It shows only where it can open: the machine has a display (on Linux, `DISPLAY` or `WAYLAND_DISPLAY` set), the tool
@@ -11515,7 +11602,7 @@ puts it in a new scratch file. A locator picked at a stop of a run Piwi starts r
 ## Limits
 
 - The browser is the one your tests use, installed by Playwright (`npx playwright install chromium`).
-- Your project's Playwright runs with the first `node` on the editor's `PATH` in VS Code (when it is Node 20 or later,
+- Your project's Playwright runs with the first `node` on the editor's `PATH` in VS Code (when it is Node 22 or later,
   else with the editor's own runtime), and with the project's Node.js interpreter in a JetBrains IDE.
 - The recording does not start your `webServer`: start the application first.
 - It records the top-level page: clicks inside an iframe, and steps in a popup or a new tab, are not recorded yet. The
@@ -19039,10 +19126,13 @@ npx @piwitests/reporter plan full
 npx @piwitests/reporter run --plan 42 --shard 2/4
 ```
 
-In a CI matrix, one job runs `plan` and hands the id to the shard jobs. `run --plan` runs the plan's selection with
-Playwright's `--test-list-invert` naming the reused tests, so a test the dashboard has not seen yet runs, and each
-shard passes Playwright's own `--shard`. A shard that cannot use the plan runs the whole suite, or exits `2` under
-`--strict`.
+In a CI matrix, one job runs `plan` and hands the id to the shard jobs. `run --plan` runs the plan's selection less
+the reused tests, and the plan names only those, so a test the dashboard has not seen yet runs. With
+Playwright 1.62 or later in the project, it sets `PIWI_PLAN` and `PIWI_PLAN_SKIP=true` for the reporter, which reads the
+plan and skips each reused test itself, naming the run whose pass stands in for it; below 1.62, it passes Playwright's
+`--test-list-invert` naming them. Each shard passes Playwright's own `--shard` and `--pass-with-no-tests`, so a plan
+whose tests were all renamed or deleted runs none and passes. A shard that cannot use the plan runs the whole suite, or
+exits `2` under `--strict`; a shard whose reporter cannot read it runs the whole suite too.
 
 | Flag | Description |
 |---|---|
@@ -19516,6 +19606,18 @@ test('writes an order', { lock: 'database' }, async ({ page }) => { /* … */ })
 test.describe('payments', { lock: ['database', 'external-api'] }, () => { /* every test inside inherits both */ })
 ```
 
+Playwright 1.65 adds one built-in lock, `-exclusive-`: a test that holds it runs only while no other test runs, whatever
+locks the others declare.
+
+```typescript
+test('rebuilds the search index', { lock: '-exclusive-' }, async ({ page }) => { /* … */ })
+```
+
+Piwi shows it as **Runs alone** wherever it shows a lock. Within a sharded run, Playwright holds it in each shard's own
+run: a test that holds it runs alone in its shard, while the other shards run their tests on other machines. Piwi's
+[lock-aware sharding](/features/test-selection#print-shard-and-reorder) places its holders as it places tests without a
+lock, and never warns about it.
+
 The reporter reads the lock names and sends them as `locks`, stored on the execution (`test_runs_cases.locks`) and
 denormalized onto the test case (`test_cases.locks`, the latest declaration) — the same treatment as tags. They power
 the [Timeline tab's lock lanes and *Locks* table](/features/slow-tests#the-run-s-timeline), the `lock:` search qualifier on
@@ -19774,8 +19876,10 @@ is written `<hidden>`:
 - a credential's shape wherever it stands, colored or not: a JWT, a bearer token, a service's key such as `sk_live_…`,
   `ghp_…` or `AKIA…`, a key or a token Piwi issues such as `pd_…`.
 
-Each step's error, and the error line of a hook or a fixture that failed, are hidden the same way. The dashboard hides
-them again as it stores a result, whatever sent it. An error that holds no secret is kept as it is, so it joins the
+Each step's error, and the error line of a hook or a fixture that failed, are hidden the same way. A step's subtitle
+and its `url` param, where Playwright writes the address of a navigation or an API request (in its title up to
+Playwright 1.62), and the params of a `test.step` have a credential in a URL, a cookie or a JSON field hidden too, and a credential's shape, on the live
+timeline as in the stored steps. The dashboard hides them again as it stores a result, whatever sent it. An error that holds no secret is kept as it is, so it joins the
 [failure cluster](/features/failure-clusters) it did. An error stored before the dashboard hid a credential's shape
 has it hidden at the first start of the version that does, its failure cluster kept.
 
@@ -19790,10 +19894,15 @@ its stack and the place it was thrown, named relative to the Playwright config's
 - a worker fixture whose teardown threw, with the tests the worker ran;
 - the failure budget (`maxFailures`) that stopped the run.
 
+An error a worker reported, as a worker fixture's teardown, also names that worker, as Playwright 1.60 and later give
+it: its [lane](#worker-lanes), with its shard in a sharded run, and its Playwright project. The run page shows it under
+the error (**Worker 2 · Shard 3 · Playwright project webkit**).
+
 The first 20 go with the run's end, as its `runErrors`, each message and stack cut to 4,000 characters, with what may
 be a secret hidden as in a [test's error](#test-errors), and also a credential in a URL, a cookie or a JSON field, and a
 value shaped like a token. A sharded run adds each shard's to the others'. The run page shows them under its header,
-and the MCP `get_run` tool returns them as `runErrors`. **Collapse** folds them there to one line, the first error's
+and the MCP `get_run` tool returns them as `runErrors`, an error's worker as `worker`, `shardIndex` and
+`playwrightProject`. **Collapse** folds them there to one line, the first error's
 first line, so a long stack leaves its height to the tab below, the Video tab's video among them; **Expand** shows them
 again, and the browser remembers which you chose. A [blob report you import](/guide/importing-runs) keeps them
 the same way.
@@ -20188,12 +20297,12 @@ after it.
 |---|---|---|
 | Failed request before the failure<br>`failed-request-before-failure` | strong | A request returned 5xx, or failed without a response (the clue names the browser's error, such as `net::ERR_CONNECTION_RESET`), in the 10 seconds before the moment of failure. |
 | Slow request overlapping the failure<br>`slow-request-overlapping-failure` | medium | A request slower than `PIWI_AI_SLOW_REQUEST_MS` (default 1,500 ms) was still in flight during the failed step. |
-| Console mentions the target<br>`console-mentions-target` | strong for an error, medium for a warning | A console entry in the failure window names the failing locator or route. |
+| Console mentions the target<br>`console-mentions-target` | strong for an error or an uncaught page error, medium for a warning | A console entry in the failure window names the failing locator or route. |
 | Dialog open at the failure<br>`dialog-open-on-failure` | strong | A browser dialog (`alert`, `confirm`, `prompt`, `beforeunload`) closed in the failure window, so it was open when the action ran. Needs Playwright 1.63 or later. |
 | Backend error attached<br>`backend-error-attached` | strong | A request in the failure window carries an error-level [backend log](/guide/backend-logs). |
 | Element renamed<br>`element-renamed` | strong | [Locator healing](/features/locator-healing) found the element under a new identity, or flagged the stored name as stale while still recommending a fix. |
 | Page structure changed near the failing locator<br>`page-structure-changed` | strong when the locator never resolved, else medium | The [page diff](/features/evidence#page-diff) against the last green sample shows the element the locator names was removed or renamed. |
-| Element present but blocked<br>`element-present-but-blocked` | strong | The call log says the element resolved but was disabled, hidden, not visible or covered by another element, and the ARIA snapshot still shows it. |
+| Element present but blocked<br>`element-present-but-blocked` | strong | The call log says the element resolved but was disabled, hidden, not visible, inert or covered by another element, and the ARIA snapshot still shows it. |
 | Locator matched nothing<br>`locator-matched-nothing` | strong when [locator healing](/features/locator-healing) names, from the failure-time ARIA snapshot, the element the page had instead, else medium | The call log says the locator never found an element, and no clue says the element was renamed or removed, the page was the wrong one, a lock holder failed or a request around the failure was slow, failed or erred on the backend: a locator written wrong, as in a test being written, or an element that never showed. A crash or a failed navigation is not one. A flaky test's clue names no replacement. |
 | Wrong page<br>`wrong-page` | strong | The page ended on a login, sign-in, auth, error, 404 or not-found route, or somewhere other than the last navigation the test asked for. The end URL comes from the captured app state, else from the last navigation step. |
 | Worker pollution<br>`worker-pollution` | medium | The previous test on the same worker failed, timed out or was interrupted. |
@@ -20348,7 +20457,7 @@ without it.
 | **Fix did not hold**<br>`fix-did-not-hold` | fragile | a failure cluster whose fix later regressed | nothing more | 0.6 | `Fixed in a1b2c3d · regressed 6 days later` |
 | **Incidental catch**<br>`incidental-catch` | fragile | a failure cluster whose recorded fix changed one to three files, no test file among them, that none of the tests it failed is about by name or reaches | [source control](/guide/source-control) | 0.45 | `src/pricing/rounding.ts is caught only incidentally` |
 | **Not noticed**<br>`not-noticed` | false-comfort | a route a probe broke while no test noticed (a delay never counts) | [probes](/features/probes) | 0.8 | `A probe (status-500) on POST /api/orders did not make checkout › pay fail` |
-| **Passed with errors**<br>`passed-with-errors` | false-comfort | a test whose newest execution in the default branch's last 30 runs passed while the application reported an error: a 5xx from one of its routes, a backend log at error level, or a console error from its own origin | nothing more; backend logs need the [instrumentation](/guide/backend-logs) | 0.6 | `Passed · run #73 · the backend logged an error on PATCH /api/orgs/current` |
+| **Passed with errors**<br>`passed-with-errors` | false-comfort | a test whose newest execution in the default branch's last 30 runs passed while the application reported an error: a 5xx from one of its routes, a backend log at error level, or a console error or uncaught page error from its own origin | nothing more; backend logs need the [instrumentation](/guide/backend-logs) | 0.6 | `Passed · run #73 · the backend logged an error on PATCH /api/orgs/current` |
 | **Assertion-light**<br>`assertion-light` | false-comfort | a page some test asserts on, every check there only that an element is visible, hidden, attached or in the viewport | the locator index | 0.4 | `2 tests assert on this page, only that elements are present` |
 | **Catalog method, no test calls**<br>`catalog-method-no-test-calls` | blind-spot | a page-object method or helper on a reached page that no test runs | the [test functions catalog](/features/test-functions) | 0.5 | `./pages/UsersPage · goToNextPage · page reached by 3, called by 0` |
 | **Code nobody executes**<br>`code-not-executed` | blind-spot | the functions of a file no suite ran in the default branch's newest [combined coverage](/features/combined-coverage), or a file recorded by line none of whose lines ran; the 30 files with the most, one gap each | a coverage report or run coverage | 0.4 plus 0.3 times the share of its functions not run; 0.6 for a whole file | `Functions at lines 12–20, 22–30 · no suite ran them at 9a8b7c6` |
@@ -20361,9 +20470,9 @@ without it.
 and a brace inside a string can end a `catch` block early. It runs on **Recompute** and the nightly sweep, which read
 the files through the source control connection; a file the provider cannot serve keeps its gap as it was.
 
-*Passed with errors* leaves out a console line from another origin's script and the browser's own *Failed to load
-resource* line. A response no server sent, such as one the test's route handler fulfilled, is no 5xx of the
-application, and a test that fulfills a failing response means to see the page fail, so its console errors do not
+*Passed with errors* leaves out a console line or an uncaught error from another origin's script and the browser's own
+*Failed to load resource* line. A response no server sent, such as one the test's route handler fulfilled, is no 5xx of
+the application, and a test that fulfills a failing response means to see the page fail, so its page's errors do not
 count either.
 *Assertion-light* counts any other matcher (a text, a count, a value, an attribute) as a value check, and so is a read
 of an element the index cannot name, or a visible element found by a text holding a number
