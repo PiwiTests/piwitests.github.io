@@ -644,12 +644,12 @@ as under Node: Piwi tells a worker by the script Playwright runs in it, whicheve
 - **A test's column can be off by one.** Under Bun 1.4.4 and later, Playwright can report a test's column one off
   ([microsoft/playwright#43934](https://github.com/microsoft/playwright/issues/43934)), and Piwi keeps the location
   it reports. The file and the line are right, and a test's history does not depend on the column.
-- **The worker's event loop reads 0%.** Bun's `performance.eventLoopUtilization()` measures nothing, so the panel's
-  **Workers** line and each execution's Performance tab show the event loop busy 0% of the time. The loop's delay and
-  the context switches are measured.
+- **The worker's event loop busy time is not measured.** Bun's `performance.eventLoopUtilization()` reads no idle
+  and no active time, so the panel's **Workers** line leaves it out and its **Not measured** line names it, and each
+  execution's Performance tab shows no busy share. The loop's delay and the context switches are measured.
 - **No heap after garbage collection.** Bun reports no garbage collections to the performance observer Piwi reads, so
-  a worker's heap never counts as [piling up](/features/resource-leaks#what-it-reports); its open file descriptors
-  still do.
+  a worker's heap is never judged [piling up](/features/resource-leaks#what-it-reports), and the panel's **Not
+  measured** line names it. Its open file descriptors are still judged.
 
 ## Related
 
@@ -960,7 +960,7 @@ How the merge works:
 
 Playwright counts a sharded run's tests before it splits them, so a shard left with none passes. From Playwright 1.65,
 a sharded run fails with `No tests found` when its whole selection is empty, as an unsharded one does, unless it passes
-`--pass-with-no-tests`: `piwi run --plan` passes it to every shard.
+`--pass-with-no-tests`, which `piwi run --plan` adds unless its arguments filter tests.
 
 Jobs sharded with `piwi run --shard`, or [balanced by duration](/features/test-selection#balanced-playwright-shards), merge the same way.
 
@@ -2606,7 +2606,7 @@ Two ways to compare against something else:
 - **Commits since the baseline** — the commit range, a copyable `git log` command and, when the SCM host is known, a link to the commits.
 - **Deployed to Staging**, for a run of a [deployed environment](./deployed-environments) — the application's commit
   each run tested, the application's commits between them, and the environment's deploy markers between the two runs.
-- **Environment changes** — the fields that differ (environment, branch, CI provider, browsers, and the [test order](#shuffled-runs) of a shuffled run), in *This run* / *Baseline* columns. The browsers are those of the Playwright projects each run ran: the ones `--project` selects and the projects they depend on.
+- **Environment changes** — the fields that differ (environment, branch, CI provider, browsers, and the [test order](#shuffled-runs) of a shuffled run), in *This run* / *Baseline* columns. The browsers are those of the Playwright projects each run ran: the ones `--project` selects, the projects they depend on, and their teardown projects.
 
 <figure>
   <img src="/screenshots/run-changes.png" alt="Run Changes tab showing the baseline selector, the tests that newly started failing, the ones that got fixed, and the commits landed since the baseline">
@@ -3515,7 +3515,10 @@ fingerprint hashes the error type, message and locator, **masking what varies**:
 numbers, UUIDs, hashes, ids glued to an underscore (`order_5f3a9c1e2b`), URLs, emails, timestamps, the folders of a
 path under a home folder, CI workspace or Windows drive, a temporary folder's random suffix, an assertion's *expected*
 and *received* values, the elements a strict-mode violation lists, and dynamic locator options such as a row's
-`{ name: '…' }`. The locator's target (test id, role) still tells failures apart.
+`{ name: '…' }`. The locator's target (test id, role) still tells failures apart: the first call of its chain, or for
+a locator inside a frame, the chain up to the first locator in the frame
+(`locator('iframe').first().contentFrame().getByLabel('Card number')`, with `frameLocator()` for any frame).
+`frameLocator('#pay')` and `locator('#pay').contentFrame()` are one frame.
 
 It **ignores the failing stack frame** when the error says what failed, so one root cause reached from several spec
 files, through a helper or page object, stays one cluster. A **generic** error says nothing of its own: it names no
@@ -5932,9 +5935,14 @@ Servers and child processes are placed by wrapping Node's `listen` and `spawn` i
 
 - The dashboard keeps the first 100 findings of each run, most severe first.
 - **Playwright internals.** The ledger reads Playwright's instrumentation hooks, the calls on the worker's connection to
-  its browsers, the runner's current test and fixture, and a few private fields (`_routes`, `_ownerPage`, `_opener`).
-  Each is checked before use: without the hooks the ledger stays off, and without the connection a page counts as used
-  only when it navigates, loads, runs a script or builds a locator, and no finding names a last use.
+  its browsers, the runner's current test and fixture, and a few private fields (`_routes`, `_ownerPage`, `_opener`, a
+  frame's `_initializer`). Each is checked before use: without the hooks the ledger stays off, and without the
+  connection a page counts as used only when it navigates, loads, runs a script or builds a locator, and no finding
+  names a last use.
+- **Pages the test opened.** A page counts when the test's `newPage` opened it, when it is a popup of a page that
+  counts, or when it has no opener and no `newPage` call opened it (the tab a modifier click opens). In a browser
+  shared with `browser.bind`, a page another client opens with `newPage`, and its popups, do not count; a tab it opens
+  with a modifier click, or a popup it opens from a page that counts, does.
 - An object kept in a module variable on purpose and closed by another spec file reads as leaked.
 - A fixture with a `timeout` of its own runs with the slot a worker fixture has: what it leaves open is reported once
   its test's teardown steps show it torn down with the test, or once it opened something in two tests of the same
@@ -6030,7 +6038,7 @@ It follows the [resource leaks](./resource-leaks) summary when the run has any.
 | **CPU** | How busy the machine was, sampled every second (the sparkline), and the share of the time some task was ready to run but **waited for a CPU**: the measure of too many workers for the cores. Then the CPU time of the run's processes by role, and the role that waited longest. |
 | **Memory** | The peak of the run's processes together, counted as PSS (proportional set size: shared memory is split between its sharers, so the sum is honest), when it happened, against the container's limit or the machine's memory, and the largest process. A container that hit a new peak, a process it killed for memory, and time spent waiting for memory are named. |
 | **Disk** | The files the tests attached (traces, videos, screenshots), the most disk the run's output folders and browser profiles took at once, and the lowest free space on their disks. Profiles and artifact folders earlier runs left in the temp folder are named from 10 MB. |
-| **Workers** | With the [capture fixtures](/guide/capture-fixtures): how busy each worker's event loop was, the worst p99 delay, and how often the worker was switched out of a CPU it still needed. A worker that drives the browser late makes actions slow and timeouts flaky. |
+| **Workers** | With the [capture fixtures](/guide/capture-fixtures): how busy each worker's event loop was, the worst p99 delay, and how often the worker was switched out of a CPU it still needed. A worker that drives the browser late makes actions slow and timeouts flaky. What the workers' runtime cannot measure ([Bun](/guide/bun#limits)) goes on the **Not measured** line. |
 
 The roles come from each command line: Playwright's **workers**, the **browsers** they launch with their
 **renderers** (the processes pages run in), **GPU** process and **browser utilities**, **ffmpeg** when videos are recorded,
@@ -8332,7 +8340,7 @@ environments**, like the [default branch](./branches#filtering-by-branch). A cop
 
 ## Choose the environment of a run
 
-Each place Piwi starts a run offers the project's environments that are not archived, and **None**. With **None**,
+Each place Piwi starts a run offers the project's unarchived environments, and **None**. With **None**,
 Piwi applies the project's run variables only and sets no label: the config decides, as in a terminal.
 
 A run Piwi starts for an environment gets:
@@ -8351,10 +8359,10 @@ Where you pick it:
 - **[Run on my machine](./run-on-my-machine)**: the request's window offers the same picker, and the app's
   confirmation names the environment and lists its variables.
 - **[The desktop app](./desktop)**: its runs offer the environments of the project the folder is linked to. A folder
-  also linked to a project of a team instance offers that project's environments too, read from the team instance at
-  each run and never kept on the machine.
+  also linked to a project of a team instance offers that project's environments too, read from that instance at
+  each run, never kept on the machine.
 - **[The editors](./editors)**: VS Code and JetBrains run with the environment picked for the workspace folder. The
-  **Allow** question the editors ask covers each new set of values, an environment's included.
+  editors' **Allow** question covers each new set of values, an environment's included.
 
 A command copied for Staging:
 
@@ -8421,9 +8429,9 @@ A protected environment, Production as a rule, holds at least one required tag (
 against it:
 
 - **runs only the tests carrying one of its required tags**, and the setup and teardown projects they depend on, which
-  Playwright runs whole: Piwi adds a `--grep-invert` that leaves out every other test, and keeps the run's own filter.
-  The command shown carries it. On Windows, PowerShell may break its quoting when `npx` resolves to `npx.cmd`: start
-  these runs from the desktop app or Run on my machine;
+  Playwright runs whole: Piwi adds a `--grep-invert` that leaves out every other test, and keeps the run's own filter
+  case-insensitive: Piwi refuses `-G /…/` without `i`. The command shown carries it. On Windows, PowerShell may break its quoting when `npx` resolves to
+  `npx.cmd`: start these runs from the desktop app or Run on my machine;
 - **is confirmed**, its name shown, in the desktop app, the app taking a Run on my machine request and the editors'
   question;
 - **is started by a project admin only**: the instance gives a protected environment's run variables, and takes a
@@ -11702,21 +11710,21 @@ and its results over the latest CI run's [failures](./editor-failures).
   call holds the cursor, and **Piwi: Run this spec** every test of the spec; both in the editor's **Piwi** submenu
   on a spec and under VS Code's editor title Run button (the caret in a JetBrains IDE), saving the spec first. **Run** in VS Code's test hover runs it, as
   [the Testing view](#the-testing-view-vs-code) does. A test the instance does not know, such as one just
-  [recorded](./editor-recording#run-it-or-verify-it-three-times), runs by the line of its `test(…)` call,
+  [recorded](./editor-recording#run-it-or-verify-it-three-times), runs by its `test(…)` call's line,
   with or without an instance.
 - **Piwi: Debug the test at the cursor** (**Debug the test at the caret**) runs it as **Debug with Piwi** does:
   headed, at [your breakpoints](./editor-breakpoints), holding each failure at its line.
-- **Piwi: Verify the test at the cursor ×3** (**Verify the test at the caret ×3**) runs that test three times as a
+- **Piwi: Verify the test at the cursor ×3** (**Verify the test at the caret ×3**) runs it three times as a
   [verification](#when-your-run-ends).
 - **Piwi: Run the tests that reach this file** runs every test reaching the active file through
-  [code reach](/features/code-reach); also in the editor's and the file tree's **Piwi** submenu.
+  [code reach](/features/code-reach); also in the editor's and file tree's **Piwi** submenu.
 - **Piwi: Run a saved selection…** runs a [selection](/features/test-selection).
 
-The command, `npx playwright test` with the arguments `piwi run` would pass, runs from the Playwright config's
-folder: as a task in VS Code, in a terminal of its own (**Tasks: Rerun Last Task** restarts it), in the Run tool
-window in a JetBrains IDE, its tests in a test tree beside the output as they run (**Rerun** restarts it), or in the
-IDE's Playwright runner (Debug, **Rerun Failed Tests**), a choice of **Settings → Tools → Piwi**, offered once, that
-keeps every control of a Piwi run, through the runner's Rerun and Debug too. It sets `PIWI_ORIGIN=editor` and its own `PIWI_ORIGIN_REF`
+The command, `npx playwright test` with `piwi run`'s arguments, runs from the Playwright config's folder: as a task
+in VS Code, in a terminal of its own (**Tasks: Rerun Last Task** restarts it), in the Run tool window in a JetBrains
+IDE, its tests in a test tree beside the output as they run (**Rerun** restarts it), or in the IDE's Playwright runner
+(Debug, **Rerun Failed Tests**), a choice of **Settings → Tools → Piwi**, offered once, that keeps every control of a
+Piwi run, through the runner's Rerun and Debug too. It sets `PIWI_ORIGIN=editor` and its own `PIWI_ORIGIN_REF`
 ([run origin](/reference/test-metadata#run-origin)), by which the editor finds its run. Breakpoints and the editor pause it:
 [Pause and step from the editor](./editor-run-control).
 
@@ -11732,11 +11740,11 @@ options…**). A
 
 ## The Testing view (VS Code)
 
-VS Code's Testing view lists the tests `playwright test --list` gives for each config, under their folders and
-`test.describe` blocks, a test of several Playwright projects with a node per project, each with its latest result and
-duration, and where and why it failed (**Peek Error**). A spec is listed again when saved, and read from its text while
-you edit it. A config Playwright cannot list says why. Tests only your instance knows go in **Not in this checkout**,
-which does not run. Results are published as a test run (`Piwi: run #120 on main`); a run in progress shows each test as
+VS Code's Testing view lists the tests `playwright test --list --project=*` gives for each config, under their folders
+and `test.describe` blocks, a test of several Playwright projects with a node per project, each with its latest result
+and duration, and where and why it failed (**Peek Error**). A spec is listed again when saved, and read from its text
+while you edit it. A config Playwright cannot list says why. Tests only your instance knows go in
+**Not in this checkout**, which does not run. Results are published as a test run (`Piwi: run #120 on main`); a run in progress shows each test as
 it begins and ends. Its gutter shows each result in place of Piwi's icon; the line keeps Piwi's hover. A flaky test
 shows as passed, its line ending with _flaky_. An item is named by its test's title alone, as a screen reader reads it,
 and the view's filter finds tests by `@piwi:flaky`, `@piwi:quarantined`, a Playwright tag (`@piwi:@smoke`) or an owner
@@ -11756,10 +11764,10 @@ hides the result icon and its list.
 </figure>
 
 **Run with Piwi**, the view's run profile, runs what you pick by the narrowest filter Playwright takes: a config whole, a
-folder or a spec by its path, a describe block or a test by its line (a loop's by its title), a project's node with
-`--project`. **Debug with Piwi** runs them headed at your breakpoints, holding each failure, and **Verify ×3
-with Piwi** runs them three times. Under Run with Coverage, it also shows their coverage in the Test Coverage view
-([Editor coverage](./editor-coverage)). From a failed test's actions, **Debug with Piwi** runs it as [Debug in my
+folder or a spec by its path, a describe block or a test by its line (a loop's by its title), a project's node, and a
+test Playwright runs only when named (`default: false`), with `--project`. **Debug with Piwi** runs them headed at your breakpoints,
+holding each failure, and **Verify ×3 with Piwi** three times. Under Run with Coverage, it also shows their
+coverage in the Test Coverage view ([Editor coverage](./editor-coverage)). From a failed test's actions, **Debug with Piwi** runs it as [Debug in my
 editor](./debug-in-editor) does, stopping once at the line it failed through. A test the run gave Piwi no result for
 passes when the command exited with 0, else is an error. Debug runs Piwi's run control, not a debug session.
 `piwi.testExplorer` turns the view's Piwi tests off.
@@ -19130,9 +19138,11 @@ In a CI matrix, one job runs `plan` and hands the id to the shard jobs. `run --p
 the reused tests, and the plan names only those, so a test the dashboard has not seen yet runs. With
 Playwright 1.62 or later in the project, it sets `PIWI_PLAN` and `PIWI_PLAN_SKIP=true` for the reporter, which reads the
 plan and skips each reused test itself, naming the run whose pass stands in for it; below 1.62, it passes Playwright's
-`--test-list-invert` naming them. Each shard passes Playwright's own `--shard` and `--pass-with-no-tests`, so a plan
-whose tests were all renamed or deleted runs none and passes. A shard that cannot use the plan runs the whole suite, or
-exits `2` under `--strict`; a shard whose reporter cannot read it runs the whole suite too.
+`--test-list-invert` naming them. Each shard passes Playwright's own `--shard`. A run whose own arguments after `--`
+choose no tests also passes `--pass-with-no-tests`, so a plan whose tests were all renamed or deleted runs none and
+passes; one that chooses its own (a file filter, `--grep`, `--grep-invert`, `--last-failed`, `--only-changed`,
+`--test-list`, `--test-list-invert`) fails as Playwright does when they match nothing. A shard that cannot use the plan
+runs the whole suite, or exits `2` under `--strict`; a shard whose reporter cannot read it runs the whole suite too.
 
 | Flag | Description |
 |---|---|
