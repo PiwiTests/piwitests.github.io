@@ -2169,7 +2169,7 @@ sidebar.
 
 `/analytics`: trends across projects and over time, where Home shows what is happening now. It opens your
 [default dashboard](./dashboards#your-default-dashboard), else the one an administrator set for everyone, else the
-built-in *Overview*; `/analytics/d/:id` opens one
+built-in _Overview_; `/analytics/d/:id` opens one
 [dashboard](./dashboards), which the header switcher picks, and `/analytics/dashboards` lists them all. The filters at the top
 scope every widget; the widgets are listed on [Analytics widgets](/reference/analytics-widgets), and the filters and
 period comparisons on [Analytics](./analytics). [Timeline markers](./timeline-markers) overlay deploys and
@@ -2277,7 +2277,7 @@ command palette or `g` then `s`: your **Account** and connected accounts ([OAuth
 ([SCM credentials](/guide/source-control#set-the-credential)), **Integrations** ([Jira Cloud](/operate/integrations), [Zephyr Scale Cloud](/operate/zephyr-scale)),
 **Performance** ([wasted-time patterns](./slow-tests#wasted-time) and timeout hygiene), **AI** ([AI provider](/guide/ai-provider)),
 **Notifications** ([Notifications & alerts](./notifications)), **Localization**
-([Localization](/operate/localization)) and **About** (version and **Changelog**), and in the [desktop app](./desktop) **Desktop app** first. A setting backed by
+([Localization](/operate/localization)) and **About** (version and **Changelog**), and in the [desktop app](./desktop) **Desktop app** and **Team instance** first. A setting backed by
 an environment variable is shown read-only with the variable's name ([Configuration reference](/reference/configuration)).
 
 ## Setup
@@ -14928,15 +14928,15 @@ Turned off or declined, the instance refuses every request for that project, and
 
 ## Connect the desktop app
 
-In Piwi Desktop, open **Settings → Desktop app → Run on my machine**, enter the instance's address and click
+In Piwi Desktop, open **Settings → Team instance**, enter the instance's address and click
 **Connect**. The app opens the instance's page, which asks you to allow **Piwi Desktop** with the code the app shows.
 Once allowed, the app keeps its key in the operating system's keychain (Keychain on macOS, Credential Manager on
 Windows, the Secret Service on Linux), never in a file, and holds its connection to the instance open while it runs.
 An app connects to one instance at a time. **Disconnect** removes the key from the keychain; the app stays listed in
 the instance's Connected apps until you revoke it there. A key the instance revoked leaves the keychain too.
 
-Each project's folder is linked on this machine, per instance, when its first request asks; **Settings → Desktop
-app** lists them, with **Unlink**. **Find it for me** looks where your runs came from, for the repository's clones and
+Each project's folder is linked on this machine, per instance, when its first request asks, or beforehand on
+**Settings → Team instance**, which lists them with **Unlink**. **Find it for me** looks where your runs came from, for the repository's clones and
 in your code folders; a picked folder without the tests gets a better one offered.
 
 ## Ask for a run
@@ -15023,7 +15023,7 @@ does, so you can show a teammate what happened on your machine. It appears in th
 
 ## Related
 
-- [Desktop app](./desktop): the app that takes requests, and its Settings page
+- [Desktop app](./desktop): the app that takes requests
 - [Desktop app runs](./desktop-runs): the runs the desktop app starts and how you follow them
 - [Share links](./share-links): showing one execution to someone without an account
 
@@ -15049,7 +15049,9 @@ On a failing execution, the situation block gets a **Team CI** line:
 - **The environment differences from the closest CI pass**, in a side panel.
 
 The test's own page shows the same strips in a **Team CI** card, without the conclusion. Neither shows while the app
-is connected to no team instance, or the project's folder is linked to no project of it.
+is connected to no team instance. Connected, a project whose folder is linked to no team project says so, with a link
+to **Settings → Team instance**, where you pick it; a project with no folder on this machine says to link one first,
+under **Project → Settings → Local folder**.
 
 The results are the team's CI runs. Your teammates' runs show apart and never count in the conclusion: their machines
 are not the reference. A run someone asked for with [Run on my machine](./run-on-my-machine) is theirs alone and never
@@ -15088,13 +15090,15 @@ check, never the verdict: the side panel says which run it compared with, and op
 
 ## Setting it up
 
-- **Connect the desktop app to the team instance**: **Settings → Desktop app → Connect**, then allow **Piwi Desktop**
-  on the instance's page. The instance needs sign-in turned on, since the connection's key belongs to you. The same
-  connection takes [Run on my machine](./run-on-my-machine) requests where an administrator turned it on; the
+- **Connect the desktop app to the team instance**: **Settings → Team instance → Connect**, then allow **Piwi
+  Desktop** on the instance's page. The instance needs sign-in turned on, since the connection's key belongs to you.
+  The same connection takes [Run on my machine](./run-on-my-machine) requests where an administrator turned it on; the
   comparison works either way.
-- **Link the project's folder** to the team project in the same card, as Run on my machine does. The comparison reads
-  the team project of the folder your local project is linked to.
-- A connection made before the comparison existed cannot compare: the card says so, and connecting again replaces it.
+- **Link each project's folder to its team project**: on the same page, **Projects and team projects** lists the
+  projects of the app that have a folder on this machine; pick the team project of each. The comparison reads the CI
+  of the team project the folder is linked to. A Run on my machine request links the folder of its project too. A team
+  project has one folder: picking it for another project moves its link there.
+- A connection made before the comparison existed cannot compare: the page says so, and connecting again replaces it.
 
 It is on for every project. An administrator declines it for the instance on **Settings → Capabilities**, and a
 project in its own settings, where a project can also turn it back on for itself: the team instance then refuses or
