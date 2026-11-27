@@ -1,4 +1,4 @@
-# Piwi Dashboard
+# Piwi
 
 > Free, self-hosted, zero telemetry. CI throws away every report it makes. Piwi keeps them, then groups the failures by root cause, scores the flaky tests, and finds the locator you should have used.
 
@@ -1923,7 +1923,7 @@ Piwi is Playwright-only by design, pre-1.0, and not an "ask AI" button. [Why Piw
 
 # Why Piwi?
 
-Piwi Dashboard gives your Playwright results a permanent, self-hosted home — with live streaming, failure clustering, flaky-test analytics, and optional AI diagnosis on top. This page explains how it relates to tools you may already use, and answers the questions we hear most.
+Piwi gives your Playwright results a permanent, self-hosted home — with live streaming, failure clustering, flaky-test analytics, and optional AI diagnosis on top. This page explains how it relates to tools you may already use, and answers the questions we hear most.
 
 ## The landscape
 
@@ -2005,7 +2005,7 @@ Modest; see [resource requirements](/operate/deployment#resource-requirements). 
 
 ---
 
-<sub>Product names are used for identification only. Piwi Dashboard is an independent project, not affiliated with, endorsed by, or connected to Microsoft Corporation (Playwright), Qameta Software (Allure), EPAM Systems (ReportPortal), Currents Software, or Fault0. Details about third-party products reflect their publicly documented open-source/free tiers and may change — corrections welcome.</sub>
+<sub>Product names are used for identification only. Piwi is an independent project, not affiliated with, endorsed by, or connected to Microsoft Corporation (Playwright), Qameta Software (Allure), EPAM Systems (ReportPortal), Currents Software, or Fault0. Details about third-party products reflect their publicly documented open-source/free tiers and may change — corrections welcome.</sub>
 
 <!-- https://piwitests.dev/guide/privacy -->
 
@@ -10578,7 +10578,7 @@ Email channels and the account flows (verification, password reset, invites) nee
 PIWI_SMTP_HOST=smtp.example.com
 PIWI_SMTP_PORT=587            # default 587
 PIWI_SMTP_FROM=noreply@example.com
-PIWI_SMTP_FROM_NAME=Piwi Dashboard   # optional display name
+PIWI_SMTP_FROM_NAME=Piwi   # optional display name
 PIWI_SMTP_USER=apikey         # only when the server requires authentication
 PIWI_SMTP_PASS=••••••••        # only when the server requires authentication; never returned by the API
 PIWI_SMTP_SECURE=false        # implicit TLS, default on for 465
@@ -18772,7 +18772,7 @@ The page and URL of each object of the model: [Core concepts](./core-concepts#wh
 
 # Configuration generator
 
-Build a ready-to-paste configuration for a self-hosted Piwi Dashboard — as a `.env` file, systemd unit or shell exports; a Docker Compose service, `docker run` command or Kubernetes ConfigMap + Secret; or a hosting-platform manifest for [Railway, Render, Fly.io, Koyeb or Coolify](/operate/deployment#one-click-deploy). Everything below is driven by the same typed registry as the [configuration reference](../configuration), so options, defaults and validation always match your server.
+Build a ready-to-paste configuration for a self-hosted Piwi server — as a `.env` file, systemd unit or shell exports; a Docker Compose service, `docker run` command or Kubernetes ConfigMap + Secret; or a hosting-platform manifest for [Railway, Render, Fly.io, Koyeb or Coolify](/operate/deployment#one-click-deploy). Everything below is driven by the same typed registry as the [configuration reference](../configuration), so options, defaults and validation always match your server.
 
 ## Related
 
@@ -18904,7 +18904,7 @@ npx @piwitests/reporter <command> [options]
 
 | Command | What it does |
 |---|---|
-| [`init`](#init) | Wire a Playwright project up to a Piwi Dashboard |
+| [`init`](#init) | Wire a Playwright project up to a Piwi server |
 | [`skills`](#skills) | Install the Piwi agent skills into this project |
 | [`gate`](#gate) | Fail a CI job on the dashboard's analysis of a run |
 | [`report`](#report) | Print a [quality report](/features/quality-reports) as Markdown, PDF, HTML, CSV or JSON |
