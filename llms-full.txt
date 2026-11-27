@@ -16181,7 +16181,7 @@ isolates the environment.
 
 ## Health checks
 
-`GET /api/health` verifies database connectivity and returns `200 {"status":"ok","database":"ok"}` when healthy, `503 {"status":"error","database":"unreachable"}` otherwise — use it for load-balancer targets, uptime monitors, and container orchestration. The Docker image ships a built-in `HEALTHCHECK` against it, so `docker ps` shows `healthy`/`unhealthy` out of the box. The version endpoint additionally reports the running version and database backend ([Upgrading](./upgrading#verifying-the-upgrade-landed)).
+`GET /api/health` verifies database connectivity and returns `200 {"status":"ok","database":"ok"}` when healthy, `503 {"status":"error","database":"unreachable"}` otherwise — use it for load-balancer targets, uptime monitors, and container orchestration. The Docker image ships a built-in `HEALTHCHECK` against it, so `docker ps` shows `healthy`/`unhealthy`. The version endpoint reports the version and database backend behind sign-in when authentication is on ([Upgrading](./upgrading#verifying-the-upgrade-landed)).
 
 ## Reverse proxy (HTTPS)
 
@@ -16845,7 +16845,8 @@ which role and where.
 
 With authentication on, every endpoint needs a session cookie or an API key whose owner holds the permission the
 endpoint declares (listed per endpoint in the [API docs](https://piwitests.dev/demo/settings/api)). The exceptions are the
-health and version endpoints, the sign-in flows themselves, and live-run streaming, which uses per-run stream tokens.
+health endpoint, the version endpoint (which then answers every field empty), the sign-in flows themselves, and
+live-run streaming, which uses per-run stream tokens.
 
 ## Security properties
 
@@ -18238,10 +18239,11 @@ Three ways, in increasing order of automation:
 - **Settings → About** shows the running version, the build SHA, the Node.js version, the database backend, the
   operating system, and the latest run's reporter and Playwright versions.
 - The version endpoint returns the version, build SHA, database backend, platform and architecture as JSON, along
-  with the Node.js version actually running — no authentication required:
+  with the Node.js version actually running. With authentication on, it tells them only to a caller signed in, here
+  with an API key; anyone else gets every field `null`:
 
   ```bash
-  curl -s http://localhost:3000/api/version
+  node -e "fetch('http://localhost:3000/api/version',{headers:{'X-API-Key':'pd_your_key'}}).then(r=>r.text()).then(console.log)"
   ```
 
 - `GET /api/health` is the readiness probe — it verifies database connectivity and returns 503 when
