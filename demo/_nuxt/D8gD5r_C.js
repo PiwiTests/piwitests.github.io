@@ -1,0 +1,1 @@
+var e=1048576;function t(e){return e===`ceiling`?`The storage is past its quota: new runs are refused until space is freed.`:e===100?`The storage quota is reached: files are not kept, results are.`:null}export{t as n,e as t};
