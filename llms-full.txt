@@ -11990,8 +11990,9 @@ connect in `~/.piwi/desktop.json` (`PIWI_DESKTOP_CONFIG` names another file) onc
   makes, Assert a region and Mock a request, written in the editor ([Code from a pause](./editor-stop-code)).
 - **Record and Assert** in the test's window, through the editor's recorder, and **Pick a locator**, which goes
   to the editor (its Send to editor pairing), as for a run Piwi starts.
-- **Its stops on the desktop app's page of the run**, for a run that reports to [the app](./desktop): which tests wait
-  for the editor (**In Visual Studio Code**), each place opening in the IDE.
+- **Its stops on the desktop app's page of the run**, for a run that reports to [the app](./desktop): the run's header
+  names the editor (**Visual Studio Code follows this run**), then says which tests wait for it, each place opening in
+  the IDE.
 - **Failures.** A failure goes on, as without Piwi, until you turn the run's
   [**Hold failures**](./watch-a-run#hold-failures) on, in the editor or the Runs window.
 
@@ -14838,8 +14839,8 @@ which nobody attends, only one that knows such runs too.
 - **Its code is to copy.** Assert, Assert a region and Mock a request offer the code with **Copy the code** and write
   nothing: "This reproduction runs at commit abc1234 in a throwaway checkout: copy the code into your own file."
   Record is refused there, and a pick goes to the app's window, to copy.
-- **The app keeps it.** Its Local runs tray says where its tests wait (**In Visual Studio Code**), read only, stops it,
-  and shows its verdict when it ends; the editor offers no Stop.
+- **The app keeps it.** Its Local runs tray says where its tests wait for the editor, read only, stops it, and shows
+  its verdict when it ends; the editor offers no Stop.
 
 ## Limits
 
@@ -14917,9 +14918,9 @@ the run here**, brings it back. The window stays open whatever page the app show
 its run leaves the tray and with the app; one the reloaded tray shows no run in closes.
 
 A reproduction, a bisect step or a Flake Lab run that went to the editor open on the project's linked folder
-([A reproduction in your editor](./desktop-runs#a-reproduction-in-your-editor)) says where its tests wait,
-**In Visual Studio Code**, read only, with no **Hold failures**: the editor holds them. Its line is marked while one
-waits, **Stop** still ends it, and it ends with its own verdict.
+([A reproduction in your editor](./desktop-runs#a-reproduction-in-your-editor)) says where its tests wait and in
+which editor, read only, with no **Hold failures**: the editor holds them. Its line is marked while one waits,
+**Stop** still ends it, and it ends with its own verdict.
 
 ## Stops while you look elsewhere
 
